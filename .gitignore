@@ -1,0 +1,42 @@
+# --- Backend (Java / Maven) ---
+/backend/target/
+/backend/.mvn/wrapper/maven-wrapper.jar
+/backend/src/main/resources/application-local.yml
+
+# --- Frontend (Vite / React) ---
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+
+# Entorno y secretos (NUNCA versionar credenciales)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo / IDE
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+.vscode/
+
+# Material de referencia de Jonathan (se conserva en disco, NO en el repo).
+# La copia canonica de decisiones vive versionada en docs/04_DECISIONES.md.
+/docs_base/*.xlsx
+/docs_base/*.pdf
+/docs_base/*.html
+/docs_base/*.docx
+
+# MCP local (contiene token de acceso — NUNCA versionar)
+.mcp.json
+
+# Config local del harness/IDE (permisos por maquina)
+.claude/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

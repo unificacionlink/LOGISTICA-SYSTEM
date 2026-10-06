@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ERP Logístico Corporativo TDEM: requerimientos, compras, almacén y tracking." />
+    <meta name="theme-color" content="#F3F5F8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
+      rel="stylesheet"
+    />
+    <title>ERP Logístico Corporativo</title>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Splash mientras descarga el JS; React lo reemplaza al montar. Estilos en linea: aun no hay CSS. -->
+      <style>
+        .splash { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: #f3f5f8; font-family: "Segoe UI", system-ui, sans-serif; }
+        .splash-marca { display: flex; align-items: center; gap: 10px; }
+        .splash-logo { width: 36px; height: 36px; border-radius: 6px; background: #0b3a6e; color: #fff; display: flex; align-items: center; justify-content: center; font: 600 18px Georgia, serif; }
+        .splash-nombre { font-size: 14px; font-weight: 600; color: #0f1b2d; line-height: 1.2; }
+        .splash-sub { font-size: 11px; color: #66758a; }
+        .splash-pista { width: 176px; height: 3px; border-radius: 2px; background: #dde3ea; overflow: hidden; }
+        .splash-tramo { width: 40%; height: 100%; background: #0b3a6e; animation: splash-mov 1.3s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+        @keyframes splash-mov { from { transform: translateX(-60%); } to { transform: translateX(260%); } }
+      </style>
+      <div class="splash" aria-busy="true">
+        <div class="splash-marca">
+          <div class="splash-logo">T</div>
+          <div><div class="splash-nombre">Logística</div><div class="splash-sub">TDEM · ERP corporativo</div></div>
+        </div>
+        <div class="splash-pista"><div class="splash-tramo"></div></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

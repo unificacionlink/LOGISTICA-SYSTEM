@@ -1,0 +1,11 @@
+-- V2__disable_rls.sql
+-- Migracion a Spring Boot + React (DEC-L008): RLS deja de ser viable porque
+-- las policies leian auth.uid(), un GUC que solo Supabase (PostgREST/GoTrue)
+-- inyecta a partir del JWT; la autorizacion por rol vive 100% en Spring.
+--
+-- DEC-L016: esta migracion antes recorria pg_policies/pg_tables del esquema
+-- public y borraba TODAS las policies y desactivaba RLS. En la BD compartida
+-- con RRHH-SYSTEM eso habria dejado expuestos los datos de RRHH. Como V1 ya
+-- no crea policies ni activa RLS, queda como no-op (se conserva el numero de
+-- version para no alterar el historial de Flyway).
+select 1;

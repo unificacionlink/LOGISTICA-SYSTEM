@@ -1,0 +1,350 @@
+@import "tailwindcss";
+
+/*
+ * Direccion visual: azul corporativo (DEC-L021). "slate" = grises frios
+ * (fondo #f3f5f8, bordes #dde3ea, texto #0f1b2d) que heredan todas las
+ * pantallas sin tocar sus clases; "brand" = azul marino #0b3a6e (700, acciones
+ * principales) y azul acero #2f6fb3 (500, enlaces y graficos). Los tonos de
+ * estado siguen siendo pasteles apagados.
+ */
+@theme {
+  --font-sans: "Geist", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Consolas, monospace;
+
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f3f5f8;
+  --color-slate-200: #dde3ea;
+  --color-slate-300: #c3ccd7;
+  --color-slate-400: #93a0b1;
+  --color-slate-500: #66758a;
+  --color-slate-600: #4a5970;
+  --color-slate-700: #334259;
+  --color-slate-800: #1e2b3e;
+  --color-slate-900: #0f1b2d;
+  --color-slate-950: #08111e;
+
+  --color-brand-50: #eef4fb;
+  --color-brand-100: #d9e6f4;
+  --color-brand-200: #b5cde9;
+  --color-brand-300: #86add9;
+  --color-brand-400: #5189c4;
+  --color-brand-500: #2f6fb3;
+  --color-brand-600: #1d5796;
+  --color-brand-700: #0b3a6e;
+  --color-brand-800: #0a2f59;
+  --color-brand-900: #0a2547;
+  --color-brand-950: #071a33;
+
+  --color-navy-950: #081b34;
+
+  /* Estados en pastel: fondo lavado + texto profundo. */
+  --color-emerald-50: #edf3ec;
+  --color-emerald-100: #dbe8d9;
+  --color-emerald-200: #cfe0cc;
+  --color-emerald-500: #5b8d5f;
+  --color-emerald-600: #447848;
+  --color-emerald-700: #346538;
+  --color-emerald-800: #2a522d;
+
+  --color-rose-50: #fdebec;
+  --color-rose-100: #f9d8da;
+  --color-rose-200: #f3cdd0;
+  --color-rose-500: #c0504d;
+  --color-rose-600: #a83b38;
+  --color-rose-700: #9f2f2d;
+  --color-rose-800: #7f2523;
+
+  --color-amber-50: #fbf3db;
+  --color-amber-100: #f6e8bf;
+  --color-amber-200: #efdca6;
+  --color-amber-500: #b58a1f;
+  --color-amber-600: #a07400;
+  --color-amber-700: #956400;
+  --color-amber-800: #7a5200;
+
+  --color-blue-50: #e1f3fe;
+  --color-blue-100: #cae8fb;
+  --color-blue-200: #b9def5;
+  --color-blue-600: #2a7ab0;
+  --color-blue-700: #1f6c9f;
+  --color-blue-800: #185880;
+  --color-blue-900: #12445f;
+
+  --ease-suave: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Despliegue del sidebar: arranca y frena suave (sin el tiron inicial de ease-out). */
+  --ease-lateral: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Unica sombra del sistema: solo para lo que flota (menus, toast, modal). */
+  --shadow-flotante: 0 16px 40px -12px rgb(27 26 24 / 0.14), 0 2px 6px -2px rgb(27 26 24 / 0.06);
+}
+
+@layer base {
+  * {
+    @apply border-slate-200;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+    font-feature-settings: "ss01", "cv11";
+    line-height: 1.55;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline-color: var(--color-brand-500);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+/*
+ * Tablas que caben en el ancho de la pantalla, sin scroll horizontal ni
+ * saltos de linea: las celdas van en una sola linea y las columnas de texto
+ * marcadas con .col-flex absorben el espacio sobrante y se recortan con "...".
+ * .col-sec = columna secundaria, se oculta en pantallas angostas.
+ */
+@layer components {
+  .tabla {
+    @apply w-full text-left text-sm;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tabla tbody tr {
+    @apply transition-colors duration-150;
+  }
+
+  .tabla tbody tr:hover {
+    @apply bg-slate-50;
+  }
+
+  /* Etiqueta de dato (antes "text-xs uppercase tracking-wide text-slate-400"). */
+  .rotulo {
+    @apply text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500;
+  }
+
+  .tabla th,
+  .tabla td {
+    @apply whitespace-nowrap;
+  }
+
+  .tabla .col-flex {
+    @apply w-full max-w-0 truncate;
+  }
+
+  .tabla .col-sec {
+    @apply hidden lg:table-cell;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+
+/* Entrada de cada pantalla: sube 8px y aparece (solo transform/opacity). */
+@keyframes pagina-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* "backwards" y no "both": al terminar no debe quedar un transform aplicado. Un
+   transform en un ancestro convierte al contenedor en el origen de los
+   position:fixed de adentro (visor de fotos, capas), que dejan de cubrir la
+   ventana y quedan fuera de pantalla en paginas largas. */
+.animate-pagina-in {
+  animation: pagina-in 0.22s var(--ease-suave) backwards;
+}
+
+/* Barra indeterminada de la pantalla de carga: un tramo que cruza de lado a lado. */
+@keyframes carga-indeterminada {
+  from {
+    transform: translateX(-60%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+.animate-carga-indeterminada {
+  animation: carga-indeterminada 1.3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Skeleton: brillo que cruza el bloque, para que se lea como "cargando" y no como vacio. */
+@keyframes skeleton-brillo {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  animation: skeleton-brillo 1.4s ease-in-out infinite;
+}
+
+/* Capa de carga: aparece con un fundido y la tarjeta sube 6px. */
+@keyframes capa-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tarjeta-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-capa-in {
+  animation: capa-in 0.2s ease-out;
+}
+
+.animate-capa-in > * {
+  animation: tarjeta-in 0.35s var(--ease-suave);
+}
+
+/*
+ * Sidebar de escritorio: siempre mide 240px y se RECORTA a 64px (clip-path).
+ * Abrir = animar el recorte, sin recalcular el layout del menu en cada cuadro,
+ * por eso el movimiento es fluido. El recorte tambien limita el area del mouse,
+ * asi que solo el riel visible dispara la apertura.
+ */
+@media (min-width: 64rem) {
+  .sidebar {
+    clip-path: inset(0 176px 0 0);
+    transition: clip-path 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.06s;
+  }
+
+  /* El contenido se corre al abrir el sidebar (no queda tapado), con la misma
+     curva y los mismos tiempos que la cortina. */
+  .contenido-app {
+    transition: padding-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.06s;
+  }
+
+  body:has(.sidebar:hover) .contenido-app,
+  body:has(.sidebar:focus-within) .contenido-app {
+    padding-left: 15rem;
+    transition: padding-left 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.12s;
+  }
+
+  /* Textos: invisibles con el riel plegado (si no, asoman sus primeras letras);
+     aparecen junto con la cortina, sin escalonamiento. */
+  .sidebar-texto {
+    opacity: 0;
+    transition: opacity 0.14s ease;
+  }
+
+  .sidebar:hover .sidebar-texto,
+  .sidebar:focus-within .sidebar-texto {
+    opacity: 1;
+    transition: opacity 0.3s ease 0.16s;
+  }
+
+  /* Borde del riel plegado (el border-r real queda fuera del recorte). */
+  .sidebar::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 63px;
+    width: 1px;
+    background: var(--color-slate-200);
+    transition: opacity 0.2s ease 0.1s;
+  }
+
+  /* Separador de seccion: visible solo con el riel plegado (el titulo ocupa su lugar al abrir). */
+  .sidebar-separador {
+    display: block;
+    opacity: 1;
+    transition: opacity 0.2s ease 0.1s;
+  }
+
+  .sidebar:hover .sidebar-separador,
+  .sidebar:focus-within .sidebar-separador {
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .sidebar:hover::after,
+  .sidebar:focus-within::after {
+    opacity: 0;
+    transition-delay: 0s;
+  }
+
+  .sidebar:hover,
+  .sidebar:focus-within {
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.12s;
+  }
+}

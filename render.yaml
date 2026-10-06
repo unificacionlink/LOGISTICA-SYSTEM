@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: erp-logistica-tdem
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: standard
+    region: virginia
+    branch: master
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRATION_MINUTES
+        value: "480"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: PORT
+        value: "8080"
+      - key: DB_SCHEMA
+        value: logistica
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: STORAGE_BUCKET
+        value: logistica-productos
+      - key: STORAGE_PUBLIC_URL
+        sync: false
+
+# Nota: un unico Web Service (Spring Boot sirve el build estatico de React
+# desde resources/static, ver Dockerfile). Al crear el servicio en Render,
+# verificar en el dashboard que "Health Check Path" quede en /api/health
+# (puede desincronizarse del blueprint, ver aprendizaje de RRHH-SYSTEM).

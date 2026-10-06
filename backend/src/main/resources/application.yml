@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: logistica
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # La BD se comparte con RRHH-SYSTEM (DEC-L016): pool chico para no
+      # competir por las conexiones del pooler de Supabase.
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      # search_path de cada conexion = esquema de LOGISTICA, para que el SQL
+      # sin calificar (JdbcTemplate, @Query nativas) tambien caiga en el.
+      schema: ${DB_SCHEMA:logistica}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        default_schema: ${DB_SCHEMA:logistica}
+        # Asociaciones LAZY en lote (una consulta por cada 50 filas, no una por fila):
+        # con la BD lejos, cada ida y vuelta cuesta ~150 ms desde local.
+        default_batch_fetch_size: 50
+
+  flyway:
+    # Sin baseline-on-migrate: el esquema nace vacio y Flyway aplica V1..Vn
+    # completas. Con baseline activo, una tabla creada a mano antes del primer
+    # arranque haria que V1 se saltara en silencio.
+    locations: classpath:db/migration
+    # Esquema propio dentro de la BD de RRHH (DEC-L016). Lo crea una sola vez
+    # db_design_reference/setup/rrhh_db_esquema_logistica.sql con el rol
+    # logistica_app como dueno; Flyway nunca crea esquemas.
+    schemas: ${DB_SCHEMA:logistica}
+    default-schema: ${DB_SCHEMA:logistica}
+    create-schemas: false
+    placeholders:
+      schema: ${DB_SCHEMA:logistica}
+
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 8MB
+
+server:
+  port: ${PORT:8080}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  cookie-secure: ${COOKIE_SECURE:true}
+  # Storage compatible con S3 (DEC-L015/DEC-L016). Hoy: Supabase Storage del
+  # proyecto de RRHH (endpoint https://<ref>.storage.supabase.co/storage/v1/s3,
+  # region del proyecto, llaves de Storage -> S3 Connection). Opcional a
+  # futuro: Cloudflare R2 (https://<account>.r2.cloudflarestorage.com, region auto).
+  # Sincronizacion de identidad de solo lectura con RRHH-SYSTEM (DEC-L002/DEC-L024):
+  # GET {api-url}/api/integraciones/personal-activo con header X-Service-Token.
+  # Sin api-url la sincronizacion queda apagada (desarrollo sin RRHH).
+  rrhh:
+    api-url: ${RRHH_API_URL:}
+    service-token: ${RRHH_SYNC_SERVICE_TOKEN:}
+    sync-cron: ${RRHH_SYNC_CRON:0 0 6 * * *}
+  storage:
+    endpoint: ${STORAGE_ENDPOINT:}
+    region: ${STORAGE_REGION:auto}
+    access-key-id: ${STORAGE_ACCESS_KEY_ID:}
+    secret-access-key: ${STORAGE_SECRET_ACCESS_KEY:}
+    bucket: ${STORAGE_BUCKET:logistica-productos}
+    public-url: ${STORAGE_PUBLIC_URL:}
