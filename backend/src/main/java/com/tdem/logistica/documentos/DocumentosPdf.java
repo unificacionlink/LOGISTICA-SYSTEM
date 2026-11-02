@@ -318,9 +318,14 @@ final class DocumentosPdf {
         return atributo != null && !atributo.isBlank() ? texto(nombre) + " (" + atributo + ")" : texto(nombre);
     }
 
-    /** "(ADM) Administracion"; sin repetir el codigo si el nombre ya lo trae. */
+    /**
+     * "(ADM) ADMINISTRACION"; sin repetir el codigo si el nombre ya lo trae
+     * como palabra ("0102 LIMA"), no como letras iniciales ("ADM" en "ADMINISTRACION").
+     */
     private static String ceco(String codigo, String nombre) {
-        if (codigo == null || codigo.isBlank() || (nombre != null && nombre.startsWith(codigo))) {
+        boolean nombreTraeCodigo = nombre != null && (nombre.equals(codigo)
+                || nombre.startsWith(codigo + " ") || nombre.startsWith(codigo + "-"));
+        if (codigo == null || codigo.isBlank() || nombreTraeCodigo) {
             return texto(nombre);
         }
         return "(" + codigo + ") " + texto(nombre);

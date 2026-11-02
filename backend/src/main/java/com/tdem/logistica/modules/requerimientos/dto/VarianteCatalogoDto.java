@@ -12,5 +12,7 @@ public record VarianteCatalogoDto(
         String etiqueta,
         UUID familiaId,
         String familiaNombre,
+        UUID tipoId,
+        String tipoNombre,
         String imagenUrl) {
 }

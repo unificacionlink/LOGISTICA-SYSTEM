@@ -9,8 +9,8 @@ import java.util.UUID;
 
 public interface ProductoVarianteRepository extends JpaRepository<ProductoVariante, UUID> {
 
-    @Query("select v from ProductoVariante v join fetch v.producto p join fetch p.familia f " +
-            "where v.active = true and p.active = true order by f.sortOrder, p.name, v.internalVariantCode")
+    @Query("select v from ProductoVariante v join fetch v.producto p join fetch p.familia f join fetch f.tipo t " +
+            "where v.active = true and p.active = true order by t.name, f.code, p.name, v.internalVariantCode")
     List<ProductoVariante> findCatalogoActivo();
 
     @Query("select v from ProductoVariante v join fetch v.producto p " +

@@ -18,6 +18,13 @@ public class FamiliaProducto {
     @Column(name = "family_id")
     private UUID familyId;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_type_id", nullable = false)
+    private TipoProducto tipo;
+
+    @Column(name = "code", nullable = false)
+    private String code;
+
     @Column(name = "name", nullable = false)
     private String name;
 

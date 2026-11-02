@@ -30,4 +30,8 @@ public class Ceco {
 
     @Column(name = "active", nullable = false)
     private boolean active;
+
+    /** Aprobador asignado (DEC-L030); null = cualquier APROBADOR/GERENCIA. Se escribe desde AdminService. */
+    @Column(name = "approver_user_id", insertable = false, updatable = false)
+    private UUID approverUserId;
 }

@@ -5,6 +5,128 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L034 — Familia y Subfamilia como en el maestro SKU (2026-10-12).**
+  El usuario reviso el Excel: `13_Catalogo_SKU` trae **Familia** (6: AC, EP,
+  EQ, HE, MA, MU) y **Subfamilia** (24, p. ej. AC01 ELECTRICO) y el SKU es
+  Familia (2) + Subfamilia (2) + Producto (3). El seed las cargo un nivel mas
+  arriba de como se llaman en el Excel, siguiendo el diccionario de 3
+  niveles: Familia -> `tipo_producto`, Subfamilia -> `familia_producto`, y
+  `subfamilia_producto` = "00 GENERAL" de relleno. No se migran datos ni
+  cambian SKU: solo la presentacion.
+  - La UI dice **Familia › Subfamilia** (`ACCESORIO › ELECTRICO`) en el
+    Catalogo, el buscador del requerimiento, el carrito y las altas/
+    solicitudes de producto.
+  - Filtro unico agrupado (`components/FiltroFamilia`): cada familia con sus
+    subfamilias y la opcion de elegirla entera. Corrige que "ELECTRICO",
+    "INFORMATICA", "GENERAL" y "OFICINA" de distintas familias se mezclaban
+    (limitacion de DEC-L012).
+  - API: `FamiliaDto` y `VarianteCatalogoDto` suman la familia (`tipoId`,
+    `tipoNombre`); los nombres de campo del backend siguen las tablas.
+  - Pendiente con Jonathan: si el nivel `SUBFAMILIA_PRODUCTO` del
+    diccionario se usara; mientras tanto queda oculto.
+
+- **DEC-L033 — Nombres de CECO en mayusculas (2026-10-09).** A pedido del
+  usuario, todo nombre de CECO se guarda en mayusculas, con tildes y sin
+  espacios repetidos (`LIMA LOGÍSTICA`), venga del sync con RR.HH., de la
+  carga Excel o del alta manual (`CodigoCeco.nombre`). Flyway V16 normaliza
+  los existentes (la BD es `en_US.UTF-8`: `upper()` conserva las tildes).
+  Efecto colateral corregido: el PDF omitia el codigo del CECO si el nombre
+  "empezaba" con el (`ADM` en `ADMINISTRACION`); ahora solo si lo trae como
+  palabra (`0102 LIMA`).
+
+- **DEC-L032 — CECO repetidos por el cero inicial (2026-10-09).** En RR.HH.
+  el mismo CECO existe dos veces: `0102 Lima Logística` y `102 LIMA
+  LOGÍSTICA` (al cargar el padron desde Excel se perdio el cero). Eran 25
+  pares entre los 61 CECO de TDEMSRL. El usuario pidio consolidarlos y
+  borrar los repetidos.
+  - **Codigo canonico** (`common/CodigoCeco`): un codigo solo numerico se
+    rellena a 4 digitos, igual que el DNI a 8 (DEC-L028). Se aplica en el
+    sync con RR.HH., la carga Excel de personal y el alta manual de CECOs.
+  - **Sync**: `0102` y `102` son un solo CECO; manda el nombre del que ya
+    venia con 4 digitos. El personal de RR.HH. colgado de `102` queda en
+    `0102`.
+  - **Flyway V15** une los que ya estaban en la BD: pasa los usuarios
+    (`usuario_ceco`) y el aprobador al de 4 digitos y **borra el repetido**;
+    si alguno tuviera requerimientos, NI o puntos de entrega el delete falla
+    por FK y no se aplica nada. Sin par, solo corrige el codigo. Resultado en
+    la BD: 36 CECO activos, sin repetidos.
+  - **Pendiente en RR.HH.**: los repetidos siguen en su BD, con personal y
+    perfiles repartidos entre ambos. Consolidarlos alla (mover referencias y
+    dar de baja logica el de 3 digitos, mas normalizar su importacion de
+    CECO y personal) queda para decidirlo con el responsable de RRHH-SYSTEM:
+    toca datos de produccion de otro sistema. Mientras tanto Logistica ya
+    no los duplica.
+
+- **DEC-L031 — Catalogo completo de CECO desde RR.HH. (2026-10-09).** El
+  usuario detecto que Administracion -> CECOs solo mostraba ADM y OPS, que no
+  son CECOs reales (relleno sembrado por V1). Dos causas: el sync con RR.HH.
+  nunca habia corrido contra esta BD, y aun corriendo solo traia los CECO del
+  personal activo con correo (`personal-activo`): 1 de los 61 de TDEMSRL.
+  - RRHH-SYSTEM publica `GET /api/integraciones/cecos` (solo lectura, mismo
+    `X-Service-Token` y rate limit, DEC-006 de RRHH): numero, nombre y
+    empresa de todos los CECO activos. Sin consultas entre esquemas
+    (DEC-L016): sigue siendo HTTP.
+  - `PersonalSyncService` trae el catalogo en la misma corrida y crea/
+    actualiza todos los CECO por empresa + numero, tengan o no personal.
+  - En cada empresa que RR.HH. cubre, **el CECO que ya no viene se desactiva**
+    (decision del usuario: asi salen ADM y OPS). No se borra: los REQ
+    historicos lo conservan. Nunca se tocan las empresas de alta manual
+    (`identidad_manual_empresa_habilitada`).
+  - Igual que con el personal: si el catalogo llega vacio no se desactiva
+    ningun CECO; si RR.HH. aun no publica el endpoint (404) el sync sigue
+    como antes, con un aviso. Por eso **desplegar RR.HH. primero**.
+  - Resultado del sync: nuevo contador `cecosDesactivados`.
+
+- **DEC-L030 — Adopcion de la V38.7 y Lote 12: roles PYC/GERENCIA y
+  aprobador por CECO (2026-10-09).** Jonathan entrego la V38.7 fusionada
+  (06/10/2026, en `docs_base/V38_7_ENTREGA_2026-10-06/`, gitignored: trae
+  credenciales demo y datos de la empresa). Cambios principales frente al V38:
+  modulo de **Presupuestos** (periodos por CECO/semestre, SKU x 6 meses,
+  aprobacion, precios congelados, control en el REQ, cumplimiento), precios
+  de venta por empresa, plazo de atencion por SKU, compras con necesidad +
+  consolidacion entre REQ + RFQ multiproducto + aprobacion de OC + emision
+  agrupada, pago y liberacion antes del ingreso, cuarentena de lo observado,
+  NI programada/piqueada, recepcion en destino parcial con
+  subsanacion/devolucion, y calificacion de proveedores (F-LOG-03/07).
+  Decisiones del usuario:
+  - **Roles**: se agregan **PYC** (presupuestos) y **GERENCIA**. COMPRAS y
+    ALMACEN siguen dentro de LOGISTICA (no se separan).
+  - **Orden de lotes**: 12 roles/aprobador -> 13 precios de venta y plazo
+    de atencion -> 14 Presupuestos -> 15 control presupuestal y cumplimiento
+    -> 16 necesidad/consolidacion/RFQ multiproducto -> 17 OC con aprobacion,
+    pago y liberacion -> 18 almacen V38.7 -> 19 proveedores y dashboard.
+  - **Compras**: se adopta el modelo V38.7 completo; al construir el Lote 16
+    se reemplaza DEC-L013 (sin consolidacion) y la RFQ automatica al
+    proveedor habitual de DEC-L018.
+  - **Pago antes del ingreso**: configurable por condicion de pago
+    (contado/anticipo exige pago; credito solo la liberacion de Compras). El
+    prototipo exigia pago completo siempre.
+  - No se copian inconsistencias del prototipo: un presupuesto en revision
+    no deja al CECO "sin presupuesto"; el plazo de atencion se edita en el
+    Catalogo; "Proveedor fallo" aplica a toda OC emitida; el modo pruebas de
+    proveedores no existe; la reevaluacion de proveedores si es alcanzable.
+  Lote 12 (Flyway V14):
+  - `rol` PYC y GERENCIA. `ceco.approver_user_id` (+ quien/cuando): un
+    **aprobador por CECO**, que fija ADMIN en Administracion -> CECOs (rol
+    APROBADOR o GERENCIA, activo). Se audita (`ASIGNAR_APROBADOR`).
+  - `aprobacion.assigned_to`: al enviar, el REQ copia el aprobador de su
+    CECO. Decide ese usuario o la GERENCIA que tenga el CECO entre los suyos
+    (`usuario_ceco`); ADMIN decide cualquiera como respaldo. Sin aprobador
+    asignado (o si el asignado es el propio solicitante o esta inactivo)
+    decide cualquier APROBADOR/GERENCIA, como antes.
+  - **Nadie decide su propio requerimiento**, tampoco ADMIN.
+  - A diferencia del prototipo, **cambiar el aprobador del CECO mueve los
+    REQ pendientes** al nuevo (un reemplazo por vacaciones no deja la bandeja
+    trabada).
+  - Visibilidad (`AmbitoAprobacion`): el aprobador ve un REQ enviado si le
+    toca o le toco decidirlo, si no tiene asignado, o (GERENCIA) si el CECO
+    es suyo. Antes cualquier APROBADOR veia cualquier REQ enviado.
+  - El detalle del REQ solo trae `pendingApprovalId` a quien puede decidir;
+    el aviso en vivo va al asignado (`/user/queue/aprobaciones`) o, sin
+    asignado, al topic de siempre. GERENCIA ve Aprobaciones y el dashboard.
+  - Se mantiene la bandeja de Aprobaciones y Rechazar en el menu (DEC-L027);
+    el prototipo los movio al detalle del REQ.
+
 - **DEC-L029 — Ambito del solicitante por CECO y empresa (2026-10-02).**
   Igual que en RRHH-SYSTEM (`perfil_cecos`), el SOLICITANTE solo pide para
   los CECOs que ADMIN le asigna (`usuario_ceco`, sin migracion: la tabla ya
@@ -744,7 +866,8 @@ hardcodeadas), a validar antes de marchar en produccion:
   informe). `SUBFAMILIA_PRODUCTO` (nivel 3 del diccionario, NOT NULL) no
   tiene dato de origen: se creo una subfamilia `00 GENERAL` de paso por cada
   familia (`scripts/seed_catalogo_sku.py`). Ajustar cuando Jonathan defina
-  subfamilias reales.
+  subfamilias reales. **Aclarado en DEC-L034**: en el Excel esos 2 niveles
+  se llaman Familia y Subfamilia, y asi se muestran en la UI.
 - El maestro origen NO trae UOM (confirmado en el Informe V38 Final, seccion
   6). Se sembro `unidad_medida.code = 'ND'` como placeholder explicito
   (`0007_maestros_clasificacion.sql`) y los 725 productos se cargan con esa

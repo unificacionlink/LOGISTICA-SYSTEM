@@ -8,6 +8,7 @@ import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
 import com.tdem.logistica.common.AppConstants.PrioridadRequerimiento;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
+import com.tdem.logistica.modules.aprobaciones.AmbitoAprobacion;
 import com.tdem.logistica.modules.aprobaciones.dto.AprobacionPendienteDto;
 import com.tdem.logistica.modules.requerimientos.dto.*;
 import com.tdem.logistica.realtime.RealtimeNotifier;
@@ -66,6 +67,7 @@ public class RequerimientoService {
     private final RealtimeNotifier realtimeNotifier;
     private final StorageClient storageClient;
     private final Auditoria auditoria;
+    private final AmbitoAprobacion ambitoAprobacion;
 
     public RequerimientoService(
             RequerimientoRepository requerimientoRepository,
@@ -80,7 +82,9 @@ public class RequerimientoService {
             AprobacionRepository aprobacionRepository,
             RealtimeNotifier realtimeNotifier,
             StorageClient storageClient,
-            Auditoria auditoria) {
+            Auditoria auditoria,
+            AmbitoAprobacion ambitoAprobacion) {
+        this.ambitoAprobacion = ambitoAprobacion;
         this.realtimeNotifier = realtimeNotifier;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
@@ -107,12 +111,13 @@ public class RequerimientoService {
         return filas.stream().map(RequerimientoMapper::toDto).toList();
     }
 
-    /** Quien puede ver un REQ (detalle y Tracking): su dueno, LOGISTICA/ADMIN y APROBADOR si ya fue enviado. */
+    /**
+     * Quien puede ver un REQ (detalle y Tracking): su dueno, LOGISTICA/ADMIN y,
+     * ya enviado, el aprobador que le toca o le toco decidirlo (DEC-L030).
+     */
     public void exigirAcceso(Requerimiento r, UsuarioPrincipal principal) {
         boolean esDueno = r.getRequester() != null && r.getRequester().getUserId().equals(principal.userId());
-        boolean esAprobadorDeEnviado = principal.tieneAlgunRol(Roles.APROBADOR)
-                && !EstadoRequerimiento.BORRADOR.equals(r.getStatus());
-        if (!esDueno && !esLogisticaOAdmin(principal) && !esAprobadorDeEnviado) {
+        if (!esDueno && !esLogisticaOAdmin(principal) && !ambitoAprobacion.puedeVerComoAprobador(r, principal)) {
             throw ApiException.forbidden("No tienes permiso para ver este requerimiento.");
         }
     }
@@ -127,11 +132,13 @@ public class RequerimientoService {
                 .map(RequerimientoMapper::toDto)
                 .toList();
         // Pendiente y observacion vigente salen de la misma lectura de aprobaciones.
+        // pendingApprovalId solo viaja si este usuario puede decidirla (DEC-L030).
         List<Aprobacion> aprobaciones = aprobacionRepository.findPorEntidad(EntidadAprobacion.REQUERIMIENTO, id);
         UUID pendingApprovalId = aprobaciones.stream()
                 .filter(a -> EstadoAprobacion.PENDIENTE.equals(a.getStatus()))
-                .map(Aprobacion::getApprovalId)
                 .reduce((primera, ultima) -> ultima)
+                .filter(a -> AmbitoAprobacion.esDecisor(principal) && ambitoAprobacion.puedeDecidir(a, r, principal))
+                .map(Aprobacion::getApprovalId)
                 .orElse(null);
         ObservacionDto observacion = null;
         if (EstadoRequerimiento.OBSERVADO.equals(r.getStatus())) {
@@ -161,7 +168,7 @@ public class RequerimientoService {
         List<VarianteCatalogoDto> variantes = productoVarianteRepository.findCatalogoActivo().stream()
                 .map(v -> RequerimientoMapper.toDto(v, imagenesPorProducto.get(v.getProducto().getProductId())))
                 .toList();
-        List<FamiliaDto> familias = familiaProductoRepository.findByActiveTrueOrderBySortOrder().stream()
+        List<FamiliaDto> familias = familiaProductoRepository.findActivasConTipo().stream()
                 .map(RequerimientoMapper::toDto)
                 .toList();
         List<CecoDto> cecos = cecosPermitidos(principal).stream()
@@ -394,11 +401,30 @@ public class RequerimientoService {
         aprobacion.setEntityType(EntidadAprobacion.REQUERIMIENTO);
         aprobacion.setEntityId(r.getRequestId());
         aprobacion.setStatus(EstadoAprobacion.PENDIENTE);
+        aprobacion.setAssignedTo(aprobadorAsignado(r));
         aprobacionRepository.save(aprobacion);
 
         RequerimientoDto dto = RequerimientoMapper.toDto(r);
-        realtimeNotifier.nuevaAprobacionPendiente(new AprobacionPendienteDto(aprobacion.getApprovalId(), dto));
+        AprobacionPendienteDto pendiente = new AprobacionPendienteDto(aprobacion.getApprovalId(), dto);
+        if (aprobacion.getAssignedTo() != null) {
+            realtimeNotifier.aprobacionAsignada(aprobacion.getAssignedTo(), pendiente);
+        } else {
+            realtimeNotifier.nuevaAprobacionPendiente(pendiente);
+        }
         return dto;
+    }
+
+    /**
+     * DEC-L030: el aprobador del CECO al momento de enviar. Si es el propio
+     * solicitante o ya no esta activo, queda sin asignar (decide cualquier
+     * APROBADOR/GERENCIA distinto del solicitante, o ADMIN).
+     */
+    private UUID aprobadorAsignado(Requerimiento r) {
+        UUID aprobador = r.getCeco().getApproverUserId();
+        if (aprobador == null || (r.getRequester() != null && aprobador.equals(r.getRequester().getUserId()))) {
+            return null;
+        }
+        return usuarioRepository.findById(aprobador).filter(Usuario::isActive).map(Usuario::getUserId).orElse(null);
     }
 
     /**

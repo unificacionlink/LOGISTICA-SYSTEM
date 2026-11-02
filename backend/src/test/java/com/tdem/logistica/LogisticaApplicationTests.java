@@ -58,12 +58,12 @@ class LogisticaApplicationTests {
 	}
 
 	@Test
-	void seedTestDataCreaLosCuatroUsuariosConRolYPassword() {
+	void seedTestDataCreaLosUsuariosConRolYPassword() {
 		List<String> roles = jdbc.queryForList("""
 				select r.code from usuario u
 				join usuario_rol ur on ur.user_id = u.user_id join rol r on r.role_id = ur.role_id
 				where u.corporate_email like '%@logistica.test' order by r.code""", String.class);
-		assertEquals(List.of("ADMIN", "APROBADOR", "LOGISTICA", "SOLICITANTE"), roles);
+		assertEquals(List.of("ADMIN", "APROBADOR", "GERENCIA", "LOGISTICA", "PYC", "SOLICITANTE"), roles);
 
 		String hash = jdbc.queryForObject(
 				"select password_hash from usuario where corporate_email = 'logistica@logistica.test'", String.class);

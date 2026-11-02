@@ -98,11 +98,19 @@ public class AdminController {
         return ApiResponse.ok(service.crearCeco(request, principal), "CECO creado.");
     }
 
+    @PutMapping("/cecos/{id}/aprobador")
+    public ApiResponse<AdminDatosDto> asignarAprobadorCeco(@PathVariable UUID id,
+                                                           @RequestBody AsignarAprobadorCecoRequest request,
+                                                           @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.asignarAprobadorCeco(id, request.userId(), principal), "Aprobador actualizado.");
+    }
+
     @PostMapping("/sincronizar-rrhh")
     public ApiResponse<AdminDatosDto> sincronizar(@AuthenticationPrincipal UsuarioPrincipal principal) {
         AdminDatosDto d = service.sincronizar(principal);
         SyncResultadoDto r = d.ultimoResultado();
         return ApiResponse.ok(d, "Sincronizacion lista: " + r.creados() + " nuevos, " + r.actualizados()
-                + " actualizados, " + r.desactivados() + " desactivados.");
+                + " actualizados, " + r.desactivados() + " desactivados; CECOs: " + r.cecosCreados() + " nuevos, "
+                + r.cecosDesactivados() + " desactivados.");
     }
 }

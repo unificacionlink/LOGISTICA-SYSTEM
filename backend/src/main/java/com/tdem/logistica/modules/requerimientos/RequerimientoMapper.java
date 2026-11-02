@@ -64,11 +64,14 @@ public final class RequerimientoMapper {
                 etiqueta,
                 v.getProducto().getFamilia().getFamilyId(),
                 v.getProducto().getFamilia().getName(),
+                v.getProducto().getFamilia().getTipo().getProductTypeId(),
+                v.getProducto().getFamilia().getTipo().getName(),
                 imagenUrl);
     }
 
     public static FamiliaDto toDto(FamiliaProducto f) {
-        return new FamiliaDto(f.getFamilyId(), f.getName());
+        return new FamiliaDto(f.getFamilyId(), f.getCode(), f.getName(),
+                f.getTipo().getProductTypeId(), f.getTipo().getCode(), f.getTipo().getName());
     }
 
     public static CecoDto toDto(Ceco c) {

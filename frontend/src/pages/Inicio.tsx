@@ -14,7 +14,7 @@ const MODULOS = [
     to: "/aprobaciones",
     titulo: "Aprobaciones",
     descripcion: "Revisa los requerimientos enviados y decide sobre cada uno.",
-    roles: ["APROBADOR", "ADMIN"],
+    roles: ["APROBADOR", "GERENCIA", "ADMIN"],
   },
   {
     to: "/compras",
@@ -60,7 +60,7 @@ export default function Inicio() {
   const modulos = MODULOS.filter((m) => !m.roles || tieneAlgunRol(...m.roles));
   const nombre = usuario?.nombre?.split(" ")[0];
   // El dashboard es para quien gestiona o aprueba; el solicitante ve sus accesos.
-  const conDashboard = tieneAlgunRol("LOGISTICA", "ADMIN", "APROBADOR");
+  const conDashboard = tieneAlgunRol("LOGISTICA", "ADMIN", "APROBADOR", "GERENCIA");
 
   return (
     <div>

@@ -155,7 +155,7 @@ public class DashboardService {
     }
 
     public DashboardDto obtener(int dias, String empresa, UsuarioPrincipal principal) {
-        if (!principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN, Roles.APROBADOR)) {
+        if (!principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN, Roles.APROBADOR, Roles.GERENCIA)) {
             throw ApiException.forbidden("No tienes permiso para ver el dashboard.");
         }
         if (dias < 7 || dias > 730) {

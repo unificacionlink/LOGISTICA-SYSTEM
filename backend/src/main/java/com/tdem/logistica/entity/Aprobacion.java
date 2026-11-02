@@ -41,6 +41,10 @@ public class Aprobacion {
     @Column(name = "decision_reason")
     private String decisionReason;
 
+    /** Quien debe decidir (aprobador del CECO al enviar, DEC-L030); null = cualquier APROBADOR/GERENCIA. */
+    @Column(name = "assigned_to")
+    private UUID assignedTo;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

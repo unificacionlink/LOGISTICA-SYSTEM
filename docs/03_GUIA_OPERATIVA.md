@@ -77,7 +77,7 @@ marcha blanca. Render cobra por servicio y no se puede compartir el de RRHH
 
 ## Usuarios de prueba
 
-4 usuarios (uno por rol, empresa TDEMSRL). El profile `seed-test-data`
+6 usuarios (uno por rol, empresa TDEMSRL). El profile `seed-test-data`
 (`TestDataSeeder`) los crea en `usuario`/`usuario_rol` si no existen y les
 asigna/renueva `password_hash`:
 
@@ -87,6 +87,17 @@ asigna/renueva `password_hash`:
 | logistica@logistica.test | LOGISTICA | Logistica2026! |
 | aprobador@logistica.test | APROBADOR | Logistica2026! |
 | admin@logistica.test | ADMIN | Logistica2026! |
+| gerencia@logistica.test | GERENCIA | Logistica2026! |
+| pyc@logistica.test | PYC | Logistica2026! |
+
+### Sync con RR.HH. en local
+
+Con RRHH-SYSTEM corriendo en local (`npm run dev`, puerto 3000), agregar en
+`application-local.yml` bajo `app:` un bloque `rrhh:` con `api-url:
+http://localhost:3000` y `service-token:` igual a `RRHH_SYNC_SERVICE_TOKEN`
+del `.env.local` de RRHH. Administracion -> RR.HH. -> "Sincronizar ahora"
+trae personal y el catalogo completo de CECO (DEC-L031). Ojo: escribe en el
+esquema `logistica` de la BD compartida.
 
 ## Migraciones y seed
 

@@ -46,7 +46,6 @@ export default function RequerimientoDetalle() {
   const { usuario, tieneAlgunRol } = useAuth();
   const { onMiRequerimientoDecidido } = useRealtime();
   const esGestor = tieneAlgunRol("LOGISTICA", "ADMIN");
-  const esAprobador = tieneAlgunRol("APROBADOR", "ADMIN");
   const [actualizadoEnVivo, setActualizadoEnVivo] = useState(false);
 
   const [detalle, setDetalle] = useState<RequerimientoDetalleType | null>(null);
@@ -214,7 +213,8 @@ export default function RequerimientoDetalle() {
   const observado = requerimiento.status === "OBSERVADO";
   const puedeEnviar = (requerimiento.status === "BORRADOR" || observado) && (esDueno || esGestor);
   const puedeProgramar = esGestor && ESTADOS_PROGRAMABLES.includes(requerimiento.status);
-  const puedeDecidir = esAprobador && requerimiento.status === "PENDIENTE_APROBACION" && !!pendingApprovalId;
+  // El backend solo envia pendingApprovalId a quien le toca decidir (DEC-L030).
+  const puedeDecidir = requerimiento.status === "PENDIENTE_APROBACION" && !!pendingApprovalId;
   const mensajeCreacion = searchParams.get("msg");
 
   return (

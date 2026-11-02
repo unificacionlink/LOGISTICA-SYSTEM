@@ -8,7 +8,7 @@ export const ETIQUETA_ATRIBUTO: Record<TipoAtributo, string> = {
   OTRO: "Otro",
 };
 
-/** Familia agrupada por tipo (EPP, Herramienta...): una sola lista, sin elegir el tipo aparte. */
+/** Subfamilia agrupada por familia (EPP, Herramienta...), como el maestro SKU V38 (DEC-L034): una sola lista. */
 export function SelectorFamilia({
   clasificacion,
   value,

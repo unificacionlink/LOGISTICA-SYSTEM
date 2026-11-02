@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ImageOff, Loader2, Plus, Search, Upload, X } from "lucide-react";
 import { subirImagenProducto } from "../api/requerimientos";
 import type { Familia, VarianteCatalogo } from "../api/types";
+import FiltroFamilia, { coincideFamilia, etiquetaFamilia } from "./FiltroFamilia";
 import { inputClass } from "./ui/Field";
 
 /**
@@ -120,27 +121,19 @@ export default function BuscadorProductos({
   onImagenSubida: (productId: string, url: string) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [familiaNombre, setFamiliaNombre] = useState("");
+  const [filtroFamilia, setFiltroFamilia] = useState("");
   const [subiendoProductId, setSubiendoProductId] = useState<string | null>(null);
   const [errorSubida, setErrorSubida] = useState<string | null>(null);
   const inputArchivoRef = useRef<HTMLInputElement | null>(null);
   const productoParaSubirRef = useRef<string | null>(null);
 
-  // Distintos family_id pueden compartir nombre (p. ej. "ELECTRICO" en mas de
-  // un tipo de producto); el filtro agrupa por nombre para no mostrar
-  // duplicados confusos en el select.
-  const nombresFamilia = useMemo(
-    () => Array.from(new Set(familias.map((f) => f.nombre))).sort((a, b) => a.localeCompare(b)),
-    [familias],
-  );
-
   const resultados = useMemo(() => {
     const q = query.trim().toLowerCase();
     return variantes
-      .filter((v) => !familiaNombre || v.familiaNombre === familiaNombre)
+      .filter((v) => coincideFamilia(filtroFamilia, v.tipoId, v.familiaId))
       .filter((v) => !q || v.etiqueta.toLowerCase().includes(q))
       .slice(0, 8);
-  }, [query, familiaNombre, variantes]);
+  }, [query, filtroFamilia, variantes]);
 
   function abrirSelectorArchivo(productId: string) {
     setErrorSubida(null);
@@ -188,18 +181,7 @@ export default function BuscadorProductos({
             className={`${inputClass} w-full pl-9`}
           />
         </div>
-        <select
-          value={familiaNombre}
-          onChange={(e) => setFamiliaNombre(e.target.value)}
-          className={`${inputClass} w-full sm:w-56`}
-        >
-          <option value="">Todas las familias</option>
-          {nombresFamilia.map((nombre) => (
-            <option key={nombre} value={nombre}>
-              {nombre}
-            </option>
-          ))}
-        </select>
+        <FiltroFamilia familias={familias} value={filtroFamilia} onChange={setFiltroFamilia} className="w-full sm:w-64" />
       </div>
 
       {errorSubida && <p className="mt-2 text-xs text-rose-600">{errorSubida}</p>}
@@ -213,7 +195,7 @@ export default function BuscadorProductos({
             const subiendo = subiendoProductId === v.productId;
             return (
               <li key={v.variantId} className="flex items-center gap-3 px-4 py-2.5">
-                <Miniatura url={v.imagenUrl} titulo={v.nombre} detalle={`${v.codigoVariante} · ${v.familiaNombre}`} />
+                <Miniatura url={v.imagenUrl} titulo={v.nombre} detalle={`${v.codigoVariante} · ${etiquetaFamilia(v.tipoNombre, v.familiaNombre)}`} />
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-600">{v.etiqueta}</span>
                 {enCarrito > 0 && (
                   <span className="shrink-0 text-xs font-medium text-brand-600">En tu pedido · {enCarrito}</span>

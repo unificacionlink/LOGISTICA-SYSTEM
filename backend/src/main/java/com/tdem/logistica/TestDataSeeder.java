@@ -30,7 +30,9 @@ public class TestDataSeeder implements CommandLineRunner {
             "solicitante@logistica.test", new String[]{"Solicitante de Prueba", "SOLICITANTE"},
             "logistica@logistica.test", new String[]{"Logistica de Prueba", "LOGISTICA"},
             "aprobador@logistica.test", new String[]{"Aprobador de Prueba", "APROBADOR"},
-            "admin@logistica.test", new String[]{"Admin de Prueba", "ADMIN"});
+            "admin@logistica.test", new String[]{"Admin de Prueba", "ADMIN"},
+            "gerencia@logistica.test", new String[]{"Gerencia de Prueba", "GERENCIA"},
+            "pyc@logistica.test", new String[]{"PYC de Prueba", "PYC"});
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
@@ -63,12 +65,13 @@ public class TestDataSeeder implements CommandLineRunner {
                 System.out.println("[seed-test-data] listo: " + correo + " (" + datos[1] + ")");
             });
         });
-        // El solicitante solo pide para sus CECOs asignados (DEC-L029): se le dan los de TDEMSRL.
+        // El solicitante solo pide para sus CECOs asignados (DEC-L029); Gerencia y PYC
+        // actuan en el ambito de sus CECOs (DEC-L030): se les dan los de TDEMSRL.
         jdbc.update("""
                 insert into usuario_ceco (user_id, ceco_id)
                 select u.user_id, c.ceco_id
                 from usuario u join ceco c on c.company_id = u.company_id and c.active
-                where u.corporate_email = 'solicitante@logistica.test'
+                where u.corporate_email in ('solicitante@logistica.test', 'gerencia@logistica.test', 'pyc@logistica.test')
                 on conflict do nothing""");
         System.out.println("[seed-test-data] Password para todos: " + PASSWORD);
     }

@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.21.4 — 2026-10-12
+
+- **Familia › Subfamilia del maestro SKU** (DEC-L034): Catalogo, buscador
+  del requerimiento y altas de producto muestran `ACCESORIO › ELECTRICO`.
+  Filtro unico agrupado por familia (con opcion "Todo ACCESORIO"): las
+  subfamilias con el mismo nombre en distintas familias ya no se mezclan.
+- API del catalogo: `familias[]` y `variantes[]` suman `tipoId`/`tipoNombre`
+  (la familia del Excel). Sin migracion.
+
+## 0.21.3 — 2026-10-09
+
+- **Nombres de CECO en mayusculas** (DEC-L033) en el sync, la carga Excel y
+  el alta manual; Flyway V16 normaliza los existentes.
+- PDF: el destino "(ADM) ADMINISTRACION" ya no pierde el codigo.
+
+## 0.21.2 — 2026-10-09
+
+- **CECO repetidos consolidados** (DEC-L032): codigo numerico canonico de
+  4 digitos (`0102` = `102`) en el sync, la carga Excel y el alta manual;
+  Flyway V15 une y borra los 25 repetidos que ya existian. Quedan 36 CECO
+  activos de RR.HH. sin duplicados.
+
+## 0.21.1 — 2026-10-09
+
+- **Todos los CECO de RR.HH.** (DEC-L031): el sync trae el catalogo completo
+  (`GET /api/integraciones/cecos` de RRHH-SYSTEM, nuevo) y no solo los CECO
+  con personal; en las empresas de RR.HH. desactiva los que ya no existen
+  (ADM/OPS de relleno). Probado en local: 61 CECO nuevos, 2 desactivados.
+- Requiere desplegar primero RRHH-SYSTEM con el endpoint nuevo.
+
+## 0.21.0 — 2026-10-09
+
+- **Adopcion de la V38.7** (DEC-L030): analisis de la entrega del
+  06/10/2026 y plan por lotes 12–19. La entrega queda en
+  `docs_base/V38_7_ENTREGA_2026-10-06/` (gitignored).
+- **Lote 12 — Roles PYC y GERENCIA** (Flyway V14).
+- **Aprobador por CECO**: Administracion -> CECOs -> columna "Aprobador"
+  (`PUT /api/admin/cecos/{id}/aprobador`), auditado. Los REQ enviados
+  quedan asignados a ese aprobador (`aprobacion.assigned_to`); reasignar
+  mueve los pendientes.
+- Bandeja y detalle: solo decide el aprobador asignado, la GERENCIA del
+  CECO o ADMIN; **nadie aprueba su propio requerimiento**. El aprobador solo
+  ve los REQ que le tocan.
+- Aviso en vivo dirigido al aprobador asignado. GERENCIA ve Aprobaciones y
+  el dashboard de Inicio.
+- Seed de prueba: `gerencia@` y `pyc@logistica.test` (con los CECOs de
+  TDEMSRL).
+- Test: `AprobadorCecoTest`.
+
 ## 0.20.0 — 2026-10-02
 
 - **Ambito del solicitante por CECO** (DEC-L029): el formulario de

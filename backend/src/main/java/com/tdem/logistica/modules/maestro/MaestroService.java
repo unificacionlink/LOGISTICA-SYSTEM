@@ -264,7 +264,7 @@ public class MaestroService {
 
     private static final String SELECT_SOLICITUD = """
             select s.product_master_request_id, s.request_code, s.status, e.code as empresa, u.display_name,
-              s.requested_at, s.proposed_family_id, t.code || f.code || ' ' || f.name as familia, s.proposed_name,
+              s.requested_at, s.proposed_family_id, t.code || f.code || ' ' || t.name || ' › ' || f.name as familia, s.proposed_name,
               s.proposed_uom_id, m.code as unidad, s.proposed_attribute_type, s.proposed_attribute_value,
               s.technical_description, s.justification, s.duplicate_check_status, s.review_comment, p.sku_base
             from solicitud_maestro_producto s

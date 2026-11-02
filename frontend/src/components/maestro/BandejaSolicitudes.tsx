@@ -123,7 +123,7 @@ function Pendiente({
 
       <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-xs sm:grid-cols-4">
         <div>
-          <dt className="rotulo">Familia</dt>
+          <dt className="rotulo">Familia › Subfamilia</dt>
           <dd className="text-slate-700">{s.familia}</dd>
         </div>
         <div>
@@ -160,7 +160,7 @@ function Pendiente({
           <Field label="Nombre del producto" required>
             <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={`${inputClass} w-full`} />
           </Field>
-          <Field label="Familia" required>
+          <Field label="Familia › Subfamilia" required>
             <SelectorFamilia clasificacion={clasificacion} value={familyId} onChange={setFamilyId} />
           </Field>
           <Field label="Unidad" required>

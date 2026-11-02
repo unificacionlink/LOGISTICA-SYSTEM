@@ -11,5 +11,6 @@ public record SyncResultadoDto(
         int actualizados,
         int desactivados,
         int cecosCreados,
+        int cecosDesactivados,
         List<String> avisos) {
 }

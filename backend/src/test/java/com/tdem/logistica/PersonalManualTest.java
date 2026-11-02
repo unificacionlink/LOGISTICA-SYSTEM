@@ -97,7 +97,7 @@ class PersonalManualTest {
 		assertEquals("Supervisor", jdbc.queryForObject("select cargo from usuario where user_id = ?", String.class, luis));
 		assertEquals(1, contar("""
 				select count(*) from ceco c join empresa e on e.company_id = c.company_id
-				where e.code = 'GOYDELSAC' and c.code = 'OPE' and c.name = 'Operaciones'"""));
+				where e.code = 'GOYDELSAC' and c.code = 'OPE' and c.name = 'OPERACIONES'"""));
 		assertEquals(2, contar("""
 				select count(*) from usuario_ceco uc join ceco c on c.ceco_id = uc.ceco_id where c.code = 'OPE'"""));
 		assertEquals(List.of("SOLICITANTE"), roles("luis@goydel.pe"));

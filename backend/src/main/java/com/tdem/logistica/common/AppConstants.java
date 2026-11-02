@@ -46,6 +46,10 @@ public final class AppConstants {
         public static final String LOGISTICA = "LOGISTICA";
         public static final String APROBADOR = "APROBADOR";
         public static final String ADMIN = "ADMIN";
+        /** Administrador de presupuestos (V38.7, DEC-L030). */
+        public static final String PYC = "PYC";
+        /** Decide en el ambito de sus CECOs (V38.7, DEC-L030). */
+        public static final String GERENCIA = "GERENCIA";
     }
 
     public static final class EstadoAprobacion {

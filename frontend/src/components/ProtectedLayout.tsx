@@ -37,7 +37,7 @@ const NAV_GRUPOS: { id: string; titulo: string | null; items: NavItem[] }[] = [
     titulo: "Solicitudes",
     items: [
       { to: "/requerimientos", label: "Requerimientos", icon: ClipboardList, roles: null },
-      { to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare, roles: ["APROBADOR", "ADMIN"] },
+      { to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare, roles: ["APROBADOR", "GERENCIA", "ADMIN"] },
     ],
   },
   {

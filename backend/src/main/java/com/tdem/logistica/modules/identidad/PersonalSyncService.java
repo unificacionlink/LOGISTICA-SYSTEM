@@ -1,10 +1,12 @@
 package com.tdem.logistica.modules.identidad;
 
 import com.tdem.logistica.common.ApiException;
+import com.tdem.logistica.common.CodigoCeco;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.Ceco;
 import com.tdem.logistica.entity.Empresa;
 import com.tdem.logistica.entity.Usuario;
+import com.tdem.logistica.modules.identidad.RrhhClient.CecoCatalogoRrhh;
 import com.tdem.logistica.modules.identidad.RrhhClient.PersonalRrhh;
 import com.tdem.logistica.modules.identidad.dto.SyncResultadoDto;
 import com.tdem.logistica.repository.CecoRepository;
@@ -30,8 +32,11 @@ import java.util.stream.Collectors;
  *   <li>Upsert de {@code usuario} por DNI ({@code employee_external_id}). Si
  *       no existe por DNI pero si por correo (alta MANUAL previa), esa fila
  *       pasa a RRHH_SYNC sin duplicarse.</li>
- *   <li>CECO del trabajador: se crea/actualiza por empresa + numero y se
- *       agrega a {@code usuario_ceco}.</li>
+ *   <li>Catalogo de CECO (DEC-L031): todos los CECO activos de RRHH se
+ *       crean/actualizan por empresa + numero, tengan o no personal. En cada
+ *       empresa que RRHH cubre, el CECO que ya no viene se desactiva (asi
+ *       salen los de relleno ADM/OPS); no se borra, por el historial.</li>
+ *   <li>CECO del trabajador: se agrega a {@code usuario_ceco}.</li>
  *   <li>Un usuario nuevo nace con rol SOLICITANTE en su empresa; los demas
  *       roles los asigna ADMIN (RRHH no sabe de roles de Logistica).</li>
  *   <li>Quien deja de aparecer como activo en RRHH se desactiva (RF-041). Si
@@ -86,7 +91,8 @@ public class PersonalSyncService {
         }
         try {
             List<PersonalRrhh> personal = rrhh.personalActivo();
-            SyncResultadoDto r = tx.execute(estado -> aplicar(personal));
+            List<CecoCatalogoRrhh> cecos = rrhh.cecosActivos();
+            SyncResultadoDto r = tx.execute(estado -> aplicar(personal, cecos));
             ultimo = r;
             log.info("Sync RRHH: {}", r);
             return r;
@@ -95,7 +101,7 @@ public class PersonalSyncService {
         }
     }
 
-    private SyncResultadoDto aplicar(List<PersonalRrhh> personal) {
+    private SyncResultadoDto aplicar(List<PersonalRrhh> personal, List<CecoCatalogoRrhh> catalogo) {
         Instant ahora = Instant.now();
         Map<String, Empresa> empresas = empresaRepository.findAll().stream()
                 .collect(Collectors.toMap(Empresa::getCode, Function.identity()));
@@ -106,7 +112,47 @@ public class PersonalSyncService {
         Set<String> dnisActivos = new HashSet<>();
         int creados = 0;
         int actualizados = 0;
-        int cecosCreados = 0;
+        int[] cecosCreados = {0};
+
+        // Catalogo completo de CECO (DEC-L031): codigos vigentes por empresa.
+        // DEC-L032: 0102 y 102 son el mismo CECO; manda el nombre del que ya venia con 4 digitos.
+        Map<UUID, Set<String>> vigentesPorEmpresa = new HashMap<>();
+        Map<String, String> nombreCatalogo = new HashMap<>();
+        // Catalogo vacio: igual que con el personal, se asume un error y no se desactiva ningun CECO.
+        boolean catalogoValido = catalogo != null && !catalogo.isEmpty();
+        if (catalogo == null) {
+            avisos.add("RR.HH. aun no publica el catalogo de CECO: solo se traen los CECO del personal.");
+        } else if (catalogo.isEmpty()) {
+            avisos.add("RR.HH. no devolvio CECOs: no se desactivo ningun CECO.");
+        } else {
+            Map<String, Empresa> empresaDe = new LinkedHashMap<>();
+            Set<String> nombreCanonico = new HashSet<>();
+            for (CecoCatalogoRrhh c : catalogo) {
+                String codigo = CodigoCeco.normalizar(c.numero());
+                if (codigo.isEmpty()) {
+                    continue;
+                }
+                Empresa empresa = empresas.get(limpiar(c.empresa()));
+                if (empresa == null) {
+                    avisos.add("CECO " + codigo + ": la empresa \"" + c.empresa() + "\" no existe en Logistica.");
+                    continue;
+                }
+                String clave = empresa.getCompanyId() + "|" + codigo;
+                empresaDe.put(clave, empresa);
+                boolean canonico = CodigoCeco.esCanonico(c.numero());
+                if (!nombreCatalogo.containsKey(clave) || (canonico && !nombreCanonico.contains(clave))) {
+                    nombreCatalogo.put(clave, c.nombre());
+                }
+                if (canonico) {
+                    nombreCanonico.add(clave);
+                }
+            }
+            for (Map.Entry<String, Empresa> e : empresaDe.entrySet()) {
+                String codigo = e.getKey().substring(e.getKey().indexOf('|') + 1);
+                upsertCeco(e.getValue(), codigo, nombreCatalogo.get(e.getKey()), cecosCreados);
+                vigentesPorEmpresa.computeIfAbsent(e.getValue().getCompanyId(), k -> new HashSet<>()).add(codigo);
+            }
+        }
 
         for (PersonalRrhh p : personal) {
             String dni = limpiar(p.dni());
@@ -125,22 +171,11 @@ public class PersonalSyncService {
 
             Ceco ceco = null;
             if (p.ceco() != null && !limpiar(p.ceco().numero()).isEmpty()) {
-                String codigo = limpiar(p.ceco().numero());
-                String nombreCeco = limpiar(p.ceco().nombre()).isEmpty() ? codigo : limpiar(p.ceco().nombre());
-                ceco = cecoRepository.findByEmpresa_CompanyIdAndCode(empresa.getCompanyId(), codigo).orElse(null);
-                if (ceco == null) {
-                    ceco = new Ceco();
-                    ceco.setCecoId(UUID.randomUUID());
-                    ceco.setEmpresa(empresa);
-                    ceco.setCode(codigo);
-                    ceco.setName(nombreCeco);
-                    ceco.setActive(true);
-                    cecoRepository.save(ceco);
-                    cecosCreados++;
-                } else if (!ceco.getName().equals(nombreCeco) || !ceco.isActive()) {
-                    ceco.setName(nombreCeco);
-                    ceco.setActive(true);
-                    cecoRepository.save(ceco);
+                String codigo = CodigoCeco.normalizar(p.ceco().numero());
+                String nombreCeco = nombreCatalogo.getOrDefault(empresa.getCompanyId() + "|" + codigo, p.ceco().nombre());
+                ceco = upsertCeco(empresa, codigo, nombreCeco, cecosCreados);
+                if (catalogoValido) {
+                    vigentesPorEmpresa.computeIfAbsent(empresa.getCompanyId(), k -> new HashSet<>()).add(codigo);
                 }
             }
 
@@ -204,7 +239,46 @@ public class PersonalSyncService {
                 }
             }
         }
-        return new SyncResultadoDto(ahora, personal.size(), creados, actualizados, desactivados, cecosCreados, avisos);
+
+        // Solo en empresas que RRHH cubre (vinieron en el catalogo); nunca las de alta manual.
+        Set<UUID> manuales = new HashSet<>(jdbc.queryForList(
+                "select company_id from identidad_manual_empresa_habilitada", UUID.class));
+        int cecosDesactivados = 0;
+        for (Map.Entry<UUID, Set<String>> e : vigentesPorEmpresa.entrySet()) {
+            if (manuales.contains(e.getKey())) {
+                continue;
+            }
+            for (Ceco c : cecoRepository.findByEmpresa_CompanyIdAndActiveTrue(e.getKey())) {
+                if (!e.getValue().contains(c.getCode())) {
+                    c.setActive(false);
+                    cecoRepository.save(c);
+                    cecosDesactivados++;
+                }
+            }
+        }
+        return new SyncResultadoDto(ahora, personal.size(), creados, actualizados, desactivados,
+                cecosCreados[0], cecosDesactivados, avisos);
+    }
+
+    /** Crea o actualiza (y reactiva) el CECO por empresa + numero. */
+    private Ceco upsertCeco(Empresa empresa, String codigo, String nombre, int[] creados) {
+        String nombreCeco = limpiar(nombre).isEmpty() ? codigo : CodigoCeco.nombre(nombre); // DEC-L033
+        Ceco ceco = cecoRepository.findByEmpresa_CompanyIdAndCode(empresa.getCompanyId(), codigo).orElse(null);
+        if (ceco == null) {
+            ceco = new Ceco();
+            ceco.setCecoId(UUID.randomUUID());
+            ceco.setEmpresa(empresa);
+            ceco.setCode(codigo);
+            ceco.setName(nombreCeco);
+            ceco.setActive(true);
+            cecoRepository.save(ceco);
+            creados[0]++;
+        } else if (!ceco.getName().equals(nombreCeco) || !ceco.isActive()) {
+            ceco.setName(nombreCeco);
+            ceco.setActive(true);
+            cecoRepository.save(ceco);
+        }
+        return ceco;
     }
 
     private static String limpiar(String s) {

@@ -1,6 +1,7 @@
 package com.tdem.logistica.modules.identidad;
 
 import com.tdem.logistica.common.ApiException;
+import com.tdem.logistica.common.CodigoCeco;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.Ceco;
 import com.tdem.logistica.entity.Empresa;
@@ -365,8 +366,8 @@ public class PersonalManualService {
         String nombre = v.get(COL_NOMBRE).replaceAll("\\s+", " ");
         String correo = v.get(COL_CORREO).toLowerCase(Locale.ROOT);
         String cargo = v.get(COL_CARGO).isEmpty() ? null : v.get(COL_CARGO);
-        String cecoCodigo = v.get(COL_CECO).isEmpty() ? null : v.get(COL_CECO).toUpperCase(Locale.ROOT);
-        String cecoNombre = v.get(COL_CECO_NOMBRE);
+        String cecoCodigo = v.get(COL_CECO).isEmpty() ? null : CodigoCeco.normalizar(v.get(COL_CECO)); // DEC-L032
+        String cecoNombre = CodigoCeco.nombre(v.get(COL_CECO_NOMBRE)); // DEC-L033
         String rol = v.get(COL_ROL).toUpperCase(Locale.ROOT);
         String textoActivo = v.get(COL_ACTIVO).toUpperCase(Locale.ROOT).replace("Í", "I");
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Building2, Copy, FileSpreadsheet, RefreshCw, Search, UserPlus, Users } from "lucide-react";
 import {
+  asignarAprobadorCeco,
   asignarRoles,
   cambiarActivo,
   crearCeco,
@@ -37,6 +38,8 @@ const PESTANAS: { id: Pestana; label: string; icon: typeof Users }[] = [
 const ETIQUETA_ROL: Record<string, string> = {
   SOLICITANTE: "Solicitante",
   APROBADOR: "Aprobador",
+  GERENCIA: "Gerencia",
+  PYC: "PYC / Presupuestos",
   LOGISTICA: "Logística",
   ADMIN: "Administrador",
 };
@@ -594,6 +597,26 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
   const [code, setCode] = useState("");
   const [nombre, setNombre] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [asignando, setAsignando] = useState<string | null>(null);
+  // Solo vigentes: los CECO que RR.HH. ya no tiene (ADM/OPS de relleno) quedan inactivos por historial.
+  const activos = useMemo(() => datos.cecos.filter((c) => c.activo), [datos.cecos]);
+  // Aprobador del CECO (DEC-L030): usuarios activos con rol Aprobador o Gerencia.
+  const aprobadores = useMemo(
+    () =>
+      datos.usuarios
+        .filter((u) => u.activo && (u.roles.includes("APROBADOR") || u.roles.includes("GERENCIA")))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [datos.usuarios],
+  );
+
+  async function onAprobador(cecoId: string, userId: string) {
+    setAsignando(cecoId);
+    try {
+      aplicar(await asignarAprobadorCeco(cecoId, userId || null));
+    } finally {
+      setAsignando(null);
+    }
+  }
 
   async function onCrear(e: React.FormEvent) {
     e.preventDefault();
@@ -649,7 +672,7 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
         </div>
       )}
       <Card className="overflow-hidden">
-        {datos.cecos.length === 0 ? (
+        {activos.length === 0 ? (
           <EmptyState icon={Building2} title="Aún no hay CECOs" />
         ) : (
           <table className="tabla">
@@ -658,17 +681,34 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
                 <th className={thClass}>Empresa</th>
                 <th className={thClass}>Código</th>
                 <th className={thClass}>Nombre</th>
+                <th className={thClass}>Aprobador</th>
                 <th className={thClass}>Origen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {datos.cecos.map((c) => {
+              {activos.map((c) => {
                 const manual = datos.empresas.find((e) => e.code === c.empresaCode)?.altaManual;
                 return (
-                  <tr key={c.id} className={c.activo ? "" : "text-slate-400"}>
+                  <tr key={c.id}>
                     <td className="px-5 py-2.5 font-mono text-xs">{c.empresaCode}</td>
                     <td className="px-5 py-2.5 font-mono text-xs">{c.code}</td>
                     <td className="col-flex px-5 py-2.5 text-sm">{c.nombre}</td>
+                    <td className="px-5 py-2">
+                      <select
+                        aria-label={`Aprobador de ${c.code}`}
+                        value={c.aprobadorId ?? ""}
+                        disabled={asignando === c.id}
+                        onChange={(e) => onAprobador(c.id, e.target.value)}
+                        className={`${inputClass} w-56 py-1.5 text-xs`}
+                      >
+                        <option value="">Cualquier aprobador</option>
+                        {aprobadores.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-5 py-2.5 text-xs text-slate-500">{manual ? "Manual" : "RR.HH."}</td>
                   </tr>
                 );
@@ -750,6 +790,11 @@ function PestanaRrhh({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar }
               <span>
                 <b className="text-slate-900">{r.cecosCreados}</b> CECOs nuevos
               </span>
+              {r.cecosDesactivados > 0 && (
+                <span>
+                  <b className="text-rose-700">{r.cecosDesactivados}</b> CECOs desactivados
+                </span>
+              )}
             </div>
             {r.avisos.length > 0 && (
               <ul className="mt-3 flex flex-col gap-1 text-xs text-amber-800">

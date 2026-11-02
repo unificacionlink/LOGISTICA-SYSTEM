@@ -32,6 +32,7 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         Map<String, Object> attrs = accessor.getSessionAttributes();
         if (attrs == null) return false;
         List<String> roles = (List<String>) attrs.get(WebSocketAuthHandshakeInterceptor.ATTR_ROLES);
-        return roles != null && (roles.contains(Roles.APROBADOR) || roles.contains(Roles.ADMIN));
+        return roles != null && (roles.contains(Roles.APROBADOR) || roles.contains(Roles.GERENCIA)
+                || roles.contains(Roles.ADMIN));
     }
 }

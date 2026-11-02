@@ -37,7 +37,7 @@ export default function Toast() {
   }, [onMiRequerimientoDecidido, location.pathname]);
 
   useEffect(() => {
-    if (!tieneAlgunRol("APROBADOR", "ADMIN")) return;
+    if (!tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN")) return;
     return onNuevaAprobacion((pendiente) => {
       if (location.pathname === "/aprobaciones") return;
       setMensaje({ texto: `Nuevo requerimiento por aprobar: ${pendiente.requerimiento.code}.`, ir: "/aprobaciones" });

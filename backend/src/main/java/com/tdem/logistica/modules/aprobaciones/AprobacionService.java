@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -41,6 +42,7 @@ public class AprobacionService {
     private final UsuarioRepository usuarioRepository;
     private final StockService stockService;
     private final ComprasService comprasService;
+    private final AmbitoAprobacion ambito;
 
     public AprobacionService(
             AprobacionRepository aprobacionRepository,
@@ -48,17 +50,19 @@ public class AprobacionService {
             RealtimeNotifier realtimeNotifier,
             UsuarioRepository usuarioRepository,
             StockService stockService,
-            ComprasService comprasService) {
+            ComprasService comprasService,
+            AmbitoAprobacion ambito) {
         this.aprobacionRepository = aprobacionRepository;
         this.requerimientoRepository = requerimientoRepository;
         this.realtimeNotifier = realtimeNotifier;
         this.usuarioRepository = usuarioRepository;
         this.stockService = stockService;
         this.comprasService = comprasService;
+        this.ambito = ambito;
     }
 
     private void exigirAprobadorOAdmin(UsuarioPrincipal principal) {
-        if (!principal.tieneAlgunRol(Roles.APROBADOR, Roles.ADMIN)) {
+        if (!AmbitoAprobacion.esDecisor(principal)) {
             throw ApiException.forbidden("No tienes permiso para gestionar aprobaciones.");
         }
     }
@@ -70,9 +74,12 @@ public class AprobacionService {
         List<UUID> requestIds = pendientes.stream().map(Aprobacion::getEntityId).toList();
         Map<UUID, Requerimiento> porId = requerimientoRepository.findByIdsConDetalle(requestIds).stream()
                 .collect(Collectors.toMap(Requerimiento::getRequestId, r -> r));
+        // DEC-L030: solo lo que a este usuario le toca decidir.
+        Set<UUID> misCecos = principal.tieneAlgunRol(Roles.GERENCIA) ? ambito.cecosDe(principal.userId()) : Set.of();
 
         return pendientes.stream()
                 .filter(a -> porId.containsKey(a.getEntityId()))
+                .filter(a -> ambito.puedeDecidir(a, porId.get(a.getEntityId()), principal, misCecos))
                 .map(a -> new AprobacionPendienteDto(a.getApprovalId(), RequerimientoMapper.toDto(porId.get(a.getEntityId()))))
                 .toList();
     }
@@ -102,6 +109,12 @@ public class AprobacionService {
                 .orElseThrow(() -> ApiException.notFound("Requerimiento no encontrado."));
         if (!EstadoRequerimiento.PENDIENTE_APROBACION.equals(requerimiento.getStatus())) {
             throw ApiException.badRequest("El requerimiento ya no esta pendiente de aprobacion.");
+        }
+        if (requerimiento.getRequester() != null && requerimiento.getRequester().getUserId().equals(principal.userId())) {
+            throw ApiException.forbidden("No puedes decidir tu propio requerimiento.");
+        }
+        if (!ambito.puedeDecidir(aprobacion, requerimiento, principal)) {
+            throw ApiException.forbidden("Este requerimiento lo decide el aprobador asignado a su CECO.");
         }
 
         aprobacion.setStatus(request.decision());

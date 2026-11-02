@@ -20,9 +20,17 @@ public class RealtimeNotifier {
         this.messagingTemplate = messagingTemplate;
     }
 
-    /** Avisa a todos los APROBADOR/ADMIN conectados (autorizado en el SUBSCRIBE, ver StompChannelInterceptor). */
+    /**
+     * REQ sin aprobador asignado: avisa a todos los APROBADOR/GERENCIA/ADMIN
+     * conectados (autorizado en el SUBSCRIBE, ver StompChannelInterceptor).
+     */
     public void nuevaAprobacionPendiente(AprobacionPendienteDto dto) {
         messagingTemplate.convertAndSend("/topic/aprobaciones", dto);
+    }
+
+    /** REQ con aprobador asignado (DEC-L030): solo a ese usuario. */
+    public void aprobacionAsignada(UUID aprobadorUserId, AprobacionPendienteDto dto) {
+        messagingTemplate.convertAndSendToUser(aprobadorUserId.toString(), "/queue/aprobaciones", dto);
     }
 
     /** Avisa solo al dueno del requerimiento (cualquier pestana suya conectada). */

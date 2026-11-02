@@ -75,6 +75,11 @@ export function crearCeco(empresaCode: string, code: string, nombre: string) {
   return http.post<AdminDatos>("/api/admin/cecos", { empresaCode, code, nombre });
 }
 
+/** Aprobador del CECO (DEC-L030); null lo deja sin asignar. */
+export function asignarAprobadorCeco(cecoId: string, userId: string | null) {
+  return http.put<AdminDatos>(`/api/admin/cecos/${cecoId}/aprobador`, { userId });
+}
+
 export function sincronizarRrhh() {
   return http.post<AdminDatos>("/api/admin/sincronizar-rrhh");
 }

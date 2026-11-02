@@ -127,9 +127,9 @@ function Tarjeta({ r, esGestor }: { r: Requerimiento; esGestor: boolean }) {
 export default function Requerimientos() {
   const { tieneAlgunRol } = useAuth();
   const esGestor = tieneAlgunRol("LOGISTICA", "ADMIN");
-  // Quien ve todo (Logistica/Admin/Aprobador) ve las 3 columnas aunque alguna este vacia;
+  // Quien ve todo (Logistica/Admin/Aprobador/Gerencia) ve las 3 columnas aunque alguna este vacia;
   // el solicitante solo las empresas donde tiene requerimientos.
-  const veTodo = esGestor || tieneAlgunRol("APROBADOR");
+  const veTodo = esGestor || tieneAlgunRol("APROBADOR", "GERENCIA");
   const [items, setItems] = useState<Requerimiento[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);

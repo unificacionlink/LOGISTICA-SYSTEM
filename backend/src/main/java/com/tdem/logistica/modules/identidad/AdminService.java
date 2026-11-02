@@ -1,6 +1,8 @@
 package com.tdem.logistica.modules.identidad;
 
 import com.tdem.logistica.common.ApiException;
+import com.tdem.logistica.common.Auditoria;
+import com.tdem.logistica.common.CodigoCeco;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.Ceco;
 import com.tdem.logistica.entity.Empresa;
@@ -49,11 +51,13 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final AccesoVigente accesoVigente;
     private final JdbcTemplate jdbc;
+    private final Auditoria auditoria;
 
     public AdminService(UsuarioRepository usuarioRepository, UsuarioRolRepository usuarioRolRepository,
                         RolRepository rolRepository, EmpresaRepository empresaRepository, CecoRepository cecoRepository,
                         PersonalSyncService syncService, PasswordEncoder passwordEncoder, AccesoVigente accesoVigente,
-                        JdbcTemplate jdbc) {
+                        JdbcTemplate jdbc, Auditoria auditoria) {
+        this.auditoria = auditoria;
         this.usuarioRepository = usuarioRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.rolRepository = rolRepository;
@@ -96,7 +100,8 @@ public class AdminService {
                 .map(e -> new EmpresaAdminDto(e.getCompanyId(), e.getCode(), e.getLegalName(), manuales.contains(e.getCompanyId())))
                 .toList();
         List<CecoAdminDto> cecosDto = cecoRepository.findAllConEmpresa().stream()
-                .map(c -> new CecoAdminDto(c.getCecoId(), c.getEmpresa().getCode(), c.getCode(), c.getName(), c.isActive()))
+                .map(c -> new CecoAdminDto(c.getCecoId(), c.getEmpresa().getCode(), c.getCode(), c.getName(), c.isActive(),
+                        c.getApproverUserId()))
                 .toList();
         Timestamp ultima = jdbc.queryForObject(
                 "select max(source_synced_at) from usuario where fuente = 'RRHH_SYNC'", Timestamp.class);
@@ -281,7 +286,7 @@ public class AdminService {
     public AdminDatosDto crearCeco(CrearCecoRequest r, UsuarioPrincipal principal) {
         exigirAdmin(principal);
         Empresa empresa = empresaManual(r.empresaCode());
-        String codigo = r.code().trim().toUpperCase(Locale.ROOT);
+        String codigo = CodigoCeco.normalizar(r.code()); // DEC-L032
         if (cecoRepository.findByEmpresa_CompanyIdAndCode(empresa.getCompanyId(), codigo).isPresent()) {
             throw ApiException.badRequest("Ya existe el CECO " + codigo + " en " + empresa.getCode() + ".");
         }
@@ -289,9 +294,53 @@ public class AdminService {
         c.setCecoId(UUID.randomUUID());
         c.setEmpresa(empresa);
         c.setCode(codigo);
-        c.setName(r.nombre().trim());
+        c.setName(CodigoCeco.nombre(r.nombre())); // DEC-L033
         c.setActive(true);
         cecoRepository.save(c);
+        return datos(principal);
+    }
+
+    /**
+     * DEC-L030: aprobador del CECO (APROBADOR o GERENCIA, activo). Los REQ del
+     * CECO que siguen pendientes pasan al nuevo aprobador (asi un reemplazo por
+     * vacaciones no deja la bandeja trabada); si el nuevo es el propio
+     * solicitante, ese REQ queda sin asignar. Se audita.
+     */
+    @Transactional
+    public AdminDatosDto asignarAprobadorCeco(UUID cecoId, UUID aprobadorId, UsuarioPrincipal principal) {
+        exigirAdmin(principal);
+        // Por JDBC y no por la entidad: datos() relee el CECO en esta misma
+        // transaccion y una entidad ya cargada devolveria el aprobador viejo.
+        List<UUID> actual = jdbc.query("select approver_user_id from ceco where ceco_id = ?",
+                (rs, n) -> rs.getObject(1, UUID.class), cecoId);
+        if (actual.isEmpty()) {
+            throw ApiException.notFound("CECO no encontrado.");
+        }
+        if (aprobadorId != null) {
+            Usuario u = usuario(aprobadorId);
+            if (!u.isActive()) {
+                throw ApiException.badRequest("El aprobador debe estar activo.");
+            }
+            List<String> roles = usuarioRolRepository.findCodigosRolPorUsuario(aprobadorId);
+            if (!roles.contains(Roles.APROBADOR) && !roles.contains(Roles.GERENCIA)) {
+                throw ApiException.badRequest(u.getDisplayName() + " no tiene rol Aprobador ni Gerencia.");
+            }
+        }
+        UUID anterior = actual.get(0);
+        jdbc.update("update ceco set approver_user_id = ?, approver_updated_by = ?, approver_updated_at = now() where ceco_id = ?",
+                aprobadorId, principal.userId(), cecoId);
+        jdbc.update("""
+                update aprobacion a
+                   set assigned_to = case when r.requester_user_id = ? then null else ? end
+                  from requerimiento r
+                 where a.entity_type = 'REQUERIMIENTO' and a.status = 'PENDIENTE'
+                   and a.entity_id = r.request_id and r.ceco_id = ?""",
+                aprobadorId, aprobadorId, cecoId);
+        Map<String, Object> antes = new HashMap<>();
+        antes.put("aprobador", anterior);
+        Map<String, Object> despues = new HashMap<>();
+        despues.put("aprobador", aprobadorId);
+        auditoria.registrar("CECO", cecoId, "ASIGNAR_APROBADOR", antes, despues, principal.userId());
         return datos(principal);
     }
 
@@ -331,7 +380,7 @@ public class AdminService {
 
     /** Orden fijo de roles, del menor al mayor alcance. */
     private static List<String> ordenarRoles(Collection<String> roles) {
-        List<String> orden = List.of(Roles.SOLICITANTE, Roles.APROBADOR, Roles.LOGISTICA, Roles.ADMIN);
+        List<String> orden = List.of(Roles.SOLICITANTE, Roles.APROBADOR, Roles.GERENCIA, Roles.PYC, Roles.LOGISTICA, Roles.ADMIN);
         return roles.stream().sorted(Comparator.comparingInt(r -> {
             int i = orden.indexOf(r);
             return i < 0 ? orden.size() : i;

@@ -13,8 +13,11 @@ demo/UAT, por un backend productivo real.
   SKU nuevo.
 - **LOGISTICA** — verifica stock, decide ruta de abastecimiento, gestiona
   proveedores/cotizaciones/compras/caja chica.
-- **APROBADOR** — decide sobre `APROBACION` dentro de los rangos monetarios
-  que le asigne `REGLA_APROBACION`.
+- **APROBADOR** — decide los requerimientos de los CECOs que tiene asignados
+  (o de cualquiera sin aprobador asignado). Nunca los propios.
+- **GERENCIA** — decide en el ambito de sus CECOs; ve el dashboard. Aprobara
+  presupuestos y ordenes de compra (lotes 14 y 17).
+- **PYC** — administra presupuestos y precios de venta (lotes 13–15).
 - **ADMIN** — todo lo de LOGISTICA + usuarios/roles/configuracion/reglas +
   identidad manual (METRIN/GOYDEL no cubierto por RRHH).
 

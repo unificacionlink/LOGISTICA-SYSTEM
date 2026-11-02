@@ -41,7 +41,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const esAprobador = tieneAlgunRol("APROBADOR", "ADMIN");
+    const esAprobador = tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN");
 
     const client = new Client({
       brokerURL: WS_URL,
@@ -52,6 +52,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         });
         if (esAprobador) {
           client.subscribe("/topic/aprobaciones", (msg) => {
+            busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
+          });
+          // REQ de un CECO con aprobador asignado: solo le llega a ese usuario (DEC-L030).
+          client.subscribe("/user/queue/aprobaciones", (msg) => {
             busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
           });
         }

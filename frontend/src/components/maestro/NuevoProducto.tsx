@@ -73,7 +73,7 @@ export default function NuevoProducto({
               className={`${inputClass} w-full`}
             />
           </Field>
-          <Field label="Familia" required>
+          <Field label="Familia › Subfamilia" required>
             <SelectorFamilia clasificacion={clasificacion} value={familyId} onChange={setFamilyId} />
           </Field>
           <Field label="Unidad" required>

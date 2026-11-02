@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Lote 8a (DEC-L024) contra Postgres real y un RRHH falso por HTTP que imita
- * GET /api/integraciones/personal-activo (header X-Service-Token).
+ * GET /api/integraciones/personal-activo y /cecos (header X-Service-Token).
  */
 @SpringBootTest
 @ActiveProfiles("seed-test-data")
@@ -43,6 +43,8 @@ class IdentidadRrhhTest {
 	/** Lo que responde el RRHH falso (cada test lo arma). */
 	private static volatile String personal = "[]";
 	private static volatile String tokenRecibido;
+	/** Catalogo de CECO del RRHH falso; null = RRHH antiguo sin el endpoint (404). */
+	private static volatile String cecos = null;
 
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private PersonalSyncService syncService;
@@ -62,6 +64,19 @@ class IdentidadRrhhTest {
 		rrhh.createContext("/api/integraciones/personal-activo", ex -> {
 			tokenRecibido = ex.getRequestHeaders().getFirst("X-Service-Token");
 			byte[] cuerpo = ("{\"ok\":true,\"message\":\"ok\",\"result\":" + personal + "}").getBytes(StandardCharsets.UTF_8);
+			ex.getResponseHeaders().add("Content-Type", "application/json");
+			ex.sendResponseHeaders(200, cuerpo.length);
+			try (OutputStream os = ex.getResponseBody()) {
+				os.write(cuerpo);
+			}
+		});
+		rrhh.createContext("/api/integraciones/cecos", ex -> {
+			if (cecos == null) {
+				ex.sendResponseHeaders(404, -1);
+				ex.close();
+				return;
+			}
+			byte[] cuerpo = ("{\"ok\":true,\"message\":\"ok\",\"result\":" + cecos + "}").getBytes(StandardCharsets.UTF_8);
 			ex.getResponseHeaders().add("Content-Type", "application/json");
 			ex.sendResponseHeaders(200, cuerpo.length);
 			try (OutputStream os = ex.getResponseBody()) {
@@ -186,6 +201,31 @@ class IdentidadRrhhTest {
 		assertEquals(0, vacio.desactivados());
 		assertTrue(vacio.avisos().stream().anyMatch(a -> a.contains("no se desactivo")));
 		assertTrue(accesoVigente.obtener(ana).activo());
+
+		// --- Sync 4 (DEC-L031): catalogo completo de CECO, tengan o no personal ---
+		personal = "[" + String.join(",",
+				persona("40000001", "Ana Torres", "ana.torres@tdem.com.pe", "TDEMSRL", "0800", "LIMA")) + "]";
+		cecos = "[{\"numero\":\"0800\",\"nombre\":\"LIMA\",\"empresa\":\"TDEMSRL\"},"
+				+ "{\"numero\":\"900\",\"nombre\":\"CALLAO MAYUS\",\"empresa\":\"TDEMSRL\"},"
+				+ "{\"numero\":\"0900\",\"nombre\":\" Callao   Puerto \",\"empresa\":\"TDEMSRL\"},"
+				+ "{\"numero\":\"0100\",\"nombre\":\"PIURA\",\"empresa\":\"GOYDELSAC\"}]";
+		SyncResultadoDto catalogo = syncService.sincronizar();
+		assertEquals(1, catalogo.cecosCreados(), "0900 llega sin personal; 900 es el mismo CECO (DEC-L032)");
+		assertEquals("CALLAO PUERTO", jdbc.queryForObject("select name from ceco where code = '0900'", String.class),
+				"manda el nombre del codigo de 4 digitos, en mayusculas (DEC-L033)");
+		assertEquals(2, catalogo.cecosDesactivados(), "ADM y OPS de relleno (V1) salen de TDEMSRL");
+		assertEquals(List.of("0800", "0900"), jdbc.queryForList("""
+				select c.code from ceco c join empresa e on e.company_id = c.company_id
+				where e.code = 'TDEMSRL' and c.active order by c.code""", String.class));
+		assertTrue(jdbc.queryForObject("select active from ceco where ceco_id = ?", Boolean.class, cecoMetrin),
+				"empresas de alta manual no se tocan");
+
+		// --- Catalogo vacio: no se desactiva ningun CECO ---
+		cecos = "[]";
+		assertEquals(0, syncService.sincronizar().cecosDesactivados());
+		assertEquals(2, jdbc.queryForObject("""
+				select count(*) from ceco c join empresa e on e.company_id = c.company_id
+				where e.code = 'TDEMSRL' and c.active""", Integer.class));
 	}
 
 	private UUID usuario(String correo) {

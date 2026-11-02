@@ -7,15 +7,17 @@
 ERP Logístico Corporativo para TDEM, GOYDEL y METRIN. Reemplaza el prototipo V38 de Jonathan (HTML + localStorage, en `docs_base/`) por un sistema productivo. Flujo principal:
 Requerimiento → Aprobación → Stock/Compra (RFQ → Cotización → OC) → Recepción → Despacho (Nota de Inventario) → Envío → Entrega → Tracking.
 
-Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `ADMIN` (no existe perfil Almacén ni Gerencia; Almacén lo opera LOGISTICA/ADMIN).
+Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-L030). No hay perfil Compras ni Almacén: los opera LOGISTICA/ADMIN. Cada CECO puede tener un aprobador asignado (`ceco.approver_user_id`); la regla de quién decide/ve está en `modules/aprobaciones/AmbitoAprobacion`.
+
+**En curso: adopción de la V38.7** (entrega del 06/10/2026 en `docs_base/V38_7_ENTREGA_2026-10-06/`, ver DEC-L030). Lotes: 12 roles/aprobador por CECO (hecho) → 13 precios de venta + plazo de atención → 14 Presupuestos → 15 control presupuestal + cumplimiento → 16 necesidad/consolidación/RFQ multiproducto → 17 OC con aprobación, pago y liberación → 18 almacén V38.7 → 19 proveedores + dashboard.
 
 ## Documentación (leer antes de cambios no triviales)
 
-- `docs_base/` — material fuente de Jonathan (gitignored): diccionario de datos y catálogo de 725 SKU (xlsx), matriz de funcionalidades (RF-xxx), informe de metodología, prototipo HTML V38.
+- `docs_base/` — material fuente de Jonathan (gitignored): diccionario de datos y catálogo de 725 SKU (xlsx), matriz de funcionalidades (RF-xxx), informe de metodología, prototipo HTML V38. `docs_base/V38_7_ENTREGA_2026-10-06/` — la V38.7 (módulos JS en `codigo/`, base demo, matriz de 24 funcionalidades).
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L028 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L034 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -46,7 +48,7 @@ npm run build     # tsc -b && vite build
 npm run lint      # oxlint
 ```
 
-Usuarios de prueba (password `Logistica2026!`): `solicitante@`, `logistica@`, `aprobador@`, `admin@` + `logistica.test`.
+Usuarios de prueba (password `Logistica2026!`): `solicitante@`, `logistica@`, `aprobador@`, `gerencia@`, `pyc@`, `admin@` + `logistica.test`.
 
 Scripts Python en `scripts/`: `seed_catalogo_sku.py` (regenera seed de 725 SKU desde el Excel) y `cargar_imagenes.py` (carga masiva de fotos a S3).
 
@@ -73,7 +75,7 @@ Reglas clave:
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V14__descripcion.sql` (existen V1..V13).
+- Siguiente migración: `V17__descripcion.sql` (existen V1..V16).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.

@@ -69,12 +69,19 @@ export interface VarianteCatalogo {
   etiqueta: string;
   familiaId: string;
   familiaNombre: string;
+  tipoId: string;
+  tipoNombre: string;
   imagenUrl: string | null;
 }
 
+/** Subfamilia del maestro SKU (`familia_producto`) con su familia (`tipo_producto`), DEC-L034. */
 export interface Familia {
   familyId: string;
+  code: string;
   nombre: string;
+  tipoId: string;
+  tipoCode: string;
+  tipoNombre: string;
 }
 
 export interface Ceco {
@@ -621,6 +628,8 @@ export interface CecoAdmin {
   code: string;
   nombre: string;
   activo: boolean;
+  /** Aprobador asignado del CECO (DEC-L030); null = cualquier aprobador. */
+  aprobadorId: string | null;
 }
 
 export interface SyncResultado {
@@ -630,6 +639,8 @@ export interface SyncResultado {
   actualizados: number;
   desactivados: number;
   cecosCreados: number;
+  /** CECOs que RR.HH. ya no tiene (DEC-L031). */
+  cecosDesactivados: number;
   avisos: string[];
 }
 

@@ -10,6 +10,8 @@ import java.util.UUID;
 public interface CecoRepository extends JpaRepository<Ceco, UUID> {
     java.util.Optional<Ceco> findByEmpresa_CompanyIdAndCode(UUID companyId, String code);
 
+    List<Ceco> findByEmpresa_CompanyIdAndActiveTrue(UUID companyId);
+
     @Query("select c from Ceco c join fetch c.empresa e order by e.code, c.code")
     List<Ceco> findAllConEmpresa();
 

@@ -16,6 +16,7 @@ import BandejaSolicitudes, { PENDIENTE } from "../components/maestro/BandejaSoli
 import NuevoProducto from "../components/maestro/NuevoProducto";
 import { Card } from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
+import FiltroFamilia, { coincideFamilia, etiquetaFamilia } from "../components/FiltroFamilia";
 import { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
@@ -25,7 +26,10 @@ interface ProductoCatalogo {
   productId: string;
   skuBase: string;
   nombre: string;
+  familiaId: string;
   familiaNombre: string;
+  tipoId: string;
+  tipoNombre: string;
   imagenUrl: string | null;
 }
 
@@ -39,7 +43,10 @@ function agruparPorProducto(variantes: VarianteCatalogo[]): ProductoCatalogo[] {
         productId: v.productId,
         skuBase: v.skuBase,
         nombre: v.nombre,
+        familiaId: v.familiaId,
         familiaNombre: v.familiaNombre,
+        tipoId: v.tipoId,
+        tipoNombre: v.tipoNombre,
         imagenUrl: v.imagenUrl,
       });
     }
@@ -57,7 +64,7 @@ export default function CatalogoProductos() {
   const [familias, setFamilias] = useState<Familia[]>([]);
 
   const [query, setQuery] = useState("");
-  const [familiaNombre, setFamiliaNombre] = useState("");
+  const [filtroFamilia, setFiltroFamilia] = useState("");
   const [subiendoProductId, setSubiendoProductId] = useState<string | null>(null);
   const [errorSubida, setErrorSubida] = useState<string | null>(null);
   const inputArchivoRef = useRef<HTMLInputElement | null>(null);
@@ -150,17 +157,12 @@ export default function CatalogoProductos() {
     }
   }
 
-  const nombresFamilia = useMemo(
-    () => Array.from(new Set(familias.map((f) => f.nombre))).sort((a, b) => a.localeCompare(b)),
-    [familias],
-  );
-
   const filtrados = useMemo(() => {
     const q = query.trim().toLowerCase();
     return productos
-      .filter((p) => !familiaNombre || p.familiaNombre === familiaNombre)
+      .filter((p) => coincideFamilia(filtroFamilia, p.tipoId, p.familiaId))
       .filter((p) => !q || p.skuBase.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q));
-  }, [productos, query, familiaNombre]);
+  }, [productos, query, filtroFamilia]);
 
   const visibles = filtrados.slice(0, LIMITE_RESULTADOS);
 
@@ -276,18 +278,7 @@ export default function CatalogoProductos() {
                   className={`${inputClass} w-full pl-9`}
                 />
               </div>
-              <select
-                value={familiaNombre}
-                onChange={(e) => setFamiliaNombre(e.target.value)}
-                className={`${inputClass} w-full sm:w-56`}
-              >
-                <option value="">Todas las familias</option>
-                {nombresFamilia.map((nombre) => (
-                  <option key={nombre} value={nombre}>
-                    {nombre}
-                  </option>
-                ))}
-              </select>
+              <FiltroFamilia familias={familias} value={filtroFamilia} onChange={setFiltroFamilia} className="w-full sm:w-64" />
             </div>
 
             {errorSubida && <p className="px-4 pt-3 text-xs text-rose-600">{errorSubida}</p>}
@@ -301,12 +292,12 @@ export default function CatalogoProductos() {
                     const subiendo = subiendoProductId === p.productId;
                     return (
                       <li key={p.productId} className="flex items-center gap-3 px-4 py-3">
-                        <Miniatura url={p.imagenUrl} titulo={p.nombre} detalle={`${p.skuBase} · ${p.familiaNombre}`} />
+                        <Miniatura url={p.imagenUrl} titulo={p.nombre} detalle={`${p.skuBase} · ${etiquetaFamilia(p.tipoNombre, p.familiaNombre)}`} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm text-slate-800">{p.nombre}</p>
                           <p className="mt-0.5 flex items-center gap-2">
                             <span className="font-mono text-xs text-slate-500">{p.skuBase}</span>
-                            <Badge tone="gris">{p.familiaNombre}</Badge>
+                            <Badge tone="gris">{etiquetaFamilia(p.tipoNombre, p.familiaNombre)}</Badge>
                           </p>
                         </div>
                         {puedeEditarImagenes && (

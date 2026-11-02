@@ -8,6 +8,7 @@ import {
   obtenerRequerimiento,
 } from "../api/requerimientos";
 import type { Ceco, Familia, VarianteCatalogo } from "../api/types";
+import { etiquetaFamilia } from "../components/FiltroFamilia";
 import { useAuth } from "../auth/AuthContext";
 import BuscadorProductos, { Miniatura } from "../components/BuscadorProductos";
 import SolicitarProducto from "../components/maestro/SolicitarProducto";
@@ -339,7 +340,7 @@ export default function RequerimientosNuevo() {
                           <Miniatura
                             url={it.variante.imagenUrl}
                             titulo={it.variante.nombre}
-                            detalle={`${it.variante.codigoVariante} · ${it.variante.familiaNombre}`}
+                            detalle={`${it.variante.codigoVariante} · ${etiquetaFamilia(it.variante.tipoNombre, it.variante.familiaNombre)}`}
                           />
                           <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-700">
                             {it.variante.etiqueta}
