@@ -5,6 +5,34 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L035 — Lote 13: precio de venta por empresa y plazo de atencion por
+  SKU (2026-11-02).** Adopta `catalogo-precios.js` y `plazos-atencion.js` de
+  la V38.7 (Flyway V17).
+  - **Nivel**: SKU base (`producto`, 589), no variante (725): las tallas y
+    colores de un producto comparten precio y plazo. La V38.7 no distingue
+    variantes.
+  - **Precio de venta** (`precio_venta_producto`): por empresa + SKU, en PEN y
+    mayor que cero. Un vigente por empresa+SKU (indice unico parcial);
+    registrar otro desactiva el anterior, que queda de historial. Repetir el
+    mismo precio no crea fila. Se audita (`PRECIO_VENTA` en `log_cambios`).
+  - **Quien registra** (decision del usuario, se aparta de la V38.7): solo
+    **PYC y LOGISTICA**. Logistica es quien conoce los costos; PYC usa el
+    precio en su presupuesto. La V38.7 tambien dejaba a GERENCIA (y ADMIN
+    por ser respaldo de todo): se descarta porque ninguno conoce los costos.
+    Excepcion a "ADMIN = todo lo de LOGISTICA".
+  - **Quien ve**: PYC, LOGISTICA, GERENCIA (aprobara presupuestos con esos
+    precios) y ADMIN. PYC/GERENCIA en su empresa y en las de sus CECOs;
+    LOGISTICA/ADMIN en cualquier empresa activa (operan todos los CECOs,
+    DEC-L029). PYC y GERENCIA ahora ven el Catalogo; siguen sin crear
+    requerimientos.
+  - **Plazo de atencion** (`producto.attention_days`): dias calendario
+    0-3650 o sin configurar; solo LOGISTICA/ADMIN, desde el Catalogo (menu
+    del producto). Se audita (`PLAZO_ATENCION`). Viaja en el catalogo del
+    requerimiento: el carrito muestra el plazo de cada SKU y la fecha
+    requerida sugiere la atencion estimada (hoy + el mayor plazo).
+  - El precio aun no se usa en el flujo: lo consumen Presupuestos (Lote 14,
+    precio congelado al aprobar) y el control presupuestal (Lote 15).
+
 - **DEC-L034 — Familia y Subfamilia como en el maestro SKU (2026-10-12).**
   El usuario reviso el Excel: `13_Catalogo_SKU` trae **Familia** (6: AC, EP,
   EQ, HE, MA, MU) y **Subfamilia** (24, p. ej. AC01 ELECTRICO) y el SKU es

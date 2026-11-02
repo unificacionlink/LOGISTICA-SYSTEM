@@ -19,9 +19,33 @@ public class MaestroController {
     }
 
     private final MaestroService service;
+    private final PrecioPlazoService preciosPlazos;
 
-    public MaestroController(MaestroService service) {
+    public MaestroController(MaestroService service, PrecioPlazoService preciosPlazos) {
         this.service = service;
+        this.preciosPlazos = preciosPlazos;
+    }
+
+    // ---------------------------------------------------------------- precios y plazos (DEC-L035)
+
+    @GetMapping("/precios")
+    public ApiResponse<PreciosVentaDto> precios(@RequestParam(required = false) UUID companyId,
+                                               @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(preciosPlazos.listarPrecios(companyId, principal));
+    }
+
+    @PutMapping("/productos/{id}/precio")
+    public ApiResponse<PrecioVentaDto> registrarPrecio(@PathVariable UUID id, @Valid @RequestBody RegistrarPrecioRequest request,
+                                                      @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(preciosPlazos.registrarPrecio(id, request.companyId(), request.precio(), principal),
+                "Precio de venta registrado.");
+    }
+
+    @PutMapping("/productos/{id}/plazo")
+    public ApiResponse<Integer> configurarPlazo(@PathVariable UUID id, @Valid @RequestBody PlazoAtencionRequest request,
+                                               @AuthenticationPrincipal UsuarioPrincipal principal) {
+        Integer dias = preciosPlazos.configurarPlazo(id, request.dias(), principal);
+        return ApiResponse.ok(dias, dias == null ? "Plazo de atencion sin configurar." : "Plazo de atencion: " + dias + " dias.");
     }
 
     @GetMapping("/clasificacion")

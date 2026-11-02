@@ -14,5 +14,7 @@ public record VarianteCatalogoDto(
         String familiaNombre,
         UUID tipoId,
         String tipoNombre,
-        String imagenUrl) {
+        String imagenUrl,
+        /** Plazo de atencion del SKU en dias calendario; null = sin configurar (DEC-L035). */
+        Integer plazoAtencionDias) {
 }

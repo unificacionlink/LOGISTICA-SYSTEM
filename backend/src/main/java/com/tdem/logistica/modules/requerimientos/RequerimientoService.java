@@ -155,8 +155,9 @@ public class RequerimientoService {
     }
 
     public CatalogoFormularioDto obtenerDatosFormulario(UsuarioPrincipal principal) {
-        if (!principal.tieneAlgunRol(Roles.SOLICITANTE, Roles.LOGISTICA, Roles.ADMIN)) {
-            throw ApiException.forbidden("No tienes permiso para crear requerimientos.");
+        // PYC y GERENCIA leen el catalogo para registrar precios de venta (DEC-L035); no crean REQ.
+        if (!principal.tieneAlgunRol(Roles.SOLICITANTE, Roles.LOGISTICA, Roles.ADMIN, Roles.PYC, Roles.GERENCIA)) {
+            throw ApiException.forbidden("No tienes permiso para ver el catalogo.");
         }
 
         Map<UUID, String> imagenesPorProducto = productoImagenRepository.findPrincipalesActivas().stream()

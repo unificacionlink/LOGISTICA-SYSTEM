@@ -66,7 +66,8 @@ public final class RequerimientoMapper {
                 v.getProducto().getFamilia().getName(),
                 v.getProducto().getFamilia().getTipo().getProductTypeId(),
                 v.getProducto().getFamilia().getTipo().getName(),
-                imagenUrl);
+                imagenUrl,
+                v.getProducto().getAttentionDays());
     }
 
     public static FamiliaDto toDto(FamiliaProducto f) {

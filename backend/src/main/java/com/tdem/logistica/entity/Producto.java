@@ -45,4 +45,8 @@ public class Producto {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "preferred_supplier_id")
     private Proveedor proveedorHabitual;
+
+    /** Plazo de atencion en dias calendario; null = sin configurar (DEC-L035). */
+    @Column(name = "attention_days")
+    private Integer attentionDays;
 }

@@ -1,11 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Images, Loader2, PackagePlus, Plus, Search, Upload } from "lucide-react";
+import { Clock, Images, Loader2, PackagePlus, Plus, Search, Upload } from "lucide-react";
 import { asignarProveedorHabitual, listarProveedoresHabituales } from "../api/compras";
 import { listarProveedores } from "../api/proveedores";
-import { editarProducto, listarSolicitudesProducto, obtenerClasificacion } from "../api/maestro";
+import {
+  configurarPlazo,
+  editarProducto,
+  listarPrecios,
+  listarSolicitudesProducto,
+  obtenerClasificacion,
+  registrarPrecio,
+} from "../api/maestro";
 import { obtenerCatalogoFormulario, subirImagenProducto } from "../api/requerimientos";
-import type { Clasificacion, Familia, Proveedor, SolicitudProducto, VarianteCatalogo } from "../api/types";
+import type {
+  Clasificacion,
+  EmpresaOpcion,
+  Familia,
+  PrecioVenta,
+  Proveedor,
+  SolicitudProducto,
+  VarianteCatalogo,
+} from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { Miniatura } from "../components/BuscadorProductos";
 import Alert from "../components/ui/Alert";
@@ -13,6 +28,7 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import BandejaSolicitudes, { PENDIENTE } from "../components/maestro/BandejaSolicitudes";
+import DialogoValor from "../components/maestro/DialogoValor";
 import NuevoProducto from "../components/maestro/NuevoProducto";
 import { Card } from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
@@ -31,9 +47,12 @@ interface ProductoCatalogo {
   tipoId: string;
   tipoNombre: string;
   imagenUrl: string | null;
+  plazoAtencionDias: number | null;
 }
 
 const LIMITE_RESULTADOS = 100;
+
+const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
 
 function agruparPorProducto(variantes: VarianteCatalogo[]): ProductoCatalogo[] {
   const porProducto = new Map<string, ProductoCatalogo>();
@@ -48,6 +67,7 @@ function agruparPorProducto(variantes: VarianteCatalogo[]): ProductoCatalogo[] {
         tipoId: v.tipoId,
         tipoNombre: v.tipoNombre,
         imagenUrl: v.imagenUrl,
+        plazoAtencionDias: v.plazoAtencionDias,
       });
     }
   }
@@ -58,6 +78,9 @@ export default function CatalogoProductos() {
   const confirmar = useConfirmar();
   const { tieneAlgunRol } = useAuth();
   const puedeEditarImagenes = tieneAlgunRol("LOGISTICA", "ADMIN");
+  // Precio de venta por empresa (DEC-L035): lo registran PYC y Logistica; Gerencia y Admin solo lo ven.
+  const puedeVerPrecios = tieneAlgunRol("PYC", "GERENCIA", "LOGISTICA", "ADMIN");
+  const puedeEditarPrecio = tieneAlgunRol("PYC", "LOGISTICA");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [productos, setProductos] = useState<ProductoCatalogo[]>([]);
@@ -80,6 +103,11 @@ export default function CatalogoProductos() {
   const [solicitudes, setSolicitudes] = useState<SolicitudProducto[]>([]);
   const [creando, setCreando] = useState(false);
   const [exito, setExito] = useState<string | null>(null);
+  const [empresas, setEmpresas] = useState<EmpresaOpcion[]>([]);
+  const [empresaPrecios, setEmpresaPrecios] = useState("");
+  const [precios, setPrecios] = useState<Record<string, PrecioVenta>>({});
+  const [soloSinPrecio, setSoloSinPrecio] = useState(false);
+  const [editando, setEditando] = useState<{ tipo: "precio" | "plazo"; producto: ProductoCatalogo } | null>(null);
 
   function cargarCatalogo() {
     return obtenerCatalogoFormulario()
@@ -119,6 +147,38 @@ export default function CatalogoProductos() {
     } else {
       setErrorSubida(res.message);
     }
+  }
+
+  useEffect(() => {
+    if (!puedeVerPrecios) return;
+    listarPrecios(empresaPrecios || undefined).then((res) => {
+      if (!res.ok || !res.result) {
+        setError(res.message);
+        return;
+      }
+      setEmpresas(res.result.empresas);
+      if (!empresaPrecios) setEmpresaPrecios(res.result.companyId);
+      setPrecios(Object.fromEntries(res.result.precios.map((pv) => [pv.productId, pv])));
+    });
+  }, [puedeVerPrecios, empresaPrecios]);
+
+  async function onGuardarPrecio(p: ProductoCatalogo, valor: number | null) {
+    if (valor == null) return "Ingresa un precio de venta mayor que cero.";
+    const res = await registrarPrecio(p.productId, empresaPrecios, valor);
+    if (!res.ok || !res.result) return res.message;
+    const precio = res.result;
+    setPrecios((prev) => ({ ...prev, [p.productId]: precio }));
+    setExito(`${p.skuBase}: precio de venta ${soles.format(precio.precio)}.`);
+    return null;
+  }
+
+  async function onGuardarPlazo(p: ProductoCatalogo, valor: number | null) {
+    if (valor != null && !Number.isInteger(valor)) return "Ingresa días enteros.";
+    const res = await configurarPlazo(p.productId, valor);
+    if (!res.ok) return res.message;
+    setProductos((prev) => prev.map((x) => (x.productId === p.productId ? { ...x, plazoAtencionDias: valor } : x)));
+    setExito(`${p.skuBase}: ${valor == null ? "plazo de atención sin configurar" : `atención en ${valor} días calendario`}.`);
+    return null;
   }
 
   const pendientes = solicitudes.filter((s) => s.estado === PENDIENTE).length;
@@ -161,8 +221,9 @@ export default function CatalogoProductos() {
     const q = query.trim().toLowerCase();
     return productos
       .filter((p) => coincideFamilia(filtroFamilia, p.tipoId, p.familiaId))
-      .filter((p) => !q || p.skuBase.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q));
-  }, [productos, query, filtroFamilia]);
+      .filter((p) => !q || p.skuBase.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q))
+      .filter((p) => !soloSinPrecio || !precios[p.productId]);
+  }, [productos, query, filtroFamilia, soloSinPrecio, precios]);
 
   const visibles = filtrados.slice(0, LIMITE_RESULTADOS);
 
@@ -279,6 +340,31 @@ export default function CatalogoProductos() {
                 />
               </div>
               <FiltroFamilia familias={familias} value={filtroFamilia} onChange={setFiltroFamilia} className="w-full sm:w-64" />
+              {puedeVerPrecios && empresas.length > 1 && (
+                <select
+                  value={empresaPrecios}
+                  onChange={(e) => setEmpresaPrecios(e.target.value)}
+                  aria-label="Empresa de los precios de venta"
+                  className={`${inputClass} w-full sm:w-36`}
+                >
+                  {empresas.map((e) => (
+                    <option key={e.companyId} value={e.companyId}>
+                      {e.code}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {puedeVerPrecios && (
+                <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={soloSinPrecio}
+                    onChange={(e) => setSoloSinPrecio(e.target.checked)}
+                    className="size-4 rounded border-slate-300 accent-brand-700"
+                  />
+                  Sin precio
+                </label>
+              )}
             </div>
 
             {errorSubida && <p className="px-4 pt-3 text-xs text-rose-600">{errorSubida}</p>}
@@ -295,11 +381,32 @@ export default function CatalogoProductos() {
                         <Miniatura url={p.imagenUrl} titulo={p.nombre} detalle={`${p.skuBase} · ${etiquetaFamilia(p.tipoNombre, p.familiaNombre)}`} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm text-slate-800">{p.nombre}</p>
-                          <p className="mt-0.5 flex items-center gap-2">
+                          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="font-mono text-xs text-slate-500">{p.skuBase}</span>
                             <Badge tone="gris">{etiquetaFamilia(p.tipoNombre, p.familiaNombre)}</Badge>
+                            {p.plazoAtencionDias != null && (
+                              <span className="flex items-center gap-1 text-xs text-slate-500" title="Plazo de atención">
+                                <Clock className="size-3.5" />
+                                {p.plazoAtencionDias} {p.plazoAtencionDias === 1 ? "día" : "días"}
+                              </span>
+                            )}
                           </p>
                         </div>
+                        {puedeVerPrecios && (
+                          <span
+                            className={`shrink-0 text-right tabular-nums ${
+                              precios[p.productId] ? "text-sm font-medium text-slate-800" : "text-xs text-slate-400"
+                            }`}
+                            title={precios[p.productId] ? `Registrado por ${precios[p.productId].actualizadoPor}` : undefined}
+                          >
+                            {precios[p.productId] ? soles.format(precios[p.productId].precio) : "Sin precio"}
+                          </span>
+                        )}
+                        {puedeEditarPrecio && !puedeEditarImagenes && (
+                          <Button variant="secondary" size="sm" onClick={() => setEditando({ tipo: "precio", producto: p })}>
+                            {precios[p.productId] ? "Cambiar precio" : "Registrar precio"}
+                          </Button>
+                        )}
                         {puedeEditarImagenes && (
                           <select
                             value={habitualPorProducto[p.productId] ?? ""}
@@ -334,7 +441,13 @@ export default function CatalogoProductos() {
                         )}
                         {puedeEditarImagenes && (
                           <MenuAcciones
-                            acciones={[{ label: "Inactivar producto", peligro: true, onClick: () => onInactivar(p.productId, p.skuBase) }]}
+                            acciones={[
+                              ...(puedeEditarPrecio
+                                ? [{ label: "Precio de venta", onClick: () => setEditando({ tipo: "precio", producto: p }) }]
+                                : []),
+                              { label: "Plazo de atención", onClick: () => setEditando({ tipo: "plazo", producto: p }) },
+                              { label: "Inactivar producto", peligro: true, onClick: () => onInactivar(p.productId, p.skuBase) },
+                            ]}
                           />
                         )}
                       </li>
@@ -352,6 +465,33 @@ export default function CatalogoProductos() {
         )}
       </Card>
       </>
+      )}
+
+      {editando?.tipo === "precio" && (
+        <DialogoValor
+          titulo={`Precio de venta · ${editando.producto.skuBase}`}
+          etiqueta={`Precio unitario en ${empresas.find((e) => e.companyId === empresaPrecios)?.code ?? "la empresa"}`}
+          valorInicial={precios[editando.producto.productId]?.precio ?? null}
+          prefijo="S/"
+          min={0.01}
+          step="0.01"
+          onGuardar={(v) => onGuardarPrecio(editando.producto, v)}
+          onCerrar={() => setEditando(null)}
+        />
+      )}
+      {editando?.tipo === "plazo" && (
+        <DialogoValor
+          titulo={`Plazo de atención · ${editando.producto.skuBase}`}
+          etiqueta="Días calendario"
+          valorInicial={editando.producto.plazoAtencionDias}
+          sufijo="días"
+          min={0}
+          max={3650}
+          step="1"
+          permitirVacio
+          onGuardar={(v) => onGuardarPlazo(editando.producto, v)}
+          onCerrar={() => setEditando(null)}
+        />
       )}
     </div>
   );

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.22.0 — 2026-11-02
+
+- **Lote 13 — Precios de venta y plazo de atencion** (DEC-L035, Flyway V17).
+- **Precio de venta por empresa** en el Catalogo: lo registran solo PYC
+  (boton "Registrar precio") y Logistica (menu del producto); Gerencia y
+  Admin lo ven sin editar. Selector de empresa (si hay varias) y filtro
+  "Sin precio". Historial y auditoria.
+  API `GET /api/maestro/precios`, `PUT /api/maestro/productos/{id}/precio`.
+- **Plazo de atencion por SKU** (dias calendario, Logistica): se ve en el
+  Catalogo y en el carrito del requerimiento, con la atencion estimada bajo
+  la fecha requerida. API `PUT /api/maestro/productos/{id}/plazo`.
+- PYC y Gerencia ven el Catalogo de productos.
+- Test: `PreciosPlazosTest`.
+
 ## 0.21.4 — 2026-10-12
 
 - **Familia › Subfamilia del maestro SKU** (DEC-L034): Catalogo, buscador

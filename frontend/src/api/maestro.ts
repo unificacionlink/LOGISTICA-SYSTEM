@@ -1,5 +1,5 @@
 import { http } from "./http";
-import type { Clasificacion, ProductoCreado, SolicitudProducto, TipoAtributo } from "./types";
+import type { Clasificacion, PrecioVenta, PreciosVenta, ProductoCreado, SolicitudProducto, TipoAtributo } from "./types";
 
 // Maestro de productos y solicitudes de alta (DEC-L025, RF-004).
 
@@ -50,4 +50,18 @@ export function aprobarSolicitudProducto(id: string, familyId: string, nombre: s
 
 export function rechazarSolicitudProducto(id: string, motivo: string) {
   return http.post<SolicitudProducto>(`/api/maestro/solicitudes/${id}/rechazar`, { motivo });
+}
+
+// Precio de venta por empresa y plazo de atención por SKU (DEC-L035).
+
+export function listarPrecios(companyId?: string) {
+  return http.get<PreciosVenta>(`/api/maestro/precios${companyId ? `?companyId=${companyId}` : ""}`);
+}
+
+export function registrarPrecio(productId: string, companyId: string, precio: number) {
+  return http.put<PrecioVenta>(`/api/maestro/productos/${productId}/precio`, { companyId, precio });
+}
+
+export function configurarPlazo(productId: string, dias: number | null) {
+  return http.put<number | null>(`/api/maestro/productos/${productId}/plazo`, { dias });
 }

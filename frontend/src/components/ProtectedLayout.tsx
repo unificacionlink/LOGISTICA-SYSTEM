@@ -54,7 +54,7 @@ const NAV_GRUPOS: { id: string; titulo: string | null; items: NavItem[] }[] = [
     items: [
       { to: "/almacen", label: "Almacén", icon: Warehouse, roles: GESTION },
       { to: "/stock", label: "Stock", icon: Boxes, roles: GESTION },
-      { to: "/catalogo", label: "Catálogo de productos", icon: Images, roles: GESTION },
+      { to: "/catalogo", label: "Catálogo de productos", icon: Images, roles: [...GESTION, "PYC", "GERENCIA"] },
     ],
   },
   {

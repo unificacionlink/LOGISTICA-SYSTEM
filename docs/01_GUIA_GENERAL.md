@@ -17,7 +17,8 @@ demo/UAT, por un backend productivo real.
   (o de cualquiera sin aprobador asignado). Nunca los propios.
 - **GERENCIA** — decide en el ambito de sus CECOs; ve el dashboard. Aprobara
   presupuestos y ordenes de compra (lotes 14 y 17).
-- **PYC** — administra presupuestos y precios de venta (lotes 13–15).
+- **PYC** — administra presupuestos y precios de venta (lotes 13–15). Los
+  precios de venta por empresa ya se registran en el Catalogo (DEC-L035).
 - **ADMIN** — todo lo de LOGISTICA + usuarios/roles/configuracion/reglas +
   identidad manual (METRIN/GOYDEL no cubierto por RRHH).
 

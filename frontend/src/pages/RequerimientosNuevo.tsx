@@ -46,6 +46,19 @@ export default function RequerimientosNuevo() {
   const [requiredDate, setRequiredDate] = useState("");
   const [justification, setJustification] = useState("");
   const [items, setItems] = useState<ItemCarrito[]>([]);
+  // Plazo de atencion (DEC-L035): el mayor de los SKU del pedido, contado desde hoy.
+  const plazoMaximo = items.reduce<number | null>(
+    (max, it) => (it.variante.plazoAtencionDias == null ? max : Math.max(max ?? 0, it.variante.plazoAtencionDias)),
+    null,
+  );
+  const atencionEstimada =
+    plazoMaximo == null
+      ? null
+      : new Date(Date.now() + plazoMaximo * 86_400_000).toLocaleDateString("es-PE", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
   const [errorItems, setErrorItems] = useState<string | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -273,7 +286,7 @@ export default function RequerimientosNuevo() {
                       <option value="IMPLEMENTACION">Implementación</option>
                     </select>
                   </Field>
-                  <Field label="Fecha requerida">
+                  <Field label="Fecha requerida" hint={atencionEstimada && `Atención estimada: ${atencionEstimada}`}>
                     <input
                       type="date"
                       value={requiredDate}
@@ -342,9 +355,15 @@ export default function RequerimientosNuevo() {
                             titulo={it.variante.nombre}
                             detalle={`${it.variante.codigoVariante} · ${etiquetaFamilia(it.variante.tipoNombre, it.variante.familiaNombre)}`}
                           />
-                          <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-700">
-                            {it.variante.etiqueta}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate font-mono text-xs text-slate-700">{it.variante.etiqueta}</span>
+                            {it.variante.plazoAtencionDias != null && (
+                              <span className="text-xs text-slate-400">
+                                Atención en {it.variante.plazoAtencionDias}{" "}
+                                {it.variante.plazoAtencionDias === 1 ? "día" : "días"}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <button
                           type="button"

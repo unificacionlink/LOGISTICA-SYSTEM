@@ -72,6 +72,8 @@ export interface VarianteCatalogo {
   tipoId: string;
   tipoNombre: string;
   imagenUrl: string | null;
+  /** Plazo de atención del SKU en días calendario; null = sin configurar (DEC-L035). */
+  plazoAtencionDias: number | null;
 }
 
 /** Subfamilia del maestro SKU (`familia_producto`) con su familia (`tipo_producto`), DEC-L034. */
@@ -105,6 +107,20 @@ export interface AprobacionPendiente {
 export interface EmpresaOpcion {
   companyId: string;
   code: string;
+}
+
+/** Precio de venta vigente de un SKU en una empresa (DEC-L035). */
+export interface PrecioVenta {
+  productId: string;
+  precio: number;
+  actualizadoPor: string;
+  actualizadoEn: string;
+}
+
+export interface PreciosVenta {
+  empresas: EmpresaOpcion[];
+  companyId: string;
+  precios: PrecioVenta[];
 }
 
 export interface SaldoStock {
