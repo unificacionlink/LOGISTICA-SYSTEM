@@ -25,6 +25,8 @@ public class SpaController {
             "/requerimientos/{id}",
             "/requerimientos/{id}/editar",
             "/aprobaciones",
+            "/presupuestos",
+            "/presupuestos/{id}",
             "/stock",
             "/stock/ajustes",
             "/catalogo",

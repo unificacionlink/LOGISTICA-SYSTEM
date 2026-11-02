@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Building2, Copy, FileSpreadsheet, RefreshCw, Search, UserPlus, Users } from "lucide-react";
 import {
-  asignarAprobadorCeco,
   asignarRoles,
   cambiarActivo,
   crearCeco,
@@ -25,6 +24,7 @@ import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 import { useConfirmar } from "../components/ui/Confirmacion";
 import PestanaPersonal from "../components/admin/PestanaPersonal";
 import CecosUsuario from "../components/admin/CecosUsuario";
+import CecosAprobados from "../components/admin/CecosAprobados";
 
 type Pestana = "usuarios" | "personal" | "cecos" | "rrhh";
 
@@ -210,6 +210,7 @@ function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplic
                   u={u}
                   roles={datos.roles}
                   cecos={datos.cecos}
+                  usuarios={datos.usuarios}
                   abierto={abierto === u.id}
                   alternar={() => setAbierto(abierto === u.id ? null : u.id)}
                   aplicar={aplicar}
@@ -227,6 +228,7 @@ function FilaUsuario({
   u,
   roles,
   cecos,
+  usuarios,
   abierto,
   alternar,
   aplicar,
@@ -234,6 +236,7 @@ function FilaUsuario({
   u: UsuarioAdmin;
   roles: string[];
   cecos: CecoAdmin[];
+  usuarios: UsuarioAdmin[];
   abierto: boolean;
   alternar: () => void;
   aplicar: Aplicar;
@@ -359,6 +362,16 @@ function FilaUsuario({
                   </div>
                 </dl>
                 <CecosUsuario u={u} cecos={cecos} aplicar={aplicar} />
+                {(u.roles.includes("APROBADOR") || u.roles.includes("GERENCIA")) && (
+                  // key: si otro usuario toma uno de sus CECOs, la seleccion se rehace.
+                  <CecosAprobados
+                    key={cecos.filter((c) => c.aprobadorId === u.id).map((c) => c.id).join()}
+                    u={u}
+                    cecos={cecos}
+                    usuarios={usuarios}
+                    aplicar={aplicar}
+                  />
+                )}
               </div>
               <div className="flex flex-col items-start gap-2 md:items-end">
                 {u.activo && (
@@ -597,26 +610,10 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
   const [code, setCode] = useState("");
   const [nombre, setNombre] = useState("");
   const [guardando, setGuardando] = useState(false);
-  const [asignando, setAsignando] = useState<string | null>(null);
   // Solo vigentes: los CECO que RR.HH. ya no tiene (ADM/OPS de relleno) quedan inactivos por historial.
   const activos = useMemo(() => datos.cecos.filter((c) => c.activo), [datos.cecos]);
-  // Aprobador del CECO (DEC-L030): usuarios activos con rol Aprobador o Gerencia.
-  const aprobadores = useMemo(
-    () =>
-      datos.usuarios
-        .filter((u) => u.activo && (u.roles.includes("APROBADOR") || u.roles.includes("GERENCIA")))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
-    [datos.usuarios],
-  );
-
-  async function onAprobador(cecoId: string, userId: string) {
-    setAsignando(cecoId);
-    try {
-      aplicar(await asignarAprobadorCeco(cecoId, userId || null));
-    } finally {
-      setAsignando(null);
-    }
-  }
+  // Aprobador del CECO (DEC-L030): se asigna desde la ficha del usuario (DEC-L037).
+  const nombres = useMemo(() => new Map(datos.usuarios.map((u) => [u.id, u.nombre])), [datos.usuarios]);
 
   async function onCrear(e: React.FormEvent) {
     e.preventDefault();
@@ -693,21 +690,8 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
                     <td className="px-5 py-2.5 font-mono text-xs">{c.empresaCode}</td>
                     <td className="px-5 py-2.5 font-mono text-xs">{c.code}</td>
                     <td className="col-flex px-5 py-2.5 text-sm">{c.nombre}</td>
-                    <td className="px-5 py-2">
-                      <select
-                        aria-label={`Aprobador de ${c.code}`}
-                        value={c.aprobadorId ?? ""}
-                        disabled={asignando === c.id}
-                        onChange={(e) => onAprobador(c.id, e.target.value)}
-                        className={`${inputClass} w-56 py-1.5 text-xs`}
-                      >
-                        <option value="">Cualquier aprobador</option>
-                        {aprobadores.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.nombre}
-                          </option>
-                        ))}
-                      </select>
+                    <td className="px-5 py-2.5 text-xs text-slate-600">
+                      {c.aprobadorId ? (nombres.get(c.aprobadorId) ?? "—") : <span className="text-slate-400">Sin asignar</span>}
                     </td>
                     <td className="px-5 py-2.5 text-xs text-slate-500">{manual ? "Manual" : "RR.HH."}</td>
                   </tr>

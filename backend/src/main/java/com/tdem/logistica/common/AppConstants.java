@@ -62,4 +62,14 @@ public final class AppConstants {
     public static final class EntidadAprobacion {
         public static final String REQUERIMIENTO = "REQUERIMIENTO";
     }
+
+    /** Estados de presupuesto.status (V18, DEC-L036). */
+    public static final class EstadoPresupuesto {
+        public static final String BORRADOR = "BORRADOR";
+        public static final String EMITIDO = "EMITIDO";
+        public static final String APROBADO = "APROBADO";
+        public static final String OBSERVADO = "OBSERVADO";
+        public static final String MODIFICADO = "MODIFICADO";
+        public static final String ANULADO = "ANULADO";
+    }
 }

@@ -301,37 +301,64 @@ public class AdminService {
     }
 
     /**
-     * DEC-L030: aprobador del CECO (APROBADOR o GERENCIA, activo). Los REQ del
-     * CECO que siguen pendientes pasan al nuevo aprobador (asi un reemplazo por
-     * vacaciones no deja la bandeja trabada); si el nuevo es el propio
-     * solicitante, ese REQ queda sin asignar. Se audita.
+     * DEC-L030/DEC-L037: CECOs que aprueba el usuario (APROBADOR o GERENCIA,
+     * activo), como en Accesos / usuarios de la V38.7. El dato sigue en el CECO
+     * (un aprobador por CECO): elegir un CECO que tenia otro aprobador se lo
+     * reasigna; quitarlo lo deja sin aprobador. Lista vacia = no aprueba ninguno.
      */
     @Transactional
-    public AdminDatosDto asignarAprobadorCeco(UUID cecoId, UUID aprobadorId, UsuarioPrincipal principal) {
+    public AdminDatosDto asignarCecosAprobados(UUID userId, List<UUID> cecoIds, UsuarioPrincipal principal) {
         exigirAdmin(principal);
-        // Por JDBC y no por la entidad: datos() relee el CECO en esta misma
-        // transaccion y una entidad ya cargada devolveria el aprobador viejo.
-        List<UUID> actual = jdbc.query("select approver_user_id from ceco where ceco_id = ?",
-                (rs, n) -> rs.getObject(1, UUID.class), cecoId);
-        if (actual.isEmpty()) {
-            throw ApiException.notFound("CECO no encontrado.");
-        }
-        if (aprobadorId != null) {
-            Usuario u = usuario(aprobadorId);
+        Usuario u = usuario(userId);
+        Set<UUID> nuevos = new LinkedHashSet<>(cecoIds);
+        if (!nuevos.isEmpty()) {
             if (!u.isActive()) {
                 throw ApiException.badRequest("El aprobador debe estar activo.");
             }
-            List<String> roles = usuarioRolRepository.findCodigosRolPorUsuario(aprobadorId);
+            List<String> roles = usuarioRolRepository.findCodigosRolPorUsuario(userId);
             if (!roles.contains(Roles.APROBADOR) && !roles.contains(Roles.GERENCIA)) {
                 throw ApiException.badRequest(u.getDisplayName() + " no tiene rol Aprobador ni Gerencia.");
             }
         }
-        UUID anterior = actual.get(0);
+        // Por JDBC y no por la entidad: datos() relee los CECO en esta misma
+        // transaccion y una entidad ya cargada devolveria el aprobador viejo.
+        Set<UUID> actuales = new HashSet<>(jdbc.queryForList(
+                "select ceco_id from ceco where approver_user_id = ?", UUID.class, userId));
+        for (UUID cecoId : nuevos) {
+            if (actuales.contains(cecoId)) {
+                continue;
+            }
+            List<Boolean> activo = jdbc.queryForList("select active from ceco where ceco_id = ?", Boolean.class, cecoId);
+            if (activo.isEmpty()) {
+                throw ApiException.badRequest("CECO no encontrado.");
+            }
+            if (!activo.get(0)) {
+                throw ApiException.badRequest("No se asignan CECOs inactivos.");
+            }
+            aplicarAprobador(cecoId, userId, principal);
+        }
+        for (UUID cecoId : actuales) {
+            if (!nuevos.contains(cecoId)) {
+                aplicarAprobador(cecoId, null, principal);
+            }
+        }
+        return datos(principal);
+    }
+
+    /**
+     * Fija el aprobador de un CECO. Los REQ del CECO que siguen pendientes pasan
+     * al nuevo aprobador (asi un reemplazo por vacaciones no deja la bandeja
+     * trabada); si el nuevo es el propio solicitante, ese REQ queda sin asignar.
+     * Se audita.
+     */
+    private void aplicarAprobador(UUID cecoId, UUID aprobadorId, UsuarioPrincipal principal) {
+        UUID anterior = jdbc.query("select approver_user_id from ceco where ceco_id = ?",
+                (rs, n) -> rs.getObject(1, UUID.class), cecoId).getFirst();
         jdbc.update("update ceco set approver_user_id = ?, approver_updated_by = ?, approver_updated_at = now() where ceco_id = ?",
                 aprobadorId, principal.userId(), cecoId);
         jdbc.update("""
                 update aprobacion a
-                   set assigned_to = case when r.requester_user_id = ? then null else ? end
+                   set assigned_to = case when r.requester_user_id = cast(? as uuid) then null else cast(? as uuid) end
                   from requerimiento r
                  where a.entity_type = 'REQUERIMIENTO' and a.status = 'PENDIENTE'
                    and a.entity_id = r.request_id and r.ceco_id = ?""",
@@ -341,7 +368,6 @@ public class AdminService {
         Map<String, Object> despues = new HashMap<>();
         despues.put("aprobador", aprobadorId);
         auditoria.registrar("CECO", cecoId, "ASIGNAR_APROBADOR", antes, despues, principal.userId());
-        return datos(principal);
     }
 
     /** Sin transaccion propia: la llamada a RRHH no debe retener una conexion; el sync abre la suya. */

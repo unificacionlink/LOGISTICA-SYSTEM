@@ -5,6 +5,63 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L037 — El aprobador del CECO se asigna desde el usuario
+  (2026-11-02).** Decision del usuario. La V38.7 guarda un aprobador por
+  empresa + CECO (`projectAssignments`), pero lo configura en **Accesos /
+  usuarios**; el Lote 12 lo habia puesto en Administracion -> CECOs.
+  - El dato no cambia: sigue en `ceco.approver_user_id` (un solo aprobador
+    por CECO, la regla de quien decide no se toca).
+  - La ficha del usuario con rol Aprobador o Gerencia tiene **"CECOs que
+    aprueba"** (`PUT /api/admin/usuarios/{id}/cecos-aprobados`). Elegir un
+    CECO que tenia otro aprobador se lo reasigna (la UI lo avisa); quitarlo
+    lo deja sin aprobador. Cada cambio mueve los REQ pendientes y se audita
+    (`ASIGNAR_APROBADOR`), igual que antes.
+  - La pestana CECOs solo muestra el aprobador. Se elimina
+    `PUT /api/admin/cecos/{id}/aprobador`.
+  - Corrige un error previo: dejar un CECO sin aprobador fallaba en SQL
+    (`assigned_to` recibia NULL sin tipo).
+  - La ficha muestra "CECOs de su ambito" (en vez de "para los que puede
+    pedir") a PYC y Gerencia (DEC-L036).
+
+- **DEC-L036 — Lote 14: Presupuestos semestrales por CECO (2026-11-02).**
+  Adopta `presupuestos-resultados.js`, `presupuestos-vistas.js`,
+  `presupuestos-aprobacion.js` y la parte de periodos de
+  `presupuestos-control.js` de la V38.7 (PRE-01..PRE-04; Flyway V18).
+  - **Modelo**: `periodo_presupuestal` (CECO + anio + semestre de 6 meses,
+    cerrado o habilitado) -> `presupuesto` (uno no anulado por periodo,
+    indice unico parcial; codigo `PRE-00001`) -> `presupuesto_linea` (version
+    de trabajo: SKU base x 6 cantidades, como el precio de DEC-L035).
+    Cada aprobacion congela una `presupuesto_version` +
+    `presupuesto_version_linea` con cantidades, **precio de venta vigente**
+    (obligatorio) y **ultimo precio de compra** de la empresa (ultima OC no
+    anulada; `SIN_COMPRA` o `NO_VALORIZABLE_PEN` si no hay o no es en PEN:
+    nunca se inventa). `presupuesto.current_version_id` = version vigente.
+  - **Ambito**: CECOs del usuario (`usuario_ceco`) + los CECOs donde es el
+    aprobador asignado. LOGISTICA y ADMIN ven todos, solo consulta (ADMIN
+    tampoco decide presupuestos: a diferencia de los REQ, no es respaldo).
+  - **Periodos**: los habilita, cierra y reabre **PYC** en su ambito. Cerrado
+    = todo solo consulta (no se edita, emite ni decide).
+  - **Redactan** (crear, programar, emitir, modificar): PYC, GERENCIA y el
+    APROBADOR del CECO en su ambito; el SOLICITANTE solo sus presupuestos
+    (`bcWriter` de la V38.7; el usuario confirmo mantenerlo asi, aunque la
+    corrida de Jonathan lo crea PYC).
+    Nadie con rol LOGISTICA (separacion de funciones, como la V38.7).
+  - **Estados**: BORRADOR -> EMITIDO -> APROBADO | OBSERVADO; APROBADO ->
+    MODIFICADO (revision) -> EMITIDO; ANULADO. Emitir exige partidas, precio
+    de venta en todas y aprobador del CECO (activo, APROBADOR o GERENCIA,
+    distinto del solicitante); se copia al presupuesto como en los REQ.
+  - **Deciden** (aprobar, observar, anular): el aprobador copiado y la
+    GERENCIA del CECO, nunca el solicitante. Observar y anular piden motivo.
+  - **Simplificaciones frente a la V38.7**: un OBSERVADO se corrige y
+    reemite directo (sin pasar por "Modificar"); el redactor puede anular su
+    propio BORRADOR (libera el periodo); un MODIFICADO sigue rigiendo con su
+    version aprobada (DEC-L030).
+  - Historial desde `log_cambios` (CREAR, EMITIR, OBSERVAR, APROBAR,
+    MODIFICAR, ANULAR; PROGRAMACION se audita pero no se lista).
+  - Queda para el Lote 15: control presupuestal en el REQ (flag obligatorio
+    por periodo, excepciones justificadas, alertas), cumplimiento y Excel de
+    PYC, gastos manuales.
+
 - **DEC-L035 — Lote 13: precio de venta por empresa y plazo de atencion por
   SKU (2026-11-02).** Adopta `catalogo-precios.js` y `plazos-atencion.js` de
   la V38.7 (Flyway V17).
@@ -135,7 +192,7 @@ actualizar esta lista y el CHANGELOG.
     proveedores no existe; la reevaluacion de proveedores si es alcanzable.
   Lote 12 (Flyway V14):
   - `rol` PYC y GERENCIA. `ceco.approver_user_id` (+ quien/cuando): un
-    **aprobador por CECO**, que fija ADMIN en Administracion -> CECOs (rol
+    **aprobador por CECO**, que fija ADMIN (desde el usuario, DEC-L037) (rol
     APROBADOR o GERENCIA, activo). Se audita (`ASIGNAR_APROBADOR`).
   - `aprobacion.assigned_to`: al enviar, el REQ copia el aprobador de su
     CECO. Decide ese usuario o la GERENCIA que tenga el CECO entre los suyos

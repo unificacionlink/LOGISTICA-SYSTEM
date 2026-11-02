@@ -61,7 +61,7 @@ public class SecurityConfig {
                         // en desarrollo local estas rutas simplemente no se piden (Vite corre aparte).
                         .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers(
-                                "/login", "/inicio", "/requerimientos/**", "/aprobaciones",
+                                "/login", "/inicio", "/requerimientos/**", "/aprobaciones", "/presupuestos", "/presupuestos/**",
                                 "/stock", "/stock/ajustes", "/catalogo",
                                 "/proveedores", "/proveedores/**", "/compras", "/compras/**",
                                 "/almacen", "/almacen/**", "/admin", "/cambiar-password")

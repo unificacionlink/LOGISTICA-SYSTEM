@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   LogOut,
   Menu,
+  PiggyBank,
   ShoppingCart,
   Truck,
   Warehouse,
@@ -38,6 +39,7 @@ const NAV_GRUPOS: { id: string; titulo: string | null; items: NavItem[] }[] = [
     items: [
       { to: "/requerimientos", label: "Requerimientos", icon: ClipboardList, roles: null },
       { to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare, roles: ["APROBADOR", "GERENCIA", "ADMIN"] },
+      { to: "/presupuestos", label: "Presupuestos", icon: PiggyBank, roles: null },
     ],
   },
   {

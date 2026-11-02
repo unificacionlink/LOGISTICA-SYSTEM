@@ -10,6 +10,8 @@ import Requerimientos from "./pages/Requerimientos";
 import RequerimientosNuevo from "./pages/RequerimientosNuevo";
 import RequerimientoDetalle from "./pages/RequerimientoDetalle";
 import Aprobaciones from "./pages/Aprobaciones";
+import Presupuestos from "./pages/Presupuestos";
+import PresupuestoDetalle from "./pages/PresupuestoDetalle";
 import Stock from "./pages/Stock";
 import StockAjustes from "./pages/StockAjustes";
 import CatalogoProductos from "./pages/CatalogoProductos";
@@ -44,6 +46,8 @@ export default function App() {
               <Route path="/requerimientos/:id/editar" element={<RequerimientosNuevo />} />
               <Route path="/requerimientos/:id" element={<RequerimientoDetalle />} />
               <Route path="/aprobaciones" element={<Aprobaciones />} />
+              <Route path="/presupuestos" element={<Presupuestos />} />
+              <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
               <Route path="/stock" element={<Stock />} />
               <Route path="/stock/ajustes" element={<StockAjustes />} />
               <Route path="/catalogo" element={<CatalogoProductos />} />

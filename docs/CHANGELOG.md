@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.23.1 — 2026-11-02
+
+- **Aprobador del CECO desde Usuarios** (DEC-L037): la ficha de un
+  Aprobador o Gerencia tiene "CECOs que aprueba", con aviso si el CECO
+  tenia otro aprobador. La pestaña CECOs solo lo muestra.
+  API `PUT /api/admin/usuarios/{id}/cecos-aprobados` (reemplaza
+  `PUT /api/admin/cecos/{id}/aprobador`).
+- Fix: dejar un CECO sin aprobador ya no falla.
+- PYC y Gerencia ven "CECOs de su ámbito" en su ficha.
+
+## 0.23.0 — 2026-11-02
+
+- **Lote 14 — Presupuestos** (DEC-L036, Flyway V18). Nueva pantalla
+  Presupuestos (Solicitudes): listado por año y estado, con "Por decidir"
+  para el aprobador.
+- **Periodos presupuestales** por CECO y semestre: PYC los habilita y
+  cierra (menú de la pantalla).
+- **Presupuesto SKU x 6 meses**: programación editable en tabla con
+  buscador de SKU y precio de venta vigente; emitir, aprobar u observar,
+  modificar (revisión) y anular con motivo.
+- **Precios congelados al aprobar** (venta + última compra en PEN) en
+  versiones; la revisión sigue rigiendo con la última aprobada.
+- API `/api/presupuestos` (periodos, listado, detalle, catálogo, líneas,
+  emitir, decidir, modificar, anular).
+- Test: `PresupuestosTest`.
+
 ## 0.22.0 — 2026-11-02
 
 - **Lote 13 — Precios de venta y plazo de atencion** (DEC-L035, Flyway V17).

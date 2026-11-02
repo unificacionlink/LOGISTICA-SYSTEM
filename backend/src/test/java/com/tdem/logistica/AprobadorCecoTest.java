@@ -67,9 +67,9 @@ class AprobadorCecoTest {
 		UUID ceco = cecoAdm();
 
 		// --- Solo ADMIN asigna; el aprobador debe tener rol APROBADOR o GERENCIA ---
-		assertThrows(ApiException.class, () -> admin.asignarAprobadorCeco(ceco, aprobador.userId(), aprobador));
-		assertThrows(ApiException.class, () -> admin.asignarAprobadorCeco(ceco, solicitante.userId(), adminP));
-		admin.asignarAprobadorCeco(ceco, aprobador.userId(), adminP);
+		assertThrows(ApiException.class, () -> admin.asignarCecosAprobados(aprobador.userId(), List.of(ceco), aprobador));
+		assertThrows(ApiException.class, () -> admin.asignarCecosAprobados(solicitante.userId(), List.of(ceco), adminP));
+		admin.asignarCecosAprobados(aprobador.userId(), List.of(ceco), adminP);
 
 		// --- El REQ enviado queda asignado: el otro aprobador no lo ve ni lo decide ---
 		RequerimientoDto req = requerimientos.crear(solicitud(ceco), solicitante);
@@ -85,8 +85,9 @@ class AprobadorCecoTest {
 		assertEquals(1, aprobaciones.listarPendientes(gerencia).size());
 		assertNotNull(requerimientos.obtener(req.id(), gerencia).pendingApprovalId());
 
-		// --- Reasignar el CECO mueve lo pendiente y queda auditado ---
-		admin.asignarAprobadorCeco(ceco, otro.userId(), adminP);
+		// --- Asignar el CECO a otro aprobador (desde su usuario) mueve lo pendiente y queda auditado ---
+		admin.asignarCecosAprobados(otro.userId(), List.of(ceco), adminP);
+		assertEquals(otro.userId(), jdbc.queryForObject("select approver_user_id from ceco where ceco_id = ?", UUID.class, ceco));
 		assertEquals(1, aprobaciones.listarPendientes(otro).size());
 		assertTrue(aprobaciones.listarPendientes(aprobador).isEmpty());
 		assertEquals(2, jdbc.queryForObject("""
@@ -95,6 +96,11 @@ class AprobadorCecoTest {
 		assertEquals("EN_ATENCION", aprobaciones.decidir(aprobacion,
 				new DecidirAprobacionRequest("APROBADO", null, null), otro).status());
 		assertNotNull(requerimientos.obtener(req.id(), otro), "quien decidio sigue viendo el REQ");
+
+		// --- Quitarlo de la lista del usuario deja el CECO sin aprobador ---
+		admin.asignarCecosAprobados(otro.userId(), List.of(), adminP);
+		assertNull(jdbc.queryForObject("select approver_user_id from ceco where ceco_id = ?", UUID.class, ceco));
+		admin.asignarCecosAprobados(otro.userId(), List.of(ceco), adminP);
 
 		// --- Nadie decide su propio REQ, ni siendo ADMIN ---
 		UsuarioPrincipal adminSolicitante = new UsuarioPrincipal(adminP.userId(), List.of("ADMIN", "SOLICITANTE"));

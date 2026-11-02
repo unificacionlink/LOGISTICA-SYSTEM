@@ -7,9 +7,9 @@
 ERP Logístico Corporativo para TDEM, GOYDEL y METRIN. Reemplaza el prototipo V38 de Jonathan (HTML + localStorage, en `docs_base/`) por un sistema productivo. Flujo principal:
 Requerimiento → Aprobación → Stock/Compra (RFQ → Cotización → OC) → Recepción → Despacho (Nota de Inventario) → Envío → Entrega → Tracking.
 
-Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-L030). No hay perfil Compras ni Almacén: los opera LOGISTICA/ADMIN. Cada CECO puede tener un aprobador asignado (`ceco.approver_user_id`); la regla de quién decide/ve está en `modules/aprobaciones/AmbitoAprobacion`.
+Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-L030). No hay perfil Compras ni Almacén: los opera LOGISTICA/ADMIN. Cada CECO puede tener un aprobador asignado (`ceco.approver_user_id`, se asigna desde la ficha del usuario en Administración, DEC-L037); la regla de quién decide/ve está en `modules/aprobaciones/AmbitoAprobacion`.
 
-**En curso: adopción de la V38.7** (entrega del 06/10/2026 en `docs_base/V38_7_ENTREGA_2026-10-06/`, ver DEC-L030). Lotes: 12 roles/aprobador por CECO (hecho) → 13 precios de venta + plazo de atención (hecho, DEC-L035) → 14 Presupuestos → 15 control presupuestal + cumplimiento → 16 necesidad/consolidación/RFQ multiproducto → 17 OC con aprobación, pago y liberación → 18 almacén V38.7 → 19 proveedores + dashboard.
+**En curso: adopción de la V38.7** (entrega del 06/10/2026 en `docs_base/V38_7_ENTREGA_2026-10-06/`, ver DEC-L030). Lotes: 12 roles/aprobador por CECO (hecho) → 13 precios de venta + plazo de atención (hecho, DEC-L035) → 14 Presupuestos (hecho, DEC-L036) → 15 control presupuestal + cumplimiento → 16 necesidad/consolidación/RFQ multiproducto → 17 OC con aprobación, pago y liberación → 18 almacén V38.7 → 19 proveedores + dashboard.
 
 ## Documentación (leer antes de cambios no triviales)
 
@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L035 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L037 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -62,7 +62,7 @@ Scripts Python en `scripts/`: `seed_catalogo_sku.py` (regenera seed de 725 SKU d
 - `storage/` — `StorageClient`/`S3StorageClient`, `OcrExtractor`.
 - `modules/identidad/` — sync de solo lectura con RRHH-SYSTEM (`PersonalSyncService`), padrón manual de GOYDEL/METRIN por Excel (`PersonalManualService`, DEC-L028) y Administración (`/api/admin`, solo ADMIN). `security/AccesoVigente` da estado y roles vigentes en cada request (no los del JWT).
 - `documentos/` — PDFs corporativos con PDFBox (`PdfCorporativo` = maqueta, `DocumentosPdf` = contenido; cada PDF se arma desde el DTO de su pantalla para heredar permisos) y `Descargas` para respuestas de archivo.
-- `modules/<modulo>/` — `requerimientos`, `aprobaciones`, `stock`, `proveedores`, `compras`, `almacen`, `tracking`, `dashboard`, `auth`. Cada uno: `*Controller` (`@RestController`) → `*Service` (lógica + autorización, devuelve `ApiResponse<T>`) → repositorios; `*Mapper` con métodos estáticos a mano (sin MapStruct); `dto/` con Bean Validation + `@Valid`.
+- `modules/<modulo>/` — `requerimientos`, `aprobaciones`, `presupuestos`, `stock`, `proveedores`, `compras`, `almacen`, `tracking`, `dashboard`, `auth`. Cada uno: `*Controller` (`@RestController`) → `*Service` (lógica + autorización, devuelve `ApiResponse<T>`) → repositorios; `*Mapper` con métodos estáticos a mano (sin MapStruct); `dto/` con Bean Validation + `@Valid`.
 - `TestDataSeeder` — profile `seed-test-data`.
 
 Reglas clave:
@@ -75,7 +75,7 @@ Reglas clave:
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V18__descripcion.sql` (existen V1..V17).
+- Siguiente migración: `V19__descripcion.sql` (existen V1..V18).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.

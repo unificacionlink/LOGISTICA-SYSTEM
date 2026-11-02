@@ -45,6 +45,15 @@ public class AdminController {
         return ApiResponse.ok(service.asignarCecos(id, request.cecoIds(), principal), "CECOs actualizados.");
     }
 
+    /** CECOs que aprueba el usuario (DEC-L037). */
+    @PutMapping("/usuarios/{id}/cecos-aprobados")
+    public ApiResponse<AdminDatosDto> asignarCecosAprobados(@PathVariable UUID id,
+                                                            @Valid @RequestBody AsignarCecosRequest request,
+                                                            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.asignarCecosAprobados(id, request.cecoIds(), principal),
+                "CECOs que aprueba actualizados.");
+    }
+
     @PostMapping("/usuarios/{id}/password-temporal")
     public ApiResponse<PasswordTemporalDto> passwordTemporal(@PathVariable UUID id,
                                                              @AuthenticationPrincipal UsuarioPrincipal principal) {
@@ -98,12 +107,6 @@ public class AdminController {
         return ApiResponse.ok(service.crearCeco(request, principal), "CECO creado.");
     }
 
-    @PutMapping("/cecos/{id}/aprobador")
-    public ApiResponse<AdminDatosDto> asignarAprobadorCeco(@PathVariable UUID id,
-                                                           @RequestBody AsignarAprobadorCecoRequest request,
-                                                           @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(service.asignarAprobadorCeco(id, request.userId(), principal), "Aprobador actualizado.");
-    }
 
     @PostMapping("/sincronizar-rrhh")
     public ApiResponse<AdminDatosDto> sincronizar(@AuthenticationPrincipal UsuarioPrincipal principal) {

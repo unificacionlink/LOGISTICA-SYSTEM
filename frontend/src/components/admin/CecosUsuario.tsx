@@ -29,6 +29,8 @@ export default function CecosUsuario({
   const [busqueda, setBusqueda] = useState("");
   const [guardando, setGuardando] = useState(false);
   const porId = useMemo(() => new Map(cecos.map((c) => [c.id, c])), [cecos]);
+  // PYC y Gerencia usan estos CECOs como ambito de presupuestos (DEC-L036).
+  const gestiona = u.roles.includes("PYC") || u.roles.includes("GERENCIA");
   const cambiaron = [...seleccion].sort().join() !== [...u.cecoIds].sort().join();
 
   const resultados = useMemo(() => {
@@ -55,10 +57,10 @@ export default function CecosUsuario({
 
   return (
     <div className="mt-4">
-      <div className="rotulo mb-2">CECOs para los que puede pedir</div>
+      <div className="rotulo mb-2">{gestiona ? "CECOs de su ámbito" : "CECOs para los que puede pedir"}</div>
       {seleccion.length === 0 ? (
         <p className={`text-xs ${u.roles.includes("SOLICITANTE") ? "text-amber-700" : "text-slate-500"}`}>
-          Sin CECOs: no puede crear requerimientos.
+          {gestiona ? "Sin CECOs: no gestiona presupuestos." : "Sin CECOs: no puede crear requerimientos."}
         </p>
       ) : (
         <ul className="flex flex-wrap gap-1.5">

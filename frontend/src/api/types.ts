@@ -751,3 +751,99 @@ export interface CompraCajaChica {
   registradoEn: string;
   items: { sku: string; producto: string; cantidad: number; costoUnitario: number; total: number }[];
 }
+
+// ---------------------------------------------------------------- Presupuestos (Lote 14, DEC-L036)
+
+export type EstadoPresupuesto = "BORRADOR" | "EMITIDO" | "APROBADO" | "OBSERVADO" | "MODIFICADO" | "ANULADO";
+
+export interface PeriodoPresupuestal {
+  periodId: string;
+  cecoId: string;
+  empresa: string;
+  cecoCode: string;
+  cecoNombre: string;
+  anio: number;
+  semestre: number;
+  cerrado: boolean;
+  presupuestoId: string | null;
+  presupuestoCodigo: string | null;
+}
+
+export interface CecoOpcion {
+  cecoId: string;
+  empresa: string;
+  code: string;
+  nombre: string;
+}
+
+export interface PeriodosPresupuestales {
+  periodos: PeriodoPresupuestal[];
+  cecosConfigurables: CecoOpcion[];
+  puedeCrear: boolean;
+}
+
+export interface PresupuestoResumen {
+  id: string;
+  codigo: string;
+  empresa: string;
+  cecoCode: string;
+  cecoNombre: string;
+  anio: number;
+  semestre: number;
+  estado: EstadoPresupuesto;
+  solicitante: string;
+  aprobador: string | null;
+  total: number | null;
+  lineasSinPrecio: number;
+  porDecidir: boolean;
+  actualizadoEn: string;
+}
+
+export interface LineaPresupuesto {
+  productId: string;
+  sku: string;
+  nombre: string;
+  familia: string;
+  unidad: string;
+  meses: number[];
+  cantidad: number;
+  precio: number | null;
+  importe: number | null;
+  precioCongelado: boolean;
+}
+
+export interface PresupuestoDetalle {
+  id: string;
+  codigo: string;
+  periodId: string;
+  empresa: string;
+  cecoCode: string;
+  cecoNombre: string;
+  anio: number;
+  semestre: number;
+  periodoCerrado: boolean;
+  estado: EstadoPresupuesto;
+  solicitanteId: string;
+  solicitante: string;
+  aprobador: string | null;
+  observaciones: string | null;
+  motivoDecision: string | null;
+  emitidoEn: string | null;
+  versionVigente: number | null;
+  aprobadoEn: string | null;
+  aprobadoPor: string | null;
+  lineas: LineaPresupuesto[];
+  total: number | null;
+  lineasSinPrecio: number;
+  permisos: { editar: boolean; emitir: boolean; decidir: boolean; modificar: boolean; anular: boolean };
+  historial: { accion: string; usuario: string | null; fecha: string; motivo: string | null }[];
+}
+
+export interface ProductoPresupuesto {
+  productId: string;
+  sku: string;
+  nombre: string;
+  familia: string;
+  unidad: string;
+  precio: number | null;
+}
