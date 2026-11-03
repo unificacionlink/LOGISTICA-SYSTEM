@@ -14,8 +14,11 @@ import type { ApiResponse } from "../api/http";
 import type { PresupuestoDetalle as Detalle, ProductoPresupuesto } from "../api/types";
 import PresupuestoEstadoBadge from "../components/PresupuestoEstadoBadge";
 import BuscadorSku from "../components/presupuestos/BuscadorSku";
+import CumplimientoPresupuesto from "../components/presupuestos/CumplimientoPresupuesto";
+import ExcepcionesPresupuesto from "../components/presupuestos/ExcepcionesPresupuesto";
 import { etiquetaPeriodo, mesesDelSemestre, soles } from "../components/presupuestos/formato";
 import Alert from "../components/ui/Alert";
+import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { Card, CardBody } from "../components/ui/Card";
 import { useConfirmar } from "../components/ui/Confirmacion";
@@ -62,6 +65,7 @@ export default function PresupuestoDetalle() {
   const [procesando, setProcesando] = useState(false);
   const [borrador, setBorrador] = useState<Borrador[] | null>(null);
   const [catalogo, setCatalogo] = useState<ProductoPresupuesto[] | null>(null);
+  const [vista, setVista] = useState<"programacion" | "cumplimiento">("programacion");
 
   useEffect(() => {
     if (!id) return;
@@ -190,7 +194,12 @@ export default function PresupuestoDetalle() {
         }
         backTo="/presupuestos"
         backLabel="Presupuestos"
-        actions={<PresupuestoEstadoBadge estado={d.estado} />}
+        actions={
+          <>
+            {d.controlObligatorio && <Badge tone="azul">Control obligatorio</Badge>}
+            <PresupuestoEstadoBadge estado={d.estado} />
+          </>
+        }
       />
 
       <div className="mb-4 flex flex-col gap-3">
@@ -292,6 +301,32 @@ export default function PresupuestoDetalle() {
         </CardBody>
       </Card>
 
+      <ExcepcionesPresupuesto excepciones={d.excepciones} />
+
+      {d.versionVigente && !editando && (
+        <div role="tablist" aria-label="Vista del presupuesto" className="mb-4 flex gap-1 border-b border-slate-200">
+          {(["programacion", "cumplimiento"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={vista === v}
+              onClick={() => setVista(v)}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+                vista === v ? "border-brand-700 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {v === "programacion" ? "Programación" : "Cumplimiento"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {vista === "cumplimiento" && d.versionVigente && !editando ? (
+        <div className="mb-4">
+          <CumplimientoPresupuesto presupuestoId={d.id} />
+        </div>
+      ) : (
       <Card className="mb-4 overflow-hidden">
         <CardBody className="pb-3">
           <div className="rotulo">
@@ -411,6 +446,8 @@ export default function PresupuestoDetalle() {
           </div>
         )}
       </Card>
+
+      )}
 
       {d.historial.length > 0 && (
         <details className="group rounded-xl border border-slate-200 bg-white">

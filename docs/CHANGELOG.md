@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.24.0 — 2026-11-02
+
+- **Lote 15 — Control presupuestal y cumplimiento** (DEC-L038, Flyway V19).
+- **Control por periodo**: PYC lo activa en el menú de cada periodo
+  presupuestal (columna "Control").
+- **Al enviar un requerimiento** con control activo se valida cada SKU
+  contra el presupuesto aprobado del CECO y semestre. Si excede, no está
+  presupuestado o no hay presupuesto aprobado, se pide una justificación y
+  queda como excepción. El detalle del REQ muestra el resultado.
+- **Excepciones presupuestales** en el detalle del presupuesto (PYC,
+  Gerencia, Logística, Admin).
+- **Pestaña Cumplimiento**: programado, real (recepcionado en destino),
+  pendiente, saldo y disponible por SKU y por familia, a precio de venta o
+  de compra. Excel de cumplimiento exclusivo de PYC.
+- API: `PUT /api/presupuestos/periodos/{id}/control`,
+  `GET /api/presupuestos/{id}/cumplimiento` (+ `/excel`);
+  `POST /api/requerimientos/{id}/enviar` acepta `justificacionPresupuestal`.
+- Test: `ControlPresupuestalTest`.
+
 ## 0.23.1 — 2026-11-02
 
 - **Aprobador del CECO desde Usuarios** (DEC-L037): la ficha de un

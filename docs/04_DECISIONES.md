@@ -5,6 +5,45 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L038 — Lote 15: control presupuestal y cumplimiento (2026-11-02).**
+  Adopta `bcCheck`, `bcRecordCheck`, `bcCompliance` y el Excel de PYC de
+  `presupuestos-control.js` de la V38.7 (REQ-02, REQ-03, RES-01, RES-02;
+  Flyway V19).
+  - **Control por periodo**: `periodo_presupuestal.mandatory_control`, lo
+    activa o desactiva PYC (menu del periodo). Desactivado por defecto: sin
+    control no se valida ni se registra nada.
+  - **Al enviar un REQ** (`RequerimientoService.enviar`, tambien al
+    reenviar un observado): el semestre sale de la fecha requerida (o la de
+    creacion, hora Lima). Disponible por SKU = programado en la **version
+    aprobada vigente** (aunque el presupuesto este en revision, DEC-L030) -
+    lo pedido por los otros REQ del CECO en el semestre que no estan en
+    borrador ni rechazados. Desviaciones: SIN_PRESUPUESTO_APROBADO,
+    SKU_NO_PRESUPUESTADO o EXCESO. Con desviaciones el backend responde
+    `code = EXCEPCION_PRESUPUESTAL` y el envio exige justificacion (la UI la
+    pide con la confirmacion con motivo). Se bloquea el periodo para que dos
+    envios no consuman el mismo saldo.
+  - Cada envio controlado queda en `control_presupuestal_req` (CUBIERTO o
+    EXCEPCION_JUSTIFICADA, monto a precio congelado, justificacion y
+    desviaciones). El detalle del REQ muestra el ultimo control; el aprobador
+    lo ve al decidir.
+  - **Alertas** (decision del usuario): no hay bandeja de notificaciones; las
+    excepciones se listan en el detalle del presupuesto ("Excepciones
+    presupuestales"), visibles para PYC, Gerencia, Logistica y Admin. Se
+    muestra el ultimo control de cada REQ (equivale a la deduplicacion).
+  - **Cumplimiento** (pestana del presupuesto, requiere version aprobada):
+    por SKU programado, real (lo despachado a los REQ del CECO y semestre
+    con envio RECEPCIONADO/CERRADO, como `AtencionCalculator`), pendiente
+    (pedido - real), saldo (programado - real) y disponible (saldo -
+    pendiente), valorizados con los precios congelados. Incluye SKU pedidos
+    sin presupuesto. Sin precio = SIN PRECIO / INCOMPLETO, nunca cero. Precio
+    de compra solo para PYC, Gerencia y Logistica.
+  - **Excel** (2 hojas: Resumen por familia y Detalle por SKU, con
+    metadatos y autofiltro): exclusivo de PYC en su ambito.
+  - **No se adoptan**: gastos manuales (`budgetActuals`; decision del
+    usuario: la propia V38.7 los marca "no es consumo por conformidad"),
+    conformidad de servicios (el catalogo no tiene servicios) ni el filtro
+    mensual (RES-03, pendiente tambien en la V38.7).
+
 - **DEC-L037 — El aprobador del CECO se asigna desde el usuario
   (2026-11-02).** Decision del usuario. La V38.7 guarda un aprobador por
   empresa + CECO (`projectAssignments`), pero lo configura en **Accesos /
@@ -58,9 +97,8 @@ actualizar esta lista y el CHANGELOG.
     version aprobada (DEC-L030).
   - Historial desde `log_cambios` (CREAR, EMITIR, OBSERVAR, APROBAR,
     MODIFICAR, ANULAR; PROGRAMACION se audita pero no se lista).
-  - Queda para el Lote 15: control presupuestal en el REQ (flag obligatorio
-    por periodo, excepciones justificadas, alertas), cumplimiento y Excel de
-    PYC, gastos manuales.
+  - El control presupuestal en el REQ y el cumplimiento llegan en el Lote 15
+    (DEC-L038).
 
 - **DEC-L035 — Lote 13: precio de venta por empresa y plazo de atencion por
   SKU (2026-11-02).** Adopta `catalogo-precios.js` y `plazos-atencion.js` de

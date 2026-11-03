@@ -1,5 +1,6 @@
 import { http } from "./http";
 import type {
+  Cumplimiento,
   EstadoPresupuesto,
   PeriodoPresupuestal,
   PeriodosPresupuestales,
@@ -22,6 +23,10 @@ export function cerrarPeriodo(periodId: string, cerrado: boolean) {
   return http.put<PeriodoPresupuestal>(`/api/presupuestos/periodos/${periodId}/cierre`, { cerrado });
 }
 
+export function controlPeriodo(periodId: string, obligatorio: boolean) {
+  return http.put<PeriodoPresupuestal>(`/api/presupuestos/periodos/${periodId}/control`, { obligatorio });
+}
+
 export function listarPresupuestos(filtros: { anio?: number; semestre?: number; estado?: EstadoPresupuesto }) {
   const q = new URLSearchParams();
   if (filtros.anio) q.set("anio", String(filtros.anio));
@@ -41,6 +46,14 @@ export function obtenerPresupuesto(id: string) {
 
 export function catalogoPresupuesto(id: string) {
   return http.get<ProductoPresupuesto[]>(`/api/presupuestos/${id}/catalogo`);
+}
+
+export function obtenerCumplimiento(id: string) {
+  return http.get<Cumplimiento>(`/api/presupuestos/${id}/cumplimiento`);
+}
+
+export function descargarCumplimientoExcel(id: string, codigo: string) {
+  return http.descargar(`/api/presupuestos/${id}/cumplimiento/excel`, `Cumplimiento_${codigo}.xlsx`);
 }
 
 export function guardarLineas(id: string, lineas: { productId: string; meses: number[] }[]) {

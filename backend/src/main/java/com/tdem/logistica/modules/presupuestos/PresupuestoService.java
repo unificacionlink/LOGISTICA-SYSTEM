@@ -71,11 +71,14 @@ public class PresupuestoService {
     private final JdbcTemplate jdbc;
     private final NamedParameterJdbcTemplate named;
     private final Auditoria auditoria;
+    private final ControlPresupuestalService control;
 
-    public PresupuestoService(JdbcTemplate jdbc, NamedParameterJdbcTemplate named, Auditoria auditoria) {
+    public PresupuestoService(JdbcTemplate jdbc, NamedParameterJdbcTemplate named, Auditoria auditoria,
+                              ControlPresupuestalService control) {
         this.jdbc = jdbc;
         this.named = named;
         this.auditoria = auditoria;
+        this.control = control;
     }
 
     /** Lo necesario para autorizar una accion sobre un presupuesto. */
@@ -91,7 +94,7 @@ public class PresupuestoService {
         UUID yo = principal.userId();
         String sql = """
                 select pp.budget_period_id, pp.ceco_id, e.code, c.code, c.name, pp.year, pp.semester, pp.closed,
-                       b.budget_id, b.budget_code
+                       b.budget_id, b.budget_code, pp.mandatory_control
                 from periodo_presupuestal pp
                 join ceco c on c.ceco_id = pp.ceco_id
                 join empresa e on e.company_id = c.company_id
@@ -153,10 +156,31 @@ public class PresupuestoService {
         return periodo(periodId);
     }
 
+    /** PYC activa o desactiva el control presupuestal de los REQ del periodo (DEC-L038). */
+    @Transactional
+    public PeriodoDto controlPeriodo(UUID periodId, boolean obligatorio, UsuarioPrincipal principal) {
+        exigirPyc(principal);
+        List<Map<String, Object>> p = jdbc.queryForList(
+                "select ceco_id, mandatory_control from periodo_presupuestal where budget_period_id = ? for update",
+                periodId);
+        if (p.isEmpty()) {
+            throw ApiException.notFound("Periodo no encontrado.");
+        }
+        exigirCecoEnAmbito((UUID) p.get(0).get("ceco_id"), principal);
+        if ((Boolean) p.get(0).get("mandatory_control") != obligatorio) {
+            jdbc.update("""
+                    update periodo_presupuestal set mandatory_control = ?, updated_by = ?, updated_at = now()
+                    where budget_period_id = ?""", obligatorio, principal.userId(), periodId);
+            auditoria.registrar("PERIODO_PRESUPUESTAL", periodId, obligatorio ? "ACTIVAR_CONTROL" : "DESACTIVAR_CONTROL",
+                    Map.of("control", !obligatorio), Map.of("control", obligatorio), principal.userId());
+        }
+        return periodo(periodId);
+    }
+
     private PeriodoDto periodo(UUID periodId) {
         return jdbc.query("""
                 select pp.budget_period_id, pp.ceco_id, e.code, c.code, c.name, pp.year, pp.semester, pp.closed,
-                       b.budget_id, b.budget_code
+                       b.budget_id, b.budget_code, pp.mandatory_control
                 from periodo_presupuestal pp
                 join ceco c on c.ceco_id = pp.ceco_id
                 join empresa e on e.company_id = c.company_id
@@ -167,7 +191,7 @@ public class PresupuestoService {
     private static PeriodoDto mapearPeriodo(ResultSet rs) throws SQLException {
         return new PeriodoDto(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
                 rs.getString(4), rs.getString(5), rs.getInt(6), rs.getInt(7), rs.getBoolean(8),
-                rs.getObject(9, UUID.class), rs.getString(10));
+                rs.getObject(9, UUID.class), rs.getString(10), rs.getBoolean(11));
     }
 
     // ---------------------------------------------------------------- listado y detalle
@@ -228,7 +252,8 @@ public class PresupuestoService {
         UUID yo = principal.userId();
         List<Object[]> cab = jdbc.query("select " + CTX_COLUMNAS + """
                 , e.code, c.code, c.name, pp.year, pp.semester, us.display_name, ua.display_name,
-                  b.observations, b.decision_reason, b.issued_at, v.version_no, v.approved_at, uv.display_name
+                  b.observations, b.decision_reason, b.issued_at, v.version_no, v.approved_at, uv.display_name,
+                  pp.mandatory_control
                 """ + CTX_FROM + """
 
                 join empresa e on e.company_id = c.company_id
@@ -238,7 +263,8 @@ public class PresupuestoService {
                 left join usuario uv on uv.user_id = v.approved_by
                 where b.budget_id = ?""", (rs, i) -> new Object[]{mapearCtx(rs), rs.getString(13), rs.getString(14),
                 rs.getString(15), rs.getInt(16), rs.getInt(17), rs.getString(18), rs.getString(19), rs.getString(20),
-                rs.getString(21), instante(rs, 22), (Integer) rs.getObject(23), instante(rs, 24), rs.getString(25)},
+                rs.getString(21), instante(rs, 22), (Integer) rs.getObject(23), instante(rs, 24), rs.getString(25),
+                rs.getBoolean(26)},
                 yo, yo, id);
         if (cab.isEmpty() || !puedeVer((Ctx) cab.get(0)[0], principal)) {
             throw ApiException.notFound("Presupuesto no disponible.");
@@ -260,7 +286,9 @@ public class PresupuestoService {
                 (Integer) h[4], (Integer) h[5], c.cerrado(), c.estado(), c.requesterId(), (String) h[6],
                 (String) h[7], (String) h[8], (String) h[9], (Instant) h[10], (Integer) h[11], (Instant) h[12],
                 (String) h[13], lineas, lineas.isEmpty() ? null : total, sinPrecio,
-                permisos(c, principal, lineas.size()), historial);
+                permisos(c, principal, lineas.size()), historial, (Boolean) h[14],
+                principal.tieneAlgunRol(Roles.PYC, Roles.GERENCIA, Roles.LOGISTICA, Roles.ADMIN)
+                        ? control.excepciones(c.periodId()) : List.of());
     }
 
     private List<LineaPresupuestoDto> lineas(UUID budgetId) {
@@ -571,6 +599,140 @@ public class PresupuestoService {
         auditoria.registrar("PRESUPUESTO", id, "ANULAR", Map.of("estado", c.estado()),
                 Map.of("estado", ANULADO, "motivo", motivo.trim()), principal.userId());
         return obtener(id, principal);
+    }
+
+    // ---------------------------------------------------------------- cumplimiento (RES-01/RES-02)
+
+    /**
+     * Cumplimiento de la version aprobada vigente (bcCompliance de la V38.7): por SKU
+     * programado vs real (lo despachado a los REQ del CECO y semestre cuyo envio se
+     * recepciono en destino), pendiente (pedido - real), saldo (programado - real) y
+     * disponible (saldo - pendiente), valorizados con los precios congelados. Incluye
+     * los SKU pedidos sin presupuesto. Precio de compra solo para PYC, GERENCIA y
+     * LOGISTICA; el Excel es exclusivo de PYC en su ambito.
+     */
+    public CumplimientoDto cumplimiento(UUID id, UsuarioPrincipal principal) {
+        exigirAcceso(principal);
+        Ctx c = ctx(id, principal, false);
+        if (c.currentVersionId() == null) {
+            throw ApiException.badRequest("El presupuesto aun no tiene una version aprobada.");
+        }
+        Map<String, Object> cab = jdbc.queryForMap("""
+                select e.code as empresa, c.code as ceco_code, c.name as ceco_nombre, pp.year, pp.semester, v.version_no
+                from presupuesto b
+                join periodo_presupuestal pp on pp.budget_period_id = b.budget_period_id
+                join ceco c on c.ceco_id = pp.ceco_id
+                join empresa e on e.company_id = c.company_id
+                join presupuesto_version v on v.budget_version_id = b.current_version_id
+                where b.budget_id = ?""", id);
+        int anio = ((Number) cab.get("year")).intValue();
+        int semestre = ((Number) cab.get("semester")).intValue();
+        java.time.LocalDate desde = java.time.LocalDate.of(anio, semestre == 1 ? 1 : 7, 1);
+        java.time.LocalDate hasta = desde.plusMonths(6).minusDays(1);
+        boolean conCompra = principal.tieneAlgunRol(Roles.PYC, Roles.GERENCIA, Roles.LOGISTICA);
+
+        List<CumplimientoFilaDto> filas = jdbc.query("""
+                with reqs as (
+                  select r.request_id from requerimiento r
+                  where r.ceco_id = ? and r.status not in ('BORRADOR', 'RECHAZADO')
+                    and """ + ControlPresupuestalService.FECHA_REQ + """
+                 between ? and ?),
+                pedido as (
+                  select ri.product_id, sum(ri.qty_requested) as qty
+                  from requerimiento_item ri join reqs on reqs.request_id = ri.request_id
+                  group by ri.product_id),
+                recibido as (
+                  select si.product_id, sum(si.qty) as qty
+                  from salida s join reqs on reqs.request_id = s.request_id
+                  join salida_item si on si.issue_id = s.issue_id
+                  where exists (select 1 from envio e where e.issue_id = s.issue_id
+                                and e.status in ('RECEPCIONADO', 'CERRADO'))
+                  group by si.product_id),
+                base as (
+                  select vl.product_id, vl.qty_m1 + vl.qty_m2 + vl.qty_m3 + vl.qty_m4 + vl.qty_m5 + vl.qty_m6 as programado,
+                         vl.sale_price, vl.purchase_price, false as sin_presupuesto
+                  from presupuesto_version_linea vl where vl.budget_version_id = ?
+                  union all
+                  select pe.product_id, 0, null, null, true from pedido pe
+                  where not exists (select 1 from presupuesto_version_linea vl
+                                    where vl.budget_version_id = ? and vl.product_id = pe.product_id))
+                select b.product_id, f.name, sf.name, p.sku_base, p.name, u.code, b.sin_presupuesto, b.programado,
+                       coalesce(rc.qty, 0), coalesce(pe.qty, 0), b.sale_price, b.purchase_price
+                from base b
+                join producto p on p.product_id = b.product_id
+                join familia_producto f on f.family_id = p.family_id
+                join subfamilia_producto sf on sf.subfamily_id = p.subfamily_id
+                join unidad_medida u on u.uom_id = p.base_uom_id
+                left join recibido rc on rc.product_id = b.product_id
+                left join pedido pe on pe.product_id = b.product_id
+                order by f.name, sf.name, p.sku_base""", (rs, i) -> {
+            boolean sinPresupuesto = rs.getBoolean(7);
+            BigDecimal programado = rs.getBigDecimal(8);
+            BigDecimal real = rs.getBigDecimal(9);
+            BigDecimal pendiente = rs.getBigDecimal(10).subtract(real).max(BigDecimal.ZERO);
+            BigDecimal saldo = programado.subtract(real);
+            BigDecimal disponible = saldo.subtract(pendiente);
+            BigDecimal venta = rs.getBigDecimal(11);
+            BigDecimal compra = conCompra ? rs.getBigDecimal(12) : null;
+            BigDecimal[] cantidades = {programado, real, pendiente, saldo, disponible};
+            return new CumplimientoFilaDto(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                    rs.getString(4), rs.getString(5), rs.getString(6), sinPresupuesto, programado, real, pendiente,
+                    saldo, disponible, venta, montos(venta, cantidades, sinPresupuesto), compra,
+                    conCompra ? montos(compra, cantidades, sinPresupuesto) : null);
+        }, c.cecoId(), java.sql.Date.valueOf(desde), java.sql.Date.valueOf(hasta), c.currentVersionId(),
+                c.currentVersionId());
+
+        Map<String, List<CumplimientoFilaDto>> porFamilia = new LinkedHashMap<>();
+        filas.forEach(f -> porFamilia.computeIfAbsent(f.familia(), k -> new ArrayList<>()).add(f));
+        List<ResumenFamiliaDto> resumen = new ArrayList<>();
+        porFamilia.forEach((familia, grupo) -> resumen.add(resumir(familia, grupo, conCompra)));
+        resumen.add(resumir("TOTAL", filas, conCompra));
+        return new CumplimientoDto(c.id(), c.codigo(), (String) cab.get("empresa"), (String) cab.get("ceco_code"),
+                (String) cab.get("ceco_nombre"), anio + "-S" + semestre, ((Number) cab.get("version_no")).intValue(),
+                Instant.now(), conCompra, esPyc(principal) && c.enAmbito(), filas, resumen);
+    }
+
+    /** Excel de cumplimiento: exclusivo de PYC en su ambito (bcExportCompliance). */
+    public record Archivo(byte[] contenido, String nombre) {
+    }
+
+    public Archivo cumplimientoExcel(UUID id, UsuarioPrincipal principal) {
+        CumplimientoDto dto = cumplimiento(id, principal);
+        if (!dto.puedeDescargar()) {
+            throw ApiException.forbidden("Descarga exclusiva de PYC en su CECO autorizado.");
+        }
+        String nombre = ("Cumplimiento_" + dto.codigo() + "_" + dto.empresa() + "_" + dto.periodo())
+                .replaceAll("[^a-zA-Z0-9_-]", "_") + ".xlsx";
+        return new Archivo(CumplimientoExcel.generar(dto), nombre);
+    }
+
+    /** Cantidades x precio; precio null = SIN PRECIO, salvo lo programado de un SKU sin presupuesto (0). */
+    private static List<BigDecimal> montos(BigDecimal precio, BigDecimal[] cantidades, boolean sinPresupuesto) {
+        List<BigDecimal> m = new ArrayList<>(5);
+        for (BigDecimal q : cantidades) {
+            m.add(precio == null ? null : q.multiply(precio).setScale(2, RoundingMode.HALF_UP));
+        }
+        if (sinPresupuesto) {
+            m.set(0, BigDecimal.ZERO);
+        }
+        return m;
+    }
+
+    private static ResumenFamiliaDto resumir(String familia, List<CumplimientoFilaDto> filas, boolean conCompra) {
+        return new ResumenFamiliaDto(familia, sumar(filas.stream().map(CumplimientoFilaDto::venta).toList()),
+                conCompra ? sumar(filas.stream().map(CumplimientoFilaDto::compra).toList()) : null);
+    }
+
+    /** Suma por columna; si alguna fila no tiene precio en esa columna, queda null (INCOMPLETO). */
+    private static List<BigDecimal> sumar(List<List<BigDecimal>> montos) {
+        List<BigDecimal> total = new ArrayList<>(Collections.nCopies(5, BigDecimal.ZERO));
+        for (List<BigDecimal> fila : montos) {
+            for (int i = 0; i < 5; i++) {
+                BigDecimal acumulado = total.get(i);
+                total.set(i, acumulado == null || fila.get(i) == null ? null : acumulado.add(fila.get(i)));
+            }
+        }
+        return total;
     }
 
     // ---------------------------------------------------------------- autorizacion

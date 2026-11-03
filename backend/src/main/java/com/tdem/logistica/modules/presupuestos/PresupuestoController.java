@@ -3,7 +3,9 @@ package com.tdem.logistica.modules.presupuestos;
 import com.tdem.logistica.common.ApiResponse;
 import com.tdem.logistica.modules.presupuestos.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
+import com.tdem.logistica.documentos.Descargas;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +44,15 @@ public class PresupuestoController {
         return ApiResponse.ok(p, p.cerrado() ? "Periodo cerrado: queda solo de consulta." : "Periodo reabierto.");
     }
 
+    @PutMapping("/periodos/{id}/control")
+    public ApiResponse<PeriodoDto> controlPeriodo(@PathVariable UUID id, @Valid @RequestBody ControlPeriodoRequest request,
+                                                  @AuthenticationPrincipal UsuarioPrincipal principal) {
+        PeriodoDto p = service.controlPeriodo(id, request.obligatorio(), principal);
+        return ApiResponse.ok(p, p.controlObligatorio()
+                ? "Control presupuestal activado: los requerimientos del periodo se validan al enviarse."
+                : "Control presupuestal desactivado.");
+    }
+
     // ---------------------------------------------------------------- presupuestos
 
     @GetMapping
@@ -69,6 +80,20 @@ public class PresupuestoController {
     public ApiResponse<List<ProductoPresupuestoDto>> catalogo(@PathVariable UUID id,
                                                               @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.catalogo(id, principal));
+    }
+
+    @GetMapping("/{id}/cumplimiento")
+    public ApiResponse<CumplimientoDto> cumplimiento(@PathVariable UUID id,
+                                                     @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.cumplimiento(id, principal));
+    }
+
+    /** RES-02: Excel de cumplimiento, exclusivo de PYC. */
+    @GetMapping("/{id}/cumplimiento/excel")
+    public ResponseEntity<byte[]> cumplimientoExcel(@PathVariable UUID id,
+                                                    @AuthenticationPrincipal UsuarioPrincipal principal) {
+        PresupuestoService.Archivo excel = service.cumplimientoExcel(id, principal);
+        return Descargas.archivo(excel.contenido(), excel.nombre(), Descargas.XLSX);
     }
 
     @PutMapping("/{id}/lineas")

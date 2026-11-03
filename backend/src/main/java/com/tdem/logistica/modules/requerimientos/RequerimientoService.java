@@ -9,6 +9,7 @@ import com.tdem.logistica.common.AppConstants.PrioridadRequerimiento;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.aprobaciones.AmbitoAprobacion;
+import com.tdem.logistica.modules.presupuestos.ControlPresupuestalService;
 import com.tdem.logistica.modules.aprobaciones.dto.AprobacionPendienteDto;
 import com.tdem.logistica.modules.requerimientos.dto.*;
 import com.tdem.logistica.realtime.RealtimeNotifier;
@@ -68,6 +69,7 @@ public class RequerimientoService {
     private final StorageClient storageClient;
     private final Auditoria auditoria;
     private final AmbitoAprobacion ambitoAprobacion;
+    private final ControlPresupuestalService controlPresupuestal;
 
     public RequerimientoService(
             RequerimientoRepository requerimientoRepository,
@@ -83,8 +85,10 @@ public class RequerimientoService {
             RealtimeNotifier realtimeNotifier,
             StorageClient storageClient,
             Auditoria auditoria,
-            AmbitoAprobacion ambitoAprobacion) {
+            AmbitoAprobacion ambitoAprobacion,
+            ControlPresupuestalService controlPresupuestal) {
         this.ambitoAprobacion = ambitoAprobacion;
+        this.controlPresupuestal = controlPresupuestal;
         this.realtimeNotifier = realtimeNotifier;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
@@ -151,7 +155,8 @@ public class RequerimientoService {
                             a.getDecidedAt()))
                     .orElse(null);
         }
-        return new RequerimientoDetalleDto(RequerimientoMapper.toDto(r), items, pendingApprovalId, observacion);
+        return new RequerimientoDetalleDto(RequerimientoMapper.toDto(r), items, pendingApprovalId, observacion,
+                controlPresupuestal.ultimo(id));
     }
 
     public CatalogoFormularioDto obtenerDatosFormulario(UsuarioPrincipal principal) {
@@ -381,8 +386,19 @@ public class RequerimientoService {
         return RequerimientoMapper.toDto(r);
     }
 
+    // Llamada interna (sin proxy): la transaccion de escritura debe abrirse aqui.
     @Transactional
     public RequerimientoDto enviar(UUID id, UsuarioPrincipal principal) {
+        return enviar(id, null, principal);
+    }
+
+    /**
+     * Envia a aprobacion. Si el periodo del CECO tiene control presupuestal y el
+     * REQ se sale del presupuesto, exige {@code justificacionPresupuestal}
+     * (DEC-L038, REQ-02).
+     */
+    @Transactional
+    public RequerimientoDto enviar(UUID id, String justificacionPresupuestal, UsuarioPrincipal principal) {
         Requerimiento r = requerimientoRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Requerimiento no encontrado."));
 
@@ -393,6 +409,7 @@ public class RequerimientoService {
         if (!EstadoRequerimiento.EDITABLES.contains(r.getStatus())) {
             throw ApiException.badRequest("Solo se puede enviar un requerimiento en borrador u observado.");
         }
+        controlPresupuestal.verificar(r.getRequestId(), justificacionPresupuestal, principal.userId());
 
         r.setStatus(EstadoRequerimiento.PENDIENTE_APROBACION);
         requerimientoRepository.save(r);

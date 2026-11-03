@@ -4,6 +4,7 @@ import com.tdem.logistica.common.ApiResponse;
 import com.tdem.logistica.modules.requerimientos.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -58,10 +59,16 @@ public class RequerimientoController {
         return ApiResponse.ok(actualizado, "Requerimiento " + actualizado.code() + " actualizado.");
     }
 
+    /** Justificacion de la excepcion presupuestal (DEC-L038); opcional. */
+    public record EnviarRequest(@Size(max = 1000) String justificacionPresupuestal) {
+    }
+
     @PostMapping("/{id}/enviar")
     public ApiResponse<RequerimientoDto> enviar(
-            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
-        RequerimientoDto enviado = service.enviar(id, principal);
+            @PathVariable UUID id, @Valid @RequestBody(required = false) EnviarRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        RequerimientoDto enviado = service.enviar(id, request == null ? null : request.justificacionPresupuestal(),
+                principal);
         return ApiResponse.ok(enviado, "Requerimiento " + enviado.code() + " enviado a aprobacion.");
     }
 

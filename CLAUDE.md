@@ -9,7 +9,7 @@ Requerimiento → Aprobación → Stock/Compra (RFQ → Cotización → OC) → 
 
 Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-L030). No hay perfil Compras ni Almacén: los opera LOGISTICA/ADMIN. Cada CECO puede tener un aprobador asignado (`ceco.approver_user_id`, se asigna desde la ficha del usuario en Administración, DEC-L037); la regla de quién decide/ve está en `modules/aprobaciones/AmbitoAprobacion`.
 
-**En curso: adopción de la V38.7** (entrega del 06/10/2026 en `docs_base/V38_7_ENTREGA_2026-10-06/`, ver DEC-L030). Lotes: 12 roles/aprobador por CECO (hecho) → 13 precios de venta + plazo de atención (hecho, DEC-L035) → 14 Presupuestos (hecho, DEC-L036) → 15 control presupuestal + cumplimiento → 16 necesidad/consolidación/RFQ multiproducto → 17 OC con aprobación, pago y liberación → 18 almacén V38.7 → 19 proveedores + dashboard.
+**En curso: adopción de la V38.7** (entrega del 06/10/2026 en `docs_base/V38_7_ENTREGA_2026-10-06/`, ver DEC-L030). Lotes: 12 roles/aprobador por CECO (hecho) → 13 precios de venta + plazo de atención (hecho, DEC-L035) → 14 Presupuestos (hecho, DEC-L036) → 15 control presupuestal + cumplimiento (hecho, DEC-L038) → 16 necesidad/consolidación/RFQ multiproducto → 17 OC con aprobación, pago y liberación → 18 almacén V38.7 → 19 proveedores + dashboard.
 
 ## Documentación (leer antes de cambios no triviales)
 
@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L037 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L038 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -70,12 +70,13 @@ Reglas clave:
 - `spring.jpa.open-in-view=false`: servicios que tocan asociaciones LAZY necesitan `@Transactional` (o `readOnly = true`).
 - La BD está lejos (~150 ms por ida y vuelta): evitar N+1; preferir una consulta (el dashboard es una sola SQL que devuelve JSON).
 - El SOLICITANTE solo pide para sus CECOs asignados (`usuario_ceco`, de cualquier empresa); la empresa del REQ sale del CECO (DEC-L029). LOGISTICA/ADMIN, cualquier CECO activo.
+- Al enviar un REQ, si su periodo presupuestal tiene control obligatorio, `ControlPresupuestalService.verificar` lo valida contra la versión aprobada vigente; fuera de presupuesto exige justificación (`code = EXCEPCION_PRESUPUESTAL`, DEC-L038).
 - Al aprobar un REQ (`AprobacionService.decidir`) se reserva stock disponible y se crean RFQ automáticas al proveedor habitual (DEC-L018). El estado de atención (PARCIAL/COMPLETA) se calcula solo desde envíos recepcionados (`AtencionCalculator`). El Tracking se reconstruye desde los datos, no tiene tabla propia (DEC-L019).
 - **Nueva ruta del frontend** (`frontend/src/App.tsx`) ⇒ agregarla también a `SpaController` (lista explícita, no regex catch-all) y a `permitAll()` en `SecurityConfig`.
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V19__descripcion.sql` (existen V1..V18).
+- Siguiente migración: `V20__descripcion.sql` (existen V1..V19).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.

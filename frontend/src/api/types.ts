@@ -57,6 +57,8 @@ export interface RequerimientoDetalle {
   pendingApprovalId: string | null;
   /** RF-048: motivo vigente mientras el REQ esta OBSERVADO. */
   observacion: { motivo: string; observadoPor: string | null; fecha: string | null } | null;
+  /** DEC-L038: ultimo control presupuestal al enviarlo; null si el periodo no lo exige. */
+  controlPresupuestal: ControlPresupuestal | null;
 }
 
 export interface VarianteCatalogo {
@@ -767,6 +769,7 @@ export interface PeriodoPresupuestal {
   cerrado: boolean;
   presupuestoId: string | null;
   presupuestoCodigo: string | null;
+  controlObligatorio: boolean;
 }
 
 export interface CecoOpcion {
@@ -837,6 +840,79 @@ export interface PresupuestoDetalle {
   lineasSinPrecio: number;
   permisos: { editar: boolean; emitir: boolean; decidir: boolean; modificar: boolean; anular: boolean };
   historial: { accion: string; usuario: string | null; fecha: string; motivo: string | null }[];
+  controlObligatorio: boolean;
+  /** REQ del periodo enviados con excepcion justificada (solo PYC, Gerencia, Logistica y Admin). */
+  excepciones: ExcepcionPresupuestal[];
+}
+
+// ---------------------------------------------------------------- Control presupuestal (Lote 15, DEC-L038)
+
+export interface Desviacion {
+  productId: string;
+  sku: string;
+  solicitado: number;
+  disponible: number;
+  exceso: number;
+  motivo: "SIN_PRESUPUESTO_APROBADO" | "SKU_NO_PRESUPUESTADO" | "EXCESO";
+}
+
+export interface ControlPresupuestal {
+  estado: "CUBIERTO" | "EXCEPCION_JUSTIFICADA";
+  periodo: string;
+  presupuestoId: string | null;
+  presupuestoCodigo: string | null;
+  monto: number | null;
+  justificacion: string | null;
+  desviaciones: Desviacion[];
+  verificadoPor: string | null;
+  fecha: string;
+}
+
+export interface ExcepcionPresupuestal {
+  requestId: string;
+  requestCode: string;
+  estadoRequerimiento: EstadoRequerimiento;
+  solicitante: string | null;
+  justificacion: string;
+  desviaciones: Desviacion[];
+  fecha: string;
+}
+
+/** Montos [programado, real, pendiente, saldo, disponible]; null = sin precio / incompleto. */
+export type MontosCumplimiento = (number | null)[];
+
+export interface CumplimientoFila {
+  productId: string;
+  familia: string;
+  subfamilia: string;
+  sku: string;
+  nombre: string;
+  unidad: string;
+  sinPresupuesto: boolean;
+  programado: number;
+  real: number;
+  pendiente: number;
+  saldo: number;
+  disponible: number;
+  precioVenta: number | null;
+  venta: MontosCumplimiento;
+  precioCompra: number | null;
+  compra: MontosCumplimiento | null;
+}
+
+export interface Cumplimiento {
+  presupuestoId: string;
+  codigo: string;
+  empresa: string;
+  cecoCode: string;
+  cecoNombre: string;
+  periodo: string;
+  version: number;
+  corte: string;
+  conCompra: boolean;
+  puedeDescargar: boolean;
+  filas: CumplimientoFila[];
+  resumen: { familia: string; venta: MontosCumplimiento; compra: MontosCumplimiento | null }[];
 }
 
 export interface ProductoPresupuesto {

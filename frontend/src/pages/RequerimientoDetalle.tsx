@@ -20,6 +20,7 @@ import { useConfirmar } from "../components/ui/Confirmacion";
 import { Skeleton } from "../components/ui/Skeleton";
 import BotonDescarga from "../components/BotonDescarga";
 import { descargarPdfRequerimiento } from "../api/documentos";
+import { soles, textoDesviacion } from "../components/presupuestos/formato";
 
 function fmtFechaHora(iso: string | null): string {
   if (!iso) return "—";
@@ -94,7 +95,18 @@ export default function RequerimientoDetalle() {
     setEnviando(true);
     setErrorEnvio(null);
     try {
-      const res = await enviarRequerimiento(id);
+      let res = await enviarRequerimiento(id);
+      // Control presupuestal (DEC-L038): fuera de presupuesto se envia solo con justificacion.
+      if (!res.ok && res.code === "EXCEPCION_PRESUPUESTAL") {
+        const r = await confirmar({
+          titulo: "Excepción presupuestal",
+          mensaje: res.message,
+          confirmar: "Enviar con justificación",
+          motivo: "Justificación",
+        });
+        if (!r) return;
+        res = await enviarRequerimiento(id, r.motivo);
+      }
       if (!res.ok) {
         setErrorEnvio(res.message);
         return;
@@ -252,6 +264,25 @@ export default function RequerimientoDetalle() {
           <p className="mt-0.5 text-xs opacity-80">
             {observacion.observadoPor ?? "—"} · {fmtFechaHora(observacion.fecha)}
           </p>
+        </Alert>
+      )}
+
+      {detalle.controlPresupuestal && (
+        <Alert tone={detalle.controlPresupuestal.estado === "CUBIERTO" ? "good" : "danger"} className="mb-4">
+          {detalle.controlPresupuestal.estado === "CUBIERTO" ? (
+            <p className="font-medium">
+              Cubierto por el presupuesto {detalle.controlPresupuestal.presupuestoCodigo} ({detalle.controlPresupuestal.periodo})
+              {detalle.controlPresupuestal.monto != null && ` · ${soles.format(detalle.controlPresupuestal.monto)}`}
+            </p>
+          ) : (
+            <>
+              <p className="font-medium">
+                Excepción presupuestal {detalle.controlPresupuestal.periodo}:{" "}
+                {detalle.controlPresupuestal.desviaciones.map(textoDesviacion).join(" · ")}
+              </p>
+              <p className="mt-0.5 text-xs opacity-80">Justificación: {detalle.controlPresupuestal.justificacion}</p>
+            </>
+          )}
         </Alert>
       )}
 

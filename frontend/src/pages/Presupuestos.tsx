@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { CalendarRange, PiggyBank } from "lucide-react";
 import {
   cerrarPeriodo,
+  controlPeriodo,
   crearPeriodo,
   crearPresupuesto,
   listarPeriodos,
@@ -83,6 +84,24 @@ export default function Presupuestos() {
     cargarPeriodos();
   }
 
+  async function onControl(periodId: string, obligatorio: boolean, etiqueta: string) {
+    const ok = await confirmar({
+      titulo: obligatorio ? `¿Activar el control presupuestal en ${etiqueta}?` : `¿Desactivar el control en ${etiqueta}?`,
+      mensaje: obligatorio
+        ? "Los requerimientos de este CECO y semestre se validarán contra el presupuesto aprobado al enviarse."
+        : undefined,
+      confirmar: obligatorio ? "Activar" : "Desactivar",
+    });
+    if (!ok) return;
+    const res = await controlPeriodo(periodId, obligatorio);
+    if (!res.ok) {
+      setError(res.message);
+      return;
+    }
+    setExito(res.message);
+    cargarPeriodos();
+  }
+
   return (
     <div>
       <PageHeader
@@ -127,6 +146,7 @@ export default function Presupuestos() {
                   <th className="px-5 py-2.5">Periodo</th>
                   <th className="px-5 py-2.5">Presupuesto</th>
                   <th className="px-5 py-2.5">Estado</th>
+                  <th className="px-5 py-2.5">Control</th>
                   <th className="px-5 py-2.5" />
                 </tr>
               </thead>
@@ -141,15 +161,27 @@ export default function Presupuestos() {
                     <td className="px-5 py-2.5">
                       <Badge tone={p.cerrado ? "gris" : "verde"}>{p.cerrado ? "Cerrado" : "Habilitado"}</Badge>
                     </td>
-                    <td className="px-5 py-2.5 text-right">
+                    <td className="px-5 py-2.5">
+                      <Badge tone={p.controlObligatorio ? "azul" : "gris"}>
+                        {p.controlObligatorio ? "Obligatorio" : "Desactivado"}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-2.5">
                       {periodos.cecosConfigurables.some((c) => c.cecoId === p.cecoId) && (
-                        <button
-                          type="button"
-                          onClick={() => onCerrarPeriodo(p.periodId, !p.cerrado, etiquetaPeriodo(p.anio, p.semestre))}
-                          className="text-xs font-medium text-brand-600 hover:text-brand-700"
-                        >
-                          {p.cerrado ? "Reabrir" : "Cerrar"}
-                        </button>
+                        <MenuAcciones
+                          etiqueta={`Acciones del periodo ${etiquetaPeriodo(p.anio, p.semestre)}`}
+                          acciones={[
+                            {
+                              label: p.controlObligatorio ? "Desactivar control" : "Activar control presupuestal",
+                              onClick: () => onControl(p.periodId, !p.controlObligatorio, etiquetaPeriodo(p.anio, p.semestre)),
+                            },
+                            {
+                              label: p.cerrado ? "Reabrir periodo" : "Cerrar periodo",
+                              peligro: !p.cerrado,
+                              onClick: () => onCerrarPeriodo(p.periodId, !p.cerrado, etiquetaPeriodo(p.anio, p.semestre)),
+                            },
+                          ]}
+                        />
                       )}
                     </td>
                   </tr>

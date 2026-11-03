@@ -37,8 +37,9 @@ export function actualizarRequerimiento(id: string, input: CrearRequerimientoInp
   return http.put<Requerimiento>(`/api/requerimientos/${id}`, input);
 }
 
-export function enviarRequerimiento(id: string) {
-  return http.post<Requerimiento>(`/api/requerimientos/${id}/enviar`);
+/** Con control presupuestal, una excepcion exige justificacion (code EXCEPCION_PRESUPUESTAL, DEC-L038). */
+export function enviarRequerimiento(id: string, justificacionPresupuestal?: string) {
+  return http.post<Requerimiento>(`/api/requerimientos/${id}/enviar`, { justificacionPresupuestal });
 }
 
 export function programarEntrega(id: string, fecha: string) {

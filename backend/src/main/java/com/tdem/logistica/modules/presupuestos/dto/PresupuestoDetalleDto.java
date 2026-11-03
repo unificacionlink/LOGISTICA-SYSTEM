@@ -11,5 +11,6 @@ public record PresupuestoDetalleDto(UUID id, String codigo, UUID periodId, Strin
                                     String motivoDecision, Instant emitidoEn, Integer versionVigente,
                                     Instant aprobadoEn, String aprobadoPor, List<LineaPresupuestoDto> lineas,
                                     BigDecimal total, int lineasSinPrecio, PermisosPresupuestoDto permisos,
-                                    List<HistorialPresupuestoDto> historial) {
+                                    List<HistorialPresupuestoDto> historial, boolean controlObligatorio,
+                                    List<ExcepcionPresupuestalDto> excepciones) {
 }
