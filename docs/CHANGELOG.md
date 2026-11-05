@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.28.0 — 2026-11-05
+
+- **Carga masiva de fotos** en Catalogo de productos (menu "⋯" de la
+  cabecera, LOGISTICA/ADMIN, DEC-L043). Se arrastra la carpeta o se eligen
+  las fotos; cada archivo se reconoce por su nombre (SKU base o codigo de
+  variante, misma convencion que `scripts/cargar_imagenes.py`). Revision
+  previa: lista, sin producto, repetida, ya tiene foto (opcion "Reemplazar
+  fotos existentes"). El navegador reduce cada foto (lado mayor 1400 px, JPEG
+  85 %) y sube 4 a la vez por el endpoint existente; progreso, detener y
+  reintentar fallidas. `http.postFormEnLote` sube sin la capa bloqueante.
+- **Camara en el celular**: boton junto a "Subir foto" que abre la camara
+  trasera (`capture="environment"`). La subida individual tambien reduce la
+  foto antes de enviarla.
+
 ## 0.27.0 — 2026-11-05
 
 - **Lenguaje visual v2** (DEC-L042), tomando como referencia Linear, Stripe

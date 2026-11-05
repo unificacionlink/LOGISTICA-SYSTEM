@@ -104,5 +104,10 @@ export const http = {
   // Sin header Content-Type manual: el navegador arma el boundary de multipart.
   postForm: <T>(path: string, form: FormData) =>
     fetchSeguro<T>(`${API_URL}${path}`, { method: "POST", credentials: "include", body: form }),
+  /** Igual que postForm pero sin la capa que bloquea la pantalla: para lotes con su propio progreso. */
+  postFormEnLote: <T>(path: string, form: FormData) =>
+    conProgreso("cargando", () =>
+      fetchSinProgreso<T>(`${API_URL}${path}`, { method: "POST", credentials: "include", body: form }),
+    ),
   descargar,
 };

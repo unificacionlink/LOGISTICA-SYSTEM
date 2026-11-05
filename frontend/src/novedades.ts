@@ -14,6 +14,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.28.0",
+    fecha: "2026-11-05",
+    titulo: "Fotos de productos en lote",
+    cambios: [
+      "En Catálogo de productos, el menú ⋯ tiene \"Carga masiva de fotos\": arrastra la carpeta y cada foto se asigna sola al producto cuyo código lleva en el nombre (por ejemplo AC01001.jpg).",
+      "Antes de subir verás qué fotos se reconocieron, cuáles no coinciden con ningún producto y cuáles reemplazarían una foto existente.",
+      "Las fotos se reducen automáticamente para que suban rápido, varias a la vez.",
+      "En el celular, el botón de cámara junto a \"Subir foto\" permite fotografiar el producto directamente.",
+    ],
+  },
+  {
     version: "0.27.0",
     fecha: "2026-11-05",
     titulo: "Diseño renovado y búsqueda rápida",

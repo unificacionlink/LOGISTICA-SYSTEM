@@ -46,8 +46,9 @@ export function programarEntrega(id: string, fecha: string) {
   return http.put<Requerimiento>(`/api/requerimientos/${id}/programacion`, { fecha });
 }
 
-export function subirImagenProducto(productId: string, file: File) {
+export function subirImagenProducto(productId: string, file: File, enLote = false) {
   const form = new FormData();
   form.append("file", file);
-  return http.postForm<string>(`/api/requerimientos/productos/${productId}/imagen`, form);
+  const ruta = `/api/requerimientos/productos/${productId}/imagen`;
+  return enLote ? http.postFormEnLote<string>(ruta, form) : http.postForm<string>(ruta, form);
 }

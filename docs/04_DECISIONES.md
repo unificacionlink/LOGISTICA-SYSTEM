@@ -5,6 +5,15 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L043 — Carga masiva de fotos en el navegador (2026-11-05).**
+  Logistica necesitaba cargar cientos de fotos sin el script de Python (que
+  pide claves de Storage y aplicar SQL). Se hace en el Catalogo, sin endpoint
+  nuevo: el navegador empareja cada archivo con su producto por el nombre,
+  reduce la foto (1400 px, JPEG) y la sube por la subida individual
+  existente, con sus permisos y su regla de una foto principal activa. Por
+  defecto no reemplaza fotos existentes. El script queda para cargas
+  iniciales hechas por TI.
+
 - **DEC-L042 — Lenguaje visual v2 y busqueda rapida (2026-11-05).** El
   usuario pidio mejorar la UX/UI de todo el ERP con referencias de apps de
   datos (Linear, Stripe Dashboard, Attio) en vez de galerias de landing

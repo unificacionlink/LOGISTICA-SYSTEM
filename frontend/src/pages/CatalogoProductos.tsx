@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Clock, Images, Loader2, PackagePlus, Plus, Search, Truck, Upload } from "lucide-react";
+import { Camera, Clock, Images, Loader2, PackagePlus, Plus, Search, Truck, Upload } from "lucide-react";
 import { guardarProveedoresProducto, listarProveedoresProducto } from "../api/compras";
 import { listarProveedores } from "../api/proveedores";
 import {
@@ -28,6 +28,7 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import BandejaSolicitudes, { PENDIENTE } from "../components/maestro/BandejaSolicitudes";
+import CargaMasivaFotos from "../components/maestro/CargaMasivaFotos";
 import DialogoProveedores from "../components/maestro/DialogoProveedores";
 import DialogoValor from "../components/maestro/DialogoValor";
 import NuevoProducto from "../components/maestro/NuevoProducto";
@@ -38,6 +39,7 @@ import { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { useConfirmar } from "../components/ui/Confirmacion";
+import { comprimirImagen } from "../utils/imagenes";
 
 interface ProductoCatalogo {
   productId: string;
@@ -92,6 +94,10 @@ export default function CatalogoProductos() {
   const [subiendoProductId, setSubiendoProductId] = useState<string | null>(null);
   const [errorSubida, setErrorSubida] = useState<string | null>(null);
   const inputArchivoRef = useRef<HTMLInputElement | null>(null);
+  const inputCamaraRef = useRef<HTMLInputElement | null>(null);
+  // SKU base y codigos de variante -> producto, para reconocer las fotos por su nombre.
+  const [codigoAProducto, setCodigoAProducto] = useState<Map<string, string>>(new Map());
+  const [cargaMasiva, setCargaMasiva] = useState(false);
   const productoParaSubirRef = useRef<string | null>(null);
   // Proveedores habilitados por producto (DEC-L039): la RFQ del consolidado va a todos.
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -114,6 +120,12 @@ export default function CatalogoProductos() {
       .then((res) => {
         if (res.ok && res.result) {
           setProductos(agruparPorProducto(res.result.variantes));
+          const codigos = new Map<string, string>();
+          for (const v of res.result.variantes) {
+            codigos.set(v.skuBase.toUpperCase(), v.productId);
+            if (v.codigoVariante) codigos.set(v.codigoVariante.toUpperCase(), v.productId);
+          }
+          setCodigoAProducto(codigos);
           setFamilias(res.result.familias);
         } else {
           setError(res.message);
@@ -215,10 +227,10 @@ export default function CatalogoProductos() {
 
   const visibles = filtrados.slice(0, LIMITE_RESULTADOS);
 
-  function abrirSelectorArchivo(productId: string) {
+  function abrirSelectorArchivo(productId: string, camara = false) {
     setErrorSubida(null);
     productoParaSubirRef.current = productId;
-    inputArchivoRef.current?.click();
+    (camara ? inputCamaraRef : inputArchivoRef).current?.click();
   }
 
   async function onArchivoSeleccionado(e: React.ChangeEvent<HTMLInputElement>) {
@@ -229,7 +241,8 @@ export default function CatalogoProductos() {
     setSubiendoProductId(productId);
     setErrorSubida(null);
     try {
-      const res = await subirImagenProducto(productId, file);
+      // Reducida en el navegador: una foto de celular sube en segundos y no pasa el limite de 8 MB.
+      const res = await subirImagenProducto(productId, await comprimirImagen(file));
       if (!res.ok || !res.result) {
         setErrorSubida(res.message);
         return;
@@ -250,14 +263,26 @@ export default function CatalogoProductos() {
           clasificacion &&
           pestana === "productos" &&
           !creando && (
-            <Button icon={<Plus className="size-4" />} onClick={() => setCreando(true)}>
-              Nuevo producto
-            </Button>
+            <>
+              <Button icon={<Plus className="size-4" />} onClick={() => setCreando(true)}>
+                Nuevo producto
+              </Button>
+              <MenuAcciones acciones={[{ label: "Carga masiva de fotos", onClick: () => setCargaMasiva(true) }]} />
+            </>
           )
         }
       />
 
       <input ref={inputArchivoRef} type="file" accept="image/*" className="hidden" onChange={onArchivoSeleccionado} />
+      {/* En el celular abre directo la camara trasera, para fotografiar el producto en el almacen. */}
+      <input
+        ref={inputCamaraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={onArchivoSeleccionado}
+      />
 
       {puedeEditarImagenes && (
         <div role="tablist" className="mb-4 flex flex-wrap gap-1 border-b border-slate-200">
@@ -404,6 +429,17 @@ export default function CatalogoProductos() {
                         {puedeEditarImagenes && (
                           <button
                             type="button"
+                            onClick={() => abrirSelectorArchivo(p.productId, true)}
+                            disabled={subiendo}
+                            aria-label={`Tomar foto de ${p.skuBase}`}
+                            className="flex size-8 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-60 sm:hidden"
+                          >
+                            <Camera className="size-4" />
+                          </button>
+                        )}
+                        {puedeEditarImagenes && (
+                          <button
+                            type="button"
                             onClick={() => abrirSelectorArchivo(p.productId)}
                             disabled={subiendo}
                             className="flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-60"
@@ -445,6 +481,16 @@ export default function CatalogoProductos() {
       </>
       )}
 
+      {cargaMasiva && (
+        <CargaMasivaFotos
+          productos={productos}
+          codigoAProducto={codigoAProducto}
+          onSubida={(productId, url) =>
+            setProductos((prev) => prev.map((p) => (p.productId === productId ? { ...p, imagenUrl: url } : p)))
+          }
+          onCerrar={() => setCargaMasiva(false)}
+        />
+      )}
       {editando?.tipo === "proveedores" && (
         <DialogoProveedores
           titulo={`Proveedores · ${editando.producto.skuBase}`}
