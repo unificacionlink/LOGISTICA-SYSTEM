@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.26.0 — 2026-11-05
+
+- **Padron de personal** (DEC-L041, Flyway V21): tabla `personal` por
+  empresa, separada de las cuentas. Administracion → **Personal** con una
+  lista por empresa, buscador y filtro con/sin cuenta.
+- **Sync RR.HH.** trae a todo el personal activo (con o sin correo) y ya no
+  crea cuentas; vincula las existentes. Escritura por lotes.
+- **Dar acceso**: correo + roles desde la ficha de la persona; crea la cuenta
+  con su CECO y devuelve la contrasena temporal. Auditado.
+- **Carga por Excel** de GOYDEL/METRIN movida a la pestana Personal; llena el
+  padron, correo opcional, sin columna "Rol inicial".
+
 ## 0.25.1 — 2026-11-05
 
 - **Fix (produccion)**: el frontend publicado intentaba conectarse a

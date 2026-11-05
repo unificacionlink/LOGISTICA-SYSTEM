@@ -60,18 +60,19 @@ marcha blanca. Render cobra por servicio y no se puede compartir el de RRHH
 
 1. Configurar `RRHH_API_URL` y `RRHH_SYNC_SERVICE_TOKEN` (ver
    `02_GUIA_TECNICA.md`) y, como ADMIN, **Administracion → RR.HH. →
-   Sincronizar ahora**. Llegan los usuarios y CECOs de las empresas que
-   cubre RRHH, todos como SOLICITANTE.
-2. **Administracion → Usuarios**: asignar roles y pulsar **Dar acceso**. La
-   contrasena temporal se muestra una sola vez; entregarla al usuario, que
-   la cambia en su primer ingreso.
-3. Empresas sin padron en RRHH (METRIN, GOYDEL): **Carga de personal**.
-   Descargar la plantilla (trae al personal ya cargado), completar una fila
-   por persona (empresa, DNI, nombre, correo, cargo, CECO, rol inicial,
-   activo), **Validar** y **Aplicar cambios**. El mismo archivo sirve para
-   altas, correcciones y ceses (Activo = NO). Un CECO que no exista se crea
-   si se escribe su nombre. Casos sueltos: **Alta manual** o **Editar
-   datos** en la ficha del usuario. Luego dar acceso (paso 2). Cuando RRHH incorpore la
+   Sincronizar ahora**. Llega todo el personal activo (con o sin correo) y
+   los CECOs de las empresas que cubre RRHH. No se crean cuentas (DEC-L041).
+2. **Administracion → Personal**: elegir la empresa, buscar a la persona y
+   pulsar **Dar acceso** (correo de ingreso + roles). La contrasena temporal
+   se muestra una sola vez; entregarla al usuario, que la cambia en su
+   primer ingreso. Mas CECOs o roles, en **Usuarios**.
+3. Empresas sin padron en RRHH (METRIN, GOYDEL): en **Personal**, elegir la
+   empresa y **Carga por Excel**. Descargar la plantilla (trae al personal
+   ya cargado), completar una fila por persona (empresa, DNI, nombre,
+   correo opcional, cargo, CECO, activo), **Validar** y **Aplicar cambios**.
+   El mismo archivo sirve para altas, correcciones y ceses (Activo = NO). Un
+   CECO que no exista se crea si se escribe su nombre. Casos sueltos:
+   **Alta manual** o **Editar datos** en Usuarios. Luego dar acceso (paso 2). Cuando RRHH incorpore la
    empresa, quitarla de `identidad_manual_empresa_habilitada`: el sync
    convierte esas filas a RRHH_SYNC por DNI/correo sin duplicarlas.
 

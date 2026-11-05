@@ -5,6 +5,30 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L041 — Padron de personal separado de las cuentas (2026-11-05).**
+  El sync con RR.HH. solo traia a quien tuviera correo (1 de 283 activos en
+  TDEMSRL) porque creaba una cuenta por persona. El usuario quiere ver a todo
+  el personal y decidir en Logistica a quien dar acceso.
+  - **Tabla `personal`** (Flyway V21): empresa, DNI, nombre, correo (puede
+    faltar), cargo, CECO de planilla, fuente, activo y `user_id` (la cuenta,
+    si tiene). **Cada empresa tiene su propia lista** (clave empresa + DNI,
+    decision del usuario): no se mezclan TDEM, GOYDEL y METRIN.
+  - **Sync RR.HH.**: trae a todo el personal activo, tenga o no correo, y
+    **ya no crea cuentas**. Vincula la cuenta existente (por DNI, o una alta
+    MANUAL previa sin DNI con su correo) y le actualiza datos; nunca roles.
+    Quien deja de venir cesa en el padron y su cuenta se desactiva. Lee todo
+    de una vez y escribe por lotes (cientos de personas, BD lejana).
+  - **Carga Excel GOYDEL/METRIN**: llena el padron (correo opcional, sin
+    "Rol inicial"); si la persona ya tiene cuenta MANUAL, la refleja.
+  - **Dar acceso** (Administracion → Personal, solo ADMIN): correo de
+    ingreso + roles; crea la cuenta con su CECO de planilla, la vincula y
+    devuelve la contrasena temporal. Se audita (`PERSONAL`/`DAR_ACCESO`). La
+    cuenta hereda la fuente: la de RR.HH. la sigue controlando el sync.
+  - V21 pasa al padron las cuentas que ya tenian DNI y empresa, vinculadas.
+  - Requiere que RR.HH. publique el cambio de `personal-activo` (devolver
+    `correo: null` en vez de omitir). Desplegar Logistica primero: la version
+    anterior omitiria a esas personas con un aviso, sin romper.
+
 - **DEC-L040 — Novedades por version en la app (2026-11-05).** Boton
   "Novedades" en el pie del menu con la version actual; abre el historial de
   versiones (la ultima desplegada, las anteriores plegadas) y marca con un

@@ -14,6 +14,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.26.0",
+    fecha: "2026-11-05",
+    titulo: "Personal de cada empresa",
+    cambios: [
+      "Nueva pestaña Personal en Administración: todo el personal de cada empresa, con una lista separada para TDEM, GOYDEL y METRIN.",
+      "Desde RR.HH. llega todo el personal activo, aunque no tenga correo registrado.",
+      "Con \"Dar acceso\" se crea la cuenta de una persona: se elige su correo y sus roles, y el sistema entrega la contraseña temporal.",
+      "La carga por Excel del personal de GOYDEL y METRIN ahora está en la pestaña Personal y el correo es opcional.",
+    ],
+  },
+  {
     version: "0.25.1",
     fecha: "2026-11-05",
     titulo: "Corrección de ingreso",

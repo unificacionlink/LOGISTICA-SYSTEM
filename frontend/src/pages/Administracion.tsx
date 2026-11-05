@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Building2, Copy, FileSpreadsheet, RefreshCw, Search, UserPlus, Users } from "lucide-react";
+import { Building2, Contact, Copy, RefreshCw, Search, UserPlus, Users } from "lucide-react";
 import {
   asignarRoles,
   cambiarActivo,
@@ -22,7 +22,8 @@ import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 import { useConfirmar } from "../components/ui/Confirmacion";
-import PestanaPersonal from "../components/admin/PestanaPersonal";
+import PestanaPadron from "../components/admin/PestanaPadron";
+import { ETIQUETA_ROL } from "../components/admin/roles";
 import CecosUsuario from "../components/admin/CecosUsuario";
 import CecosAprobados from "../components/admin/CecosAprobados";
 
@@ -30,19 +31,10 @@ type Pestana = "usuarios" | "personal" | "cecos" | "rrhh";
 
 const PESTANAS: { id: Pestana; label: string; icon: typeof Users }[] = [
   { id: "usuarios", label: "Usuarios", icon: Users },
-  { id: "personal", label: "Carga de personal", icon: FileSpreadsheet },
+  { id: "personal", label: "Personal", icon: Contact },
   { id: "cecos", label: "CECOs", icon: Building2 },
   { id: "rrhh", label: "RR.HH.", icon: RefreshCw },
 ];
-
-const ETIQUETA_ROL: Record<string, string> = {
-  SOLICITANTE: "Solicitante",
-  APROBADOR: "Aprobador",
-  GERENCIA: "Gerencia",
-  PYC: "PYC / Presupuestos",
-  LOGISTICA: "Logística",
-  ADMIN: "Administrador",
-};
 
 const thClass = "px-5 py-3";
 
@@ -75,9 +67,6 @@ export default function Administracion() {
 
   useEffect(recargar, []);
 
-  // "Carga de personal" solo existe si alguna empresa no viene de RR.HH. (GOYDEL/METRIN).
-  const empresasManuales = datos?.empresas.filter((e) => e.altaManual).map((e) => e.code) ?? [];
-  const pestanas = PESTANAS.filter((p) => p.id !== "personal" || empresasManuales.length > 0);
 
   /** Aplica la respuesta de una escritura (siempre devuelve los datos completos). */
   function aplicar(res: { ok: boolean; result: AdminDatos | null; message: string }): boolean {
@@ -97,7 +86,7 @@ export default function Administracion() {
       <PageHeader title="Administración" />
 
       <div role="tablist" className="mb-4 flex flex-wrap gap-1 border-b border-slate-200">
-        {pestanas.map(({ id, label, icon: Icon }) => (
+        {PESTANAS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -129,8 +118,8 @@ export default function Administracion() {
         )
       ) : tab === "usuarios" ? (
         <PestanaUsuarios datos={datos} aplicar={aplicar} />
-      ) : tab === "personal" && empresasManuales.length > 0 ? (
-        <PestanaPersonal empresas={empresasManuales} recargar={recargar} />
+      ) : tab === "personal" ? (
+        <PestanaPadron datos={datos} recargarAdmin={recargar} />
       ) : tab === "cecos" ? (
         <PestanaCecos datos={datos} aplicar={aplicar} />
       ) : (
@@ -760,16 +749,16 @@ function PestanaRrhh({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar }
             <div className="rotulo mb-2">Resultado · {fmtFechaHora(r.ejecutadoEn)}</div>
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
               <span>
-                <b className="text-slate-900">{r.recibidos}</b> recibidos
+                <b className="text-slate-900">{r.recibidos}</b> personas recibidas
               </span>
               <span>
-                <b className="text-emerald-700">{r.creados}</b> nuevos
+                <b className="text-emerald-700">{r.creados}</b> nuevas
               </span>
               <span>
-                <b className="text-slate-900">{r.actualizados}</b> actualizados
+                <b className="text-slate-900">{r.actualizados}</b> con cambios
               </span>
               <span>
-                <b className={r.desactivados ? "text-rose-700" : "text-slate-900"}>{r.desactivados}</b> desactivados
+                <b className={r.desactivados ? "text-rose-700" : "text-slate-900"}>{r.desactivados}</b> ceses
               </span>
               <span>
                 <b className="text-slate-900">{r.cecosCreados}</b> CECOs nuevos

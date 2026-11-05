@@ -749,6 +749,26 @@ export interface PersonalCarga {
   }[];
 }
 
+/** Persona del padron (DEC-L041). userId null = sin cuenta. */
+export interface PersonalAdmin {
+  id: string;
+  empresaCode: string;
+  dni: string;
+  nombre: string;
+  correo: string | null;
+  cargo: string | null;
+  cecoCode: string | null;
+  cecoNombre: string | null;
+  fuente: "RRHH_SYNC" | "MANUAL";
+  userId: string | null;
+}
+
+export interface DarAccesoResultado {
+  personal: PersonalAdmin[];
+  /** null: la persona ya tenia cuenta y solo se vinculo. */
+  acceso: { correo: string; password: string } | null;
+}
+
 export interface UsuarioAdmin {
   id: string;
   nombre: string;

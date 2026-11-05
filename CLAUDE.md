@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L040 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el botón "Novedades" del menú y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L041 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el botón "Novedades" del menú y la versión visible de la app (DEC-L040).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -60,7 +60,7 @@ Scripts Python en `scripts/`: `seed_catalogo_sku.py` (regenera seed de 725 SKU d
 - `entity/` + `repository/` — entidades JPA 1:1 con las tablas (columnas snake_case vía `@Column`), Spring Data JPA.
 - `realtime/RealtimeNotifier` — único punto que publica eventos WebSocket.
 - `storage/` — `StorageClient`/`S3StorageClient`, `OcrExtractor`.
-- `modules/identidad/` — sync de solo lectura con RRHH-SYSTEM (`PersonalSyncService`), padrón manual de GOYDEL/METRIN por Excel (`PersonalManualService`, DEC-L028) y Administración (`/api/admin`, solo ADMIN). `security/AccesoVigente` da estado y roles vigentes en cada request (no los del JWT).
+- `modules/identidad/` — padrón de personal por empresa (tabla `personal`, separado de las cuentas `usuario`, DEC-L041): sync de solo lectura con RRHH-SYSTEM (`PersonalSyncService`, trae a todos y no crea cuentas), carga Excel de GOYDEL/METRIN (`PersonalManualService`, DEC-L028) y Administración (`/api/admin`, solo ADMIN), donde "Dar acceso" crea la cuenta. `security/AccesoVigente` da estado y roles vigentes en cada request (no los del JWT).
 - `documentos/` — PDFs corporativos con PDFBox (`PdfCorporativo` = maqueta, `DocumentosPdf` = contenido; cada PDF se arma desde el DTO de su pantalla para heredar permisos) y `Descargas` para respuestas de archivo.
 - `modules/<modulo>/` — `requerimientos`, `aprobaciones`, `presupuestos`, `stock`, `proveedores`, `compras`, `almacen`, `tracking`, `dashboard`, `auth`. Cada uno: `*Controller` (`@RestController`) → `*Service` (lógica + autorización, devuelve `ApiResponse<T>`) → repositorios; `*Mapper` con métodos estáticos a mano (sin MapStruct); `dto/` con Bean Validation + `@Valid`.
 - `TestDataSeeder` — profile `seed-test-data`.
@@ -76,7 +76,7 @@ Reglas clave:
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V21__descripcion.sql` (existen V1..V20).
+- Siguiente migración: `V22__descripcion.sql` (existen V1..V21).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.

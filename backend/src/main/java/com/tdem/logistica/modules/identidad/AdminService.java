@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -104,7 +105,7 @@ public class AdminService {
                         c.getApproverUserId()))
                 .toList();
         Timestamp ultima = jdbc.queryForObject(
-                "select max(source_synced_at) from usuario where fuente = 'RRHH_SYNC'", Timestamp.class);
+                "select max(source_synced_at) from personal where fuente = 'RRHH_SYNC'", Timestamp.class);
         return new AdminDatosDto(usuarios, empresas, cecosDto, ordenarRoles(rolesActivos().keySet()),
                 syncService.configurado(), ultima != null ? ultima.toInstant() : null, syncService.ultimoResultado());
     }
@@ -145,6 +146,10 @@ public class AdminService {
         if (!u.isActive()) {
             throw ApiException.badRequest("El usuario esta inactivo.");
         }
+        return nuevaPassword(u);
+    }
+
+    private PasswordTemporalDto nuevaPassword(Usuario u) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 10; i++) {
             sb.append(ALFABETO[RANDOM.nextInt(ALFABETO.length)]);
@@ -218,6 +223,16 @@ public class AdminService {
         if (ceco != null) {
             jdbc.update("insert into usuario_ceco (user_id, ceco_id) values (?, ?)", u.getUserId(), ceco.getCecoId());
         }
+        if (dni != null) {
+            // DEC-L041: la persona tambien queda en el padron de su empresa, vinculada a la cuenta.
+            jdbc.update("""
+                    insert into personal (company_id, dni, full_name, email, position, ceco_id, fuente, user_id)
+                    values (?, ?, ?, ?, ?, ?, 'MANUAL', ?)
+                    on conflict (company_id, dni) do update set user_id = excluded.user_id,
+                           email = coalesce(personal.email, excluded.email)""",
+                    empresa.getCompanyId(), dni, u.getDisplayName(), correo, u.getCargo(),
+                    ceco != null ? ceco.getCecoId() : null, u.getUserId());
+        }
         return datos(principal);
     }
 
@@ -248,6 +263,9 @@ public class AdminService {
         u.setEmployeeExternalId(dni);
         u.setCargo(r.cargo() != null && !r.cargo().isBlank() ? r.cargo().trim() : null);
         usuarioRepository.saveAndFlush(u);
+        // Su ficha del padron (DEC-L041) muestra los mismos datos.
+        jdbc.update("update personal set full_name = ?, position = ?, email = ? where user_id = ? and fuente = 'MANUAL'",
+                u.getDisplayName(), u.getCargo(), correo, userId);
         return datos(principal);
     }
 
@@ -368,6 +386,103 @@ public class AdminService {
         Map<String, Object> despues = new HashMap<>();
         despues.put("aprobador", aprobadorId);
         auditoria.registrar("CECO", cecoId, "ASIGNAR_APROBADOR", antes, despues, principal.userId());
+    }
+
+    // ---------------------------------------------------------------- padron (DEC-L041)
+
+    /** Personal vigente de todas las empresas; la pantalla lo muestra por empresa, sin mezclar. */
+    public List<PersonalAdminDto> personal(UsuarioPrincipal principal) {
+        exigirAdmin(principal);
+        return jdbc.query("""
+                select p.personal_id, e.code, p.dni, p.full_name, coalesce(u.corporate_email, p.email),
+                       p.position, c.code, c.name, p.fuente, p.user_id
+                  from personal p
+                  join empresa e on e.company_id = p.company_id
+                  left join ceco c on c.ceco_id = p.ceco_id
+                  left join usuario u on u.user_id = p.user_id
+                 where p.active
+                 order by e.code, p.full_name""",
+                (rs, n) -> new PersonalAdminDto(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                        rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8),
+                        rs.getString(9), rs.getObject(10, UUID.class)));
+    }
+
+    /** Persona del padron, leida para dar acceso. */
+    private record Persona(UUID companyId, String dni, String nombre, String cargo, UUID cecoId, String fuente,
+                           boolean activo, UUID userId) {
+    }
+
+    /**
+     * Crea la cuenta de una persona del padron (DEC-L041): correo de ingreso, roles
+     * y su CECO de planilla; devuelve la contrasena temporal. La cuenta hereda la
+     * fuente del padron: la de RR.HH. la sigue controlando el sync. Si ya habia
+     * una cuenta con su DNI (p. ej. de otra empresa), solo se vincula.
+     */
+    @Transactional
+    public DarAccesoDto darAcceso(UUID personalId, DarAccesoRequest r, UsuarioPrincipal principal) {
+        exigirAdmin(principal);
+        Persona p = jdbc.query("""
+                select company_id, dni, full_name, position, ceco_id, fuente, active, user_id
+                  from personal where personal_id = ? for update""",
+                (rs, n) -> new Persona(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
+                        rs.getObject(5, UUID.class), rs.getString(6), rs.getBoolean(7), rs.getObject(8, UUID.class)),
+                personalId).stream().findFirst().orElseThrow(() -> ApiException.notFound("Persona no encontrada."));
+        if (!p.activo()) {
+            throw ApiException.badRequest(p.nombre() + " ya no esta activo en el padron.");
+        }
+        if (p.userId() != null) {
+            throw ApiException.badRequest(p.nombre() + " ya tiene cuenta.");
+        }
+        Map<String, Rol> disponibles = rolesActivos();
+        for (String c : r.roles()) {
+            if (!disponibles.containsKey(c)) {
+                throw ApiException.badRequest("Rol invalido: " + c + ".");
+            }
+        }
+        String correo = r.correo().trim().toLowerCase(Locale.ROOT);
+        Optional<Usuario> porDni = usuarioRepository.findByEmployeeExternalId(p.dni());
+        if (porDni.isPresent()) {
+            // Ya tenia cuenta (de otra empresa o anterior al padron): solo se vincula.
+            jdbc.update("update personal set user_id = ? where personal_id = ?", porDni.get().getUserId(), personalId);
+            return new DarAccesoDto(personal(principal), null);
+        }
+        usuarioRepository.findByCorporateEmailIgnoreCase(correo).ifPresent(otro -> {
+            throw ApiException.badRequest("El correo " + correo + " ya lo usa " + otro.getDisplayName() + ".");
+        });
+
+        Usuario u = new Usuario();
+        u.setUserId(UUID.randomUUID());
+        u.setCorporateEmail(correo);
+        u.setDisplayName(p.nombre());
+        u.setEmployeeExternalId(p.dni());
+        u.setCargo(p.cargo());
+        u.setEmpresa(empresaRepository.getReferenceById(p.companyId()));
+        u.setFuente(p.fuente());
+        u.setActive(true);
+        u.setSourceSyncedAt(FUENTE_MANUAL.equals(p.fuente()) ? null : Instant.now());
+        usuarioRepository.saveAndFlush(u);
+        for (String c : new LinkedHashSet<>(r.roles())) {
+            jdbc.update("insert into usuario_rol (user_id, role_id, company_id) values (?, ?, ?)",
+                    u.getUserId(), disponibles.get(c).getRoleId(), p.companyId());
+        }
+        if (p.cecoId() != null) {
+            jdbc.update("insert into usuario_ceco (user_id, ceco_id) values (?, ?) on conflict do nothing",
+                    u.getUserId(), p.cecoId());
+        }
+        // El padron manual guarda el correo; el de RR.HH. lo sigue reflejando el sync.
+        jdbc.update("""
+                update personal set user_id = ?,
+                       email = case when fuente = 'MANUAL' then ? else email end
+                 where personal_id = ?""", u.getUserId(), correo, personalId);
+        PasswordTemporalDto acceso = nuevaPassword(u);
+
+        Map<String, Object> despues = new HashMap<>();
+        despues.put("usuario", u.getUserId());
+        despues.put("correo", correo);
+        despues.put("roles", new ArrayList<>(new LinkedHashSet<>(r.roles())));
+        auditoria.registrar("PERSONAL", personalId, "DAR_ACCESO", null, despues, principal.userId());
+        accesoVigente.invalidar(u.getUserId());
+        return new DarAccesoDto(personal(principal), acceso);
     }
 
     /** Sin transaccion propia: la llamada a RRHH no debe retener una conexion; el sync abre la suya. */

@@ -2,7 +2,6 @@ package com.tdem.logistica.modules.identidad;
 
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.CodigoCeco;
-import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.Ceco;
 import com.tdem.logistica.entity.Empresa;
 import com.tdem.logistica.entity.Usuario;
@@ -11,7 +10,6 @@ import com.tdem.logistica.modules.identidad.RrhhClient.PersonalRrhh;
 import com.tdem.logistica.modules.identidad.dto.SyncResultadoDto;
 import com.tdem.logistica.repository.CecoRepository;
 import com.tdem.logistica.repository.EmpresaRepository;
-import com.tdem.logistica.repository.RolRepository;
 import com.tdem.logistica.repository.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
@@ -26,24 +25,27 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Sincroniza la identidad desde RRHH-SYSTEM (DEC-L002/DEC-L024), en solo
- * lectura y siempre en este sentido (RRHH -> Logistica):
+ * Sincroniza el personal desde RRHH-SYSTEM (DEC-L002/DEC-L024/DEC-L041), en
+ * solo lectura y siempre en este sentido (RRHH -> Logistica):
  * <ul>
- *   <li>Upsert de {@code usuario} por DNI ({@code employee_external_id}). Si
- *       no existe por DNI pero si por correo (alta MANUAL previa), esa fila
- *       pasa a RRHH_SYNC sin duplicarse.</li>
+ *   <li>Upsert del padron {@code personal} por empresa + DNI: todo el personal
+ *       activo, tenga o no correo. <b>No crea cuentas</b>: la cuenta la crea
+ *       ADMIN con "Dar acceso" (DEC-L041).</li>
  *   <li>Catalogo de CECO (DEC-L031): todos los CECO activos de RRHH se
  *       crean/actualizan por empresa + numero, tengan o no personal. En cada
  *       empresa que RRHH cubre, el CECO que ya no viene se desactiva (asi
  *       salen los de relleno ADM/OPS); no se borra, por el historial.</li>
- *   <li>CECO del trabajador: se agrega a {@code usuario_ceco}.</li>
- *   <li>Un usuario nuevo nace con rol SOLICITANTE en su empresa; los demas
- *       roles los asigna ADMIN (RRHH no sabe de roles de Logistica).</li>
- *   <li>Quien deja de aparecer como activo en RRHH se desactiva (RF-041). Si
- *       RRHH devuelve una lista vacia no se desactiva a nadie: es mas probable
- *       un error de configuracion que un cese masivo.</li>
+ *   <li>Si la persona ya tiene cuenta (por DNI, o una alta MANUAL previa sin
+ *       DNI con su mismo correo), se vincula y se le actualizan nombre, cargo,
+ *       empresa y correo; su CECO se agrega a {@code usuario_ceco}. Los roles
+ *       nunca se tocan.</li>
+ *   <li>Quien deja de aparecer como activo en RRHH cesa en el padron y su
+ *       cuenta se desactiva (RF-041). Si RRHH devuelve una lista vacia no se
+ *       desactiva a nadie: es mas probable un error de configuracion que un
+ *       cese masivo.</li>
  * </ul>
- * Nunca toca contrasenas ni usuarios MANUAL que RRHH no conoce.
+ * Nunca toca contrasenas ni personal MANUAL. Todo se lee de una vez y se
+ * escribe por lotes: la BD esta lejos y RRHH trae cientos de personas.
  */
 @Service
 public class PersonalSyncService {
@@ -55,20 +57,17 @@ public class PersonalSyncService {
     private final UsuarioRepository usuarioRepository;
     private final EmpresaRepository empresaRepository;
     private final CecoRepository cecoRepository;
-    private final RolRepository rolRepository;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final ReentrantLock enCurso = new ReentrantLock();
     private volatile SyncResultadoDto ultimo;
 
     public PersonalSyncService(RrhhClient rrhh, UsuarioRepository usuarioRepository, EmpresaRepository empresaRepository,
-                               CecoRepository cecoRepository, RolRepository rolRepository, JdbcTemplate jdbc,
-                               TransactionTemplate tx) {
+                               CecoRepository cecoRepository, JdbcTemplate jdbc, TransactionTemplate tx) {
         this.rrhh = rrhh;
         this.usuarioRepository = usuarioRepository;
         this.empresaRepository = empresaRepository;
         this.cecoRepository = cecoRepository;
-        this.rolRepository = rolRepository;
         this.jdbc = jdbc;
         this.tx = tx;
     }
@@ -101,17 +100,22 @@ public class PersonalSyncService {
         }
     }
 
+    /** Fila del padron, leida una sola vez. */
+    private record FilaPadron(UUID id, UUID companyId, String dni, String nombre, String email, String cargo,
+                              UUID cecoId, String fuente, boolean activo, UUID userId) {
+    }
+
     private SyncResultadoDto aplicar(List<PersonalRrhh> personal, List<CecoCatalogoRrhh> catalogo) {
         Instant ahora = Instant.now();
+        Timestamp marca = Timestamp.from(ahora);
         Map<String, Empresa> empresas = empresaRepository.findAll().stream()
                 .collect(Collectors.toMap(Empresa::getCode, Function.identity()));
-        UUID rolSolicitante = rolRepository.findByCode(Roles.SOLICITANTE)
-                .orElseThrow(() -> new IllegalStateException("Falta el rol SOLICITANTE")).getRoleId();
+        Map<String, Ceco> cecos = new HashMap<>();
+        for (Ceco c : cecoRepository.findAllConEmpresa()) {
+            cecos.put(clave(c.getEmpresa().getCompanyId(), c.getCode()), c);
+        }
 
         List<String> avisos = new ArrayList<>();
-        Set<String> dnisActivos = new HashSet<>();
-        int creados = 0;
-        int actualizados = 0;
         int[] cecosCreados = {0};
 
         // Catalogo completo de CECO (DEC-L031): codigos vigentes por empresa.
@@ -137,7 +141,7 @@ public class PersonalSyncService {
                     avisos.add("CECO " + codigo + ": la empresa \"" + c.empresa() + "\" no existe en Logistica.");
                     continue;
                 }
-                String clave = empresa.getCompanyId() + "|" + codigo;
+                String clave = clave(empresa.getCompanyId(), codigo);
                 empresaDe.put(clave, empresa);
                 boolean canonico = CodigoCeco.esCanonico(c.numero());
                 if (!nombreCatalogo.containsKey(clave) || (canonico && !nombreCanonico.contains(clave))) {
@@ -149,95 +153,153 @@ public class PersonalSyncService {
             }
             for (Map.Entry<String, Empresa> e : empresaDe.entrySet()) {
                 String codigo = e.getKey().substring(e.getKey().indexOf('|') + 1);
-                upsertCeco(e.getValue(), codigo, nombreCatalogo.get(e.getKey()), cecosCreados);
+                upsertCeco(cecos, e.getValue(), codigo, nombreCatalogo.get(e.getKey()), cecosCreados);
                 vigentesPorEmpresa.computeIfAbsent(e.getValue().getCompanyId(), k -> new HashSet<>()).add(codigo);
             }
         }
 
+        // Padron y cuentas actuales, en dos consultas.
+        Map<String, FilaPadron> padron = new HashMap<>();
+        jdbc.query("""
+                select personal_id, company_id, dni, full_name, email, position, ceco_id, fuente, active, user_id
+                  from personal""", rs -> {
+            FilaPadron f = new FilaPadron(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
+                    rs.getString(4), rs.getString(5), rs.getString(6), rs.getObject(7, UUID.class), rs.getString(8),
+                    rs.getBoolean(9), rs.getObject(10, UUID.class));
+            padron.put(clave(f.companyId(), f.dni()), f);
+        });
+        List<Usuario> usuarios = usuarioRepository.findAllConEmpresa();
+        Map<UUID, Usuario> usuarioPorId = new HashMap<>();
+        Map<String, Usuario> usuarioPorDni = new HashMap<>();
+        Map<String, Usuario> usuarioPorCorreo = new HashMap<>();
+        for (Usuario u : usuarios) {
+            usuarioPorId.put(u.getUserId(), u);
+            if (u.getEmployeeExternalId() != null) {
+                usuarioPorDni.put(u.getEmployeeExternalId(), u);
+            }
+            usuarioPorCorreo.put(u.getCorporateEmail().toLowerCase(Locale.ROOT), u);
+        }
+
+        Set<String> vigentes = new HashSet<>();
+        Set<String> dnisActivos = new HashSet<>();
+        List<Object[]> altas = new ArrayList<>();
+        List<Object[]> cambios = new ArrayList<>();
+        List<Object[]> cecosDeCuentas = new ArrayList<>();
+        int creados = 0;
+        int actualizados = 0;
+
         for (PersonalRrhh p : personal) {
             String dni = limpiar(p.dni());
             String correo = limpiar(p.correo()).toLowerCase(Locale.ROOT);
+            String email = correo.isEmpty() ? null : correo;
             String nombre = limpiar(p.nombreCompleto());
-            if (dni.isEmpty() || correo.isEmpty() || nombre.isEmpty()) {
-                avisos.add("Registro sin DNI, correo o nombre: omitido (" + (dni.isEmpty() ? correo : dni) + ").");
+            if (dni.isEmpty() || nombre.isEmpty()) {
+                avisos.add("Registro sin DNI o nombre: omitido (" + (dni.isEmpty() ? nombre : dni) + ").");
                 continue;
             }
-            dnisActivos.add(dni);
             Empresa empresa = empresas.get(limpiar(p.empresa()));
             if (empresa == null) {
                 avisos.add(nombre + ": la empresa \"" + p.empresa() + "\" no existe en Logistica.");
                 continue;
             }
+            String clave = clave(empresa.getCompanyId(), dni);
+            if (!vigentes.add(clave)) {
+                continue; // repetido en la respuesta de RR.HH.
+            }
+            dnisActivos.add(dni);
 
             Ceco ceco = null;
             if (p.ceco() != null && !limpiar(p.ceco().numero()).isEmpty()) {
                 String codigo = CodigoCeco.normalizar(p.ceco().numero());
-                String nombreCeco = nombreCatalogo.getOrDefault(empresa.getCompanyId() + "|" + codigo, p.ceco().nombre());
-                ceco = upsertCeco(empresa, codigo, nombreCeco, cecosCreados);
+                String nombreCeco = nombreCatalogo.getOrDefault(clave(empresa.getCompanyId(), codigo), p.ceco().nombre());
+                ceco = upsertCeco(cecos, empresa, codigo, nombreCeco, cecosCreados);
                 if (catalogoValido) {
                     vigentesPorEmpresa.computeIfAbsent(empresa.getCompanyId(), k -> new HashSet<>()).add(codigo);
                 }
             }
+            UUID cecoId = ceco != null ? ceco.getCecoId() : null;
+            String cargo = p.cargo() != null && !p.cargo().isBlank() ? p.cargo().trim() : null;
 
-            Usuario u = usuarioRepository.findByEmployeeExternalId(dni).orElse(null);
-            boolean nuevo = false;
+            // Cuenta de la persona, si ya tiene: la vinculada, por DNI o una alta MANUAL previa sin DNI con su correo.
+            FilaPadron f = padron.get(clave);
+            Usuario u = f != null && f.userId() != null ? usuarioPorId.get(f.userId()) : null;
             if (u == null) {
-                u = usuarioRepository.findByCorporateEmailIgnoreCase(correo).orElse(null);
-                if (u != null && u.getEmployeeExternalId() != null && !u.getEmployeeExternalId().equals(dni)) {
-                    avisos.add(nombre + ": el correo " + correo + " ya pertenece a otro DNI en Logistica; omitido.");
-                    continue;
+                u = usuarioPorDni.get(dni);
+            }
+            if (u == null && email != null) {
+                Usuario porCorreo = usuarioPorCorreo.get(email);
+                if (porCorreo != null && porCorreo.getEmployeeExternalId() == null) {
+                    u = porCorreo;
+                } else if (porCorreo != null) {
+                    avisos.add(nombre + ": el correo " + email + " ya pertenece a otro DNI en Logistica.");
                 }
             }
-            if (u == null) {
-                u = new Usuario();
-                u.setUserId(UUID.randomUUID());
-                u.setCorporateEmail(correo);
-                nuevo = true;
-            } else if (!u.getCorporateEmail().equalsIgnoreCase(correo)) {
-                Optional<Usuario> duenoCorreo = usuarioRepository.findByCorporateEmailIgnoreCase(correo);
-                if (duenoCorreo.isPresent() && !duenoCorreo.get().getUserId().equals(u.getUserId())) {
-                    avisos.add(nombre + ": no se cambio el correo a " + correo + " (ya lo usa otro usuario).");
-                } else {
-                    u.setCorporateEmail(correo);
-                }
-            }
-            u.setEmployeeExternalId(dni);
-            u.setDisplayName(nombre);
-            u.setEmpresa(empresa);
-            u.setCargo(p.cargo() != null && !p.cargo().isBlank() ? p.cargo().trim() : null);
-            u.setFuente(FUENTE_RRHH);
-            u.setActive(true);
-            u.setSourceSyncedAt(ahora);
-            usuarioRepository.saveAndFlush(u);
-            if (nuevo) {
+            UUID userId = u != null ? u.getUserId() : null;
+
+            if (f == null) {
+                altas.add(new Object[] {UUID.randomUUID(), empresa.getCompanyId(), dni, nombre, email, cargo, cecoId,
+                        userId, marca});
                 creados++;
             } else {
-                actualizados++;
+                cambios.add(new Object[] {nombre, email, cargo, cecoId, userId, marca, f.id()});
+                boolean cambia = !nombre.equals(f.nombre()) || !Objects.equals(email, f.email())
+                        || !Objects.equals(cargo, f.cargo()) || !Objects.equals(cecoId, f.cecoId()) || !f.activo()
+                        || !Objects.equals(userId, f.userId()) || !FUENTE_RRHH.equals(f.fuente());
+                if (cambia) {
+                    actualizados++;
+                }
             }
 
-            if (ceco != null) {
-                jdbc.update("insert into usuario_ceco (user_id, ceco_id) values (?, ?) on conflict do nothing",
-                        u.getUserId(), ceco.getCecoId());
-            }
-            Integer roles = jdbc.queryForObject("select count(*) from usuario_rol where user_id = ?", Integer.class, u.getUserId());
-            if (roles == null || roles == 0) {
-                jdbc.update("insert into usuario_rol (user_id, role_id, company_id) values (?, ?, ?) on conflict do nothing",
-                        u.getUserId(), rolSolicitante, empresa.getCompanyId());
+            if (u != null) {
+                actualizarCuenta(u, dni, nombre, email, empresa, cargo, ahora, usuarioPorCorreo, avisos);
+                if (cecoId != null) {
+                    // Solo agrega el CECO de planilla: no quita los asignados a mano (DEC-L029).
+                    cecosDeCuentas.add(new Object[] {u.getUserId(), cecoId});
+                }
             }
         }
+
+        // CECOs nuevos y cuentas actualizadas, escritos antes de las referencias por JDBC.
+        usuarioRepository.flush();
+        jdbc.batchUpdate("""
+                insert into personal (personal_id, company_id, dni, full_name, email, position, ceco_id, fuente, active,
+                                      user_id, source_synced_at)
+                values (?, ?, ?, ?, ?, ?, ?, 'RRHH_SYNC', true, ?, ?)""", altas);
+        jdbc.batchUpdate("""
+                update personal
+                   set full_name = ?, email = ?, position = ?, ceco_id = ?, user_id = ?, fuente = 'RRHH_SYNC',
+                       active = true, source_synced_at = ?
+                 where personal_id = ?""", cambios);
+        jdbc.batchUpdate("insert into usuario_ceco (user_id, ceco_id) values (?, ?) on conflict do nothing", cecosDeCuentas);
 
         int desactivados = 0;
         if (dnisActivos.isEmpty()) {
             avisos.add("RR.HH. no devolvio personal activo: no se desactivo a nadie.");
         } else {
-            for (Usuario u : usuarioRepository.findByFuenteAndActiveTrue(FUENTE_RRHH)) {
-                if (u.getEmployeeExternalId() == null || !dnisActivos.contains(u.getEmployeeExternalId())) {
-                    u.setActive(false);
-                    u.setSourceSyncedAt(ahora);
-                    usuarioRepository.save(u);
+            List<Object[]> ceses = new ArrayList<>();
+            Set<UUID> cuentasDeCesados = new HashSet<>();
+            for (Map.Entry<String, FilaPadron> e : padron.entrySet()) {
+                FilaPadron f = e.getValue();
+                if (FUENTE_RRHH.equals(f.fuente()) && f.activo() && !vigentes.contains(e.getKey())) {
+                    ceses.add(new Object[] {marca, f.id()});
+                    if (f.userId() != null) {
+                        cuentasDeCesados.add(f.userId());
+                    }
                     desactivados++;
                 }
             }
+            jdbc.batchUpdate("update personal set active = false, source_synced_at = ? where personal_id = ?", ceses);
+            for (Usuario u : usuarios) {
+                if (FUENTE_RRHH.equals(u.getFuente()) && u.isActive()
+                        && (u.getEmployeeExternalId() == null || !dnisActivos.contains(u.getEmployeeExternalId()))) {
+                    u.setActive(false);
+                    u.setSourceSyncedAt(ahora);
+                    if (!cuentasDeCesados.contains(u.getUserId())) {
+                        desactivados++;
+                    }
+                }
+            }
+            usuarioRepository.flush();
         }
 
         // Solo en empresas que RRHH cubre (vinieron en el catalogo); nunca las de alta manual.
@@ -248,8 +310,8 @@ public class PersonalSyncService {
             if (manuales.contains(e.getKey())) {
                 continue;
             }
-            for (Ceco c : cecoRepository.findByEmpresa_CompanyIdAndActiveTrue(e.getKey())) {
-                if (!e.getValue().contains(c.getCode())) {
+            for (Ceco c : cecos.values()) {
+                if (c.isActive() && c.getEmpresa().getCompanyId().equals(e.getKey()) && !e.getValue().contains(c.getCode())) {
                     c.setActive(false);
                     cecoRepository.save(c);
                     cecosDesactivados++;
@@ -260,10 +322,33 @@ public class PersonalSyncService {
                 cecosCreados[0], cecosDesactivados, avisos);
     }
 
-    /** Crea o actualiza (y reactiva) el CECO por empresa + numero. */
-    private Ceco upsertCeco(Empresa empresa, String codigo, String nombre, int[] creados) {
+    /** Datos de RR.HH. en la cuenta ya existente de la persona; nunca toca roles ni contrasena. */
+    private static void actualizarCuenta(Usuario u, String dni, String nombre, String email, Empresa empresa, String cargo,
+                                         Instant ahora, Map<String, Usuario> porCorreo, List<String> avisos) {
+        if (email != null && !u.getCorporateEmail().equalsIgnoreCase(email)) {
+            Usuario dueno = porCorreo.get(email);
+            if (dueno != null && !dueno.getUserId().equals(u.getUserId())) {
+                avisos.add(nombre + ": no se cambio el correo a " + email + " (ya lo usa otro usuario).");
+            } else {
+                porCorreo.remove(u.getCorporateEmail().toLowerCase(Locale.ROOT));
+                u.setCorporateEmail(email);
+                porCorreo.put(email, u);
+            }
+        }
+        u.setEmployeeExternalId(dni);
+        u.setDisplayName(nombre);
+        u.setEmpresa(empresa);
+        u.setCargo(cargo);
+        u.setFuente(FUENTE_RRHH);
+        u.setActive(true);
+        u.setSourceSyncedAt(ahora);
+    }
+
+    /** Crea o actualiza (y reactiva) el CECO por empresa + numero, sobre el mapa ya leido. */
+    private Ceco upsertCeco(Map<String, Ceco> cecos, Empresa empresa, String codigo, String nombre, int[] creados) {
         String nombreCeco = limpiar(nombre).isEmpty() ? codigo : CodigoCeco.nombre(nombre); // DEC-L033
-        Ceco ceco = cecoRepository.findByEmpresa_CompanyIdAndCode(empresa.getCompanyId(), codigo).orElse(null);
+        String clave = clave(empresa.getCompanyId(), codigo);
+        Ceco ceco = cecos.get(clave);
         if (ceco == null) {
             ceco = new Ceco();
             ceco.setCecoId(UUID.randomUUID());
@@ -272,6 +357,7 @@ public class PersonalSyncService {
             ceco.setName(nombreCeco);
             ceco.setActive(true);
             cecoRepository.save(ceco);
+            cecos.put(clave, ceco);
             creados[0]++;
         } else if (!ceco.getName().equals(nombreCeco) || !ceco.isActive()) {
             ceco.setName(nombreCeco);
@@ -279,6 +365,10 @@ public class PersonalSyncService {
             cecoRepository.save(ceco);
         }
         return ceco;
+    }
+
+    private static String clave(UUID companyId, String codigo) {
+        return companyId + "|" + codigo;
     }
 
     private static String limpiar(String s) {

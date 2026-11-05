@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Administracion de identidad (solo ADMIN, DEC-L024). */
@@ -79,6 +80,21 @@ public class AdminController {
         return ApiResponse.ok(service.editarUsuario(id, request, principal), "Datos actualizados.");
     }
 
+    // ---------- Padron de personal (DEC-L041) ----------
+
+    @GetMapping("/personal")
+    public ApiResponse<List<PersonalAdminDto>> personal(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.personal(principal));
+    }
+
+    @PostMapping("/personal/{id}/acceso")
+    public ApiResponse<DarAccesoDto> darAcceso(@PathVariable UUID id, @Valid @RequestBody DarAccesoRequest request,
+                                               @AuthenticationPrincipal UsuarioPrincipal principal) {
+        DarAccesoDto r = service.darAcceso(id, request, principal);
+        return ApiResponse.ok(r, r.acceso() != null ? "Cuenta creada."
+                : "Ya tenia cuenta: quedo vinculada. Revisa sus roles en Usuarios.");
+    }
+
     // ---------- Padron de personal manual (GOYDEL/METRIN, DEC-L028) ----------
 
     @GetMapping("/personal/plantilla")
@@ -112,8 +128,8 @@ public class AdminController {
     public ApiResponse<AdminDatosDto> sincronizar(@AuthenticationPrincipal UsuarioPrincipal principal) {
         AdminDatosDto d = service.sincronizar(principal);
         SyncResultadoDto r = d.ultimoResultado();
-        return ApiResponse.ok(d, "Sincronizacion lista: " + r.creados() + " nuevos, " + r.actualizados()
-                + " actualizados, " + r.desactivados() + " desactivados; CECOs: " + r.cecosCreados() + " nuevos, "
-                + r.cecosDesactivados() + " desactivados.");
+        return ApiResponse.ok(d, "Sincronizacion lista: " + r.recibidos() + " personas recibidas, " + r.creados()
+                + " nuevas, " + r.actualizados() + " con cambios, " + r.desactivados() + " ceses; CECOs: "
+                + r.cecosCreados() + " nuevos, " + r.cecosDesactivados() + " desactivados.");
     }
 }

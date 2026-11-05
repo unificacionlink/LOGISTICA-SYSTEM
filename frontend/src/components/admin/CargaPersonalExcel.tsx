@@ -18,11 +18,11 @@ const ACCION: Record<string, string> = {
 const thClass = "px-4 py-2.5";
 
 /**
- * Padron de personal de las empresas sin RR.HH. (GOYDEL/METRIN, DEC-L028):
- * la plantilla trae al personal actual; se edita, se valida sin escribir y
- * se confirma todo o nada.
+ * Padron de personal de las empresas sin RR.HH. (GOYDEL/METRIN, DEC-L028,
+ * DEC-L041): la plantilla trae al personal actual; se edita, se valida sin
+ * escribir y se confirma todo o nada. No crea cuentas: eso es "Dar acceso".
  */
-export default function PestanaPersonal({ empresas, recargar }: { empresas: string[]; recargar: () => void }) {
+export default function CargaPersonalExcel({ empresas, recargar }: { empresas: string[]; recargar: () => void }) {
   const confirmar = useConfirmar();
   const inputRef = useRef<HTMLInputElement>(null);
   const [archivo, setArchivo] = useState<File | null>(null);

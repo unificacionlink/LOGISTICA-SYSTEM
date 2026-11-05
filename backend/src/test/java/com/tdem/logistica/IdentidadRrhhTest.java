@@ -100,8 +100,9 @@ class IdentidadRrhhTest {
 
 	private static String persona(String dni, String nombre, String correo, String empresa, String ceco, String cecoNombre) {
 		String c = ceco == null ? "null" : "{\"numero\":\"" + ceco + "\",\"nombre\":\"" + cecoNombre + "\"}";
-		return "{\"dni\":\"" + dni + "\",\"nombre_completo\":\"" + nombre + "\",\"correo\":\"" + correo
-				+ "\",\"empresa\":\"" + empresa + "\",\"ceco\":" + c + ",\"cargo\":\"Tecnico\"}";
+		String mail = correo == null ? "null" : "\"" + correo + "\"";
+		return "{\"dni\":\"" + dni + "\",\"nombre_completo\":\"" + nombre + "\",\"correo\":" + mail
+				+ ",\"empresa\":\"" + empresa + "\",\"ceco\":" + c + ",\"cargo\":\"Tecnico\"}";
 	}
 
 	@Test
@@ -114,37 +115,77 @@ class IdentidadRrhhTest {
 				insert into usuario (corporate_email, display_name, company_id, fuente)
 				select 'rosa.quispe@tdem.com.pe', 'Rosa (manual)', company_id, 'MANUAL' from empresa where code = 'TDEMSRL'""");
 
-		// --- Sync 1 ---
-		personal = "[" + String.join(",",
+		// --- Sync 1 (DEC-L041): trae a todo el personal, tenga o no correo, sin crear cuentas ---
+		String sync1 = "[" + String.join(",",
 				persona("40000001", "Ana Torres", "ana.torres@tdem.com.pe", "TDEMSRL", "0800", "LIMA"),
 				persona("40000002", "Rosa Quispe", "Rosa.Quispe@tdem.com.pe", "TDEMSRL", "0800", "LIMA"),
 				persona("40000003", "Luis Paz", "luis.paz@goydel.com.pe", "GOYDELSAC", "0100", "PIURA"),
-				persona("40000004", "Sin Empresa", "x@otra.com", "OTRA", null, null)) + "]";
+				persona("40000004", "Sin Empresa", "x@otra.com", "OTRA", null, null),
+				persona("40000005", "Pedro Sin Correo", null, "TDEMSRL", "0800", "LIMA")) + "]";
+		personal = sync1;
 		SyncResultadoDto r1 = syncService.sincronizar();
 		assertEquals(TOKEN, tokenRecibido, "manda el token de servicio");
-		assertEquals(4, r1.recibidos());
-		assertEquals(2, r1.creados(), "Ana y Luis; Rosa ya existia como MANUAL");
-		assertEquals(1, r1.actualizados());
+		assertEquals(5, r1.recibidos());
+		assertEquals(4, r1.creados(), "Ana, Rosa, Luis y Pedro entran al padron");
 		assertEquals(2, r1.cecosCreados());
 		assertTrue(r1.avisos().stream().anyMatch(a -> a.contains("OTRA")), r1.avisos().toString());
+		assertEquals(3, jdbc.queryForObject("""
+				select count(*) from personal p join empresa e on e.company_id = p.company_id
+				where e.code = 'TDEMSRL' and p.active""", Integer.class));
+		assertEquals(0, jdbc.queryForObject(
+				"select count(*) from usuario where employee_external_id in ('40000001', '40000005')", Integer.class),
+				"el sync ya no crea cuentas");
 
+		// Rosa ya tenia cuenta MANUAL con su correo: se vincula y pasa a RR.HH., sin duplicarse.
 		assertEquals(1, jdbc.queryForObject(
 				"select count(*) from usuario where corporate_email = 'rosa.quispe@tdem.com.pe'", Integer.class));
 		assertEquals("RRHH_SYNC", jdbc.queryForObject(
 				"select fuente from usuario where employee_external_id = '40000002'", String.class));
-		assertEquals("0800", jdbc.queryForObject("""
-				select c.code from usuario_ceco uc join ceco c on c.ceco_id = uc.ceco_id
-				join usuario u on u.user_id = uc.user_id where u.employee_external_id = '40000001'""", String.class));
-		UUID ana = jdbc.queryForObject("select user_id from usuario where employee_external_id = '40000001'", UUID.class);
-		assertEquals(List.of("SOLICITANTE"), accesoVigente.obtener(ana).roles(), "nace como SOLICITANTE");
+		assertNotNull(jdbc.queryForObject("select user_id from personal where dni = '40000002'", UUID.class));
+
+		// Repetir la misma respuesta no cambia nada.
+		SyncResultadoDto repetido = syncService.sincronizar();
+		assertEquals(0, repetido.creados());
+		assertEquals(0, repetido.actualizados());
 
 		// --- Administracion: solo ADMIN ---
 		assertThrows(ApiException.class, () -> adminService.datos(noAdmin));
+		assertThrows(ApiException.class, () -> adminService.personal(noAdmin));
+		List<PersonalAdminDto> padron = adminService.personal(admin);
+		PersonalAdminDto pedro = padron.stream().filter(p -> p.dni().equals("40000005")).findFirst().orElseThrow();
+		assertNull(pedro.correo());
+		assertNull(pedro.userId());
+		PersonalAdminDto anaP = padron.stream().filter(p -> p.dni().equals("40000001")).findFirst().orElseThrow();
+		assertEquals("0800", anaP.cecoCode());
+
+		// --- Dar acceso: cuenta con correo, roles, su CECO y contrasena temporal ---
+		DarAccesoDto acceso = adminService.darAcceso(anaP.id(),
+				new DarAccesoRequest("Ana.Torres@tdem.com.pe", List.of("SOLICITANTE")), admin);
+		assertNotNull(acceso.acceso());
+		assertEquals("ana.torres@tdem.com.pe", acceso.acceso().correo());
+		UUID ana = jdbc.queryForObject("select user_id from usuario where employee_external_id = '40000001'", UUID.class);
+		assertEquals(ana, acceso.personal().stream().filter(p -> p.dni().equals("40000001")).findFirst().orElseThrow().userId());
+		assertEquals("RRHH_SYNC", jdbc.queryForObject("select fuente from usuario where user_id = ?", String.class, ana),
+				"la cuenta de RR.HH. la sigue controlando el sync");
+		assertEquals("0800", jdbc.queryForObject("""
+				select c.code from usuario_ceco uc join ceco c on c.ceco_id = uc.ceco_id where uc.user_id = ?""",
+				String.class, ana));
+		assertEquals(List.of("SOLICITANTE"), accesoVigente.obtener(ana).roles());
+		assertThrows(ApiException.class, () -> adminService.darAcceso(anaP.id(),
+				new DarAccesoRequest("otra@tdem.com.pe", List.of("SOLICITANTE")), admin), "ya tiene cuenta");
+		assertThrows(ApiException.class, () -> adminService.darAcceso(pedro.id(),
+				new DarAccesoRequest("ana.torres@tdem.com.pe", List.of("SOLICITANTE")), admin), "correo de otro");
+		assertThrows(ApiException.class, () -> adminService.darAcceso(pedro.id(),
+				new DarAccesoRequest("pedro@tdem.com.pe", List.of("JEFE")), admin), "rol invalido");
+		assertEquals(1, jdbc.queryForObject(
+				"select count(*) from log_cambios where entidad = 'PERSONAL' and accion = 'DAR_ACCESO'", Integer.class));
+
 		AdminDatosDto datos = adminService.datos(admin);
 		assertTrue(datos.syncConfigurado());
 		assertNotNull(datos.ultimaSincronizacion());
 		UsuarioAdminDto anaDto = datos.usuarios().stream().filter(u -> u.id().equals(ana)).findFirst().orElseThrow();
-		assertFalse(anaDto.tieneAcceso(), "sin contrasena hasta que ADMIN la genere");
+		assertTrue(anaDto.tieneAcceso());
+		assertTrue(anaDto.debeCambiarPassword());
 		assertTrue(datos.empresas().stream().anyMatch(e -> e.code().equals("METRIN") && e.altaManual()));
 		assertTrue(datos.empresas().stream().anyMatch(e -> e.code().equals("TDEMSRL") && !e.altaManual()));
 
@@ -182,14 +223,16 @@ class IdentidadRrhhTest {
 		assertThrows(ApiException.class, () -> adminService.cambiarActivo(ana, false, admin),
 				"el estado de un usuario de RRHH lo controla el sync");
 
-		// --- Sync 2: Rosa ya no esta activa en RRHH -> se desactiva y pierde acceso ---
+		// --- Sync 2: Rosa ya no esta activa en RRHH -> cesa en el padron y su cuenta pierde acceso ---
 		UUID rosa = jdbc.queryForObject("select user_id from usuario where employee_external_id = '40000002'", UUID.class);
 		assertTrue(accesoVigente.obtener(rosa).activo());
 		personal = "[" + String.join(",",
 				persona("40000001", "Ana Torres", "ana.torres@tdem.com.pe", "TDEMSRL", "0800", "LIMA"),
-				persona("40000003", "Luis Paz", "luis.paz@goydel.com.pe", "GOYDELSAC", "0100", "PIURA")) + "]";
+				persona("40000003", "Luis Paz", "luis.paz@goydel.com.pe", "GOYDELSAC", "0100", "PIURA"),
+				persona("40000005", "Pedro Sin Correo", null, "TDEMSRL", "0800", "LIMA")) + "]";
 		adminService.sincronizar(admin);
-		assertEquals(1, syncService.ultimoResultado().desactivados());
+		assertEquals(1, syncService.ultimoResultado().desactivados(), "Rosa: su ficha y su cuenta cuentan una vez");
+		assertFalse(jdbc.queryForObject("select active from personal where dni = '40000002'", Boolean.class));
 		assertFalse(accesoVigente.obtener(rosa).activo(), "RF-041: sin acceso apenas se sincroniza");
 		assertEquals(List.of("SOLICITANTE", "LOGISTICA"), accesoVigente.obtener(ana).roles(), "el sync no pisa roles asignados");
 		assertTrue(jdbc.queryForObject(

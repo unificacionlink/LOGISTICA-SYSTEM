@@ -1,5 +1,5 @@
 import { http } from "./http";
-import type { AdminDatos, PersonalCarga } from "./types";
+import type { AdminDatos, DarAccesoResultado, PersonalAdmin, PersonalCarga } from "./types";
 
 // Administracion de identidad (solo ADMIN, DEC-L024). Cada escritura devuelve
 // los datos completos de la pantalla: una sola ida y vuelta.
@@ -48,6 +48,17 @@ export function editarUsuario(userId: string, input: EditarUsuarioInput) {
 /** Reemplaza los CECOs para los que el usuario puede pedir (DEC-L029). */
 export function asignarCecos(userId: string, cecoIds: string[]) {
   return http.put<AdminDatos>(`/api/admin/usuarios/${userId}/cecos`, { cecoIds });
+}
+
+// ---------- Padron de personal (DEC-L041) ----------
+
+export function listarPersonal() {
+  return http.get<PersonalAdmin[]>("/api/admin/personal");
+}
+
+/** Crea la cuenta de una persona del padron; devuelve su contrasena temporal. */
+export function darAcceso(personalId: string, correo: string, roles: string[]) {
+  return http.post<DarAccesoResultado>(`/api/admin/personal/${personalId}/acceso`, { correo, roles });
 }
 
 // ---------- Padron de personal manual por Excel (GOYDEL/METRIN, DEC-L028) ----------
