@@ -14,6 +14,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.28.1",
+    fecha: "2026-11-05",
+    titulo: "Corrección al cambiar fotos",
+    cambios: [
+      "Se corrigió el error \"Ocurrió un conflicto al guardar\" al cambiar la foto de un producto que ya tenía una.",
+      "En el celular, el Catálogo de productos ya no encima el precio y los botones sobre el nombre.",
+    ],
+  },
+  {
     version: "0.28.0",
     fecha: "2026-11-05",
     titulo: "Fotos de productos en lote",

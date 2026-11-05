@@ -390,7 +390,8 @@ export default function CatalogoProductos() {
                   {visibles.map((p) => {
                     const subiendo = subiendoProductId === p.productId;
                     return (
-                      <li key={p.productId} className="flex items-center gap-3 px-4 py-3">
+                      // Celular: foto + datos en la primera linea; precio y acciones en la segunda.
+                      <li key={p.productId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap">
                         <Miniatura url={p.imagenUrl} titulo={p.nombre} detalle={`${p.skuBase} · ${etiquetaFamilia(p.tipoNombre, p.familiaNombre)}`} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm text-slate-800">{p.nombre}</p>
@@ -411,59 +412,61 @@ export default function CatalogoProductos() {
                             )}
                           </p>
                         </div>
-                        {puedeVerPrecios && (
-                          <span
-                            className={`shrink-0 text-right tabular-nums ${
-                              precios[p.productId] ? "text-sm font-medium text-slate-800" : "text-xs text-slate-400"
-                            }`}
-                            title={precios[p.productId] ? `Registrado por ${precios[p.productId].actualizadoPor}` : undefined}
-                          >
-                            {precios[p.productId] ? soles.format(precios[p.productId].precio) : "Sin precio"}
-                          </span>
-                        )}
-                        {puedeEditarPrecio && !puedeEditarImagenes && (
-                          <Button variant="secondary" size="sm" onClick={() => setEditando({ tipo: "precio", producto: p })}>
-                            {precios[p.productId] ? "Cambiar precio" : "Registrar precio"}
-                          </Button>
-                        )}
-                        {puedeEditarImagenes && (
-                          <button
-                            type="button"
-                            onClick={() => abrirSelectorArchivo(p.productId, true)}
-                            disabled={subiendo}
-                            aria-label={`Tomar foto de ${p.skuBase}`}
-                            className="flex size-8 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-60 sm:hidden"
-                          >
-                            <Camera className="size-4" />
-                          </button>
-                        )}
-                        {puedeEditarImagenes && (
-                          <button
-                            type="button"
-                            onClick={() => abrirSelectorArchivo(p.productId)}
-                            disabled={subiendo}
-                            className="flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-60"
-                          >
-                            {subiendo ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : (
-                              <Upload className="size-3.5" />
-                            )}
-                            {p.imagenUrl ? "Cambiar foto" : "Subir foto"}
-                          </button>
-                        )}
-                        {puedeEditarImagenes && (
-                          <MenuAcciones
-                            acciones={[
-                              ...(puedeEditarPrecio
-                                ? [{ label: "Precio de venta", onClick: () => setEditando({ tipo: "precio", producto: p }) }]
-                                : []),
-                              { label: "Proveedores", onClick: () => setEditando({ tipo: "proveedores", producto: p }) },
-                              { label: "Plazo de atención", onClick: () => setEditando({ tipo: "plazo", producto: p }) },
-                              { label: "Inactivar producto", peligro: true, onClick: () => onInactivar(p.productId, p.skuBase) },
-                            ]}
-                          />
-                        )}
+                        <div className="flex w-full items-center justify-end gap-2 pl-[52px] sm:w-auto sm:shrink-0 sm:pl-0">
+                          {puedeVerPrecios && (
+                            <span
+                              className={`mr-auto shrink-0 tabular-nums sm:mr-1 sm:text-right ${
+                                precios[p.productId] ? "text-sm font-medium text-slate-800" : "text-xs text-slate-400"
+                              }`}
+                              title={precios[p.productId] ? `Registrado por ${precios[p.productId].actualizadoPor}` : undefined}
+                            >
+                              {precios[p.productId] ? soles.format(precios[p.productId].precio) : "Sin precio"}
+                            </span>
+                          )}
+                          {puedeEditarPrecio && !puedeEditarImagenes && (
+                            <Button variant="secondary" size="sm" onClick={() => setEditando({ tipo: "precio", producto: p })}>
+                              {precios[p.productId] ? "Cambiar precio" : "Registrar precio"}
+                            </Button>
+                          )}
+                          {puedeEditarImagenes && (
+                            <button
+                              type="button"
+                              onClick={() => abrirSelectorArchivo(p.productId, true)}
+                              disabled={subiendo}
+                              aria-label={`Tomar foto de ${p.skuBase}`}
+                              className="flex size-8 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-60 sm:hidden"
+                            >
+                              <Camera className="size-4" />
+                            </button>
+                          )}
+                          {puedeEditarImagenes && (
+                            <button
+                              type="button"
+                              onClick={() => abrirSelectorArchivo(p.productId)}
+                              disabled={subiendo}
+                              className="flex min-w-[7.5rem] shrink-0 items-center justify-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-60"
+                            >
+                              {subiendo ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="size-3.5" />
+                              )}
+                              {p.imagenUrl ? "Cambiar foto" : "Subir foto"}
+                            </button>
+                          )}
+                          {puedeEditarImagenes && (
+                            <MenuAcciones
+                              acciones={[
+                                ...(puedeEditarPrecio
+                                  ? [{ label: "Precio de venta", onClick: () => setEditando({ tipo: "precio", producto: p }) }]
+                                  : []),
+                                { label: "Proveedores", onClick: () => setEditando({ tipo: "proveedores", producto: p }) },
+                                { label: "Plazo de atención", onClick: () => setEditando({ tipo: "plazo", producto: p }) },
+                                { label: "Inactivar producto", peligro: true, onClick: () => onInactivar(p.productId, p.skuBase) },
+                              ]}
+                            />
+                          )}
+                        </div>
                       </li>
                     );
                   })}

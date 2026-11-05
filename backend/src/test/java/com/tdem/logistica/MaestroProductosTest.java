@@ -5,6 +5,7 @@ import com.tdem.logistica.modules.maestro.MaestroService;
 import com.tdem.logistica.modules.maestro.dto.*;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
 import com.tdem.logistica.security.UsuarioPrincipal;
+import com.tdem.logistica.storage.StorageClient;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -32,6 +35,8 @@ class MaestroProductosTest {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private MaestroService maestro;
 	@Autowired private RequerimientoService requerimientoService;
+	/** Sin Storage real: devuelve una URL distinta por cada subida. */
+	@MockitoBean private StorageClient storage;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -47,6 +52,28 @@ class MaestroProductosTest {
 		if (pg != null) {
 			pg.close();
 		}
+	}
+
+	@Test
+	void cambiarLaFotoDeUnProductoQueYaTieneUna() {
+		UsuarioPrincipal logistica = new UsuarioPrincipal(usuario("logistica@logistica.test"), List.of("LOGISTICA"));
+		org.mockito.Mockito.when(storage.subir(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
+				org.mockito.ArgumentMatchers.anyString())).thenAnswer(inv -> "https://storage.test/" + inv.getArgument(0));
+		UUID producto = jdbc.queryForObject("select product_id from producto where sku_base = 'AC01002'", UUID.class);
+		byte[] jpg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00};
+
+		String primera = requerimientoService.subirImagenProducto(producto,
+				new MockMultipartFile("file", "AC01002.jpg", "image/jpeg", jpg), logistica);
+		// Antes fallaba aqui con "Ocurrio un conflicto al guardar" (uq_producto_imagen_principal).
+		String segunda = requerimientoService.subirImagenProducto(producto,
+				new MockMultipartFile("file", "IMG_0001.jpg", "image/jpeg", jpg), logistica);
+
+		assertNotEquals(primera, segunda);
+		assertEquals(1, jdbc.queryForObject(
+				"select count(*) from producto_imagen where product_id = ? and is_primary and active", Integer.class, producto));
+		assertEquals(segunda, jdbc.queryForObject("""
+				select d.file_url from producto_imagen pi join documento d on d.document_id = pi.document_id
+				where pi.product_id = ? and pi.is_primary and pi.active""", String.class, producto));
 	}
 
 	@Test

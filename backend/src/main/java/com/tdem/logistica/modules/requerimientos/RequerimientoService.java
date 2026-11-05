@@ -235,12 +235,16 @@ public class RequerimientoService {
         String url = storageClient.subir(path, contenido, contentType);
 
         // Solo una imagen principal activa por producto (indice parcial en BD): se
-        // desactiva la anterior antes de insertar la nueva.
+        // desactiva la anterior antes de insertar la nueva. El flush es obligatorio:
+        // Hibernate ejecuta los INSERT antes que los UPDATE, y sin el la nueva
+        // entraba con la anterior aun activa (uq_producto_imagen_principal, al
+        // cambiar una foto existente).
         productoImagenRepository.findPrincipalesActivasPorProducto(productId)
                 .forEach(pi -> {
                     pi.setActive(false);
                     productoImagenRepository.save(pi);
                 });
+        productoImagenRepository.flush();
 
         Documento documento = new Documento();
         documento.setDocumentId(UUID.randomUUID());

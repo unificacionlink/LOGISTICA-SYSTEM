@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.28.1 — 2026-11-05
+
+- **Fix**: cambiar la foto de un producto que ya tenia una fallaba con
+  "Ocurrio un conflicto al guardar" (`uq_producto_imagen_principal`).
+  Hibernate ejecuta los INSERT antes que los UPDATE: la foto nueva entraba
+  con la anterior aun activa. Se hace `flush` tras desactivar la anterior.
+  Afectaba a "Cambiar foto", la camara y la carga masiva con reemplazo.
+  Prueba nueva en `MaestroProductosTest`.
+- **Fix (celular)**: en el Catalogo, el precio y los botones se montaban sobre
+  el nombre del producto. En pantallas angostas pasan a una segunda linea.
+
 ## 0.28.0 — 2026-11-05
 
 - **Carga masiva de fotos** en Catalogo de productos (menu "⋯" de la
