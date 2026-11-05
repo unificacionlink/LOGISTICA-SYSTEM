@@ -15,6 +15,7 @@ import com.tdem.logistica.modules.requerimientos.dto.*;
 import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
+import com.tdem.logistica.storage.BorradoDiferido;
 import com.tdem.logistica.storage.StorageClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -234,17 +235,19 @@ public class RequerimientoService {
         }
         String url = storageClient.subir(path, contenido, contentType);
 
-        // Solo una imagen principal activa por producto (indice parcial en BD): se
-        // desactiva la anterior antes de insertar la nueva. El flush es obligatorio:
-        // Hibernate ejecuta los INSERT antes que los UPDATE, y sin el la nueva
-        // entraba con la anterior aun activa (uq_producto_imagen_principal, al
-        // cambiar una foto existente).
-        productoImagenRepository.findPrincipalesActivasPorProducto(productId)
-                .forEach(pi -> {
-                    pi.setActive(false);
-                    productoImagenRepository.save(pi);
-                });
+        // DEC-L044: la foto anterior se borra (registro y archivo), no se guarda
+        // historial. Solo hay una principal por producto (uq_producto_imagen_principal):
+        // se borra y se hace flush ANTES de insertar la nueva, porque Hibernate
+        // ejecuta los INSERT antes que los DELETE.
+        List<ProductoImagen> anteriores = productoImagenRepository.findPrincipalesActivasPorProducto(productId);
+        List<String> urlsAnteriores = anteriores.stream().map(pi -> pi.getDocumento().getFileUrl()).toList();
+        List<Documento> documentosAnteriores = anteriores.stream().map(ProductoImagen::getDocumento).toList();
+        productoImagenRepository.deleteAll(anteriores);
         productoImagenRepository.flush();
+        documentoRepository.deleteAll(documentosAnteriores);
+        documentoRepository.flush();
+        // Archivo anterior: se borra si la BD confirma. Si algo falla, se borra el nuevo.
+        BorradoDiferido.programar(storageClient, urlsAnteriores, List.of(url));
 
         Documento documento = new Documento();
         documento.setDocumentId(UUID.randomUUID());

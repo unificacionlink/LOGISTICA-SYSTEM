@@ -5,6 +5,17 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L044 — Las fotos reemplazadas se borran (2026-11-05).** Decision del
+  usuario: no conservar historial de fotos para no ocupar espacio. Al
+  reemplazar la foto de un producto se borran su `producto_imagen`, su
+  `documento` y el archivo del Storage. El archivo se borra recien cuando la
+  BD confirma (si falla, la foto anterior sigue sirviendo); si la transaccion
+  se revierte, se borra el archivo nuevo (`storage/BorradoDiferido`).
+  Limpieza nocturna (`storage/LimpiezaFotos`, 03:30 Lima,
+  `app.storage.limpieza-cron`): fotos inactivas que queden en la BD y archivos
+  de fotos sin documento con mas de 24 h. Solo carpetas de fotos
+  (`<product_id>/`, `sku/`), nunca cotizaciones, caja chica ni envios.
+
 - **DEC-L043 — Carga masiva de fotos en el navegador (2026-11-05).**
   Logistica necesitaba cargar cientos de fotos sin el script de Python (que
   pide claves de Storage y aplicar SQL). Se hace en el Catalogo, sin endpoint

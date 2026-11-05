@@ -13,9 +13,12 @@ import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.net.URI;
+import java.util.List;
 
 /**
  * Sube archivos a cualquier storage compatible con S3 (DEC-L015/DEC-L016):
@@ -85,6 +88,29 @@ public class S3StorageClient implements StorageClient {
                         .build(),
                 RequestBody.fromBytes(contenido));
         return publicUrlBase + path;
+    }
+
+    @Override
+    public void borrar(String url) {
+        if (!configurado || url == null || !url.startsWith(publicUrlBase)) {
+            return;
+        }
+        String clave = url.substring(publicUrlBase.length());
+        if (clave.isBlank()) {
+            return;
+        }
+        s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(clave).build());
+    }
+
+    @Override
+    public List<Archivo> listar() {
+        if (!configurado) {
+            return List.of();
+        }
+        return s3.listObjectsV2Paginator(ListObjectsV2Request.builder().bucket(bucket).build())
+                .contents().stream()
+                .map(o -> new Archivo(o.key(), publicUrlBase + o.key(), o.lastModified()))
+                .toList();
     }
 
     @PreDestroy

@@ -5,6 +5,7 @@ import com.tdem.logistica.modules.maestro.MaestroService;
 import com.tdem.logistica.modules.maestro.dto.*;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
 import com.tdem.logistica.security.UsuarioPrincipal;
+import com.tdem.logistica.storage.LimpiezaFotos;
 import com.tdem.logistica.storage.StorageClient;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
@@ -20,6 +21,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,6 +39,7 @@ class MaestroProductosTest {
 	@Autowired private RequerimientoService requerimientoService;
 	/** Sin Storage real: devuelve una URL distinta por cada subida. */
 	@MockitoBean private StorageClient storage;
+	@Autowired private LimpiezaFotos limpieza;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -69,11 +72,56 @@ class MaestroProductosTest {
 				new MockMultipartFile("file", "IMG_0001.jpg", "image/jpeg", jpg), logistica);
 
 		assertNotEquals(primera, segunda);
-		assertEquals(1, jdbc.queryForObject(
-				"select count(*) from producto_imagen where product_id = ? and is_primary and active", Integer.class, producto));
 		assertEquals(segunda, jdbc.queryForObject("""
 				select d.file_url from producto_imagen pi join documento d on d.document_id = pi.document_id
 				where pi.product_id = ? and pi.is_primary and pi.active""", String.class, producto));
+		// DEC-L044: la anterior no queda ni en la BD ni en el Storage.
+		assertEquals(1, jdbc.queryForObject("select count(*) from producto_imagen where product_id = ?", Integer.class, producto));
+		assertEquals(0, jdbc.queryForObject("select count(*) from documento where file_url = ?", Integer.class, primera));
+		org.mockito.Mockito.verify(storage).borrar(primera);
+		org.mockito.Mockito.verify(storage, org.mockito.Mockito.never()).borrar(segunda);
+	}
+
+	@Test
+	void limpiezaNocturnaSoloBorraFotosSinUso() {
+		Instant ahora = Instant.parse("2026-11-06T08:30:00Z");
+		Instant viejo = ahora.minus(java.time.Duration.ofDays(3));
+		UUID producto = jdbc.queryForObject("select product_id from producto where sku_base = 'AC01003'", UUID.class);
+		UUID admin = usuario("admin@logistica.test");
+		String base = "https://storage.test/";
+
+		// Una foto reemplazada antes de DEC-L044 (inactiva) y la activa del mismo producto.
+		UUID docViejo = UUID.randomUUID();
+		UUID docActual = UUID.randomUUID();
+		jdbc.update("insert into documento (document_id, document_type, file_name, file_url) values (?, 'EVIDENCIA', 'a.jpg', ?)",
+				docViejo, base + producto + "/reemplazada.jpg");
+		jdbc.update("insert into documento (document_id, document_type, file_name, file_url) values (?, 'EVIDENCIA', 'b.jpg', ?)",
+				docActual, base + producto + "/actual.jpg");
+		jdbc.update("""
+				insert into producto_imagen (product_id, document_id, is_primary, active, created_by)
+				values (?, ?, true, false, ?), (?, ?, true, true, ?)""", producto, docViejo, admin, producto, docActual, admin);
+
+		org.mockito.Mockito.when(storage.listar()).thenReturn(List.of(
+				new StorageClient.Archivo(producto + "/actual.jpg", base + producto + "/actual.jpg", viejo),
+				new StorageClient.Archivo(producto + "/reemplazada.jpg", base + producto + "/reemplazada.jpg", viejo),
+				new StorageClient.Archivo(producto + "/huerfana.jpg", base + producto + "/huerfana.jpg", viejo),
+				new StorageClient.Archivo(producto + "/subiendo.jpg", base + producto + "/subiendo.jpg", ahora.minusSeconds(60)),
+				new StorageClient.Archivo("sku/AC01003/script.jpg", base + "sku/AC01003/script.jpg", viejo),
+				new StorageClient.Archivo("cotizaciones/x.pdf", base + "cotizaciones/x.pdf", viejo),
+				new StorageClient.Archivo(UUID.randomUUID() + "/otro.jpg", base + "otro.jpg", viejo)));
+
+		LimpiezaFotos.Resultado r = limpieza.limpiar(ahora);
+
+		assertEquals(1, r.registros(), "la reemplazada sale de la BD");
+		assertEquals(2, r.archivos(), "huerfana y la del script sin documento");
+		assertEquals(1, jdbc.queryForObject("select count(*) from producto_imagen where product_id = ?", Integer.class, producto));
+		org.mockito.Mockito.verify(storage).borrar(base + producto + "/reemplazada.jpg");
+		org.mockito.Mockito.verify(storage).borrar(base + producto + "/huerfana.jpg");
+		org.mockito.Mockito.verify(storage).borrar(base + "sku/AC01003/script.jpg");
+		org.mockito.Mockito.verify(storage, org.mockito.Mockito.never()).borrar(base + producto + "/actual.jpg");
+		org.mockito.Mockito.verify(storage, org.mockito.Mockito.never()).borrar(base + producto + "/subiendo.jpg");
+		org.mockito.Mockito.verify(storage, org.mockito.Mockito.never()).borrar(base + "cotizaciones/x.pdf");
+		org.mockito.Mockito.verify(storage, org.mockito.Mockito.never()).borrar(base + "otro.jpg");
 	}
 
 	@Test

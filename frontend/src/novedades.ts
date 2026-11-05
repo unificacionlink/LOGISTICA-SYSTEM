@@ -14,6 +14,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.28.2",
+    fecha: "2026-11-05",
+    titulo: "Las fotos reemplazadas se eliminan",
+    cambios: [
+      "Al cambiar la foto de un producto, la foto anterior se elimina para no ocupar espacio.",
+      "Cada noche el sistema borra solo las fotos que ya no usa ningún producto.",
+    ],
+  },
+  {
     version: "0.28.1",
     fecha: "2026-11-05",
     titulo: "Corrección al cambiar fotos",

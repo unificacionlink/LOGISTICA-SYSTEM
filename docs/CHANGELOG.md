@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.28.2 — 2026-11-05
+
+- **Fotos reemplazadas se borran** (DEC-L044): al cambiar la foto de un
+  producto se eliminan el registro anterior y su archivo del Storage, despues
+  de confirmar en la BD. `StorageClient` suma `borrar` y `listar`.
+- **Limpieza nocturna de fotos** (`LimpiezaFotos`, 03:30 Lima): borra fotos
+  inactivas que queden en la BD y archivos de fotos de producto sin uso (mas
+  de 24 h). Pruebas en `MaestroProductosTest`.
+
 ## 0.28.1 — 2026-11-05
 
 - **Fix**: cambiar la foto de un producto que ya tenia una fallaba con
