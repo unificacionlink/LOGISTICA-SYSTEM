@@ -14,6 +14,12 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.25.1",
+    fecha: "2026-11-05",
+    titulo: "Corrección de ingreso",
+    cambios: ["Se corrigió el error \"No se pudo conectar con el servidor\" al iniciar sesión en el sistema publicado."],
+  },
+  {
     version: "0.25.0",
     fecha: "2026-11-05",
     titulo: "Compras consolidadas entre requerimientos",

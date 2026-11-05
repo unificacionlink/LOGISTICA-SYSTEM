@@ -1,6 +1,13 @@
 import { conProgreso } from "./progreso";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+/**
+ * Base de la API. En desarrollo, el backend corre aparte (VITE_API_URL en
+ * .env.local, o :8080). En produccion Spring sirve el frontend y la API en el
+ * mismo dominio: sin VITE_API_URL se usa el origen de la pagina (antes caia en
+ * localhost:8080 y el navegador no llegaba al backend).
+ */
+export const API_URL =
+  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8080" : window.location.origin);
 
 export interface ApiResponse<T> {
   ok: boolean;

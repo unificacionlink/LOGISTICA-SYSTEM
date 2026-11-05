@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.25.1 — 2026-11-05
+
+- **Fix (produccion)**: el frontend publicado intentaba conectarse a
+  `localhost:8080` porque el build de Render no tiene `VITE_API_URL`
+  (`.env.local` no se versiona) y el login fallaba con "No se pudo conectar
+  con el servidor". Sin esa variable, en produccion se usa el mismo dominio
+  de la pagina para la API y los avisos en vivo (`wss://`). La URL base vive
+  solo en `api/http.ts`.
+
 ## 0.25.0 — 2026-11-05
 
 - **Lote 16 — Necesidad, consolidación y RFQ multiproducto** (DEC-L039,

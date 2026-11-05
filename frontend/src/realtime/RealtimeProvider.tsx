@@ -1,9 +1,9 @@
 import { Client } from "@stomp/stompjs";
 import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { API_URL } from "../api/http";
 import type { AprobacionPendiente, Requerimiento } from "../api/types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 const WS_URL = `${API_URL.replace(/^http/, "ws")}/ws`;
 
 type Listener<T> = (payload: T) => void;
