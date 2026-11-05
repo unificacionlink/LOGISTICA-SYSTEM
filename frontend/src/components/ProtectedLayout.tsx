@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import CambiarPassword from "../pages/CambiarPassword";
+import BotonNovedades from "./Novedades";
 import PantallaCarga from "./PantallaCarga";
 import Toast from "./Toast";
 
@@ -202,6 +203,7 @@ export default function ProtectedLayout() {
             <KeyRound className="size-4.5 shrink-0" strokeWidth={2.1} />
             <span className={ETIQUETA}>Cambiar contraseña</span>
           </NavLink>
+          <BotonNovedades etiquetaClase={ETIQUETA} onAbrir={() => setMenuAbierto(false)} />
           <button
             type="button"
             title="Cerrar sesión"

@@ -25,6 +25,9 @@
 - Caja Chica por requerimiento en `/compras/requerimientos/{id}/caja-chica`
   (reemplaza "Gestionar compra").
 - Dashboard: comparativo y ahorro por consolidado.
+- **Novedades** (DEC-L040): botón en el menú con la versión actual y los
+  cambios de cada versión en lenguaje de usuario (`frontend/src/novedades.ts`),
+  con un punto mientras no se vea la última.
 - Tests: `ConsolidacionComprasTest` (reemplaza `AtencionAutomaticaTest`) y
   `MigracionLote16Test` (V20 sobre datos previos).
 

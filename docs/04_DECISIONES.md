@@ -5,6 +5,17 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L040 — Novedades por version en la app (2026-11-05).** Boton
+  "Novedades" en el pie del menu con la version actual; abre el historial de
+  versiones (la ultima desplegada, las anteriores plegadas) y marca con un
+  punto la version que el usuario aun no abrio (`localStorage`, solo aviso).
+  Decisiones del usuario: el texto es **redactado para el usuario** en
+  `frontend/src/novedades.ts` (el `docs/CHANGELOG.md` es tecnico y sus
+  primeras versiones no aplican al usuario final) y **todos los roles ven el
+  mismo historial**. `novedades.ts` es la fuente de la version visible; al
+  publicar una version se agrega alli y en el CHANGELOG con el mismo numero.
+  El historial parte en 0.2.0 (primera version utilizable).
+
 - **DEC-L039 — Lote 16: necesidad, consolidacion y RFQ multiproducto
   (2026-11-05).** Adopta `purchaseNeeds`, `consolidations`, `rfqBundles` y la
   cotizacion por documento de `rfq-multiproducto.js`/`flujo-operativo.js` de
