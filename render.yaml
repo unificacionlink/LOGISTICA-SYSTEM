@@ -5,7 +5,7 @@ services:
     dockerfilePath: ./Dockerfile
     plan: standard
     region: virginia
-    branch: master
+    branch: main
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
@@ -16,7 +16,7 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: JWT_EXPIRATION_MINUTES
         value: "480"
       - key: CORS_ALLOWED_ORIGINS
@@ -38,6 +38,11 @@ services:
       - key: STORAGE_BUCKET
         value: logistica-productos
       - key: STORAGE_PUBLIC_URL
+        sync: false
+      # Sincronizacion de identidad con RRHH-SYSTEM (DEC-L024); vacias = sin sync.
+      - key: RRHH_API_URL
+        sync: false
+      - key: RRHH_SYNC_SERVICE_TOKEN
         sync: false
 
 # Nota: un unico Web Service (Spring Boot sirve el build estatico de React
