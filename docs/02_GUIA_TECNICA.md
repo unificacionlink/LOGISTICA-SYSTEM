@@ -123,6 +123,9 @@ el esquema nace vacio y se aplican V1..Vn completas.
   incidencias, guia, salida, nota de inventario, envio, origen de reservas.
 - `V9__proveedor_habitual_producto.sql` — proveedor habitual por producto,
   destino de la RFQ automatica al aprobar (DEC-L018).
+- `V20__necesidad_consolidacion_rfq_multiproducto.sql` — Lote 16 (DEC-L039):
+  `necesidad_compra`, `consolidacion`, `proveedor_producto` (reemplaza al
+  proveedor habitual), RFQ/OC por consolidado y migracion de los datos previos.
 
 Cobertura: `MigracionesFlywayTest` corre todas las migraciones contra un
 Postgres 17 real embebido (sin Docker) que imita la BD de RRHH y verifica

@@ -5,6 +5,85 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L039 — Lote 16: necesidad, consolidacion y RFQ multiproducto
+  (2026-11-05).** Adopta `purchaseNeeds`, `consolidations`, `rfqBundles` y la
+  cotizacion por documento de `rfq-multiproducto.js`/`flujo-operativo.js` de
+  la V38.7 (COM-01; Flyway V20). **Reemplaza DEC-L013** (una RFQ = un REQ, sin
+  consolidacion) **y la RFQ automatica al proveedor habitual de DEC-L018.**
+  Decisiones del usuario:
+  - **Necesidad al aprobar**: tras reservar stock, el faltante de cada item
+    crea una `necesidad_compra`. Si la regla de Caja Chica **no** aplica, entra
+    sola al consolidado ABIERTO de su empresa + producto + variante + unidad
+    (un solo consolidado abierto por clave: indice unico parcial
+    `uq_consolidacion_abierta` + `insert ... on conflict do nothing` + `for
+    update`). Si aplica (MISMO_DIA o BAJO_MONTO, a nivel de item) queda
+    PENDIENTE_RUTA y **Logistica confirma** Caja Chica o compra normal.
+  - **Consolidacion automatica**, con el **origen visible**: cada consolidado
+    muestra de que CECO (proyecto) y REQ viene cada parte, para que Logistica
+    no confunda a quien va lo comprado.
+  - **Proveedores habilitados por producto** (`proveedor_producto`, varios por
+    SKU; se edita en el menu del producto del Catalogo). Reemplaza al
+    proveedor habitual unico (V9: `preferred_supplier_id` se migra a la
+    cobertura y se elimina). Emitir una OC habilita al proveedor para esos
+    productos si aun no lo estaba.
+  - **Adjudicacion por producto y OC por cotizacion**: cada consolidado se
+    adjudica a una linea cotizada (proveedores distintos por SKU); "Emitir
+    OC" junta en una OC todo lo adjudicado a esa cotizacion (= proveedor y sus
+    condiciones). Se emite directo (EMITIDA); la aprobacion previa de la OC,
+    el pago y la liberacion son el Lote 17.
+  Modelo:
+  - `consolidacion`: ABIERTA (recibe necesidades) -> EN_COTIZACION (con RFQ;
+    cerrado: lo aprobado despues abre otro) -> ADJUDICADA -> ORDENADA, o
+    ANULADA con motivo. La necesidad apunta directo a su consolidado (entra
+    entera a uno solo), sin `consolidacion_item`.
+  - **RFQ multiproducto**: "Preparar solicitudes" toma los consolidados
+    abiertos elegidos y agrega una linea por cada proveedor habilitado a la
+    RFQ BORRADOR ("por enviar") de esa empresa + proveedor (la reutiliza si
+    existe). `rfq.request_id` y `rfq_item.request_item_id` quedan solo en las
+    RFQ previas; las nuevas lineas llevan `consolidation_id`. El envio sigue
+    fuera del sistema (DEC-L009): la pantalla arma el texto para correo
+    (`mailto`) o WhatsApp (`wa.me`) y Logistica **confirma el envio** con su
+    canal (`sent_at/by/channel`). La RFQ se cierra sola cuando todas sus
+    lineas quedan ordenadas o anuladas.
+  - La cotizacion registra solo los productos que el proveedor cotizo (lo que
+    no cotiza queda "sin respuesta" en el comparativo). No se puede descartar
+    una cotizacion con productos adjudicados.
+  - **OC por consolidado**: `orden_item.consolidation_id` (sin
+    `request_item_id`); se elimina el UNIQUE de `orden_abastecimiento.quotation_id`
+    (una cotizacion puede emitir mas de una OC si se adjudica en momentos
+    distintos; la carrera la evita el bloqueo de los consolidados). Anular la
+    OC devuelve sus consolidados a EN_COTIZACION sin adjudicar.
+  - **Reparto de lo recibido**: la recepcion reparte la cantidad entre las
+    necesidades del consolidado (CRITICA, URGENTE, NORMAL; luego la mas
+    antigua) y reserva para cada item (`reserva_stock.need_id`); lo que sobra
+    queda libre en el almacen. Despacho, NI, atencion y Tracking no cambian.
+  - **Falla de proveedor** (RF-025): anular un consolidado en cotizacion deja
+    sus necesidades ANULADAS y crea otras PENDIENTE_RUTA con sugerencia
+    FALLA_PROVEEDOR (Caja Chica o nueva compra).
+  - **Caja Chica** compra contra las necesidades del REQ en ruta Caja Chica o
+    por decidir (`caja_chica_item.need_id`); registrar la compra confirma la
+    ruta. Su pantalla por REQ reemplaza "Gestionar compra" (la RFQ manual por
+    requerimiento ya no existe).
+  - Datos previos (V20): cada linea de RFQ anterior pasa a ser un consolidado
+    con su necesidad (ORDENADA si tenia OC, ANULADA si la RFQ se cerro sin OC,
+    EN_COTIZACION si no); las OC y lo ya recibido quedan enlazados; el
+    faltante de REQ en atencion que no estaba en ninguna RFQ queda
+    PENDIENTE_RUTA. Probado en `MigracionLote16Test`.
+  - Dashboard: el comparativo y el ahorro se miden por consolidado
+    (adjudicada vs la oferta mas cara a la misma cantidad); las RFQ se
+    filtran por su empresa.
+  - No se toma de la V38.7: la solicitud integrada de varias empresas en una
+    imagen (una RFQ por empresa + proveedor basta) ni los convenios (orden de
+    pedido sin RFQ), que no estan construidos.
+  API: `GET /api/compras/necesidades`, `POST /necesidades/{id}/ruta`,
+  `GET /consolidados`, `GET /consolidados/{id}`, `POST /consolidados/solicitudes`,
+  `POST /consolidados/{id}/adjudicar`, `POST /consolidados/{id}/anular`,
+  `GET /por-emitir`, `POST /cotizaciones/{id}/emitir-oc`, `POST /rfq/{id}/enviar`,
+  `GET /proveedores-producto`, `PUT /productos/{id}/proveedores`. Se eliminan
+  `/pendientes`, `/proveedores-habituales`, `/productos/{id}/proveedor-habitual`,
+  `POST /requerimientos/{id}/rfq` y `/cotizaciones/{id}/seleccionar`.
+  Test: `ConsolidacionComprasTest` (reemplaza `AtencionAutomaticaTest`).
+
 - **DEC-L038 — Lote 15: control presupuestal y cumplimiento (2026-11-02).**
   Adopta `bcCheck`, `bcRecordCheck`, `bcCompliance` y el Excel de PYC de
   `presupuestos-control.js` de la V38.7 (REQ-02, REQ-03, RES-01, RES-02;

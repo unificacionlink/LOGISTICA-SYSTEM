@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.25.0 — 2026-11-05
+
+- **Lote 16 — Necesidad, consolidación y RFQ multiproducto** (DEC-L039,
+  Flyway V20). Reemplaza la RFQ por requerimiento y la RFQ automática al
+  proveedor habitual.
+- **Al aprobar**, el faltante de cada ítem es una necesidad de compra que
+  entra sola al consolidado de su SKU, sumando requerimientos de distintos
+  CECOs. Si la regla de Caja Chica aplica (mismo día, bajo monto), espera
+  que Logística elija la ruta.
+- **Compras** con pestañas Necesidades, Consolidados, Solicitudes y Caja
+  chica. Cada consolidado muestra el CECO y el REQ de origen de cada parte.
+- **Preparar solicitudes**: una RFQ por empresa y proveedor con varios
+  productos, a todos los proveedores habilitados. Envío por correo o
+  WhatsApp con confirmación.
+- **Comparativo y adjudicación por producto** (proveedores distintos por
+  SKU) y **OC por proveedor** con todo lo adjudicado a su cotización.
+- **Recepción**: lo recibido se reparte entre los requerimientos del
+  consolidado (primero los críticos y urgentes).
+- **Anular un consolidado** (proveedor falló) devuelve sus faltantes a
+  decidir ruta con sugerencia de Caja Chica.
+- **Catálogo**: "Proveedores" en el menú del producto (varios por SKU)
+  reemplaza al proveedor habitual.
+- Caja Chica por requerimiento en `/compras/requerimientos/{id}/caja-chica`
+  (reemplaza "Gestionar compra").
+- Dashboard: comparativo y ahorro por consolidado.
+- Tests: `ConsolidacionComprasTest` (reemplaza `AtencionAutomaticaTest`) y
+  `MigracionLote16Test` (V20 sobre datos previos).
+
 ## 0.24.0 — 2026-11-02
 
 - **Lote 15 — Control presupuestal y cumplimiento** (DEC-L038, Flyway V19).
