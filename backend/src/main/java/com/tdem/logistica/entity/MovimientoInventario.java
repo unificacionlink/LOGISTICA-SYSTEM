@@ -58,4 +58,8 @@ public class MovimientoInventario {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    /** Motivo del ajuste manual (DEC-L045). */
+    @Column(name = "notes")
+    private String notes;
 }

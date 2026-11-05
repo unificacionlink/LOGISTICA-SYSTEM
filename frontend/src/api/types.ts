@@ -125,26 +125,71 @@ export interface PreciosVenta {
   precios: PrecioVenta[];
 }
 
+/** SKU en el almacén central del grupo (DEC-L045). minimo null = sin mínimo. */
 export interface SaldoStock {
   variantId: string;
+  productId: string;
   skuBase: string;
   nombreProducto: string;
   atributo: string | null;
   codigoVariante: string;
+  tipoId: string;
+  tipoNombre: string;
+  familiaId: string;
+  familiaNombre: string;
+  unidad: string;
   fisico: number;
   reservado: number;
   disponible: number;
+  minimo: number | null;
+  ultimoMovimiento: string | null;
+}
+
+export interface MovimientoKardex {
+  fecha: string;
+  tipo: "ENTRADA" | "SALIDA" | "AJUSTE" | string;
+  origen: "RECEPCION" | "SALIDA" | "CAJA_CHICA" | "AJUSTE" | "CARGA_STOCK" | string;
+  cantidad: number;
+  saldo: number;
+  referencia: string | null;
+  empresa: string;
+  motivo: string | null;
+  usuario: string;
+}
+
+export interface Kardex {
+  saldo: SaldoStock;
+  movimientos: MovimientoKardex[];
+}
+
+export interface CargaStock {
+  archivo: string;
+  codigo: string | null;
+  filas: number;
+  contadas: number;
+  ajustes: number;
+  minimos: number;
+  sinCambios: number;
+  conError: number;
+  aplicada: boolean;
+  detalle: {
+    fila: number;
+    codigoVariante: string;
+    producto: string | null;
+    fisico: number | null;
+    contado: number | null;
+    diferencia: number | null;
+    minimoAnterior: number | null;
+    minimoNuevo: number | null;
+    aviso: string | null;
+    error: string | null;
+  }[];
 }
 
 export interface ProveedorProducto {
   productId: string;
   supplierId: string;
   proveedorNombre: string;
-}
-
-export interface SaldoAjustado {
-  codigoVariante: string;
-  saldoDisponible: number;
 }
 
 export interface Proveedor {

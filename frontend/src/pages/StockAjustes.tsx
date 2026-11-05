@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { obtenerCatalogoFormulario } from "../api/requerimientos";
-import { listarEmpresasStock, registrarAjusteStock } from "../api/stock";
-import type { EmpresaOpcion, VarianteCatalogo } from "../api/types";
+import { registrarAjusteStock } from "../api/stock";
+import type { VarianteCatalogo } from "../api/types";
+import { fmtCantidad } from "../components/AlmacenBadges";
 import ProductoCombobox from "../components/ProductoCombobox";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
@@ -10,35 +12,45 @@ import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
+type Tipo = "ingreso" | "salida";
+
+/**
+ * Ajuste manual de un SKU en el almacén central del grupo (DEC-L045): ingreso
+ * o salida con motivo obligatorio, que queda en el historial del SKU.
+ */
 export default function StockAjustes() {
+  const [params] = useSearchParams();
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [variantes, setVariantes] = useState<VarianteCatalogo[]>([]);
-  const [empresas, setEmpresas] = useState<EmpresaOpcion[]>([]);
 
-  const [companyId, setCompanyId] = useState("");
   const [variante, setVariante] = useState<VarianteCatalogo | null>(null);
-  const [qty, setQty] = useState("1");
-  const [comment, setComment] = useState("");
+  const [tipo, setTipo] = useState<Tipo>("ingreso");
+  const [qty, setQty] = useState("");
+  const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([obtenerCatalogoFormulario(), listarEmpresasStock()])
-      .then(([catalogo, empresasRes]) => {
-        if (catalogo.ok && catalogo.result) setVariantes(catalogo.result.variantes);
-        else setErrorCarga(catalogo.message);
-        if (empresasRes.ok) setEmpresas(empresasRes.result ?? []);
-        else setErrorCarga(empresasRes.message);
+    obtenerCatalogoFormulario()
+      .then((res) => {
+        if (res.ok && res.result) {
+          setVariantes(res.result.variantes);
+          const inicial = params.get("variante");
+          if (inicial) setVariante(res.result.variantes.find((v) => v.variantId === inicial) ?? null);
+        } else setErrorCarga(res.message);
       })
       .finally(() => setCargando(false));
+    // Solo al abrir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!companyId || !variante || Number(qty) <= 0) {
-      setError("Selecciona una empresa, un producto y una cantidad mayor a 0.");
+    const cantidad = Number(qty);
+    if (!variante || !(cantidad > 0) || !motivo.trim()) {
+      setError("Selecciona un producto, una cantidad mayor a 0 y el motivo.");
       return;
     }
     setError(null);
@@ -46,19 +58,19 @@ export default function StockAjustes() {
     setEnviando(true);
     try {
       const res = await registrarAjusteStock({
-        companyId,
         variantId: variante.variantId,
-        qty: Number(qty),
-        comment: comment || undefined,
+        qty: tipo === "ingreso" ? cantidad : -cantidad,
+        motivo: motivo.trim(),
       });
       if (!res.ok || !res.result) {
         setError(res.message);
         return;
       }
-      setMensaje(`Nuevo saldo disponible de ${res.result.codigoVariante}: ${res.result.saldoDisponible}.`);
+      const s = res.result;
+      setMensaje(`${s.codigoVariante}: físico ${fmtCantidad(s.fisico)} · disponible ${fmtCantidad(s.disponible)} ${s.unidad}.`);
       setVariante(null);
-      setQty("1");
-      setComment("");
+      setQty("");
+      setMotivo("");
     } finally {
       setEnviando(false);
     }
@@ -66,11 +78,7 @@ export default function StockAjustes() {
 
   return (
     <div>
-      <PageHeader
-        title="Registrar ajuste de stock"
-        backTo="/stock"
-        backLabel="Stock"
-      />
+      <PageHeader title="Ajuste manual" backTo="/stock" backLabel="Stock" />
 
       {cargando ? (
         <Card>
@@ -83,27 +91,38 @@ export default function StockAjustes() {
       ) : errorCarga ? (
         <Alert tone="danger">{errorCarga}</Alert>
       ) : (
-        <Card>
+        <Card className="max-w-2xl">
           <CardBody>
             <form onSubmit={onSubmit} className="flex flex-col gap-5">
+              <Field label="Producto" required>
+                <ProductoCombobox variantes={variantes} valor={variante} onSeleccionar={setVariante} />
+              </Field>
+
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Empresa" required>
-                  <select required value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={`${inputClass} w-full`}>
-                    <option value="" disabled>
-                      Selecciona una empresa…
-                    </option>
-                    {empresas.map((e) => (
-                      <option key={e.companyId} value={e.companyId}>
-                        {e.code}
-                      </option>
+                <Field label="Movimiento" required>
+                  <div role="radiogroup" className="grid grid-cols-2 gap-1 rounded-md border border-slate-200 bg-slate-50 p-1">
+                    {(["ingreso", "salida"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        role="radio"
+                        aria-checked={tipo === t}
+                        onClick={() => setTipo(t)}
+                        className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+                          tipo === t ? "bg-white text-slate-900 shadow-boton" : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        {t === "ingreso" ? "Ingreso" : "Salida"}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </Field>
                 <Field label="Cantidad" required>
                   <input
                     type="number"
                     min={0.001}
                     step="0.001"
+                    required
                     value={qty}
                     onChange={(e) => setQty(e.target.value)}
                     className={`${inputClass} w-full`}
@@ -111,16 +130,13 @@ export default function StockAjustes() {
                 </Field>
               </div>
 
-              <Field label="Producto" required>
-                <ProductoCombobox variantes={variantes} valor={variante} onSeleccionar={setVariante} />
-              </Field>
-
-              <Field label="Comentario">
-                <textarea
-                  rows={2}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Opcional: motivo del ajuste"
+              <Field label="Motivo" required>
+                <input
+                  required
+                  maxLength={300}
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder={tipo === "ingreso" ? "Ej.: devolución de obra" : "Ej.: merma por daño"}
                   className={`${inputClass} w-full`}
                 />
               </Field>
@@ -129,7 +145,7 @@ export default function StockAjustes() {
               {mensaje && <Alert tone="good">{mensaje}</Alert>}
 
               <Button type="submit" loading={enviando} className="self-start">
-                {enviando ? "Guardando…" : "Registrar ajuste"}
+                Registrar {tipo}
               </Button>
             </form>
           </CardBody>

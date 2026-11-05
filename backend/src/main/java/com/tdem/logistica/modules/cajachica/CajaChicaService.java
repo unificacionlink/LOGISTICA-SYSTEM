@@ -248,9 +248,9 @@ public class CajaChicaService {
         Empresa empresa = empresaRepository.bloquear(r.getEmpresa().getCompanyId()).orElseThrow();
         Usuario usuario = usuarioRepository.findById(principal.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
-        Almacen almacen = almacenRepository
-                .findFirstByEmpresa_CompanyIdAndWarehouseTypeAndActiveTrue(empresa.getCompanyId(), "CENTRAL")
-                .orElseThrow(() -> ApiException.badRequest("La empresa no tiene un almacen central configurado."));
+        // DEC-L045: un solo almacen central (TDEM) para todas las empresas.
+        Almacen almacen = almacenRepository.findCentralDelGrupo()
+                .orElseThrow(() -> ApiException.badRequest("No hay un almacen central del grupo configurado."));
 
         String tipo = req.tipoComprobante().trim().toUpperCase(Locale.ROOT);
         if (!TIPOS_COMPROBANTE.contains(tipo)) {

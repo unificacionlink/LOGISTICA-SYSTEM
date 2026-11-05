@@ -37,7 +37,8 @@ const ATAJOS: (Omit<Opcion, "id"> & { roles: readonly string[] | null })[] = [
   { label: "Órdenes de compra", grupo: "Ir a", to: "/compras/ordenes", icon: FileText, roles: GESTION, claves: "oc" },
   { label: "Almacén · Por despachar", grupo: "Ir a", to: "/almacen?tab=despachar", icon: PackageCheck, roles: GESTION, claves: "nota inventario" },
   { label: "Almacén · Carga masiva", grupo: "Ir a", to: "/almacen/carga-masiva", icon: FileSpreadsheet, roles: GESTION, claves: "excel" },
-  { label: "Ajustes de stock", grupo: "Ir a", to: "/stock/ajustes", icon: SlidersHorizontal, roles: GESTION },
+  { label: "Inventario por Excel", grupo: "Ir a", to: "/stock/carga", icon: FileSpreadsheet, roles: GESTION, claves: "stock conteo carga masiva" },
+  { label: "Ajuste manual de stock", grupo: "Ir a", to: "/stock/ajustes", icon: SlidersHorizontal, roles: GESTION, claves: "ingreso salida merma" },
   { label: "Administración · Personal", grupo: "Ir a", to: "/admin?tab=personal", icon: Contact, roles: ["ADMIN"], claves: "dar acceso trabajador" },
   { label: "Cambiar contraseña", grupo: "Cuenta", to: "/cambiar-password", icon: KeyRound, roles: null, claves: "clave" },
 ];

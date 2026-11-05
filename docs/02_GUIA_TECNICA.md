@@ -126,6 +126,8 @@ el esquema nace vacio y se aplican V1..Vn completas.
 - `V20__necesidad_consolidacion_rfq_multiproducto.sql` — Lote 16 (DEC-L039):
   `necesidad_compra`, `consolidacion`, `proveedor_producto` (reemplaza al
   proveedor habitual), RFQ/OC por consolidado y migracion de los datos previos.
+- `V22__stock_central_grupo.sql` — almacen central unico del grupo (TDEM),
+  `carga_stock`, `stock_minimo` y motivo de movimientos (DEC-L045).
 - `V21__padron_personal.sql` — padron de personal por empresa, separado de
   las cuentas (DEC-L041); pasa al padron las cuentas con DNI.
 

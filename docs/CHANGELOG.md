@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.29.0 — 2026-11-05
+
+- **Stock central del grupo** (DEC-L045, Flyway V22): un solo almacen (el de
+  TDEM) para TDEM, GOYDEL y METRIN en reservas, recepciones, despachos y caja
+  chica. Los centrales vacios de GOYDEL y METRIN se desactivan.
+- **Inventario por Excel**: plantilla con todos los SKU; se escribe el stock
+  contado y el minimo; las diferencias se ajustan como una carga `INV-n`.
+  Validar / aplicar todo o nada, auditado.
+- **Stock minimo y alertas** por SKU; **kardex** por SKU con documento,
+  motivo y usuario.
+- Pantalla de Stock nueva: todo el catalogo, filtros con conteos (con stock,
+  bajo minimo, sin stock), familia, buscador y panel lateral por SKU.
+- **Ajuste manual** con ingreso/salida y motivo obligatorio, sin empresa.
+- API: `GET /api/stock/saldos` ya no recibe empresa; nuevos
+  `/variantes/{id}/kardex`, `/variantes/{id}/minimo` y `/carga/*`.
+  Pruebas: `StockCentralTest`.
+
 ## 0.28.2 — 2026-11-05
 
 - **Fotos reemplazadas se borran** (DEC-L044): al cambiar la foto de un

@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class RecepcionService {
 
-    private static final String CENTRAL = "CENTRAL";
     static final List<String> ESTADOS_POR_RECIBIR = List.of("EMITIDA", "EN_ATENCION", "RECEPCION_PARCIAL");
     static final Set<String> CONDICIONES = Set.of("CONFORME", "OBSERVADO");
     private static final Set<String> TIPOS_INCIDENCIA = Set.of("FALTANTE", "DANO", "PRODUCTO_ERRADO", "OTRO");
@@ -136,9 +135,9 @@ public class RecepcionService {
         }
         Usuario usuario = usuarioRepository.findById(principal.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
-        Almacen almacen = almacenRepository
-                .findFirstByEmpresa_CompanyIdAndWarehouseTypeAndActiveTrue(orden.getEmpresa().getCompanyId(), CENTRAL)
-                .orElseThrow(() -> ApiException.badRequest("La empresa no tiene un almacen central configurado."));
+        // DEC-L045: un solo almacen central (TDEM) para todas las empresas.
+        Almacen almacen = almacenRepository.findCentralDelGrupo()
+                .orElseThrow(() -> ApiException.badRequest("No hay un almacen central del grupo configurado."));
 
         Map<UUID, OrdenItem> itemsOrden = ordenItemRepository.findByOrden(orderId).stream()
                 .collect(Collectors.toMap(OrdenItem::getOrderItemId, Function.identity()));

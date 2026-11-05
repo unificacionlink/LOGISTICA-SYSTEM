@@ -35,7 +35,6 @@ import static com.tdem.logistica.modules.almacen.RecepcionService.exigirLogistic
 @Transactional(readOnly = true)
 public class DespachoService {
 
-    private static final String CENTRAL = "CENTRAL";
     private static final List<String> ESTADOS_DESPACHABLES =
             List.of(EstadoRequerimiento.EN_ATENCION, EstadoRequerimiento.ATENCION_PARCIAL);
     private static final Set<String> ESTADOS_BIEN = Set.of("NUEVO", "USADO", "REACONDICIONADO", "OTRO");
@@ -191,9 +190,9 @@ public class DespachoService {
         // Lock de la empresa: correlativo NI-<n>-<EMPRESA> sin duplicados en carrera.
         Empresa empresa = empresaRepository.bloquear(r.getEmpresa().getCompanyId())
                 .orElseThrow(() -> ApiException.badRequest("Empresa del requerimiento no encontrada."));
-        Almacen almacen = almacenRepository
-                .findFirstByEmpresa_CompanyIdAndWarehouseTypeAndActiveTrue(empresa.getCompanyId(), CENTRAL)
-                .orElseThrow(() -> ApiException.badRequest("La empresa no tiene un almacen central configurado."));
+        // DEC-L045: un solo almacen central (TDEM) para todas las empresas.
+        Almacen almacen = almacenRepository.findCentralDelGrupo()
+                .orElseThrow(() -> ApiException.badRequest("No hay un almacen central del grupo configurado."));
 
         Map<UUID, RequerimientoItem> itemsReq = requerimientoItemRepository.findByRequerimiento(requestId).stream()
                 .collect(Collectors.toMap(RequerimientoItem::getRequestItemId, Function.identity()));

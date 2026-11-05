@@ -14,6 +14,19 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.29.0",
+    fecha: "2026-11-05",
+    titulo: "Stock renovado",
+    cambios: [
+      "Todo el stock está en un solo almacén, el de TDEM, y atiende también los requerimientos de GOYDEL y METRIN.",
+      "Inventario por Excel: descarga la plantilla con todos los productos, escribe lo que contaste y el sistema ajusta solo las diferencias.",
+      "Stock mínimo por producto, con aviso de los que están por debajo para reponer.",
+      "Al tocar un producto ves su historial: cada ingreso, despacho y ajuste con fecha, documento, motivo y quién lo hizo.",
+      "Filtros por con stock, bajo mínimo y sin stock, además de familia y buscador.",
+      "El ajuste manual ahora permite ingresos y salidas, y pide el motivo.",
+    ],
+  },
+  {
     version: "0.28.2",
     fecha: "2026-11-05",
     titulo: "Las fotos reemplazadas se eliminan",

@@ -62,7 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers(
                                 "/login", "/inicio", "/requerimientos/**", "/aprobaciones", "/presupuestos", "/presupuestos/**",
-                                "/stock", "/stock/ajustes", "/catalogo",
+                                "/stock", "/stock/ajustes", "/stock/carga", "/catalogo",
                                 "/proveedores", "/proveedores/**", "/compras", "/compras/**",
                                 "/almacen", "/almacen/**", "/admin", "/cambiar-password")
                         .permitAll()

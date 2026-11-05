@@ -14,6 +14,7 @@ import Presupuestos from "./pages/Presupuestos";
 import PresupuestoDetalle from "./pages/PresupuestoDetalle";
 import Stock from "./pages/Stock";
 import StockAjustes from "./pages/StockAjustes";
+import StockCarga from "./pages/StockCarga";
 import CatalogoProductos from "./pages/CatalogoProductos";
 import Proveedores from "./pages/Proveedores";
 import ProveedorForm from "./pages/ProveedorForm";
@@ -51,6 +52,7 @@ export default function App() {
               <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
               <Route path="/stock" element={<Stock />} />
               <Route path="/stock/ajustes" element={<StockAjustes />} />
+              <Route path="/stock/carga" element={<StockCarga />} />
               <Route path="/catalogo" element={<CatalogoProductos />} />
               <Route path="/proveedores" element={<Proveedores />} />
               <Route path="/proveedores/nuevo" element={<ProveedorForm />} />

@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L041 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el botón "Novedades" del menú y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L045 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el botón "Novedades" del menú y la versión visible de la app (DEC-L040).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -69,6 +69,7 @@ Reglas clave:
 - **La autorización vive 100% en los `*Service`** (no hay RLS de respaldo): validar rol/ownership al inicio de cada método con `UsuarioPrincipal`. Reutilizar `RequerimientoService.exigirAcceso` para la visibilidad de un REQ. El dueño solo puede pasar su REQ de `BORRADOR` a `PENDIENTE_APROBACION`; otras transiciones requieren LOGISTICA/ADMIN.
 - `spring.jpa.open-in-view=false`: servicios que tocan asociaciones LAZY necesitan `@Transactional` (o `readOnly = true`).
 - La BD está lejos (~150 ms por ida y vuelta): evitar N+1; preferir una consulta (el dashboard es una sola SQL que devuelve JSON).
+- **Stock: un solo almacén central, el de TDEM, para las tres empresas** (DEC-L045). Para reservas, recepciones, despachos y caja chica usar `AlmacenCentral` / `almacenRepository.findCentralDelGrupo()`, nunca el almacén de la empresa del documento. Inventario por Excel en `CargaStockService` (stock contado → ajustes `CARGA_STOCK`).
 - El SOLICITANTE solo pide para sus CECOs asignados (`usuario_ceco`, de cualquier empresa); la empresa del REQ sale del CECO (DEC-L029). LOGISTICA/ADMIN, cualquier CECO activo.
 - Al enviar un REQ, si su periodo presupuestal tiene control obligatorio, `ControlPresupuestalService.verificar` lo valida contra la versión aprobada vigente; fuera de presupuesto exige justificación (`code = EXCEPCION_PRESUPUESTAL`, DEC-L038).
 - Al aprobar un REQ (`AprobacionService.decidir`) se reserva stock disponible y el faltante de cada ítem crea una `necesidad_compra` (`AbastecimientoService.generarNecesidades`): entra sola al consolidado ABIERTO de su empresa + SKU, o queda PENDIENTE_RUTA si la regla de Caja Chica aplica (DEC-L039). Las RFQ son por empresa + proveedor con varios consolidados; se adjudica por consolidado y la OC sale por cotización (`orden_item.consolidation_id`); la recepción reparte lo recibido entre las necesidades del consolidado. Proveedores habilitados por producto en `proveedor_producto` (ya no hay proveedor habitual). `OrigenCompras` da los REQ de origen de una RFQ/OC. El estado de atención (PARCIAL/COMPLETA) se calcula solo desde envíos recepcionados (`AtencionCalculator`). El Tracking se reconstruye desde los datos, no tiene tabla propia (DEC-L019).
@@ -76,11 +77,11 @@ Reglas clave:
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V22__descripcion.sql` (existen V1..V21).
+- Siguiente migración: `V23__descripcion.sql` (existen V1..V22).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.
-- `MigracionesFlywayTest` y `LogisticaApplicationTests` corren contra `BdRrhhSimulada` (Postgres embebido que imita la BD de RRHH); `AlmacenFlujoTest` y `ConsolidacionComprasTest` cubren el flujo end-to-end; `MigracionLote16Test` prueba V20 sobre datos previos.
+- `MigracionesFlywayTest` y `LogisticaApplicationTests` corren contra `BdRrhhSimulada` (Postgres embebido que imita la BD de RRHH); `AlmacenFlujoTest` y `ConsolidacionComprasTest` cubren el flujo end-to-end; `MigracionLote16Test` prueba V20 sobre datos previos; `StockCentralTest` cubre el almacén único, la carga de inventario, mínimos y kardex.
 
 ## Frontend (`frontend/src/`)
 

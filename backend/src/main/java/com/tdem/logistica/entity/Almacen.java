@@ -33,4 +33,8 @@ public class Almacen {
 
     @Column(name = "active", nullable = false)
     private boolean active;
+
+    /** DEC-L045: almacen central unico del grupo (el de TDEM). */
+    @Column(name = "is_group_central", nullable = false)
+    private boolean groupCentral;
 }

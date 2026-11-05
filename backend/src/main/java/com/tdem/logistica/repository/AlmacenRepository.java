@@ -11,7 +11,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AlmacenRepository extends JpaRepository<Almacen, UUID> {
-    Optional<Almacen> findFirstByEmpresa_CompanyIdAndWarehouseTypeAndActiveTrue(UUID companyId, String warehouseType);
+    /** DEC-L045: el almacen central del grupo (TDEM), que atiende a todas las empresas. */
+    @Query("select a from Almacen a join fetch a.empresa where a.groupCentral = true and a.active = true")
+    Optional<Almacen> findCentralDelGrupo();
 
     /** Serializa reservas automaticas concurrentes sobre el mismo almacen (DEC-L018). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

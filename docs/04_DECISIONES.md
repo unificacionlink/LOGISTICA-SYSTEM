@@ -5,6 +5,34 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L045 — Stock central del grupo, inventario por Excel, minimos y
+  kardex (2026-11-05).** El usuario: "todo el stock solo lo maneja TDEM" y el
+  modulo era muy simple.
+  - **Un solo almacen** (Flyway V22, `almacen.is_group_central`): el CENTRAL
+    de TDEMSRL atiende a las tres empresas. Reserva al aprobar, recepcion de
+    OC, despacho y entrada por caja chica usan `findCentralDelGrupo()` /
+    `AlmacenCentral`, sea cual sea la empresa del documento (que se sigue
+    guardando en el movimiento). Los centrales vacios de GOYDEL y METRIN
+    quedan inactivos. Un requerimiento de GOYDEL aparta stock de TDEM y solo
+    compra el faltante (decision del usuario).
+  - **Inventario por Excel** (`CargaStockService`): plantilla con todos los
+    SKU, su stock en el sistema, reservado y minimo. Se escribe el **stock
+    contado** (decision del usuario): cada diferencia es un `AJUSTE` con
+    `reference_type = CARGA_STOCK` de una carga `INV-n` (tabla
+    `carga_stock`). Subir el mismo archivo dos veces no duplica. En blanco =
+    no se cuenta; minimo en blanco = no cambia, 0 = se quita. Contado menor
+    que lo reservado se permite con aviso. Validar no escribe; confirmar
+    bloquea el almacen, re-valida y aplica todo o nada; se audita.
+  - **Stock minimo** por SKU (`stock_minimo`), en pantalla y por Excel. Bajo
+    minimo = disponible < minimo; agotado = minimo y disponible <= 0.
+  - **Kardex** por SKU: cada movimiento con su documento (OC y recepcion, NI,
+    CC, INV-n), empresa, motivo (`movimiento_inventario.notes`) y usuario,
+    con saldo acumulado.
+  - **Ajuste manual** sin empresa, con signo (ingreso o salida) y motivo
+    obligatorio; no deja el fisico en negativo.
+  - Pantalla: todo el catalogo con filtros (con stock, bajo minimo, sin
+    stock) y familia; el SKU abre un panel con su historial y su minimo.
+
 - **DEC-L044 — Las fotos reemplazadas se borran (2026-11-05).** Decision del
   usuario: no conservar historial de fotos para no ocupar espacio. Al
   reemplazar la foto de un producto se borran su `producto_imagen`, su
