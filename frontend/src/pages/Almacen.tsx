@@ -99,7 +99,7 @@ function PorRecibir() {
           <div className="overflow-hidden">
             <table className="tabla">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+                <tr className="border-b border-slate-200 cabecera-tabla">
                   <th className={thClass}>Orden</th>
                   <th className={thClass}>Proveedor</th>
                   <th className={thClass}>Requerimiento</th>
@@ -149,7 +149,7 @@ function PorDespachar() {
           <div className="overflow-hidden">
             <table className="tabla">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+                <tr className="border-b border-slate-200 cabecera-tabla">
                   <th className={thClass}>Código</th>
                   <th className={thClass}>CECO</th>
                   <th className={thClass}>Solicitante</th>
@@ -201,7 +201,7 @@ function Notas() {
           <div className="overflow-hidden">
             <table className="tabla">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+                <tr className="border-b border-slate-200 cabecera-tabla">
                   <th className={thClass}>Nota</th>
                   <th className={thClass}>Requerimiento</th>
                   <th className={thClass}>Destino</th>

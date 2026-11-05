@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.27.0 — 2026-11-05
+
+- **Lenguaje visual v2** (DEC-L042), tomando como referencia Linear, Stripe
+  Dashboard y Attio. Se aplica desde las piezas comunes, asi llega a todas
+  las pantallas:
+  - Encabezados de tabla y rotulos en oracion (sin versalitas), clase
+    compartida `cabecera-tabla` en vez de la cadena repetida en 20 archivos.
+  - Estados (`Badge`): punto de color + texto, esquinas suaves y borde
+    interior, sin mayusculas.
+  - Botones de alto fijo (32/36 px) alineados con los campos; sombras
+    tenidas del azul de la marca (`shadow-superficie`, `shadow-boton`).
+  - Campos con foco azul de marca y estado deshabilitado; `Alert` con
+    `role` accesible; titulos de pagina mas compactos.
+  - Requerimientos: columnas por empresa con cabecera clara y punto de color
+    (antes una barra azul oscura).
+- **Busqueda rapida (Ctrl+K)**: ir a cualquier pantalla, pestana o accion
+  permitida para el rol, desde el teclado o el boton "Buscar" del menu. El
+  menu vive en `components/navegacion.ts` y lo comparten ambos.
+
 ## 0.26.0 — 2026-11-05
 
 - **Padron de personal** (DEC-L041, Flyway V21): tabla `personal` por

@@ -137,7 +137,7 @@ export default function CargaPersonalExcel({ empresas, recargar }: { empresas: s
           <div className="overflow-x-auto border-t border-slate-200">
             <table className="tabla">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+                <tr className="border-b border-slate-200 cabecera-tabla">
                   <th className={thClass}>Fila</th>
                   <th className={thClass}>Persona</th>
                   <th className={`${thClass} col-sec`}>Empresa</th>

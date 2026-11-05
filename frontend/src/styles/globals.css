@@ -75,8 +75,12 @@
   /* Despliegue del sidebar: arranca y frena suave (sin el tiron inicial de ease-out). */
   --ease-lateral: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Unica sombra del sistema: solo para lo que flota (menus, toast, modal). */
-  --shadow-flotante: 0 16px 40px -12px rgb(27 26 24 / 0.14), 0 2px 6px -2px rgb(27 26 24 / 0.06);
+  /* Sombras tenidas del azul de la marca, una sola fuente de luz (arriba). */
+  --shadow-flotante: 0 16px 40px -12px rgb(8 27 52 / 0.18), 0 2px 6px -2px rgb(8 27 52 / 0.08);
+  /* Superficies (tarjetas, botones): apenas un borde de luz, como Stripe/Linear. */
+  --shadow-superficie: 0 1px 2px rgb(8 27 52 / 0.05);
+  --shadow-boton: 0 1px 2px rgb(8 27 52 / 0.06);
+  --shadow-boton-primario: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(11 58 110 / 0.3);
 }
 
 @layer base {
@@ -155,9 +159,24 @@
     @apply bg-slate-50;
   }
 
-  /* Etiqueta de dato (antes "text-xs uppercase tracking-wide text-slate-400"). */
+  /* Fila de encabezado de toda tabla: texto en oracion, sin mayusculas ni tracking (Linear/Attio). */
+  .cabecera-tabla {
+    @apply bg-slate-50/70 text-xs font-medium text-slate-500;
+  }
+
+  .cabecera-tabla th {
+    @apply font-medium;
+  }
+
+  /* Etiqueta de dato y titulo de seccion: en oracion, mas legible que las versalitas. */
   .rotulo {
-    @apply text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500;
+    @apply text-xs font-medium text-slate-500;
+  }
+
+  /* Estado: punto de color + texto (el punto se omite si el badge ya trae icono). */
+  .badge:not(:has(svg))::before {
+    content: "";
+    @apply size-1.5 shrink-0 rounded-full bg-current opacity-70;
   }
 
   .tabla th,

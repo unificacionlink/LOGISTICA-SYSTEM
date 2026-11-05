@@ -1,71 +1,13 @@
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
-import {
-  Boxes,
-  CheckSquare,
-  ClipboardList,
-  Images,
-  KeyRound,
-  LayoutDashboard,
-  ShieldCheck,
-  LogOut,
-  Menu,
-  PiggyBank,
-  ShoppingCart,
-  Truck,
-  Warehouse,
-  X,
-} from "lucide-react";
+import { KeyRound, LogOut, Menu, Search, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import CambiarPassword from "../pages/CambiarPassword";
+import BusquedaRapida from "./BusquedaRapida";
+import { abrirBusquedaRapida, NAV_GRUPOS } from "./navegacion";
 import BotonNovedades from "./Novedades";
 import PantallaCarga from "./PantallaCarga";
 import Toast from "./Toast";
-
-interface NavItem {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  roles: readonly string[] | null;
-}
-
-const GESTION = ["LOGISTICA", "ADMIN"] as const;
-
-/** Menu por secciones; una seccion sin items visibles para el rol no se muestra. */
-const NAV_GRUPOS: { id: string; titulo: string | null; items: NavItem[] }[] = [
-  { id: "inicio", titulo: null, items: [{ to: "/inicio", label: "Inicio", icon: LayoutDashboard, roles: null }] },
-  {
-    id: "solicitudes",
-    titulo: "Solicitudes",
-    items: [
-      { to: "/requerimientos", label: "Requerimientos", icon: ClipboardList, roles: null },
-      { to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare, roles: ["APROBADOR", "GERENCIA", "ADMIN"] },
-      { to: "/presupuestos", label: "Presupuestos", icon: PiggyBank, roles: null },
-    ],
-  },
-  {
-    id: "abastecimiento",
-    titulo: "Abastecimiento",
-    items: [
-      { to: "/compras", label: "Compras", icon: ShoppingCart, roles: GESTION },
-      { to: "/proveedores", label: "Proveedores", icon: Truck, roles: GESTION },
-    ],
-  },
-  {
-    id: "inventario",
-    titulo: "Inventario",
-    items: [
-      { to: "/almacen", label: "Almacén", icon: Warehouse, roles: GESTION },
-      { to: "/stock", label: "Stock", icon: Boxes, roles: GESTION },
-      { to: "/catalogo", label: "Catálogo de productos", icon: Images, roles: [...GESTION, "PYC", "GERENCIA"] },
-    ],
-  },
-  {
-    id: "sistema",
-    titulo: "Sistema",
-    items: [{ to: "/admin", label: "Administración", icon: ShieldCheck, roles: ["ADMIN"] }],
-  },
-];
 
 // Los textos del menu siempre estan; en escritorio los oculta/revela el recorte del sidebar.
 const ETIQUETA = "sidebar-texto whitespace-nowrap";
@@ -140,6 +82,22 @@ export default function ProtectedLayout() {
           </button>
         </div>
 
+        <button
+          type="button"
+          title="Buscar (Ctrl+K)"
+          onClick={() => {
+            setMenuAbierto(false);
+            abrirBusquedaRapida();
+          }}
+          className="-mt-2 flex h-9 shrink-0 items-center gap-3 rounded-md border border-transparent px-[11px] text-[13.5px] text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+        >
+          <Search className="size-4.5 shrink-0" strokeWidth={2.1} />
+          <span className={`flex flex-1 items-center justify-between ${ETIQUETA}`}>
+            Buscar
+            <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono text-[10px] text-slate-400">Ctrl K</kbd>
+          </span>
+        </button>
+
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto" aria-label="Principal">
           {grupos.map((g) => (
             <div
@@ -169,7 +127,7 @@ export default function ProtectedLayout() {
                   className={({ isActive }) =>
                     `flex h-9 items-center gap-3 rounded-md border px-[11px] text-[13.5px] transition-colors duration-150 ${
                       isActive
-                        ? "border-slate-200 bg-white font-medium text-slate-900"
+                        ? "border-slate-200 bg-white font-medium text-slate-900 shadow-boton [&>svg]:text-brand-600"
                         : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     }`
                   }
@@ -220,7 +178,7 @@ export default function ProtectedLayout() {
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-slate-100/85 px-4 py-3 backdrop-blur-md lg:hidden">
           <button
             type="button"
-            className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
+            className="rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60"
             onClick={() => setMenuAbierto(true)}
             aria-label="Abrir menú"
           >
@@ -229,6 +187,14 @@ export default function ProtectedLayout() {
           <Link to="/inicio" className="text-sm font-semibold text-slate-900">
             Logística <span className="font-normal text-slate-500">· TDEM</span>
           </Link>
+          <button
+            type="button"
+            className="ml-auto rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60"
+            onClick={abrirBusquedaRapida}
+            aria-label="Buscar"
+          >
+            <Search className="size-5" />
+          </button>
         </header>
 
         {/* Todas las pantallas usan todo el ancho, con un margen lateral minimo. */}
@@ -240,6 +206,7 @@ export default function ProtectedLayout() {
         </main>
       </div>
 
+      <BusquedaRapida />
       <Toast />
     </div>
   );

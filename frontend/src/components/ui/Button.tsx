@@ -13,15 +13,15 @@ const base =
   "disabled:pointer-events-none disabled:opacity-50";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-brand-700 text-white hover:bg-brand-800",
-  secondary: "bg-white text-slate-800 border border-slate-200 hover:border-slate-300 hover:bg-slate-50",
+  primary: "bg-brand-700 text-white shadow-boton-primario hover:bg-brand-800",
+  secondary: "bg-white text-slate-800 border border-slate-200 shadow-boton hover:border-slate-300 hover:bg-slate-50",
   ghost: "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-  danger: "bg-rose-700 text-white hover:bg-rose-800",
+  danger: "bg-rose-700 text-white shadow-boton hover:bg-rose-800",
 };
 
 const sizes: Record<Size, string> = {
-  sm: "text-xs px-3 py-1.5",
-  md: "text-sm px-4 py-2",
+  sm: "h-8 text-xs px-3",
+  md: "h-9 text-sm px-3.5",
 };
 
 interface CommonProps {

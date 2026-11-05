@@ -83,10 +83,10 @@ function Tarjeta({ r, esGestor }: { r: Requerimiento; esGestor: boolean }) {
   const [abierto, setAbierto] = useState(false);
   const idDetalle = `detalle-${r.id}`;
   return (
-    <li className="rounded-md border border-slate-200 bg-white transition-[border-color,box-shadow] duration-200 hover:border-slate-300 hover:shadow-[0_2px_8px_rgb(27_26_24/0.05)]">
+    <li className="rounded-lg border border-slate-200 bg-white shadow-superficie transition-[border-color,box-shadow] duration-200 hover:border-slate-300 hover:shadow-[0_4px_12px_-4px_rgb(8_27_52/0.12)]">
       <Link
         to={`/requerimientos/${r.id}`}
-        className="group block rounded-t-md px-3.5 pb-2 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+        className="group block rounded-t-lg px-3.5 pb-2 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
       >
         <div className="flex items-start justify-between gap-2">
           <span className="truncate font-mono text-xs font-medium text-slate-800 group-hover:text-slate-950">
@@ -110,7 +110,7 @@ function Tarjeta({ r, esGestor }: { r: Requerimiento; esGestor: boolean }) {
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
         aria-controls={idDetalle}
-        className="flex w-full items-center justify-center gap-1 rounded-b-md border-t border-slate-100 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+        className="flex w-full items-center justify-center gap-1 rounded-b-lg border-t border-slate-100 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
       >
         {abierto ? "Ocultar detalle" : "Ver detalle"}
         <ChevronDown className={`size-3.5 transition-transform duration-200 ${abierto ? "rotate-180" : ""}`} />
@@ -187,17 +187,19 @@ export default function Requerimientos() {
               <section
                 key={g.code}
                 aria-labelledby={`col-${g.code}`}
-                className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/60 shadow-superficie"
               >
-                <header className="relative flex items-center gap-3 bg-brand-900 px-4 pb-3 pt-3.5 text-white">
-                  <span className={`absolute inset-x-0 top-0 h-1 ${g.marca}`} aria-hidden="true" />
-                  <h2 id={`col-${g.code}`} className="text-[15px] font-semibold tracking-[0.04em]">
+                <header className="flex items-center gap-2.5 border-b border-slate-200 bg-white px-4 py-3">
+                  <span className={`size-2 shrink-0 rounded-full ${g.marca}`} aria-hidden="true" />
+                  <h2 id={`col-${g.code}`} className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
                     {g.label}
                   </h2>
-                  <span className="rounded-md bg-white/15 px-2 py-0.5 font-mono text-xs tabular-nums">
+                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs tabular-nums text-slate-600">
                     {cargando ? "–" : g.filas.length}
                   </span>
-                  {pendientes > 0 && <span className="ml-auto text-xs text-white/70">{pendientes} por aprobar</span>}
+                  {pendientes > 0 && (
+                    <span className="ml-auto text-xs font-medium text-amber-700">{pendientes} por aprobar</span>
+                  )}
                 </header>
 
                 {/* Cada columna se desplaza sola, asi las 3 quedan a la vista a la vez. */}

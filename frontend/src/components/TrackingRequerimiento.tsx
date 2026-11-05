@@ -166,7 +166,7 @@ export default function TrackingRequerimiento({ requestId, esGestor }: { request
           <div className="overflow-x-auto">
             <table className="tabla">
               <thead>
-                <tr className="border-y border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+                <tr className="border-y border-slate-200 cabecera-tabla">
                   <th className="px-5 py-2.5">NI</th>
                   <th className="px-5 py-2.5">Envío</th>
                   <th className="px-5 py-2.5">Transportista</th>

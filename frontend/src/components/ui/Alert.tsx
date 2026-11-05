@@ -29,7 +29,10 @@ export default function Alert({
 }) {
   const t = tones[tone];
   return (
-    <div className={`flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm leading-snug [&>svg]:mt-px ${t.wrap} ${className}`}>
+    <div
+      role={tone === "danger" ? "alert" : "status"}
+      className={`flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm leading-snug [&>svg]:mt-px ${t.wrap} ${className}`}
+    >
       {t.icon}
       <span>{children}</span>
     </div>

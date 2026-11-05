@@ -14,6 +14,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.27.0",
+    fecha: "2026-11-05",
+    titulo: "Diseño renovado y búsqueda rápida",
+    cambios: [
+      "Nuevo buscador: presiona Ctrl+K (o el botón Buscar del menú) y escribe a dónde quieres ir, por ejemplo \"caja chica\" o \"nuevo requerimiento\".",
+      "Tablas, estados y etiquetas más fáciles de leer, sin textos en mayúsculas.",
+      "Botones y campos con un tamaño uniforme en todas las pantallas.",
+      "La bandeja de Requerimientos tiene columnas más claras para cada empresa.",
+    ],
+  },
+  {
     version: "0.26.0",
     fecha: "2026-11-05",
     titulo: "Personal de cada empresa",

@@ -22,7 +22,7 @@ const CONDICION: Record<string, string> = {
 };
 
 const cabecera =
-  "border-y border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500";
+  "border-y border-slate-200 cabecera-tabla";
 
 /** Consolidado de un SKU (DEC-L039): de donde viene, que ofrecio cada proveedor y a quien se adjudica. */
 export default function ComprasConsolidado() {

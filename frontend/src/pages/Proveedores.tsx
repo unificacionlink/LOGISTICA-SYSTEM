@@ -47,7 +47,7 @@ export default function Proveedores() {
           <div className="overflow-hidden">
             <table className="tabla">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+                <tr className="border-b border-slate-200 cabecera-tabla">
                   <th className="px-5 py-3">RUC</th>
                   <th className="px-5 py-3">Razón social</th>
                   <th className="px-5 py-3">Contacto</th>

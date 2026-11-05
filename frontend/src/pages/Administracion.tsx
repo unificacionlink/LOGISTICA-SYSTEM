@@ -185,7 +185,7 @@ function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplic
         ) : (
           <table className="tabla">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+              <tr className="border-b border-slate-200 cabecera-tabla">
                 <th className={thClass}>Usuario</th>
                 <th className={`${thClass} col-sec`}>Empresa</th>
                 <th className={thClass}>Roles</th>
@@ -663,7 +663,7 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
         ) : (
           <table className="tabla">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+              <tr className="border-b border-slate-200 cabecera-tabla">
                 <th className={thClass}>Empresa</th>
                 <th className={thClass}>Código</th>
                 <th className={thClass}>Nombre</th>

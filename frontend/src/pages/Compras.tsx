@@ -38,7 +38,7 @@ const PESTANAS: Pestana[] = ["necesidades", "consolidados", "solicitudes", "caja
 
 const th = "px-5 py-3";
 const cabecera =
-  "border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500";
+  "border-b border-slate-200 cabecera-tabla";
 const linkClass = "text-sm font-medium text-brand-600 hover:text-brand-700";
 
 /**

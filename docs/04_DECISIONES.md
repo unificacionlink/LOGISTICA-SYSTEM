@@ -5,6 +5,16 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L042 — Lenguaje visual v2 y busqueda rapida (2026-11-05).** El
+  usuario pidio mejorar la UX/UI de todo el ERP con referencias de apps de
+  datos (Linear, Stripe Dashboard, Attio) en vez de galerias de landing
+  pages. Se cambia desde las primitivas y estilos compartidos, no pantalla por
+  pantalla: texto en oracion en tablas, rotulos y estados; sombras tenidas de
+  la marca; alturas de control uniformes; foco azul. Se mantienen la paleta
+  (DEC-L021), Geist/Newsreader, el ancho completo y el riel lateral. La
+  busqueda rapida (Ctrl+K) reduce opciones visibles (ley de Hick): el menu
+  queda igual y lo demas se encuentra escribiendo.
+
 - **DEC-L041 — Padron de personal separado de las cuentas (2026-11-05).**
   El sync con RR.HH. solo traia a quien tuviera correo (1 de 283 activos en
   TDEMSRL) porque creaba una cuenta por persona. El usuario quiere ver a todo

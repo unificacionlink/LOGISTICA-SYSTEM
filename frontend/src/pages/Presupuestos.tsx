@@ -141,7 +141,7 @@ export default function Presupuestos() {
           ) : (
             <table className="tabla">
               <thead>
-                <tr className="border-y border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+                <tr className="border-y border-slate-200 cabecera-tabla">
                   <th className="px-5 py-2.5">CECO</th>
                   <th className="px-5 py-2.5">Periodo</th>
                   <th className="px-5 py-2.5">Presupuesto</th>
@@ -238,7 +238,7 @@ export default function Presupuestos() {
         ) : (
           <table className="tabla">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+              <tr className="border-b border-slate-200 cabecera-tabla">
                 <th className="px-5 py-3">Código</th>
                 <th className="px-5 py-3">CECO</th>
                 <th className="px-5 py-3">Periodo</th>

@@ -13,8 +13,8 @@ export default function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-      <div className="flex size-11 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
-        <Icon className="size-5 text-slate-500" />
+      <div className="flex size-11 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-superficie">
+        <Icon className="size-5 text-slate-400" />
       </div>
       <div>
         <p className="font-medium text-slate-900">{title}</p>

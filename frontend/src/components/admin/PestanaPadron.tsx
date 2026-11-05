@@ -24,7 +24,8 @@ const thClass = "px-5 py-3";
 export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDatos; recargarAdmin: () => void }) {
   const [personal, setPersonal] = useState<PersonalAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [empresa, setEmpresa] = useState(datos.empresas[0]?.code ?? "");
+  // "" = aun no elegida: se muestra la empresa con mas personal (TDEM, la de RR.HH.).
+  const [elegida, setElegida] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroCuenta>("");
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -39,13 +40,17 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
 
   useEffect(cargar, []);
 
-  const empresasManuales = datos.empresas.filter((e) => e.altaManual).map((e) => e.code);
-  const esManual = empresasManuales.includes(empresa);
   const conteo = useMemo(() => {
     const m = new Map<string, number>();
     personal?.forEach((p) => m.set(p.empresaCode, (m.get(p.empresaCode) ?? 0) + 1));
     return m;
   }, [personal]);
+  const empresa =
+    elegida ||
+    [...datos.empresas].sort((a, b) => (conteo.get(b.code) ?? 0) - (conteo.get(a.code) ?? 0))[0]?.code ||
+    "";
+  const empresasManuales = datos.empresas.filter((e) => e.altaManual).map((e) => e.code);
+  const esManual = empresasManuales.includes(empresa);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -68,7 +73,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
             role="tab"
             aria-selected={empresa === e.code}
             onClick={() => {
-              setEmpresa(e.code);
+              setElegida(e.code);
               setAbierto(null);
               setVerExcel(false);
             }}
@@ -131,7 +136,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
         ) : (
           <table className="tabla">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+              <tr className="border-b border-slate-200 cabecera-tabla">
                 <th className={thClass}>Persona</th>
                 <th className={`${thClass} col-sec`}>CECO</th>
                 <th className={`${thClass} text-right`}>Cuenta</th>

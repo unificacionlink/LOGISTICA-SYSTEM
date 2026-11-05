@@ -109,7 +109,7 @@ export default function FormCajaChica({
         </CardBody>
         <table className="tabla">
           <thead>
-            <tr className="border-y border-slate-200 bg-slate-50/70 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+            <tr className="border-y border-slate-200 cabecera-tabla">
               <th className="px-4 py-2.5">Producto</th>
               <th className="px-4 py-2.5">Cantidad</th>
               <th className="px-4 py-2.5">Costo unit. ({regla.moneda})</th>

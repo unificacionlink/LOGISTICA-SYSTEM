@@ -193,7 +193,7 @@ function TablaProveedores({ filas }: { filas: DashboardData["proveedores"] }) {
   return (
     <table className="tabla -mx-1 w-[calc(100%+0.5rem)]">
       <thead>
-        <tr className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+        <tr className="cabecera-tabla bg-transparent">
           <th className="px-1 pb-2">Proveedor</th>
           <th className="px-2 pb-2 text-right">RFQ</th>
           <th className="px-2 pb-2">Respuesta</th>
@@ -238,7 +238,7 @@ function TablaComparativos({ filas }: { filas: DashboardData["comparativos"] }) 
   return (
     <table className="tabla -mx-1 w-[calc(100%+0.5rem)]">
       <thead>
-        <tr className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
+        <tr className="cabecera-tabla bg-transparent">
           <th className="px-1 pb-2">Requerimiento</th>
           <th className="px-2 pb-2">Proveedor elegido</th>
           <th className="px-2 pb-2 text-right">Elegida vs mayor</th>

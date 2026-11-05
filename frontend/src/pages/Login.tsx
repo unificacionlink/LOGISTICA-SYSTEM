@@ -93,7 +93,7 @@ export default function Login() {
 
             {error && <Alert tone="danger">{error}</Alert>}
 
-            <Button type="submit" loading={enviando} className="mt-2 w-full py-2.5">
+            <Button type="submit" loading={enviando} className="mt-2 h-10 w-full">
               {enviando ? "Ingresando…" : "Ingresar"}
             </Button>
           </form>
