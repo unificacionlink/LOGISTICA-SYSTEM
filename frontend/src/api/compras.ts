@@ -1,56 +1,79 @@
 import { http } from "./http";
 import type {
   ComprasDetalle,
+  Consolidado,
+  ConsolidadoDetalle,
   Cotizacion,
   DocumentoSubido,
   Moneda,
+  Necesidad,
   OcrCotizacion,
   Orden,
   OrdenDetalle,
-  ProveedorHabitual,
-  Requerimiento,
+  PorEmitir,
+  ProveedorProducto,
   Rfq,
   RfqDetalle,
 } from "./types";
 
-export function listarPendientesCompra() {
-  return http.get<Requerimiento[]>("/api/compras/pendientes");
+// ---------------------------------------------------------------- Lote 16 (DEC-L039)
+
+export function listarNecesidades() {
+  return http.get<Necesidad[]>("/api/compras/necesidades");
 }
+
+export function decidirRuta(needId: string, ruta: "COMPRA" | "CAJA_CHICA") {
+  return http.post<Necesidad>(`/api/compras/necesidades/${needId}/ruta`, { ruta });
+}
+
+export function listarConsolidados() {
+  return http.get<Consolidado[]>("/api/compras/consolidados");
+}
+
+export function obtenerConsolidado(id: string) {
+  return http.get<ConsolidadoDetalle>(`/api/compras/consolidados/${id}`);
+}
+
+export function prepararSolicitudes(consolidationIds: string[]) {
+  return http.post<Rfq[]>("/api/compras/consolidados/solicitudes", { consolidationIds });
+}
+
+export function adjudicar(consolidationId: string, quotationItemId: string) {
+  return http.post<ConsolidadoDetalle>(`/api/compras/consolidados/${consolidationId}/adjudicar`, { quotationItemId });
+}
+
+export function anularConsolidado(consolidationId: string, motivo: string) {
+  return http.post<ConsolidadoDetalle>(`/api/compras/consolidados/${consolidationId}/anular`, { motivo });
+}
+
+export function listarPorEmitir() {
+  return http.get<PorEmitir[]>("/api/compras/por-emitir");
+}
+
+export function emitirOrden(quotationId: string) {
+  return http.post<Orden>(`/api/compras/cotizaciones/${quotationId}/emitir-oc`);
+}
+
+export function confirmarEnvioRfq(rfqId: string, canal: "CORREO" | "WHATSAPP" | "OTRO") {
+  return http.post<Rfq>(`/api/compras/rfq/${rfqId}/enviar`, { canal });
+}
+
+export function listarProveedoresProducto() {
+  return http.get<ProveedorProducto[]>("/api/compras/proveedores-producto");
+}
+
+export function guardarProveedoresProducto(productId: string, supplierIds: string[]) {
+  return http.put<ProveedorProducto[]>(`/api/compras/productos/${productId}/proveedores`, { supplierIds });
+}
+
+// ---------------------------------------------------------------- RFQ, cotizaciones y OC
 
 export function listarRfqsAbiertas() {
   return http.get<Rfq[]>("/api/compras/rfqs-abiertas");
 }
 
-export function listarProveedoresHabituales() {
-  return http.get<ProveedorHabitual[]>("/api/compras/proveedores-habituales");
-}
-
-export function asignarProveedorHabitual(productId: string, supplierId: string | null) {
-  return http.put<ProveedorHabitual>(`/api/compras/productos/${productId}/proveedor-habitual`, { supplierId });
-}
-
 export function obtenerDetalleCompra(requestId: string) {
   return http.get<ComprasDetalle>(`/api/compras/requerimientos/${requestId}`);
-}
-
-export interface RfqItemInput {
-  requestItemId: string;
-  qty: number;
-  technicalSpecification?: string;
-}
-
-export interface CrearRfqInput {
-  supplierId: string;
-  paymentCondition?: string;
-  deliveryMode?: string;
-  deliveryLocation?: string;
-  requestedLeadDays?: number;
-  currencyRequested?: string;
-  items: RfqItemInput[];
-}
-
-export function crearRfq(requestId: string, input: CrearRfqInput) {
-  return http.post<Rfq>(`/api/compras/requerimientos/${requestId}/rfq`, input);
 }
 
 export function obtenerRfq(rfqId: string) {
@@ -100,10 +123,6 @@ export function registrarCotizacion(rfqId: string, input: RegistrarCotizacionInp
 
 export function descartarCotizacion(cotizacionId: string) {
   return http.post<Cotizacion>(`/api/compras/cotizaciones/${cotizacionId}/descartar`);
-}
-
-export function seleccionarCotizacion(cotizacionId: string) {
-  return http.post<Orden>(`/api/compras/cotizaciones/${cotizacionId}/seleccionar`);
 }
 
 export function listarOrdenes() {

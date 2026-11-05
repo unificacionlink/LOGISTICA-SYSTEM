@@ -1,14 +1,18 @@
 package com.tdem.logistica.modules.compras;
 
 import com.tdem.logistica.entity.*;
+import com.tdem.logistica.modules.compras.OrigenCompras.ReqRef;
 import com.tdem.logistica.modules.compras.dto.*;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 public final class ComprasMapper {
 
     private ComprasMapper() {
     }
 
-    public static ItemPendienteCompraDto toDto(RequerimientoItem i, java.math.BigDecimal cantidadPendiente) {
+    public static ItemPendienteCompraDto toDto(RequerimientoItem i, BigDecimal cantidadPendiente) {
         return new ItemPendienteCompraDto(
                 i.getRequestItemId(),
                 i.getProducto().getSkuBase(),
@@ -24,14 +28,15 @@ public final class ComprasMapper {
         return new MonedaDto(m.getCurrencyCode(), m.getName());
     }
 
-    public static RfqDto toDto(Rfq r) {
+    public static RfqDto toDto(Rfq r, List<ReqRef> refs) {
         return new RfqDto(
                 r.getRfqId(),
                 r.getRfqCode(),
-                r.getRequerimiento().getRequestId(),
-                r.getRequerimiento().getRequestCode(),
+                OrigenCompras.unico(refs),
+                OrigenCompras.codigos(refs),
                 r.getProveedor().getSupplierId(),
                 r.getProveedor().getLegalName(),
+                r.getEmpresa().getCode(),
                 r.getIssueDate(),
                 r.getPaymentCondition(),
                 r.getDeliveryMode(),
@@ -39,13 +44,17 @@ public final class ComprasMapper {
                 r.getRequestedLeadDays(),
                 r.getCurrencyRequested() != null ? r.getCurrencyRequested().getCurrencyCode() : null,
                 r.getStatus(),
-                r.getCreatedAt());
+                r.getCreatedAt(),
+                r.getSentAt(),
+                r.getSentChannel());
     }
 
     public static RfqItemDto toDto(RfqItem i) {
+        Consolidacion c = i.getConsolidacion();
         return new RfqItemDto(
                 i.getRfqItemId(),
-                i.getRequerimientoItem().getRequestItemId(),
+                c != null ? c.getConsolidationId() : null,
+                c != null ? c.getConsolidationCode() : null,
                 i.getProducto().getSkuBase(),
                 i.getProducto().getName(),
                 i.getVariante() != null ? i.getVariante().getAttributeValue() : null,
@@ -70,7 +79,7 @@ public final class ComprasMapper {
                 i.getOfferedModel());
     }
 
-    public static CotizacionDto toDto(Cotizacion c, java.util.List<CotizacionItemDto> items) {
+    public static CotizacionDto toDto(Cotizacion c, List<CotizacionItemDto> items) {
         return new CotizacionDto(
                 c.getQuotationId(),
                 c.getRfq().getRfqId(),
@@ -91,12 +100,12 @@ public final class ComprasMapper {
                 items);
     }
 
-    public static OrdenDto toDto(OrdenAbastecimiento o) {
+    public static OrdenDto toDto(OrdenAbastecimiento o, List<ReqRef> refs) {
         return new OrdenDto(
                 o.getOrderId(),
                 o.getOrderCode(),
-                o.getCotizacion().getRfq().getRequerimiento().getRequestId(),
-                o.getCotizacion().getRfq().getRequerimiento().getRequestCode(),
+                OrigenCompras.unico(refs),
+                OrigenCompras.codigos(refs),
                 o.getProveedor().getLegalName(),
                 o.getOrderType(),
                 o.getIssueDate(),
@@ -124,5 +133,68 @@ public final class ComprasMapper {
                 i.getQtyOrdered(),
                 i.getUnitCost(),
                 i.getLineTotal());
+    }
+
+    /** qty = lo que queda por atender en esa ruta (en Caja Chica, descontado lo ya comprado). */
+    public static NecesidadDto toDto(NecesidadCompra n, BigDecimal qty) {
+        Requerimiento r = n.getRequerimientoItem().getRequerimiento();
+        Consolidacion c = n.getConsolidacion();
+        return new NecesidadDto(
+                n.getNeedId(),
+                r.getRequestId(),
+                r.getRequestCode(),
+                r.getEmpresa().getCode(),
+                r.getCeco().getCode(),
+                r.getCeco().getName(),
+                r.getPriority(),
+                r.getRequiredDate(),
+                n.getProducto().getSkuBase(),
+                n.getVariante() != null ? n.getVariante().getInternalVariantCode() : null,
+                n.getProducto().getName(),
+                n.getVariante() != null ? n.getVariante().getAttributeValue() : null,
+                n.getUom().getCode(),
+                qty,
+                n.getStatus(),
+                n.getSuggestedReason(),
+                c != null ? c.getConsolidationId() : null,
+                c != null ? c.getConsolidationCode() : null,
+                c != null ? c.getStatus() : null,
+                n.getCreatedAt());
+    }
+
+    public static OrigenDto toOrigen(NecesidadCompra n) {
+        Requerimiento r = n.getRequerimientoItem().getRequerimiento();
+        return new OrigenDto(n.getNeedId(), r.getRequestId(), r.getRequestCode(), r.getCeco().getCode(),
+                r.getCeco().getName(), r.getPriority(), r.getRequiredDate(), n.getQty());
+    }
+
+    public static AdjudicacionDto toAdjudicacion(CotizacionItem ci) {
+        if (ci == null) {
+            return null;
+        }
+        Cotizacion q = ci.getCotizacion();
+        return new AdjudicacionDto(ci.getQuotationItemId(), q.getQuotationId(), q.getProveedor().getLegalName(),
+                q.getMoneda().getCurrencyCode(), ci.getQty(), ci.getUnitCost(), ci.getLineTotal());
+    }
+
+    public static ConsolidadoDto toDto(Consolidacion c, List<OrigenDto> origenes, List<String> proveedores,
+                                       int cotizaciones) {
+        return new ConsolidadoDto(
+                c.getConsolidationId(),
+                c.getConsolidationCode(),
+                c.getEmpresa().getCode(),
+                c.getProducto().getProductId(),
+                c.getProducto().getSkuBase(),
+                c.getVariante() != null ? c.getVariante().getInternalVariantCode() : null,
+                c.getProducto().getName(),
+                c.getVariante() != null ? c.getVariante().getAttributeValue() : null,
+                c.getUom().getCode(),
+                c.getTotalQty(),
+                c.getStatus(),
+                origenes,
+                proveedores,
+                cotizaciones,
+                toAdjudicacion(c.getAdjudicado()),
+                c.getCreatedAt());
     }
 }

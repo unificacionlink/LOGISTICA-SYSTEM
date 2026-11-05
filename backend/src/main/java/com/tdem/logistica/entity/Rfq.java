@@ -10,8 +10,9 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * RFQ (Request For Quote) a un proveedor, armada desde items de UN
- * requerimiento (sin consolidacion cruzada RN-002/004, ver DEC-L013).
+ * Solicitud de cotizacion a un proveedor por empresa, con varios productos
+ * consolidados (DEC-L039). request_id solo existe en las RFQ previas al Lote 16
+ * (una por requerimiento). BORRADOR = preparada, por enviar.
  */
 @Entity
 @Table(name = "rfq")
@@ -32,7 +33,7 @@ public class Rfq {
     private Empresa empresa;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "request_id", nullable = false)
+    @JoinColumn(name = "request_id")
     private Requerimiento requerimiento;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -67,4 +68,10 @@ public class Rfq {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
+    @Column(name = "sent_at")
+    private Instant sentAt;
+    @Column(name = "sent_by")
+    private UUID sentBy;
+    @Column(name = "sent_channel")
+    private String sentChannel;
 }

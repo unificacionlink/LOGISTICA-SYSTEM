@@ -5,7 +5,8 @@ import java.util.UUID;
 
 public record RfqItemDto(
         UUID rfqItemId,
-        UUID requestItemId,
+        UUID consolidationId,
+        String consolidationCode,
         String skuBase,
         String nombreProducto,
         String atributo,

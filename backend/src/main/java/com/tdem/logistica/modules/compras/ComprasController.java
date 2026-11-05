@@ -3,7 +3,6 @@ package com.tdem.logistica.modules.compras;
 import com.tdem.logistica.common.ApiResponse;
 import com.tdem.logistica.common.MotivoRequest;
 import com.tdem.logistica.modules.compras.dto.*;
-import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
@@ -19,49 +18,114 @@ import java.util.UUID;
 public class ComprasController {
 
     private final ComprasService service;
+    private final AbastecimientoService abastecimiento;
 
-    public ComprasController(ComprasService service) {
+    public ComprasController(ComprasService service, AbastecimientoService abastecimiento) {
         this.service = service;
+        this.abastecimiento = abastecimiento;
     }
 
-    @GetMapping("/pendientes")
-    public ApiResponse<List<RequerimientoDto>> pendientes(@AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(service.listarPendientes(principal));
+    // ---------------------------------------------------------------- Lote 16 (DEC-L039)
+
+    @GetMapping("/necesidades")
+    public ApiResponse<List<NecesidadDto>> necesidades(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.listarNecesidades(principal));
     }
+
+    @PostMapping("/necesidades/{id}/ruta")
+    public ApiResponse<NecesidadDto> decidirRuta(
+            @PathVariable UUID id,
+            @Valid @RequestBody DecidirRutaRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        NecesidadDto n = abastecimiento.decidirRuta(id, request.ruta(), principal);
+        return ApiResponse.ok(n, "COMPRA".equals(n.status())
+                ? "Agregado al consolidado " + n.consolidationCode() + "."
+                : "Ruta Caja Chica confirmada.");
+    }
+
+    @GetMapping("/consolidados")
+    public ApiResponse<List<ConsolidadoDto>> consolidados(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.listarConsolidados(principal));
+    }
+
+    @GetMapping("/consolidados/{id}")
+    public ApiResponse<ConsolidadoDetalleDto> consolidado(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.obtenerConsolidado(id, principal));
+    }
+
+    @PostMapping("/consolidados/solicitudes")
+    public ApiResponse<List<RfqDto>> prepararSolicitudes(
+            @Valid @RequestBody PrepararSolicitudesRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        List<RfqDto> rfqs = abastecimiento.prepararSolicitudes(request.consolidationIds(), principal);
+        return ApiResponse.ok(rfqs, rfqs.size() == 1 ? "1 solicitud de cotizacion preparada."
+                : rfqs.size() + " solicitudes de cotizacion preparadas.");
+    }
+
+    @PostMapping("/consolidados/{id}/adjudicar")
+    public ApiResponse<ConsolidadoDetalleDto> adjudicar(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdjudicarRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.adjudicar(id, request.quotationItemId(), principal), "Producto adjudicado.");
+    }
+
+    @PostMapping("/consolidados/{id}/anular")
+    public ApiResponse<ConsolidadoDetalleDto> anularConsolidado(
+            @PathVariable UUID id,
+            @RequestBody(required = false) MotivoRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.anularConsolidado(id, request != null ? request.motivo() : null, principal),
+                "Consolidado anulado: sus faltantes vuelven a decidir ruta.");
+    }
+
+    @GetMapping("/por-emitir")
+    public ApiResponse<List<PorEmitirDto>> porEmitir(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.listarPorEmitir(principal));
+    }
+
+    @PostMapping("/cotizaciones/{id}/emitir-oc")
+    public ApiResponse<OrdenDto> emitirOrden(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        OrdenDto orden = abastecimiento.emitirOrden(id, principal);
+        return ApiResponse.ok(orden, "Orden de compra " + orden.orderCode() + " emitida.");
+    }
+
+    @PostMapping("/rfq/{id}/enviar")
+    public ApiResponse<RfqDto> confirmarEnvio(
+            @PathVariable UUID id,
+            @Valid @RequestBody ConfirmarEnvioRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        RfqDto rfq = abastecimiento.confirmarEnvio(id, request.canal(), principal);
+        return ApiResponse.ok(rfq, "Envio de " + rfq.rfqCode() + " confirmado.");
+    }
+
+    @GetMapping("/proveedores-producto")
+    public ApiResponse<List<ProveedorProductoDto>> cobertura(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.listarCobertura(principal));
+    }
+
+    @PutMapping("/productos/{productId}/proveedores")
+    public ApiResponse<List<ProveedorProductoDto>> reemplazarCobertura(
+            @PathVariable UUID productId,
+            @RequestBody ProveedoresProductoRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.reemplazarCobertura(productId, request.supplierIds(), principal),
+                "Proveedores del producto actualizados.");
+    }
+
+    // ---------------------------------------------------------------- RFQ, cotizaciones y OC
 
     @GetMapping("/rfqs-abiertas")
     public ApiResponse<List<RfqDto>> rfqsAbiertas(@AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.listarRfqsAbiertas(principal));
     }
 
-    @GetMapping("/proveedores-habituales")
-    public ApiResponse<List<ProveedorHabitualDto>> proveedoresHabituales(
-            @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(service.listarProveedoresHabituales(principal));
-    }
-
-    @PutMapping("/productos/{productId}/proveedor-habitual")
-    public ApiResponse<ProveedorHabitualDto> asignarProveedorHabitual(
-            @PathVariable UUID productId,
-            @RequestBody AsignarProveedorHabitualRequest request,
-            @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(service.asignarProveedorHabitual(productId, request.supplierId(), principal),
-                "Proveedor habitual actualizado.");
-    }
-
     @GetMapping("/requerimientos/{id}")
     public ApiResponse<ComprasDetalleDto> detalleCompra(
             @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.obtenerDetalleCompra(id, principal));
-    }
-
-    @PostMapping("/requerimientos/{id}/rfq")
-    public ApiResponse<RfqDto> crearRfq(
-            @PathVariable UUID id,
-            @Valid @RequestBody CrearRfqRequest request,
-            @AuthenticationPrincipal UsuarioPrincipal principal) {
-        RfqDto creada = service.crearRfq(id, request, principal);
-        return ApiResponse.ok(creada, "RFQ " + creada.rfqCode() + " creada.");
     }
 
     @GetMapping("/rfq/{id}")
@@ -108,13 +172,6 @@ public class ComprasController {
     public ApiResponse<CotizacionDto> descartarCotizacion(
             @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.descartarCotizacion(id, principal), "Cotizacion descartada.");
-    }
-
-    @PostMapping("/cotizaciones/{id}/seleccionar")
-    public ApiResponse<OrdenDto> seleccionarCotizacion(
-            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
-        OrdenDto orden = service.seleccionarCotizacion(id, principal);
-        return ApiResponse.ok(orden, "Orden de compra " + orden.orderCode() + " emitida.");
     }
 
     @GetMapping("/ordenes")

@@ -199,12 +199,12 @@ class AlmacenFlujoTest {
 		assertTrue(d.rfqEnviadas() >= 2 && d.rfqRespondidas() >= 2, d.toString());
 		assertEquals(5, d.etapas().size());
 		DashboardDto.Comparativo comp = d.comparativos().stream()
-				.filter(c -> c.codigo().equals("REQ-TEST-ALM")).findFirst().orElseThrow();
+				.filter(c -> c.codigo().equals("CON-TEST-ALM")).findFirst().orElseThrow();
 		assertEquals(2, comp.cotizaciones());
 		assertEquals(0, comp.ahorro().compareTo(new BigDecimal("20")), "70 cotizado - 50 elegido");
 		assertTrue(d.ahorro().stream().anyMatch(a -> a.moneda().equals("PEN") && a.monto().signum() > 0));
 		assertTrue(dashboardService.obtener(30, "METRIN", logistica).comparativos().stream()
-				.noneMatch(c -> c.codigo().equals("REQ-TEST-ALM")), "el filtro de empresa excluye a TDEM");
+				.noneMatch(c -> c.codigo().equals("CON-TEST-ALM")), "el filtro de empresa excluye a TDEM");
 		assertThrows(ApiException.class, () -> dashboardService.obtener(30, null, solicitante),
 				"el solicitante no ve el dashboard");
 
@@ -288,15 +288,25 @@ class AlmacenFlujoTest {
 		UUID rfq = jdbc.queryForObject("""
 				insert into rfq (rfq_code, company_id, request_id, supplier_id, status, created_by)
 				values ('RFQ-TEST-ALM', ?, ?, ?, 'CERRADA', ?) returning rfq_id""", UUID.class, empresa, req, proveedor, logisticaId);
+		// Lote 16 (DEC-L039): el faltante (10) es una necesidad dentro de un consolidado.
+		UUID consolidado = jdbc.queryForObject("""
+				insert into consolidacion (consolidation_code, company_id, product_id, variant_id, uom_id, total_qty, status)
+				values ('CON-TEST-ALM', ?, ?, ?, ?, 10, 'EN_COTIZACION') returning consolidation_id""",
+				UUID.class, empresa, producto, variante, uom);
+		jdbc.update("""
+				insert into necesidad_compra (request_item_id, company_id, product_id, variant_id, uom_id, qty, status,
+				  consolidation_id) values (?, ?, ?, ?, ?, 10, 'COMPRA', ?)""", item, empresa, producto, variante, uom, consolidado);
 		UUID rfqItem = jdbc.queryForObject("""
-				insert into rfq_item (rfq_id, request_item_id, product_id, variant_id, uom_id, qty)
-				values (?, ?, ?, ?, ?, 10) returning rfq_item_id""", UUID.class, rfq, item, producto, variante, uom);
+				insert into rfq_item (rfq_id, consolidation_id, product_id, variant_id, uom_id, qty)
+				values (?, ?, ?, ?, ?, 10) returning rfq_item_id""", UUID.class, rfq, consolidado, producto, variante, uom);
 		UUID cotizacion = jdbc.queryForObject("""
 				insert into cotizacion (rfq_id, supplier_id, currency_code, subtotal, total, status)
 				values (?, ?, 'PEN', 50, 50, 'SELECCIONADA') returning quotation_id""", UUID.class, rfq, proveedor);
-		jdbc.update("""
+		UUID ganadora = jdbc.queryForObject("""
 				insert into cotizacion_item (quotation_id, rfq_item_id, product_id, variant_id, qty, unit_cost, line_total)
-				values (?, ?, ?, ?, 10, 5, 50)""", cotizacion, rfqItem, producto, variante);
+				values (?, ?, ?, ?, 10, 5, 50) returning quotation_item_id""", UUID.class, cotizacion, rfqItem, producto, variante);
+		jdbc.update("update consolidacion set status = 'ORDENADA', awarded_quotation_item_id = ?, awarded_at = now() "
+				+ "where consolidation_id = ?", ganadora, consolidado);
 		UUID orden = jdbc.queryForObject("""
 				insert into orden_abastecimiento (order_code, company_id, supplier_id, quotation_id, payment_condition,
 				  delivery_mode, currency_code, subtotal, total, status, created_by)
@@ -309,15 +319,21 @@ class AlmacenFlujoTest {
 		UUID rfq2 = jdbc.queryForObject("""
 				insert into rfq (rfq_code, company_id, request_id, supplier_id, status, created_by)
 				values ('RFQ-TEST-ALM-2', ?, ?, ?, 'CERRADA', ?) returning rfq_id""", UUID.class, empresa, req, proveedor2, logisticaId);
-		jdbc.update("""
+		UUID rfqItem2 = jdbc.queryForObject("""
+				insert into rfq_item (rfq_id, consolidation_id, product_id, variant_id, uom_id, qty)
+				values (?, ?, ?, ?, ?, 10) returning rfq_item_id""", UUID.class, rfq2, consolidado, producto, variante, uom);
+		UUID cotizacion2 = jdbc.queryForObject("""
 				insert into cotizacion (rfq_id, supplier_id, currency_code, subtotal, total, status)
-				values (?, ?, 'PEN', 70, 70, 'RECIBIDA')""", rfq2, proveedor2);
+				values (?, ?, 'PEN', 70, 70, 'RECIBIDA') returning quotation_id""", UUID.class, rfq2, proveedor2);
+		jdbc.update("""
+				insert into cotizacion_item (quotation_id, rfq_item_id, product_id, variant_id, qty, unit_cost, line_total)
+				values (?, ?, ?, ?, 10, 7, 70)""", cotizacion2, rfqItem2, producto, variante);
 
 		UUID ordenItem = jdbc.queryForObject("""
-				insert into orden_item (order_id, request_item_id, product_id, variant_id, description, uom_id,
+				insert into orden_item (order_id, consolidation_id, product_id, variant_id, description, uom_id,
 				  qty_ordered, unit_cost, line_subtotal, line_total)
 				values (?, ?, ?, ?, 'Producto de prueba', ?, 10, 5, 50, 50) returning order_item_id""",
-				UUID.class, orden, item, producto, variante, uom);
+				UUID.class, orden, consolidado, producto, variante, uom);
 
 		return new Fixture(req, item, orden, ordenItem, producto, variante);
 	}

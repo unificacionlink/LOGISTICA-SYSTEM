@@ -36,6 +36,11 @@ public interface ReservaStockRepository extends JpaRepository<ReservaStock, UUID
             "and r.origin = 'VERIFICACION_STOCK' and r.status in ('RESERVADA','DESPACHADA')")
     BigDecimal sumarCubiertoPorStockPorItem(@Param("requestItemId") UUID requestItemId);
 
+    /** Lo ya repartido a cada necesidad desde recepciones de OC (DEC-L039). */
+    @Query("select r.necesidad.needId, sum(r.qtyReserved) from ReservaStock r " +
+            "where r.origin = 'RECEPCION_OC' and r.necesidad.needId in :needIds group by r.necesidad.needId")
+    List<Object[]> sumarRecibidoPorNecesidad(@Param("needIds") java.util.Collection<UUID> needIds);
+
     /** Reservas activas del item en orden de llegada (FIFO), bloqueadas para despachar. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from ReservaStock r where r.requerimientoItem.requestItemId = :requestItemId " +

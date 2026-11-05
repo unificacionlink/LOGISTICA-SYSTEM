@@ -1,5 +1,6 @@
 package com.tdem.logistica.modules.almacen;
 
+import com.tdem.logistica.modules.compras.OrigenCompras;
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.entity.OrdenAbastecimiento;
 import com.tdem.logistica.entity.OrdenItem;
@@ -79,9 +80,12 @@ public class CargaMasivaService {
     private final RecepcionItemRepository recepcionItemRepository;
     private final GuiaRemisionRepository guiaRepository;
     private final RecepcionService recepcionService;
+    private final OrigenCompras origen;
 
     public CargaMasivaService(OrdenItemRepository ordenItemRepository, RecepcionItemRepository recepcionItemRepository,
-                              GuiaRemisionRepository guiaRepository, RecepcionService recepcionService) {
+                              GuiaRemisionRepository guiaRepository, RecepcionService recepcionService,
+                              OrigenCompras origen) {
+        this.origen = origen;
         this.ordenItemRepository = ordenItemRepository;
         this.recepcionItemRepository = recepcionItemRepository;
         this.guiaRepository = guiaRepository;
@@ -94,6 +98,8 @@ public class CargaMasivaService {
         RecepcionService.exigirLogisticaOAdmin(principal);
         List<OrdenItem> items = ordenItemRepository.findPorRecibir(RecepcionService.ESTADOS_POR_RECIBIR);
         Map<UUID, BigDecimal> recibido = recibidoPorItem(items);
+        Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deOrdenes(
+                items.stream().map(i -> i.getOrden().getOrderId()).collect(java.util.stream.Collectors.toSet()));
 
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet hoja = wb.createSheet(HOJA);
@@ -126,7 +132,8 @@ public class CargaMasivaService {
                 row.createCell(c++).setCellValue(o.getOrderCode());
                 row.createCell(c++).setCellValue(o.getEmpresa().getCode());
                 row.createCell(c++).setCellValue(o.getProveedor().getLegalName());
-                row.createCell(c++).setCellValue(o.getCotizacion().getRfq().getRequerimiento().getRequestCode());
+                row.createCell(c++).setCellValue(java.util.Objects.requireNonNullElse(
+                        OrigenCompras.codigos(refs.getOrDefault(o.getOrderId(), List.of())), ""));
                 row.createCell(c++).setCellValue(sku(oi));
                 row.createCell(c++).setCellValue(producto(oi));
                 row.createCell(c++).setCellValue(oi.getUom() != null ? oi.getUom().getCode() : "");

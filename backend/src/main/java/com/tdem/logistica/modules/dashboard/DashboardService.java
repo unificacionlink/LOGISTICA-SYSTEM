@@ -26,8 +26,9 @@ public class DashboardService {
     /*
      * reqs    = requerimientos de la empresa filtrada (todas si :empresa es null).
      * entrega = cuando se completo cada REQ (ultimo envio recibido en destino).
-     * rfqs    = RFQ del periodo con su primera respuesta y si alguna se eligio.
-     * comp    = por REQ con cotizacion elegida: cuantas hubo en la misma moneda y la mayor.
+     * rfqs    = RFQ enviadas del periodo (por empresa) con su primera respuesta y si alguna se eligio.
+     * comp    = por consolidado adjudicado: cuantas ofertas hubo en la misma moneda y la mas cara
+     *           (a la cantidad adjudicada), DEC-L039.
      */
     private static final String SQL = """
             with reqs as (
@@ -46,30 +47,37 @@ public class DashboardService {
                 from aprobacion a join reqs on reqs.request_id = a.entity_id
                where a.entity_type = 'REQUERIMIENTO' and a.status = 'APROBADO' and a.decided_at >= :desde
             ),
+            emp as (
+              select company_id from empresa
+               where cast(:empresa as text) is null or code = cast(:empresa as text)
+            ),
             rfqs as (
-              select q.rfq_id, q.supplier_id, q.created_at,
+              select q.rfq_id, q.supplier_id, coalesce(q.sent_at, q.created_at) as created_at,
                      (select min(c.received_at) from cotizacion c where c.rfq_id = q.rfq_id) as respondida_en,
                      exists (select 1 from cotizacion c where c.rfq_id = q.rfq_id and c.status = 'SELECCIONADA') as elegida
-                from rfq q join reqs on reqs.request_id = q.request_id
+                from rfq q join emp using (company_id)
                where q.status <> 'BORRADOR' and q.created_at >= :desde
             ),
-            cot as (
-              select q.request_id, c.quotation_id, c.total, c.currency_code, c.status, c.received_at,
-                     p.legal_name
-                from cotizacion c
-                join rfq q on q.rfq_id = c.rfq_id
-                join proveedor p on p.supplier_id = c.supplier_id
-                join reqs on reqs.request_id = q.request_id
-               where c.status <> 'DESCARTADA'
+            ofertas as (
+              select ri.consolidation_id, ci.quotation_item_id, ci.unit_cost, c.currency_code
+                from cotizacion_item ci
+                join cotizacion c on c.quotation_id = ci.quotation_id
+                join rfq_item ri on ri.rfq_item_id = ci.rfq_item_id
+               where c.status <> 'DESCARTADA' and ri.consolidation_id is not null
             ),
             comp as (
-              select sel.request_id, sel.currency_code as moneda, sel.total as elegido,
-                     sel.legal_name as proveedor, sel.received_at,
-                     count(o.quotation_id) as n, max(o.total) as mayor
-                from cot sel
-                join cot o on o.request_id = sel.request_id and o.currency_code = sel.currency_code
-               where sel.status = 'SELECCIONADA' and sel.received_at >= :desde
-               group by sel.request_id, sel.currency_code, sel.total, sel.legal_name, sel.received_at
+              select k.consolidation_code as codigo, c.currency_code as moneda, sel.line_total as elegido,
+                     p.legal_name as proveedor, coalesce(k.awarded_at, c.received_at) as received_at,
+                     count(o.quotation_item_id) as n, round(max(o.unit_cost) * sel.qty, 2) as mayor
+                from consolidacion k
+                join emp using (company_id)
+                join cotizacion_item sel on sel.quotation_item_id = k.awarded_quotation_item_id
+                join cotizacion c on c.quotation_id = sel.quotation_id
+                join proveedor p on p.supplier_id = c.supplier_id
+                join ofertas o on o.consolidation_id = k.consolidation_id and o.currency_code = c.currency_code
+               where k.status in ('ADJUDICADA','ORDENADA') and coalesce(k.awarded_at, c.received_at) >= :desde
+               group by k.consolidation_code, c.currency_code, sel.line_total, sel.qty, p.legal_name,
+                        k.awarded_at, c.received_at
             )
             select json_build_object(
               'abiertos', (select count(*) from reqs
@@ -96,13 +104,18 @@ public class DashboardService {
                 json_build_object('codigo', 'POR_APROBAR', 'cantidad',
                   (select count(*) from reqs where status = 'PENDIENTE_APROBACION')),
                 json_build_object('codigo', 'EN_COTIZACION', 'cantidad',
-                  (select count(distinct q.request_id) from rfq q join reqs using (request_id)
-                    where q.status in ('ENVIADA','RESPONDIDA'))),
+                  (select count(distinct ri.request_id)
+                     from necesidad_compra n
+                     join consolidacion k on k.consolidation_id = n.consolidation_id
+                     join requerimiento_item ri on ri.request_item_id = n.request_item_id
+                     join reqs on reqs.request_id = ri.request_id
+                    where n.status = 'COMPRA' and k.status in ('ABIERTA','EN_COTIZACION','ADJUDICADA'))),
                 json_build_object('codigo', 'OC_EN_CURSO', 'cantidad',
                   (select count(distinct ri.request_id)
                      from orden_item oi
                      join orden_abastecimiento o on o.order_id = oi.order_id
-                     join requerimiento_item ri on ri.request_item_id = oi.request_item_id
+                     join necesidad_compra n on n.consolidation_id = oi.consolidation_id and n.status <> 'ANULADA'
+                     join requerimiento_item ri on ri.request_item_id = n.request_item_id
                      join reqs on reqs.request_id = ri.request_id
                     where o.status in ('EMITIDA','EN_ATENCION','RECEPCION_PARCIAL'))),
                 json_build_object('codigo', 'POR_DESPACHAR', 'cantidad',
@@ -135,11 +148,11 @@ public class DashboardService {
                                        order by count(*) desc, p.legal_name
                                        limit 8) x),
               'comparativos', (select coalesce(json_agg(x), '[]'::json)
-                                 from (select r.request_code as "codigo", comp.proveedor as "proveedor",
+                                 from (select comp.codigo as "codigo", comp.proveedor as "proveedor",
                                               comp.n as "cotizaciones", comp.moneda as "moneda",
                                               comp.elegido as "elegido", comp.mayor as "mayor",
                                               comp.mayor - comp.elegido as "ahorro", comp.received_at as "fecha"
-                                         from comp join reqs r using (request_id)
+                                         from comp
                                         where comp.n >= 2
                                         order by comp.received_at desc
                                         limit 6) x)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { etiquetaRequerimientos } from "../components/compras/etiquetas";
 import { useParams } from "react-router-dom";
 import { AlertTriangle, PackageOpen } from "lucide-react";
 import {
@@ -198,7 +199,7 @@ export default function AlmacenRecepcion() {
             Recepción · <span className="font-mono">{orden.orderCode}</span>
           </span>
         }
-        subtitle={`${orden.proveedorNombre} (RUC ${datos.proveedorRuc}) · Requerimiento ${orden.requestCode}`}
+        subtitle={`${orden.proveedorNombre} (RUC ${datos.proveedorRuc}) · ${etiquetaRequerimientos(orden.requestCode)}`}
         backTo="/almacen?tab=recibir"
         backLabel="Almacén"
         actions={<OrdenEstadoBadge estado={orden.status} />}

@@ -9,9 +9,9 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * request_item_id reemplaza a orden_item_distribucion del diseno de
- * referencia: este backend es 1 requerimiento = 1 CECO, no hace falta
- * repartir una linea de OC entre varios CECO/proyecto (ver DEC-L013).
+ * Linea de OC por consolidado (DEC-L039): lo recibido se reparte entre las
+ * necesidades de sus requerimientos. request_item_id solo en OC previas al
+ * Lote 16.
  */
 @Entity
 @Table(name = "orden_item")
@@ -29,8 +29,11 @@ public class OrdenItem {
     private OrdenAbastecimiento orden;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "request_item_id", nullable = false)
+    @JoinColumn(name = "request_item_id")
     private RequerimientoItem requerimientoItem;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "consolidation_id")
+    private Consolidacion consolidacion;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { etiquetaRequerimientos } from "../components/compras/etiquetas";
 import { useParams } from "react-router-dom";
 import { PackageOpen } from "lucide-react";
 import { anularOrden, obtenerOrden } from "../api/compras";
@@ -80,7 +81,7 @@ export default function ComprasOrdenDetalle() {
     <div>
       <PageHeader
         title={<span className="font-mono">{orden.orderCode}</span>}
-        subtitle={`${orden.proveedorNombre} · Requerimiento ${orden.requestCode}`}
+        subtitle={`${orden.proveedorNombre} · ${etiquetaRequerimientos(orden.requestCode)}`}
         backTo="/compras/ordenes"
         backLabel="Órdenes de compra"
         actions={

@@ -9,7 +9,7 @@ const TONO: Record<EstadoRfq, BadgeTone> = {
 };
 
 const ETIQUETA: Record<EstadoRfq, string> = {
-  BORRADOR: "Borrador",
+  BORRADOR: "Por enviar",
   ENVIADA: "Enviada",
   RESPONDIDA: "Respondida",
   CERRADA: "Cerrada",

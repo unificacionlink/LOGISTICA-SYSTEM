@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  *
  * DEC-L018: ya no existe la verificacion manual. Al aprobarse un requerimiento
  * {@link #reservarDisponible} aparta solo lo que hay (RF-009, "Sistema"); el
- * faltante lo toma Compras (RFQ automatica al proveedor habitual).
+ * faltante lo toma Compras (necesidad y consolidado, DEC-L039).
  */
 @Service
 @Transactional(readOnly = true)

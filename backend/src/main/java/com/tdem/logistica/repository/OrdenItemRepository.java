@@ -11,12 +11,8 @@ import java.util.UUID;
 
 public interface OrdenItemRepository extends JpaRepository<OrdenItem, UUID> {
 
-    @Query("select coalesce(sum(i.qtyOrdered), 0) from OrdenItem i " +
-            "where i.requerimientoItem.requestItemId = :requestItemId and i.orden.status <> 'ANULADA'")
-    BigDecimal sumarQtyOrdenada(@Param("requestItemId") UUID requestItemId);
-
     @Query("select i from OrdenItem i left join fetch i.producto left join fetch i.variante " +
-            "left join fetch i.uom where i.orden.orderId = :orderId")
+            "left join fetch i.uom left join fetch i.consolidacion where i.orden.orderId = :orderId")
     List<OrdenItem> findByOrden(UUID orderId);
 
     /** RF-031: items de todas las OC que aun admiten recepcion (plantilla y validacion de la carga masiva). */

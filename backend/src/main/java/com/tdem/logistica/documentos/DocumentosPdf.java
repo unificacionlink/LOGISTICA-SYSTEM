@@ -94,7 +94,6 @@ final class DocumentosPdf {
                 Campo.de("Proveedor", q.proveedorNombre()),
                 Campo.de("RUC", d.proveedorRuc()),
                 Campo.de("Fecha de emisión", fecha(q.issueDate())),
-                Campo.de("Requerimiento", q.requestCode()),
                 Campo.de("Moneda solicitada", q.currencyRequested()),
                 Campo.de("Plazo solicitado", q.requestedLeadDays() != null ? q.requestedLeadDays() + " días" : null),
                 Campo.de("Condición de pago", etiqueta(q.paymentCondition())),

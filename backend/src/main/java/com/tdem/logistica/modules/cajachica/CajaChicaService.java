@@ -6,7 +6,6 @@ import com.tdem.logistica.common.AppConstants.PrioridadRequerimiento;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.cajachica.dto.*;
-import com.tdem.logistica.modules.compras.ComprasService;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -57,13 +56,11 @@ public class CajaChicaService {
     private final UsuarioRepository usuarioRepository;
     private final MovimientoInventarioRepository movimientoRepository;
     private final ReservaStockRepository reservaRepository;
-    private final ComprasService comprasService;
 
     public CajaChicaService(JdbcTemplate jdbc, RequerimientoRepository requerimientoRepository,
                             RequerimientoItemRepository requerimientoItemRepository, EmpresaRepository empresaRepository,
                             AlmacenRepository almacenRepository, UsuarioRepository usuarioRepository,
-                            MovimientoInventarioRepository movimientoRepository, ReservaStockRepository reservaRepository,
-                            ComprasService comprasService) {
+                            MovimientoInventarioRepository movimientoRepository, ReservaStockRepository reservaRepository) {
         this.jdbc = jdbc;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
@@ -72,7 +69,6 @@ public class CajaChicaService {
         this.usuarioRepository = usuarioRepository;
         this.movimientoRepository = movimientoRepository;
         this.reservaRepository = reservaRepository;
-        this.comprasService = comprasService;
     }
 
     private static void exigirGestor(UsuarioPrincipal p) {
@@ -135,12 +131,13 @@ public class CajaChicaService {
         List<EvaluacionCajaChicaDto.Motivo> motivos = new ArrayList<>();
 
         BigDecimal estimado = BigDecimal.ZERO;
+        Map<UUID, BigDecimal> pendientes = pendientesCajaChica(requestId);
         for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(requestId)) {
-            BigDecimal pendiente = comprasService.pendienteParaCompra(item);
+            BigDecimal pendiente = pendientes.getOrDefault(item.getRequestItemId(), BigDecimal.ZERO);
             if (pendiente.signum() <= 0) {
                 continue;
             }
-            BigDecimal costo = ultimoCosto(item);
+            BigDecimal costo = item.getVariante() != null ? ultimoCosto(item.getVariante().getVariantId()) : null;
             if (costo == null) {
                 estimado = null;
                 break;
@@ -159,16 +156,52 @@ public class CajaChicaService {
                     + " para " + r.getRequiredDate()));
         }
         if (regla.fallaProveedor() && hayFallaProveedor(requestId)) {
-            motivos.add(new EvaluacionCajaChicaDto.Motivo(FALLA_PROVEEDOR, "Hay una RFQ cerrada sin orden de compra"));
+            motivos.add(new EvaluacionCajaChicaDto.Motivo(FALLA_PROVEEDOR, "El proveedor no atendio la compra"));
         }
         return new EvaluacionCajaChicaDto(regla, estimado, motivos);
     }
 
-    /** Ultimo costo unitario conocido de la variante: OC no anulada o compra por Caja Chica. */
-    private BigDecimal ultimoCosto(RequerimientoItem item) {
-        if (item.getVariante() == null) {
+    /**
+     * Ruta sugerida para el faltante de un item al aprobar (DEC-L039): MISMO_DIA
+     * o BAJO_MONTO si la regla vigente lo habilita; null = compra normal.
+     */
+    public String motivoSugerido(Requerimiento r, RequerimientoItem item, BigDecimal faltante) {
+        ReglaCajaChicaDto regla;
+        try {
+            regla = regla(r.getEmpresa().getCompanyId());
+        } catch (ApiException sinRegla) {
             return null;
         }
+        if (regla.mismoDia() && esMismoDia(r)) {
+            return MISMO_DIA;
+        }
+        BigDecimal costo = item.getVariante() != null ? ultimoCosto(item.getVariante().getVariantId()) : null;
+        if (regla.bajoMonto() && costo != null && costo.multiply(faltante).compareTo(regla.umbral()) <= 0) {
+            return BAJO_MONTO;
+        }
+        return null;
+    }
+
+    /**
+     * Lo que cada item puede comprar por Caja Chica: sus necesidades por decidir
+     * ruta o en ruta Caja Chica, menos lo ya comprado contra ellas.
+     */
+    public Map<UUID, BigDecimal> pendientesCajaChica(UUID requestId) {
+        Map<UUID, BigDecimal> out = new HashMap<>();
+        jdbc.query("""
+                select n.request_item_id, sum(n.qty - coalesce((select sum(ci.quantity) from caja_chica_item ci
+                    join caja_chica_ref f on f.petty_cash_ref_id = ci.petty_cash_ref_id
+                    where ci.need_id = n.need_id and f.regularization_status <> 'ANULADO'), 0))
+                from necesidad_compra n join requerimiento_item ri on ri.request_item_id = n.request_item_id
+                where ri.request_id = ? and n.status in ('PENDIENTE_RUTA','CAJA_CHICA')
+                group by n.request_item_id""", rs -> {
+            out.put(rs.getObject(1, UUID.class), rs.getBigDecimal(2).max(BigDecimal.ZERO));
+        }, requestId);
+        return out;
+    }
+
+    /** Ultimo costo unitario conocido de la variante: OC no anulada o compra por Caja Chica. */
+    public BigDecimal ultimoCosto(UUID variantId) {
         List<BigDecimal> c = jdbc.queryForList("""
                 select costo from (
                   select oi.unit_cost as costo, o.created_at as fecha from orden_item oi
@@ -178,8 +211,7 @@ public class CajaChicaService {
                   select ci.unit_cost, r.created_at from caja_chica_item ci
                   join caja_chica_ref r on r.petty_cash_ref_id = ci.petty_cash_ref_id
                   where ci.variant_id = ? and r.regularization_status <> 'ANULADO'
-                ) x order by fecha desc limit 1""", BigDecimal.class,
-                item.getVariante().getVariantId(), item.getVariante().getVariantId());
+                ) x order by fecha desc limit 1""", BigDecimal.class, variantId, variantId);
         return c.isEmpty() ? null : c.get(0);
     }
 
@@ -189,11 +221,17 @@ public class CajaChicaService {
         return urgente && r.getRequiredDate() != null && !r.getRequiredDate().isAfter(LocalDate.now(LIMA));
     }
 
+    /** Un consolidado del REQ se anulo porque el proveedor no atendio (o, antes del Lote 16, RFQ cerrada sin OC). */
     private boolean hayFallaProveedor(UUID requestId) {
         Integer n = jdbc.queryForObject("""
-                select count(*) from rfq q where q.request_id = ? and q.status = 'CERRADA'
-                and not exists (select 1 from cotizacion c join orden_abastecimiento o on o.quotation_id = c.quotation_id
-                                where c.rfq_id = q.rfq_id and o.status <> 'ANULADA')""", Integer.class, requestId);
+                select (select count(*) from necesidad_compra n
+                          join requerimiento_item ri on ri.request_item_id = n.request_item_id
+                         where ri.request_id = ? and n.suggested_reason = 'FALLA_PROVEEDOR'
+                           and n.status in ('PENDIENTE_RUTA','CAJA_CHICA'))
+                     + (select count(*) from rfq q where q.request_id = ? and q.status = 'CERRADA'
+                          and not exists (select 1 from cotizacion c join orden_abastecimiento o on o.quotation_id = c.quotation_id
+                                          where c.rfq_id = q.rfq_id and o.status <> 'ANULADA'))""",
+                Integer.class, requestId, requestId);
         return n != null && n > 0;
     }
 
@@ -233,6 +271,7 @@ public class CajaChicaService {
             itemsReq.put(i.getRequestItemId(), i);
         }
         Set<UUID> vistos = new HashSet<>();
+        Map<UUID, BigDecimal> pendientes = pendientesCajaChica(requestId);
         BigDecimal total = BigDecimal.ZERO;
         for (RegistrarCajaChicaRequest.Item in : req.items()) {
             RequerimientoItem item = itemsReq.get(in.requestItemId());
@@ -242,10 +281,10 @@ public class CajaChicaService {
             if (!vistos.add(in.requestItemId())) {
                 throw ApiException.badRequest("Un item esta repetido.");
             }
-            BigDecimal pendiente = comprasService.pendienteParaCompra(item);
+            BigDecimal pendiente = pendientes.getOrDefault(item.getRequestItemId(), BigDecimal.ZERO);
             if (in.qty().compareTo(pendiente) > 0) {
                 throw ApiException.badRequest("La cantidad de " + item.getProducto().getSkuBase()
-                        + " supera lo pendiente de compra (" + pendiente.stripTrailingZeros().toPlainString() + ").");
+                        + " supera lo pendiente por Caja Chica (" + pendiente.stripTrailingZeros().toPlainString() + ").");
             }
             total = total.add(in.qty().multiply(in.costoUnitario()));
         }
@@ -273,7 +312,7 @@ public class CajaChicaService {
             }
             case FALLA_PROVEEDOR -> {
                 if (!regla.fallaProveedor() || !hayFallaProveedor(requestId)) {
-                    throw ApiException.badRequest("No hay una RFQ cerrada sin orden de compra para este requerimiento.");
+                    throw ApiException.badRequest("No hay una falla de proveedor registrada para este requerimiento.");
                 }
             }
             case EXCEPCION -> {
@@ -314,13 +353,23 @@ public class CajaChicaService {
         for (RegistrarCajaChicaRequest.Item in : req.items()) {
             RequerimientoItem item = itemsReq.get(in.requestItemId());
             UUID itemId = UUID.randomUUID();
+            // Se compra contra la necesidad del item, que queda en ruta Caja Chica (DEC-L039).
+            UUID needId = jdbc.queryForList("""
+                    select need_id from necesidad_compra where request_item_id = ? and status in ('PENDIENTE_RUTA','CAJA_CHICA')
+                    order by created_at limit 1""", UUID.class, item.getRequestItemId()).stream().findFirst().orElse(null);
+            if (needId != null) {
+                jdbc.update("""
+                        update necesidad_compra set status = 'CAJA_CHICA',
+                          route_decided_by = coalesce(route_decided_by, ?), route_decided_at = coalesce(route_decided_at, now())
+                        where need_id = ?""", usuario.getUserId(), needId);
+            }
             jdbc.update("""
                     insert into caja_chica_item (petty_cash_item_id, petty_cash_ref_id, request_item_id, product_id,
-                      variant_id, quantity, unit_cost, line_total)
-                    values (?, ?, ?, ?, ?, ?, ?, ?)""",
+                      variant_id, quantity, unit_cost, line_total, need_id)
+                    values (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     itemId, refId, item.getRequestItemId(), item.getProducto().getProductId(),
                     item.getVariante() != null ? item.getVariante().getVariantId() : null, in.qty(), in.costoUnitario(),
-                    in.qty().multiply(in.costoUnitario()).setScale(2, RoundingMode.HALF_UP));
+                    in.qty().multiply(in.costoUnitario()).setScale(2, RoundingMode.HALF_UP), needId);
 
             // Ya esta en mano: entra al almacen y queda reservado para el item del REQ.
             MovimientoInventario mov = new MovimientoInventario();

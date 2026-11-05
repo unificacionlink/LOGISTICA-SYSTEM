@@ -15,22 +15,6 @@ public interface RequerimientoItemRepository extends JpaRepository<Requerimiento
             "where i.requerimiento.requestId = :requestId")
     List<RequerimientoItem> findByRequerimiento(UUID requestId);
 
-    /**
-     * REQ con algun item aun por comprar, en UNA consulta (antes eran 1 + 3 por
-     * item). Misma formula que ComprasService.pendienteParaCompra: solicitado
-     * - cubierto por stock - en RFQ activa - ya ordenado - comprado por Caja Chica.
-     */
-    @Query("select distinct i.requerimiento.requestId from RequerimientoItem i " +
-            "where i.requerimiento.status in :statuses and i.qtyRequested " +
-            "- coalesce((select sum(r.qtyReserved) from ReservaStock r where r.requerimientoItem = i " +
-            "   and r.origin = 'VERIFICACION_STOCK' and r.status in ('RESERVADA','DESPACHADA')), 0) " +
-            "- coalesce((select sum(q.qty) from RfqItem q where q.requerimientoItem = i and q.rfq.status <> 'CERRADA'), 0) " +
-            "- coalesce((select sum(o.qtyOrdered) from OrdenItem o where o.requerimientoItem = i " +
-            "   and o.orden.status <> 'ANULADA'), 0) " +
-            "- coalesce((select sum(c.quantity) from CajaChicaItem c where c.requerimientoItem = i " +
-            "   and c.ref.regularizationStatus <> 'ANULADO'), 0) > 0")
-    List<UUID> findRequerimientosConFaltante(@Param("statuses") List<String> statuses);
-
     /** Cantidad del item comprada por Caja Chica (compras no anuladas). */
     @Query("select coalesce(sum(c.quantity), 0) from CajaChicaItem c " +
             "where c.requerimientoItem.requestItemId = :requestItemId and c.ref.regularizationStatus <> 'ANULADO'")

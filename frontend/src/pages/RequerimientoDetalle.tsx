@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ConsolidadoEstadoBadge } from "../components/compras/etiquetas";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import { decidirAprobacion } from "../api/aprobaciones";
@@ -8,6 +9,7 @@ import type { ComprasDetalle, RequerimientoDetalle as RequerimientoDetalleType }
 import { useAuth } from "../auth/AuthContext";
 import { useRealtime } from "../realtime/RealtimeProvider";
 import EstadoBadge from "../components/EstadoBadge";
+import Badge from "../components/ui/Badge";
 import RfqEstadoBadge from "../components/RfqEstadoBadge";
 import TrackingRequerimiento from "../components/TrackingRequerimiento";
 import Alert from "../components/ui/Alert";
@@ -447,18 +449,43 @@ export default function RequerimientoDetalle() {
               <h2 className="font-semibold text-slate-900">Compras</h2>
             </div>
             {comprasDetalle && comprasDetalle.items.some((it) => it.cantidadPendiente > 0) && (
-              <Button href={`/compras/requerimientos/${id}/rfq/nuevo`} size="sm">
-                Gestionar compra
+              <Button href={`/compras/requerimientos/${id}/caja-chica`} size="sm" variant="secondary">
+                Caja chica
               </Button>
             )}
           </CardHeader>
           <CardBody>
             {cargandoCompras ? (
               <Skeleton className="h-4 w-full" />
-            ) : !comprasDetalle || comprasDetalle.rfqs.length === 0 ? (
-              <p className="text-sm text-slate-500">Todavía no se creó ninguna RFQ para este requerimiento.</p>
+            ) : !comprasDetalle || (comprasDetalle.necesidades.length === 0 && comprasDetalle.rfqs.length === 0) ? (
+              <p className="text-sm text-slate-500">Sin compras: lo pedido se atiende con stock.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <div className="flex flex-col gap-4">
+              {comprasDetalle.necesidades.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {comprasDetalle.necesidades.map((n) => (
+                    <li key={n.needId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate text-slate-700" title={n.nombreProducto}>
+                        <span className="font-mono text-xs text-slate-500">{n.codigoVariante ?? n.skuBase}</span>{" "}
+                        {n.nombreProducto} · {n.qty} {n.unidadMedida}
+                      </span>
+                      {n.consolidationId ? (
+                        <Link
+                          to={`/compras/consolidados/${n.consolidationId}`}
+                          className="flex items-center gap-2 font-mono text-xs font-medium text-brand-600 hover:text-brand-700"
+                        >
+                          {n.consolidationCode}
+                          {n.consolidationStatus && <ConsolidadoEstadoBadge estado={n.consolidationStatus} />}
+                        </Link>
+                      ) : (
+                        <Badge tone="amarillo">{n.status === "CAJA_CHICA" ? "Caja chica" : "Ruta por decidir"}</Badge>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {comprasDetalle.rfqs.length > 0 && (
+              <ul className="flex flex-col gap-2 border-t border-slate-100 pt-3">
                 {comprasDetalle.rfqs.map((rfq) => (
                   <li key={rfq.rfqId} className="flex items-center justify-between gap-2">
                     <Link
@@ -472,6 +499,8 @@ export default function RequerimientoDetalle() {
                   </li>
                 ))}
               </ul>
+              )}
+              </div>
             )}
           </CardBody>
         </Card>

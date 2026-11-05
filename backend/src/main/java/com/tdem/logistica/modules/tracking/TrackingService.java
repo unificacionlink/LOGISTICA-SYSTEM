@@ -326,7 +326,7 @@ public class TrackingService {
                     "Reservado del almacén: " + cantidad(total) + " u.", "Sistema", null));
         }
 
-        for (Rfq q : rfqRepository.findByRequestIdOrderByCreatedAtDesc(r.getRequestId())) {
+        for (Rfq q : rfqRepository.findPorRequerimiento(r.getRequestId())) {
             ev.add(new EventoDto(q.getCreatedAt(), "Compras", "RFQ a " + q.getProveedor().getLegalName(),
                     q.getCreatedBy().getDisplayName(), q.getRfqCode()));
         }

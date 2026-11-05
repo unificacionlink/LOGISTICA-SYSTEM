@@ -62,6 +62,10 @@ public class ReservaStock {
     /** Item de la compra por Caja Chica que origino la reserva (DEC-L026). */
     @Column(name = "petty_cash_item_id")
     private UUID pettyCashItemId;
+    /** Necesidad atendida con lo recibido de la OC (reparto del consolidado, DEC-L039). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "need_id")
+    private NecesidadCompra necesidad;
 
     @Column(name = "reserved_at", insertable = false, updatable = false)
     private OffsetDateTime reservedAt;

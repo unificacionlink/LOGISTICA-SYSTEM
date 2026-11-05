@@ -7,6 +7,7 @@ import com.tdem.logistica.modules.almacen.dto.DespachoItemInput;
 import com.tdem.logistica.modules.almacen.dto.NotaInventarioDetalleDto;
 import com.tdem.logistica.modules.cajachica.CajaChicaService;
 import com.tdem.logistica.modules.cajachica.dto.*;
+import com.tdem.logistica.modules.compras.AbastecimientoService;
 import com.tdem.logistica.modules.compras.ComprasService;
 import com.tdem.logistica.modules.tracking.TrackingService;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -40,6 +41,7 @@ class CajaChicaTest {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private CajaChicaService cajaChica;
 	@Autowired private ComprasService comprasService;
+	@Autowired private AbastecimientoService abastecimiento;
 	@Autowired private DespachoService despachoService;
 	@Autowired private TrackingService trackingService;
 
@@ -107,8 +109,11 @@ class CajaChicaTest {
 		CajaChicaDto c2 = cajaChica.registrar(req,
 				compra("EXCEPCION_AUTORIZADA", "Autorizo Gerencia por parada de obra", "B002", "7", item2, "3", "20"), logistica);
 		assertEquals("CC-2-TDEMSRL", c2.codigo());
-		assertTrue(comprasService.listarPendientes(logistica).stream().noneMatch(r -> r.id().equals(req)),
-				"el REQ sale de Pendientes de compra");
+		assertTrue(abastecimiento.listarNecesidades(logistica).stream().noneMatch(n -> n.requestId().equals(req)),
+				"el REQ sale de las necesidades por atender");
+		assertEquals(2, jdbc.queryForObject("""
+				select count(*) from necesidad_compra n join requerimiento_item ri on ri.request_item_id = n.request_item_id
+				where ri.request_id = ? and n.status = 'CAJA_CHICA'""", Integer.class, req), "la compra confirma la ruta");
 
 		// --- Despacho: la NI se valoriza con el costo de la Caja Chica ---
 		NotaInventarioDetalleDto ni = despachoService.crearNotaInventario(req,
@@ -172,13 +177,19 @@ class CajaChicaTest {
 				prioridad, requerida);
 	}
 
+	/** Item sin stock: su faltante queda como necesidad por decidir ruta (DEC-L039). */
 	private UUID crearItem(UUID req, String sku, String variante, int qty) {
 		UUID producto = jdbc.queryForObject("select product_id from producto where sku_base = ?", UUID.class, sku);
 		UUID var = jdbc.queryForObject("select variant_id from producto_variante where internal_variant_code = ?", UUID.class, variante);
 		UUID uom = jdbc.queryForObject("select base_uom_id from producto where product_id = ?", UUID.class, producto);
-		return jdbc.queryForObject("""
+		UUID item = jdbc.queryForObject("""
 				insert into requerimiento_item (request_id, product_id, variant_id, uom_id, qty_requested)
 				values (?, ?, ?, ?, ?) returning request_item_id""", UUID.class, req, producto, var, uom, qty);
+		jdbc.update("""
+				insert into necesidad_compra (request_item_id, company_id, product_id, variant_id, uom_id, qty, status)
+				select ?, r.company_id, ?, ?, ?, ?, 'PENDIENTE_RUTA' from requerimiento r where r.request_id = ?""",
+				item, producto, var, uom, qty, req);
+		return item;
 	}
 
 	private UUID usuario(String correo) {

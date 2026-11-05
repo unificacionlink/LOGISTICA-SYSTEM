@@ -7,10 +7,9 @@ import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.Aprobacion;
 import com.tdem.logistica.entity.Requerimiento;
-import com.tdem.logistica.entity.Usuario;
 import com.tdem.logistica.modules.aprobaciones.dto.AprobacionPendienteDto;
 import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
-import com.tdem.logistica.modules.compras.ComprasService;
+import com.tdem.logistica.modules.compras.AbastecimientoService;
 import com.tdem.logistica.modules.requerimientos.RequerimientoMapper;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.modules.stock.StockService;
@@ -41,7 +40,7 @@ public class AprobacionService {
     private final RealtimeNotifier realtimeNotifier;
     private final UsuarioRepository usuarioRepository;
     private final StockService stockService;
-    private final ComprasService comprasService;
+    private final AbastecimientoService abastecimientoService;
     private final AmbitoAprobacion ambito;
 
     public AprobacionService(
@@ -50,14 +49,14 @@ public class AprobacionService {
             RealtimeNotifier realtimeNotifier,
             UsuarioRepository usuarioRepository,
             StockService stockService,
-            ComprasService comprasService,
+            AbastecimientoService abastecimientoService,
             AmbitoAprobacion ambito) {
         this.aprobacionRepository = aprobacionRepository;
         this.requerimientoRepository = requerimientoRepository;
         this.realtimeNotifier = realtimeNotifier;
         this.usuarioRepository = usuarioRepository;
         this.stockService = stockService;
-        this.comprasService = comprasService;
+        this.abastecimientoService = abastecimientoService;
         this.ambito = ambito;
     }
 
@@ -130,13 +129,12 @@ public class AprobacionService {
             // RF-006: vuelve al solicitante; al reenviarlo se crea otra aprobacion PENDIENTE.
             requerimiento.setStatus(EstadoRequerimiento.OBSERVADO);
         } else {
-            // DEC-L018: sin verificacion manual. Se aparta lo disponible (RF-009),
-            // el faltante se cotiza solo al proveedor habitual (RF-010) y el REQ
-            // queda en atencion. PARCIAL/COMPLETA salen de las entregas (RF-079).
-            Usuario aprobador = usuarioRepository.findById(principal.userId())
-                    .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
+            // Sin verificacion manual: se aparta lo disponible (RF-009) y el
+            // faltante de cada item crea su necesidad de compra, que entra sola
+            // al consolidado de su SKU o espera la ruta (DEC-L039). PARCIAL/
+            // COMPLETA salen de las entregas (RF-079).
             stockService.reservarDisponible(requerimiento);
-            comprasService.crearRfqsAutomaticas(requerimiento, aprobador);
+            abastecimientoService.generarNecesidades(requerimiento);
             requerimiento.setStatus(EstadoRequerimiento.EN_ATENCION);
         }
         requerimientoRepository.save(requerimiento);

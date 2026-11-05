@@ -18,7 +18,8 @@ import CatalogoProductos from "./pages/CatalogoProductos";
 import Proveedores from "./pages/Proveedores";
 import ProveedorForm from "./pages/ProveedorForm";
 import Compras from "./pages/Compras";
-import ComprasRfqNuevo from "./pages/ComprasRfqNuevo";
+import ComprasCajaChica from "./pages/ComprasCajaChica";
+import ComprasConsolidado from "./pages/ComprasConsolidado";
 import ComprasRfqDetalle from "./pages/ComprasRfqDetalle";
 import ComprasOrdenes from "./pages/ComprasOrdenes";
 import ComprasOrdenDetalle from "./pages/ComprasOrdenDetalle";
@@ -55,7 +56,8 @@ export default function App() {
               <Route path="/proveedores/nuevo" element={<ProveedorForm />} />
               <Route path="/proveedores/:id/editar" element={<ProveedorForm />} />
               <Route path="/compras" element={<Compras />} />
-              <Route path="/compras/requerimientos/:id/rfq/nuevo" element={<ComprasRfqNuevo />} />
+              <Route path="/compras/requerimientos/:id/caja-chica" element={<ComprasCajaChica />} />
+              <Route path="/compras/consolidados/:id" element={<ComprasConsolidado />} />
               <Route path="/compras/rfq/:id" element={<ComprasRfqDetalle />} />
               <Route path="/compras/ordenes" element={<ComprasOrdenes />} />
               <Route path="/compras/ordenes/:id" element={<ComprasOrdenDetalle />} />

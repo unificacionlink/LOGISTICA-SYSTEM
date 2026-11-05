@@ -408,7 +408,7 @@ export default function Dashboard() {
             <Panel titulo="Desempeño de proveedores" nota="RFQ recibidas, % respondidas, días en responder y veces elegido.">
               <TablaProveedores filas={data.proveedores} />
             </Panel>
-            <Panel titulo="Comparativo de cotizaciones" nota="Oferta elegida frente a la más cara del mismo requerimiento.">
+            <Panel titulo="Comparativo de cotizaciones" nota="Oferta adjudicada frente a la más cara del mismo consolidado.">
               <TablaComparativos filas={data.comparativos} />
             </Panel>
           </div>

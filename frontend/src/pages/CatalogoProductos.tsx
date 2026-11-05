@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Clock, Images, Loader2, PackagePlus, Plus, Search, Upload } from "lucide-react";
-import { asignarProveedorHabitual, listarProveedoresHabituales } from "../api/compras";
+import { Clock, Images, Loader2, PackagePlus, Plus, Search, Truck, Upload } from "lucide-react";
+import { guardarProveedoresProducto, listarProveedoresProducto } from "../api/compras";
 import { listarProveedores } from "../api/proveedores";
 import {
   configurarPlazo,
@@ -28,6 +28,7 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import BandejaSolicitudes, { PENDIENTE } from "../components/maestro/BandejaSolicitudes";
+import DialogoProveedores from "../components/maestro/DialogoProveedores";
 import DialogoValor from "../components/maestro/DialogoValor";
 import NuevoProducto from "../components/maestro/NuevoProducto";
 import { Card } from "../components/ui/Card";
@@ -92,10 +93,9 @@ export default function CatalogoProductos() {
   const [errorSubida, setErrorSubida] = useState<string | null>(null);
   const inputArchivoRef = useRef<HTMLInputElement | null>(null);
   const productoParaSubirRef = useRef<string | null>(null);
-  // Proveedor habitual (DEC-L018): destino de la RFQ automatica del faltante.
+  // Proveedores habilitados por producto (DEC-L039): la RFQ del consolidado va a todos.
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [habitualPorProducto, setHabitualPorProducto] = useState<Record<string, string>>({});
-  const [guardandoProveedor, setGuardandoProveedor] = useState<string | null>(null);
+  const [coberturaPorProducto, setCoberturaPorProducto] = useState<Record<string, string[]>>({});
   // Maestro (DEC-L025): alta de SKU y bandeja de solicitudes, en su propia pestana.
   const [params, setParams] = useSearchParams();
   const pestana = params.get("tab") === "solicitudes" ? "solicitudes" : "productos";
@@ -107,7 +107,7 @@ export default function CatalogoProductos() {
   const [empresaPrecios, setEmpresaPrecios] = useState("");
   const [precios, setPrecios] = useState<Record<string, PrecioVenta>>({});
   const [soloSinPrecio, setSoloSinPrecio] = useState(false);
-  const [editando, setEditando] = useState<{ tipo: "precio" | "plazo"; producto: ProductoCatalogo } | null>(null);
+  const [editando, setEditando] = useState<{ tipo: "precio" | "plazo" | "proveedores"; producto: ProductoCatalogo } | null>(null);
 
   function cargarCatalogo() {
     return obtenerCatalogoFormulario()
@@ -188,33 +188,21 @@ export default function CatalogoProductos() {
     listarProveedores().then((res) => {
       if (res.ok && res.result) setProveedores(res.result.filter((pr) => pr.active));
     });
-    listarProveedoresHabituales().then((res) => {
+    listarProveedoresProducto().then((res) => {
       if (res.ok && res.result) {
-        const mapa: Record<string, string> = {};
-        for (const h of res.result) if (h.supplierId) mapa[h.productId] = h.supplierId;
-        setHabitualPorProducto(mapa);
+        const mapa: Record<string, string[]> = {};
+        for (const c of res.result) (mapa[c.productId] ??= []).push(c.supplierId);
+        setCoberturaPorProducto(mapa);
       }
     });
   }, [puedeEditarImagenes]);
 
-  async function onCambiarProveedor(productId: string, supplierId: string) {
-    setGuardandoProveedor(productId);
-    setErrorSubida(null);
-    try {
-      const res = await asignarProveedorHabitual(productId, supplierId || null);
-      if (!res.ok) {
-        setErrorSubida(res.message);
-        return;
-      }
-      setHabitualPorProducto((prev) => {
-        const nuevo = { ...prev };
-        if (supplierId) nuevo[productId] = supplierId;
-        else delete nuevo[productId];
-        return nuevo;
-      });
-    } finally {
-      setGuardandoProveedor(null);
-    }
+  async function onGuardarProveedores(p: ProductoCatalogo, supplierIds: string[]): Promise<string | null> {
+    const res = await guardarProveedoresProducto(p.productId, supplierIds);
+    if (!res.ok) return res.message;
+    setCoberturaPorProducto((prev) => ({ ...prev, [p.productId]: (res.result ?? []).map((c) => c.supplierId) }));
+    setExito(`${p.skuBase}: ${supplierIds.length === 0 ? "sin proveedores habilitados" : `${supplierIds.length} proveedor(es) habilitado(s)`}.`);
+    return null;
   }
 
   const filtrados = useMemo(() => {
@@ -384,6 +372,12 @@ export default function CatalogoProductos() {
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="font-mono text-xs text-slate-500">{p.skuBase}</span>
                             <Badge tone="gris">{etiquetaFamilia(p.tipoNombre, p.familiaNombre)}</Badge>
+                            {puedeEditarImagenes && (coberturaPorProducto[p.productId]?.length ?? 0) > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-slate-500" title="Proveedores habilitados">
+                                <Truck className="size-3.5" />
+                                {coberturaPorProducto[p.productId].length}
+                              </span>
+                            )}
                             {p.plazoAtencionDias != null && (
                               <span className="flex items-center gap-1 text-xs text-slate-500" title="Plazo de atención">
                                 <Clock className="size-3.5" />
@@ -408,23 +402,6 @@ export default function CatalogoProductos() {
                           </Button>
                         )}
                         {puedeEditarImagenes && (
-                          <select
-                            value={habitualPorProducto[p.productId] ?? ""}
-                            onChange={(e) => onCambiarProveedor(p.productId, e.target.value)}
-                            disabled={guardandoProveedor === p.productId}
-                            title="Proveedor habitual"
-                            aria-label={`Proveedor habitual de ${p.skuBase}`}
-                            className={`${inputClass} hidden w-52 shrink-0 py-1.5 text-xs sm:block`}
-                          >
-                            <option value="">Sin proveedor habitual</option>
-                            {proveedores.map((pr) => (
-                              <option key={pr.supplierId} value={pr.supplierId}>
-                                {pr.legalName}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        {puedeEditarImagenes && (
                           <button
                             type="button"
                             onClick={() => abrirSelectorArchivo(p.productId)}
@@ -445,6 +422,7 @@ export default function CatalogoProductos() {
                               ...(puedeEditarPrecio
                                 ? [{ label: "Precio de venta", onClick: () => setEditando({ tipo: "precio", producto: p }) }]
                                 : []),
+                              { label: "Proveedores", onClick: () => setEditando({ tipo: "proveedores", producto: p }) },
                               { label: "Plazo de atención", onClick: () => setEditando({ tipo: "plazo", producto: p }) },
                               { label: "Inactivar producto", peligro: true, onClick: () => onInactivar(p.productId, p.skuBase) },
                             ]}
@@ -467,6 +445,15 @@ export default function CatalogoProductos() {
       </>
       )}
 
+      {editando?.tipo === "proveedores" && (
+        <DialogoProveedores
+          titulo={`Proveedores · ${editando.producto.skuBase}`}
+          proveedores={proveedores}
+          seleccionInicial={coberturaPorProducto[editando.producto.productId] ?? []}
+          onGuardar={(ids) => onGuardarProveedores(editando.producto, ids)}
+          onCerrar={() => setEditando(null)}
+        />
+      )}
       {editando?.tipo === "precio" && (
         <DialogoValor
           titulo={`Precio de venta · ${editando.producto.skuBase}`}

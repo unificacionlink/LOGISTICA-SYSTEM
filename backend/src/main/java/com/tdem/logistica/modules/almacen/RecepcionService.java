@@ -5,6 +5,7 @@ import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.almacen.dto.*;
 import com.tdem.logistica.modules.compras.ComprasMapper;
+import com.tdem.logistica.modules.compras.OrigenCompras;
 import com.tdem.logistica.modules.compras.dto.OrdenDto;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -44,6 +45,8 @@ public class RecepcionService {
     private final MovimientoInventarioRepository movimientoRepository;
     private final ReservaStockRepository reservaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final NecesidadCompraRepository necesidadRepository;
+    private final OrigenCompras origen;
 
     public RecepcionService(OrdenAbastecimientoRepository ordenRepository,
                             OrdenItemRepository ordenItemRepository,
@@ -54,7 +57,9 @@ public class RecepcionService {
                             AlmacenRepository almacenRepository,
                             MovimientoInventarioRepository movimientoRepository,
                             ReservaStockRepository reservaRepository,
-                            UsuarioRepository usuarioRepository) {
+                            UsuarioRepository usuarioRepository,
+                            NecesidadCompraRepository necesidadRepository,
+                            OrigenCompras origen) {
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.recepcionRepository = recepcionRepository;
@@ -65,6 +70,8 @@ public class RecepcionService {
         this.movimientoRepository = movimientoRepository;
         this.reservaRepository = reservaRepository;
         this.usuarioRepository = usuarioRepository;
+        this.necesidadRepository = necesidadRepository;
+        this.origen = origen;
     }
 
     static void exigirLogisticaOAdmin(UsuarioPrincipal principal) {
@@ -75,8 +82,11 @@ public class RecepcionService {
 
     public List<OrdenDto> listarPorRecibir(UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
-        return ordenRepository.findByStatusInConDetalle(ESTADOS_POR_RECIBIR).stream()
-                .map(ComprasMapper::toDto)
+        List<OrdenAbastecimiento> ordenes = ordenRepository.findByStatusInConDetalle(ESTADOS_POR_RECIBIR);
+        Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deOrdenes(
+                ordenes.stream().map(OrdenAbastecimiento::getOrderId).toList());
+        return ordenes.stream()
+                .map(o -> ComprasMapper.toDto(o, refs.getOrDefault(o.getOrderId(), List.of())))
                 .toList();
     }
 
@@ -104,7 +114,7 @@ public class RecepcionService {
                 .map(AlmacenMapper::toDto)
                 .toList();
 
-        return new RecepcionOrdenDto(ComprasMapper.toDto(orden), orden.getProveedor().getRuc(),
+        return new RecepcionOrdenDto(ComprasMapper.toDto(orden, origen.deOrden(orderId)), orden.getProveedor().getRuc(),
                 items, recepciones, incidencias);
     }
 
@@ -262,7 +272,11 @@ public class RecepcionService {
         guiaRepository.save(g);
     }
 
-    /** ENTRADA en el kardex + reserva para el item de requerimiento que origino la compra. */
+    /**
+     * ENTRADA en el kardex + reserva para los requerimientos que originaron la
+     * compra: lo recibido de un consolidado se reparte entre sus necesidades
+     * (critica, urgente, normal; luego la mas antigua). Lo que sobre queda libre.
+     */
     private void ingresarAStock(RecepcionItem ri, OrdenItem oi, Almacen almacen, Usuario usuario, Recepcion recepcion) {
         if (oi.getProducto() == null) {
             // Todas las lineas de OC de este backend son producto fisico (V7); defensa por si cambia.
@@ -282,13 +296,44 @@ public class RecepcionService {
         mov.setCreatedBy(usuario);
         movimientoRepository.save(mov);
 
+        if (oi.getConsolidacion() == null) {
+            // OC previa al Lote 16 sin consolidado (no deberia quedar ninguna tras V20).
+            reservar(ri, oi, almacen, oi.getRequerimientoItem(), null, ri.getQtyReceived());
+            return;
+        }
+        List<NecesidadCompra> needs = necesidadRepository.findByConsolidaciones(
+                List.of(oi.getConsolidacion().getConsolidationId()));
+        Map<UUID, BigDecimal> asignado = new HashMap<>();
+        if (!needs.isEmpty()) {
+            for (Object[] fila : reservaRepository.sumarRecibidoPorNecesidad(
+                    needs.stream().map(NecesidadCompra::getNeedId).toList())) {
+                asignado.put((UUID) fila[0], (BigDecimal) fila[1]);
+            }
+        }
+        BigDecimal libre = ri.getQtyReceived();
+        for (NecesidadCompra n : needs) {
+            if (libre.signum() <= 0) {
+                break;
+            }
+            BigDecimal falta = n.getQty().subtract(asignado.getOrDefault(n.getNeedId(), BigDecimal.ZERO));
+            BigDecimal toma = falta.min(libre);
+            if (toma.signum() > 0) {
+                reservar(ri, oi, almacen, n.getRequerimientoItem(), n, toma);
+                libre = libre.subtract(toma);
+            }
+        }
+    }
+
+    private void reservar(RecepcionItem ri, OrdenItem oi, Almacen almacen, RequerimientoItem item,
+                          NecesidadCompra necesidad, BigDecimal qty) {
         ReservaStock reserva = new ReservaStock();
         reserva.setReservationId(UUID.randomUUID());
-        reserva.setRequerimientoItem(oi.getRequerimientoItem());
+        reserva.setRequerimientoItem(item);
+        reserva.setNecesidad(necesidad);
         reserva.setAlmacen(almacen);
         reserva.setProducto(oi.getProducto());
         reserva.setVariante(oi.getVariante());
-        reserva.setQtyReserved(ri.getQtyReceived());
+        reserva.setQtyReserved(qty);
         reserva.setStatus("RESERVADA");
         reserva.setOrigin(ReservaStock.ORIGEN_RECEPCION_OC);
         reserva.setRecepcionItem(ri);

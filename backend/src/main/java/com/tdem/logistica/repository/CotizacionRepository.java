@@ -14,7 +14,7 @@ public interface CotizacionRepository extends JpaRepository<Cotizacion, UUID> {
             "where c.rfq.rfqId = :rfqId order by c.total")
     List<Cotizacion> findByRfq(UUID rfqId);
 
-    @Query("select c from Cotizacion c join fetch c.rfq r join fetch r.requerimiento " +
+    @Query("select c from Cotizacion c join fetch c.rfq r join fetch r.empresa " +
             "join fetch c.proveedor join fetch c.moneda where c.quotationId = :quotationId")
     Optional<Cotizacion> findDetalleById(UUID quotationId);
 }

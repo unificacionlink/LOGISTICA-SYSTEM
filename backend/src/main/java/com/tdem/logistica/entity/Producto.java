@@ -41,11 +41,6 @@ public class Producto {
     @Column(name = "active", nullable = false)
     private boolean active;
 
-    /** Destino de la RFQ automatica por faltante (DEC-L018). */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "preferred_supplier_id")
-    private Proveedor proveedorHabitual;
-
     /** Plazo de atencion en dias calendario; null = sin configurar (DEC-L035). */
     @Column(name = "attention_days")
     private Integer attentionDays;

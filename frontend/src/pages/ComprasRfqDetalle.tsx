@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, FileText, Plus, ScanText, Upload, X } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { ChevronDown, FileText, Mail, MessageCircle, Plus, ScanText, Upload, X } from "lucide-react";
 import {
   cerrarRfq,
+  confirmarEnvioRfq,
   descartarCotizacion,
   extraerOcrCotizacion,
   listarMonedas,
   obtenerRfq,
   registrarCotizacion,
-  seleccionarCotizacion,
   subirDocumentoCotizacion,
 } from "../api/compras";
 import type { Moneda, OcrCotizacion, RfqDetalle } from "../api/types";
@@ -24,6 +24,30 @@ import BotonDescarga from "../components/BotonDescarga";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import { descargarPdfRfq } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
+import { cantidad } from "../components/compras/etiquetas";
+
+/** Texto de la solicitud para correo o WhatsApp (no constituye orden de compra). */
+function mensajeSolicitud(d: RfqDetalle): string {
+  const lineas = d.items.map(
+    (it) =>
+      `- ${it.codigoVariante ?? it.skuBase} | ${it.nombreProducto}${it.atributo ? ` (${it.atributo})` : ""} | ${cantidad(it.qty)} ${it.unidadMedida}` +
+      (it.technicalSpecification ? `\n  Especificación: ${it.technicalSpecification}` : ""),
+  );
+  return [
+    `Solicitud de cotización ${d.rfq.rfqCode} — ${d.empresaCode}`,
+    "",
+    ...lineas,
+    "",
+    "Indicar precio unitario por producto, moneda, condición de pago, plazo y lugar de entrega, y vigencia de la oferta.",
+    "Esta solicitud no constituye una orden de compra.",
+  ].join("\n");
+}
+
+function telefonoWhatsapp(tel: string | null): string | null {
+  const digitos = (tel ?? "").replace(/\D/g, "");
+  if (digitos.length === 9) return `51${digitos}`;
+  return digitos.length >= 10 && digitos.length <= 15 ? digitos : null;
+}
 
 interface FilaCotizacion {
   unitCost: string;
@@ -34,7 +58,7 @@ interface FilaCotizacion {
 export default function ComprasRfqDetalle() {
   const confirmar = useConfirmar();
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const [canal, setCanal] = useState<"CORREO" | "WHATSAPP" | "OTRO">("CORREO");
 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -210,15 +234,18 @@ export default function ComprasRfqDetalle() {
     }
   }
 
-  async function onSeleccionar(cotizacionId: string) {
-    setProcesandoId(cotizacionId);
+  async function onConfirmarEnvio() {
+    if (!id) return;
+    const r = await confirmar({
+      titulo: "¿Confirmas que ya enviaste la solicitud al proveedor?",
+      confirmar: "Confirmar envío",
+    });
+    if (!r) return;
+    setProcesandoId("__enviar__");
     try {
-      const res = await seleccionarCotizacion(cotizacionId);
-      if (!res.ok || !res.result) {
-        setError(res.message);
-        return;
-      }
-      navigate(`/compras/ordenes/${res.result.orderId}`);
+      const res = await confirmarEnvioRfq(id, canal);
+      if (res.ok) await cargar();
+      else setError(res.message);
     } finally {
       setProcesandoId(null);
     }
@@ -243,15 +270,21 @@ export default function ComprasRfqDetalle() {
 
   const { rfq, cotizaciones } = detalle;
   const rfqCerrada = rfq.status === "CERRADA";
-  const mostrarForm = !rfqCerrada && (formAbierto ?? cotizaciones.length === 0);
+  const porEnviar = rfq.status === "BORRADOR";
+  const mostrarForm = !rfqCerrada && !porEnviar && (formAbierto ?? cotizaciones.length === 0);
+  const mensaje = mensajeSolicitud(detalle);
+  const whatsapp = telefonoWhatsapp(detalle.proveedorTelefono);
+  const consolidados = Array.from(
+    new Map(items.filter((it) => it.consolidationId).map((it) => [it.consolidationId!, it])).values(),
+  );
 
   return (
     <div>
       <PageHeader
         title={<span className="font-mono">{rfq.rfqCode}</span>}
-        subtitle={`${rfq.proveedorNombre} · Requerimiento ${rfq.requestCode}`}
-        backTo={`/requerimientos/${rfq.requestId}`}
-        backLabel="Requerimiento"
+        subtitle={`${rfq.proveedorNombre} · ${rfq.empresaCode}${rfq.requestCode ? ` · ${rfq.requestCode}` : ""}`}
+        backTo="/compras?tab=solicitudes"
+        backLabel="Solicitudes"
         actions={
           <>
             <RfqEstadoBadge estado={rfq.status} />
@@ -269,6 +302,58 @@ export default function ComprasRfqDetalle() {
 
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
 
+      {porEnviar && (
+        <Card className="mb-6">
+          <CardBody className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 text-sm">
+              <p className="font-medium text-slate-900">{detalle.proveedorContacto ?? rfq.proveedorNombre}</p>
+              <p className="text-xs text-slate-500">
+                {[detalle.proveedorEmail, detalle.proveedorTelefono].filter(Boolean).join(" · ") || "Sin datos de contacto"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs font-medium">
+                {detalle.proveedorEmail && (
+                  <a
+                    href={`mailto:${detalle.proveedorEmail}?subject=${encodeURIComponent(`Solicitud de cotización ${rfq.rfqCode}`)}&body=${encodeURIComponent(mensaje)}`}
+                    className="inline-flex items-center gap-1 text-brand-600 hover:text-brand-700"
+                    onClick={() => setCanal("CORREO")}
+                  >
+                    <Mail className="size-3.5" />
+                    Abrir correo
+                  </a>
+                )}
+                {whatsapp && (
+                  <a
+                    href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(mensaje)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-brand-600 hover:text-brand-700"
+                    onClick={() => setCanal("WHATSAPP")}
+                  >
+                    <MessageCircle className="size-3.5" />
+                    Abrir WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <select
+                aria-label="Canal de envío"
+                value={canal}
+                onChange={(e) => setCanal(e.target.value as typeof canal)}
+                className={`${inputClass} py-1.5`}
+              >
+                <option value="CORREO">Correo</option>
+                <option value="WHATSAPP">WhatsApp</option>
+                <option value="OTRO">Otro</option>
+              </select>
+              <Button size="sm" loading={procesandoId === "__enviar__"} onClick={onConfirmarEnvio}>
+                Confirmar envío
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       <Card className="mb-6 overflow-hidden">
         <CardBody className="pb-3">
           <div className="rotulo">Items ({items.length})</div>
@@ -280,7 +365,8 @@ export default function ComprasRfqDetalle() {
                 <th className="px-5 py-2.5">SKU</th>
                 <th className="px-5 py-2.5">Producto</th>
                 <th className="px-5 py-2.5">Cantidad</th>
-                <th className="px-5 py-2.5">Especificación</th>
+                <th className="px-5 py-2.5 col-sec">Especificación</th>
+                <th className="px-5 py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -291,7 +377,17 @@ export default function ComprasRfqDetalle() {
                   <td className="px-5 py-2.5 text-slate-600">
                     {it.qty} {it.unidadMedida}
                   </td>
-                  <td className="col-flex px-5 py-2.5 text-slate-500" title={String(it.technicalSpecification ?? "—")}>{it.technicalSpecification ?? "—"}</td>
+                  <td className="col-sec col-flex px-5 py-2.5 text-slate-500" title={String(it.technicalSpecification ?? "—")}>{it.technicalSpecification ?? "—"}</td>
+                  <td className="whitespace-nowrap px-5 py-2.5 text-right">
+                    {it.consolidationId && (
+                      <Link
+                        to={`/compras/consolidados/${it.consolidationId}`}
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                      >
+                        Comparar
+                      </Link>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -302,7 +398,7 @@ export default function ComprasRfqDetalle() {
       <Card className="mb-6">
         <CardHeader className="flex items-center justify-between">
           <h2 className="font-semibold text-slate-900">Cotizaciones recibidas</h2>
-          {!rfqCerrada && !mostrarForm && (
+          {!rfqCerrada && !porEnviar && !mostrarForm && (
             <Button size="sm" variant="secondary" icon={<Plus className="size-4" />} onClick={() => setFormAbierto(true)}>
               Registrar cotización
             </Button>
@@ -310,7 +406,9 @@ export default function ComprasRfqDetalle() {
         </CardHeader>
         <CardBody className="flex flex-col gap-4">
           {cotizaciones.length === 0 ? (
-            <p className="text-sm text-slate-500">Todavía no se registró ninguna cotización.</p>
+            <p className="text-sm text-slate-500">
+              {porEnviar ? "Confirma el envío para registrar la respuesta." : "Todavía no se registró ninguna cotización."}
+            </p>
           ) : (
             cotizaciones.map((c) => (
               <div key={c.quotationId} className="rounded-lg border border-slate-200 p-4">
@@ -336,23 +434,14 @@ export default function ComprasRfqDetalle() {
                     )}
                   </div>
                   {c.status !== "SELECCIONADA" && c.status !== "DESCARTADA" && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        loading={procesandoId === c.quotationId}
-                        onClick={() => onSeleccionar(c.quotationId)}
-                      >
-                        Seleccionar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={procesandoId === c.quotationId}
-                        onClick={() => onDescartar(c.quotationId)}
-                      >
-                        Descartar
-                      </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={procesandoId === c.quotationId}
+                      onClick={() => onDescartar(c.quotationId)}
+                    >
+                      Descartar
+                    </Button>
                   )}
                 </div>
                 <ul className="mt-3 flex flex-col gap-1 text-xs text-slate-500">
@@ -366,6 +455,14 @@ export default function ComprasRfqDetalle() {
                 </ul>
               </div>
             ))
+          )}
+          {cotizaciones.length > 0 && consolidados.length === 1 && (
+            <Link
+              to={`/compras/consolidados/${consolidados[0].consolidationId}`}
+              className="self-start text-sm font-medium text-brand-600 hover:text-brand-700"
+            >
+              Comparar y adjudicar
+            </Link>
           )}
         </CardBody>
       </Card>

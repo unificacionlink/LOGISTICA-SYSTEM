@@ -28,8 +28,12 @@ public class RfqItem {
     private Rfq rfq;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "request_item_id", nullable = false)
+    @JoinColumn(name = "request_item_id")
     private RequerimientoItem requerimientoItem;
+    /** Consolidado que cotiza esta linea (DEC-L039). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "consolidation_id")
+    private Consolidacion consolidacion;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)

@@ -136,10 +136,10 @@ export interface SaldoStock {
   disponible: number;
 }
 
-export interface ProveedorHabitual {
+export interface ProveedorProducto {
   productId: string;
-  supplierId: string | null;
-  proveedorNombre: string | null;
+  supplierId: string;
+  proveedorNombre: string;
 }
 
 export interface SaldoAjustado {
@@ -189,10 +189,13 @@ export interface ItemPendienteCompra {
 export interface Rfq {
   rfqId: string;
   rfqCode: string;
-  requestId: string;
-  requestCode: string;
+  /** Solo si cotiza un unico requerimiento. */
+  requestId: string | null;
+  /** Codigos de los requerimientos de origen, separados por coma. */
+  requestCode: string | null;
   supplierId: string;
   proveedorNombre: string;
+  empresaCode: string;
   issueDate: string;
   paymentCondition: string | null;
   deliveryMode: string | null;
@@ -201,11 +204,14 @@ export interface Rfq {
   currencyRequested: string | null;
   status: EstadoRfq;
   createdAt: string;
+  sentAt: string | null;
+  sentChannel: "CORREO" | "WHATSAPP" | "OTRO" | null;
 }
 
 export interface RfqItem {
   rfqItemId: string;
-  requestItemId: string;
+  consolidationId: string | null;
+  consolidationCode: string | null;
   skuBase: string;
   nombreProducto: string;
   atributo: string | null;
@@ -255,19 +261,146 @@ export interface RfqDetalle {
   cotizaciones: Cotizacion[];
   proveedorRuc: string | null;
   empresaCode: string;
+  proveedorEmail: string | null;
+  proveedorTelefono: string | null;
+  proveedorContacto: string | null;
 }
 
 export interface ComprasDetalle {
   requerimiento: Requerimiento;
+  /** cantidadPendiente = lo que aun se puede comprar por Caja Chica. */
   items: ItemPendienteCompra[];
   rfqs: Rfq[];
+  necesidades: Necesidad[];
+}
+
+// ---------------------------------------------------------------- Lote 16 (DEC-L039)
+
+export type EstadoNecesidad = "PENDIENTE_RUTA" | "COMPRA" | "CAJA_CHICA" | "ANULADA";
+export type EstadoConsolidado = "ABIERTA" | "EN_COTIZACION" | "ADJUDICADA" | "ORDENADA" | "ANULADA";
+
+export interface Necesidad {
+  needId: string;
+  requestId: string;
+  requestCode: string;
+  empresaCode: string;
+  cecoCode: string;
+  cecoNombre: string;
+  priority: Prioridad;
+  requiredDate: string | null;
+  skuBase: string;
+  codigoVariante: string | null;
+  nombreProducto: string;
+  atributo: string | null;
+  unidadMedida: string;
+  qty: number;
+  status: EstadoNecesidad;
+  suggestedReason: "BAJO_MONTO" | "MISMO_DIA" | "FALLA_PROVEEDOR" | null;
+  consolidationId: string | null;
+  consolidationCode: string | null;
+  consolidationStatus: EstadoConsolidado | null;
+  createdAt: string;
+}
+
+export interface OrigenConsolidado {
+  needId: string;
+  requestId: string;
+  requestCode: string;
+  cecoCode: string;
+  cecoNombre: string;
+  priority: Prioridad;
+  requiredDate: string | null;
+  qty: number;
+}
+
+export interface Adjudicacion {
+  quotationItemId: string;
+  quotationId: string;
+  proveedorNombre: string;
+  currencyCode: string;
+  qty: number;
+  unitCost: number;
+  lineTotal: number;
+}
+
+export interface Consolidado {
+  consolidationId: string;
+  consolidationCode: string;
+  empresaCode: string;
+  productId: string;
+  skuBase: string;
+  codigoVariante: string | null;
+  nombreProducto: string;
+  atributo: string | null;
+  unidadMedida: string;
+  totalQty: number;
+  status: EstadoConsolidado;
+  origenes: OrigenConsolidado[];
+  /** Proveedores habilitados del producto. */
+  proveedores: string[];
+  cotizaciones: number;
+  adjudicado: Adjudicacion | null;
+  createdAt: string;
+}
+
+export interface Oferta {
+  rfqId: string;
+  rfqCode: string;
+  rfqStatus: EstadoRfq;
+  proveedorNombre: string;
+  quotationId: string | null;
+  quotationItemId: string | null;
+  supplierQuoteNumber: string | null;
+  cotizacionStatus: EstadoCotizacion | null;
+  currencyCode: string | null;
+  qty: number;
+  unitCost: number | null;
+  lineTotal: number | null;
+  paymentCondition: string | null;
+  deliveryMode: string | null;
+  leadDays: number | null;
+  offeredBrand: string | null;
+  offeredModel: string | null;
+  documentoUrl: string | null;
+  adjudicada: boolean;
+}
+
+export interface ConsolidadoDetalle {
+  consolidado: Consolidado;
+  ofertas: Oferta[];
+  ultimoCosto: number | null;
+  orderId: string | null;
+  orderCode: string | null;
+}
+
+export interface PorEmitir {
+  quotationId: string;
+  supplierQuoteNumber: string | null;
+  proveedorNombre: string;
+  empresaCode: string;
+  currencyCode: string;
+  paymentCondition: string | null;
+  total: number;
+  lineas: {
+    consolidationId: string;
+    consolidationCode: string;
+    skuBase: string;
+    codigoVariante: string | null;
+    nombreProducto: string;
+    unidadMedida: string;
+    qty: number;
+    unitCost: number;
+    lineTotal: number;
+  }[];
 }
 
 export interface Orden {
   orderId: string;
   orderCode: string;
-  requestId: string;
-  requestCode: string;
+  /** Solo si compra para un unico requerimiento. */
+  requestId: string | null;
+  /** Codigos de los requerimientos de origen, separados por coma. */
+  requestCode: string | null;
   proveedorNombre: string;
   orderType: string;
   issueDate: string;

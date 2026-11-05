@@ -2,18 +2,16 @@ package com.tdem.logistica.modules.compras;
 
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.Auditoria;
-import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
+import com.tdem.logistica.modules.cajachica.CajaChicaService;
 import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.modules.requerimientos.RequerimientoMapper;
-import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import com.tdem.logistica.storage.OcrExtractor;
 import com.tdem.logistica.storage.StorageClient;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,13 +20,8 @@ import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,19 +29,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Logica de negocio de Compras (Lote 5): RFQ -> Cotizaciones -> Orden de
- * Compra, para requerimientos que quedaron con faltante tras la verificacion
- * de stock (EN_ATENCION/ATENCION_PARCIAL). Sin consolidacion cruzada entre
- * requerimientos (ver DEC-L013): una RFQ nace de items de UN solo
- * requerimiento.
+ * RFQ, cotizaciones y ordenes de compra. Desde el Lote 16 (DEC-L039) las RFQ
+ * nacen de consolidados entre requerimientos (AbastecimientoService); aca se
+ * consultan, se registran sus cotizaciones y se gestionan las OC.
  */
 @Service
 @Transactional(readOnly = true)
 public class ComprasService {
-
-    private static final DateTimeFormatter YYYYMMDD = DateTimeFormatter.ofPattern("yyyyMMdd");
-    private static final List<String> ESTADOS_CON_FALTANTE =
-            List.of(EstadoRequerimiento.EN_ATENCION, EstadoRequerimiento.ATENCION_PARCIAL);
 
     // Sin image/svg+xml, mismo criterio que RequerimientoService.subirImagenProducto.
     private static final Map<String, String> EXTENSIONES_COTIZACION_PERMITIDAS = Map.of(
@@ -59,8 +46,8 @@ public class ComprasService {
 
     private final RequerimientoRepository requerimientoRepository;
     private final RequerimientoItemRepository requerimientoItemRepository;
-    private final ReservaStockRepository reservaStockRepository;
-    private final ProveedorRepository proveedorRepository;
+    private final NecesidadCompraRepository necesidadRepository;
+    private final ConsolidacionRepository consolidacionRepository;
     private final MonedaRepository monedaRepository;
     private final RfqRepository rfqRepository;
     private final RfqItemRepository rfqItemRepository;
@@ -69,18 +56,19 @@ public class ComprasService {
     private final OrdenAbastecimientoRepository ordenAbastecimientoRepository;
     private final OrdenItemRepository ordenItemRepository;
     private final RecepcionRepository recepcionRepository;
-    private final ProductoRepository productoRepository;
     private final DocumentoRepository documentoRepository;
     private final UsuarioRepository usuarioRepository;
     private final StorageClient storageClient;
     private final OcrExtractor ocrExtractor;
     private final Auditoria auditoria;
+    private final OrigenCompras origen;
+    private final CajaChicaService cajaChicaService;
 
     public ComprasService(
             RequerimientoRepository requerimientoRepository,
             RequerimientoItemRepository requerimientoItemRepository,
-            ReservaStockRepository reservaStockRepository,
-            ProveedorRepository proveedorRepository,
+            NecesidadCompraRepository necesidadRepository,
+            ConsolidacionRepository consolidacionRepository,
             MonedaRepository monedaRepository,
             RfqRepository rfqRepository,
             RfqItemRepository rfqItemRepository,
@@ -89,16 +77,17 @@ public class ComprasService {
             OrdenAbastecimientoRepository ordenAbastecimientoRepository,
             OrdenItemRepository ordenItemRepository,
             RecepcionRepository recepcionRepository,
-            ProductoRepository productoRepository,
             DocumentoRepository documentoRepository,
             UsuarioRepository usuarioRepository,
             StorageClient storageClient,
             OcrExtractor ocrExtractor,
-            Auditoria auditoria) {
+            Auditoria auditoria,
+            OrigenCompras origen,
+            CajaChicaService cajaChicaService) {
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
-        this.reservaStockRepository = reservaStockRepository;
-        this.proveedorRepository = proveedorRepository;
+        this.necesidadRepository = necesidadRepository;
+        this.consolidacionRepository = consolidacionRepository;
         this.monedaRepository = monedaRepository;
         this.rfqRepository = rfqRepository;
         this.rfqItemRepository = rfqItemRepository;
@@ -107,12 +96,13 @@ public class ComprasService {
         this.ordenAbastecimientoRepository = ordenAbastecimientoRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.recepcionRepository = recepcionRepository;
-        this.productoRepository = productoRepository;
         this.documentoRepository = documentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.storageClient = storageClient;
         this.ocrExtractor = ocrExtractor;
         this.auditoria = auditoria;
+        this.origen = origen;
+        this.cajaChicaService = cajaChicaService;
     }
 
     private void exigirLogisticaOAdmin(UsuarioPrincipal principal) {
@@ -121,174 +111,32 @@ public class ComprasService {
         }
     }
 
-    /**
-     * Solicitado - cubierto con stock existente (Lote 3, reservado o ya
-     * despachado) - en una RFQ activa - ya ordenado. Nunca una columna, igual
-     * que StockService.saldoDisponible. Las reservas creadas al recibir una OC
-     * no se restan: ya estan contadas en "ya ordenado" (DEC-L017). Tampoco las
-     * de Caja Chica: se restan como "comprado por Caja Chica" (DEC-L026).
-     */
-    public BigDecimal pendienteParaCompra(RequerimientoItem item) {
-        BigDecimal reservado = reservaStockRepository.sumarCubiertoPorStockPorItem(item.getRequestItemId());
-        BigDecimal enRfqActivo = rfqItemRepository.sumarQtyEnRfqActivo(item.getRequestItemId());
-        BigDecimal yaOrdenado = ordenItemRepository.sumarQtyOrdenada(item.getRequestItemId());
-        BigDecimal cajaChica = requerimientoItemRepository.sumarCompradoPorCajaChica(item.getRequestItemId());
-        return item.getQtyRequested().subtract(reservado).subtract(enRfqActivo).subtract(yaOrdenado).subtract(cajaChica);
-    }
-
-    public List<RequerimientoDto> listarPendientes(UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
-        List<UUID> ids = requerimientoItemRepository.findRequerimientosConFaltante(ESTADOS_CON_FALTANTE);
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-        return requerimientoRepository.findByIdsConDetalle(ids).stream()
-                .sorted(Comparator.comparing(Requerimiento::getCreatedAt))
-                .map(RequerimientoMapper::toDto)
-                .toList();
-    }
-
+    /** Compras de un requerimiento (detalle del REQ y registro por Caja Chica). */
     public ComprasDetalleDto obtenerDetalleCompra(UUID requestId, UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
         Requerimiento r = requerimientoRepository.findById(requestId)
                 .orElseThrow(() -> ApiException.notFound("Requerimiento no encontrado."));
-
+        Map<UUID, BigDecimal> pendientes = cajaChicaService.pendientesCajaChica(requestId);
         List<ItemPendienteCompraDto> items = requerimientoItemRepository.findByRequerimiento(requestId).stream()
-                .map(i -> ComprasMapper.toDto(i, pendienteParaCompra(i)))
+                .map(i -> ComprasMapper.toDto(i, pendientes.getOrDefault(i.getRequestItemId(), BigDecimal.ZERO)))
                 .toList();
-        List<RfqDto> rfqs = rfqRepository.findByRequestIdOrderByCreatedAtDesc(requestId).stream()
-                .map(ComprasMapper::toDto)
+        List<Rfq> rfqs = rfqRepository.findPorRequerimiento(requestId);
+        Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deRfqs(rfqs.stream().map(Rfq::getRfqId).toList());
+        List<NecesidadDto> necesidades = necesidadRepository.findByRequerimiento(requestId).stream()
+                .filter(n -> !NecesidadCompra.ANULADA.equals(n.getStatus()))
+                .map(n -> ComprasMapper.toDto(n, n.getQty()))
                 .toList();
-        return new ComprasDetalleDto(RequerimientoMapper.toDto(r), items, rfqs);
+        return new ComprasDetalleDto(RequerimientoMapper.toDto(r), items,
+                rfqs.stream().map(q -> ComprasMapper.toDto(q, refs.getOrDefault(q.getRfqId(), List.of()))).toList(),
+                necesidades);
     }
 
-    @Transactional
-    public RfqDto crearRfq(UUID requestId, CrearRfqRequest request, UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
-
-        Requerimiento r = requerimientoRepository.findById(requestId)
-                .orElseThrow(() -> ApiException.notFound("Requerimiento no encontrado."));
-        Proveedor proveedor = proveedorRepository.findById(request.supplierId())
-                .orElseThrow(() -> ApiException.badRequest("Selecciona un proveedor valido."));
-        Usuario usuario = usuarioRepository.findById(principal.userId())
-                .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
-        Moneda moneda = null;
-        if (request.currencyRequested() != null) {
-            moneda = monedaRepository.findById(request.currencyRequested())
-                    .orElseThrow(() -> ApiException.badRequest("Selecciona una moneda valida."));
-        }
-
-        Map<UUID, RequerimientoItem> itemsPorId = requerimientoItemRepository.findByRequerimiento(requestId).stream()
-                .collect(Collectors.toMap(RequerimientoItem::getRequestItemId, i -> i));
-
-        Rfq rfq = nuevaRfq(r, proveedor, usuario);
-        rfq.setPaymentCondition(request.paymentCondition());
-        rfq.setDeliveryMode(request.deliveryMode());
-        rfq.setDeliveryLocation(request.deliveryLocation());
-        rfq.setRequestedLeadDays(request.requestedLeadDays());
-        rfq.setCurrencyRequested(moneda);
-        rfqRepository.save(rfq);
-
-        for (RfqItemInput input : request.items()) {
-            RequerimientoItem item = itemsPorId.get(input.requestItemId());
-            if (item == null) {
-                throw ApiException.badRequest("Uno de los items no pertenece a este requerimiento.");
-            }
-            BigDecimal pendiente = pendienteParaCompra(item);
-            if (input.qty().compareTo(pendiente) > 0) {
-                throw ApiException.badRequest(
-                        "La cantidad a cotizar de " + item.getProducto().getSkuBase()
-                                + " no puede superar lo pendiente de compra (" + pendiente + ").");
-            }
-            guardarRfqItem(rfq, item, input.qty(), input.technicalSpecification());
-        }
-
-        return ComprasMapper.toDto(rfq);
-    }
-
-    /**
-     * DEC-L018: al aprobarse el requerimiento, el faltante (lo no cubierto con
-     * stock) se cotiza solo al proveedor habitual de cada producto; una RFQ
-     * por proveedor. Los items sin proveedor habitual quedan en "Pendientes
-     * de compra" para RFQ manual. Devuelve las RFQ creadas.
-     */
-    @Transactional(propagation = Propagation.MANDATORY)
-    public List<Rfq> crearRfqsAutomaticas(Requerimiento r, Usuario usuario) {
-        Map<UUID, List<RequerimientoItem>> porProveedor = new LinkedHashMap<>();
-        Map<UUID, Proveedor> proveedores = new HashMap<>();
-        for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
-            Proveedor habitual = item.getProducto().getProveedorHabitual();
-            if (habitual != null && habitual.isActive() && pendienteParaCompra(item).signum() > 0) {
-                proveedores.put(habitual.getSupplierId(), habitual);
-                porProveedor.computeIfAbsent(habitual.getSupplierId(), k -> new ArrayList<>()).add(item);
-            }
-        }
-        List<Rfq> creadas = new ArrayList<>();
-        porProveedor.forEach((supplierId, items) -> {
-            Rfq rfq = nuevaRfq(r, proveedores.get(supplierId), usuario);
-            rfqRepository.save(rfq);
-            for (RequerimientoItem item : items) {
-                guardarRfqItem(rfq, item, pendienteParaCompra(item), item.getTechnicalRequirement());
-            }
-            creadas.add(rfq);
-        });
-        return creadas;
-    }
-
-    private Rfq nuevaRfq(Requerimiento r, Proveedor proveedor, Usuario usuario) {
-        Rfq rfq = new Rfq();
-        rfq.setRfqId(UUID.randomUUID());
-        rfq.setRfqCode(generarCodigo("RFQ", r.getEmpresa().getCode()));
-        rfq.setEmpresa(r.getEmpresa());
-        rfq.setRequerimiento(r);
-        rfq.setProveedor(proveedor);
-        rfq.setIssueDate(LocalDate.now());
-        rfq.setStatus("ENVIADA");
-        rfq.setCreatedBy(usuario);
-        return rfq;
-    }
-
-    private void guardarRfqItem(Rfq rfq, RequerimientoItem item, BigDecimal qty, String especificacion) {
-        RfqItem rfqItem = new RfqItem();
-        rfqItem.setRfqItemId(UUID.randomUUID());
-        rfqItem.setRfq(rfq);
-        rfqItem.setRequerimientoItem(item);
-        rfqItem.setProducto(item.getProducto());
-        rfqItem.setVariante(item.getVariante());
-        rfqItem.setUom(item.getUom());
-        rfqItem.setQty(qty);
-        rfqItem.setTechnicalSpecification(especificacion);
-        rfqItemRepository.save(rfqItem);
-    }
-
-    /** RFQ enviadas o respondidas: lo que Logistica tiene que cotizar o decidir. */
+    /** Por enviar, enviadas o respondidas: lo que Logistica tiene que mover. */
     public List<RfqDto> listarRfqsAbiertas(UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
-        return rfqRepository.findAbiertas().stream().map(ComprasMapper::toDto).toList();
-    }
-
-    public List<ProveedorHabitualDto> listarProveedoresHabituales(UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
-        return productoRepository.findConProveedorHabitual().stream()
-                .map(p -> new ProveedorHabitualDto(p.getProductId(), p.getProveedorHabitual().getSupplierId(),
-                        p.getProveedorHabitual().getLegalName()))
-                .toList();
-    }
-
-    @Transactional
-    public ProveedorHabitualDto asignarProveedorHabitual(UUID productId, UUID supplierId, UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
-        Producto producto = productoRepository.findById(productId)
-                .orElseThrow(() -> ApiException.notFound("Producto no encontrado."));
-        Proveedor proveedor = null;
-        if (supplierId != null) {
-            proveedor = proveedorRepository.findById(supplierId)
-                    .filter(Proveedor::isActive)
-                    .orElseThrow(() -> ApiException.badRequest("Selecciona un proveedor activo."));
-        }
-        producto.setProveedorHabitual(proveedor);
-        productoRepository.save(producto);
-        return new ProveedorHabitualDto(productId, supplierId, proveedor != null ? proveedor.getLegalName() : null);
+        List<Rfq> rfqs = rfqRepository.findAbiertas();
+        Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deRfqs(rfqs.stream().map(Rfq::getRfqId).toList());
+        return rfqs.stream().map(q -> ComprasMapper.toDto(q, refs.getOrDefault(q.getRfqId(), List.of()))).toList();
     }
 
     public RfqDetalleDto obtenerRfq(UUID rfqId, UsuarioPrincipal principal) {
@@ -302,8 +150,9 @@ public class ComprasService {
                         .map(ComprasMapper::toDto)
                         .toList()))
                 .toList();
-        return new RfqDetalleDto(ComprasMapper.toDto(rfq), items, cotizaciones, rfq.getProveedor().getRuc(),
-                rfq.getEmpresa().getCode());
+        Proveedor p = rfq.getProveedor();
+        return new RfqDetalleDto(ComprasMapper.toDto(rfq, origen.deRfq(rfqId)), items, cotizaciones, p.getRuc(),
+                rfq.getEmpresa().getCode(), p.getEmail(), p.getWhatsappPhone(), p.getContactName());
     }
 
     @Transactional
@@ -320,7 +169,7 @@ public class ComprasService {
         rfqRepository.save(rfq);
         auditoria.registrar("RFQ", rfqId, "CERRAR", Map.of("estado", anterior),
                 Map.of("estado", "CERRADA", "motivo", motivoLimpio), principal.userId());
-        return ComprasMapper.toDto(rfq);
+        return ComprasMapper.toDto(rfq, origen.deRfq(rfqId));
     }
 
     @Transactional
@@ -428,6 +277,15 @@ public class ComprasService {
             if (!yaCotizados.add(input.rfqItemId())) {
                 throw ApiException.badRequest("No repitas el mismo item cotizado dos veces.");
             }
+            if (input.qty().compareTo(rfqItem.getQty()) > 0) {
+                throw ApiException.badRequest("La cantidad cotizada de " + rfqItem.getProducto().getSkuBase()
+                        + " supera lo solicitado (" + rfqItem.getQty().stripTrailingZeros().toPlainString() + ").");
+            }
+            Consolidacion c = rfqItem.getConsolidacion();
+            if (c != null && !Consolidacion.EN_COTIZACION.equals(c.getStatus())
+                    && !Consolidacion.ADJUDICADA.equals(c.getStatus())) {
+                throw ApiException.badRequest("El consolidado " + c.getConsolidationCode() + " ya no esta en cotizacion.");
+            }
             BigDecimal lineTotal = input.qty().multiply(input.unitCost()).setScale(2, RoundingMode.HALF_UP);
             subtotal = subtotal.add(lineTotal);
 
@@ -469,6 +327,12 @@ public class ComprasService {
         }
 
         if ("ENVIADA".equals(rfq.getStatus()) || "BORRADOR".equals(rfq.getStatus())) {
+            if (rfq.getSentAt() == null) {
+                // Respondio sin que se confirmara el envio: se da por enviada.
+                rfq.setSentAt(Instant.now());
+                rfq.setSentBy(principal.userId());
+                rfq.setSentChannel("OTRO");
+            }
             rfq.setStatus("RESPONDIDA");
             rfqRepository.save(rfq);
         }
@@ -488,6 +352,9 @@ public class ComprasService {
         if ("SELECCIONADA".equals(cotizacion.getStatus())) {
             throw ApiException.badRequest("No puedes descartar una cotizacion ya seleccionada.");
         }
+        if (!consolidacionRepository.bloquearAdjudicadasDe(cotizacionId).isEmpty()) {
+            throw ApiException.badRequest("Tiene productos adjudicados: adjudicalos a otra oferta antes de descartarla.");
+        }
         cotizacion.setStatus("DESCARTADA");
         cotizacionRepository.save(cotizacion);
 
@@ -497,90 +364,12 @@ public class ComprasService {
         return ComprasMapper.toDto(cotizacion, itemDtos);
     }
 
-    /** Emite la Orden de Compra a partir de la cotizacion elegida; descarta a sus hermanas y cierra la RFQ. */
-    @Transactional
-    public OrdenDto seleccionarCotizacion(UUID cotizacionId, UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
-        Cotizacion cotizacion = cotizacionRepository.findDetalleById(cotizacionId)
-                .orElseThrow(() -> ApiException.notFound("Cotizacion no encontrada."));
-        if ("SELECCIONADA".equals(cotizacion.getStatus())) {
-            throw ApiException.badRequest("Esta cotizacion ya fue seleccionada.");
-        }
-        if ("DESCARTADA".equals(cotizacion.getStatus())) {
-            throw ApiException.badRequest("Esta cotizacion fue descartada.");
-        }
-        List<CotizacionItem> items = cotizacionItemRepository.findByCotizacion(cotizacionId);
-        if (items.isEmpty()) {
-            throw ApiException.badRequest("Esta cotizacion no tiene items.");
-        }
-        Usuario usuario = usuarioRepository.findById(principal.userId())
-                .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
-
-        cotizacion.setStatus("SELECCIONADA");
-        cotizacionRepository.save(cotizacion);
-
-        Rfq rfq = cotizacion.getRfq();
-        cotizacionRepository.findByRfq(rfq.getRfqId()).stream()
-                .filter(c -> !c.getQuotationId().equals(cotizacionId))
-                .filter(c -> !"DESCARTADA".equals(c.getStatus()) && !"SELECCIONADA".equals(c.getStatus()))
-                .forEach(c -> {
-                    c.setStatus("DESCARTADA");
-                    cotizacionRepository.save(c);
-                });
-        rfq.setStatus("CERRADA");
-        rfqRepository.save(rfq);
-
-        OrdenAbastecimiento orden = new OrdenAbastecimiento();
-        orden.setOrderId(UUID.randomUUID());
-        orden.setOrderCode(generarCodigo("OC", rfq.getRequerimiento().getEmpresa().getCode()));
-        orden.setEmpresa(rfq.getRequerimiento().getEmpresa());
-        orden.setProveedor(cotizacion.getProveedor());
-        orden.setOrderType("OC_NORMAL");
-        orden.setCotizacion(cotizacion);
-        orden.setIssueDate(LocalDate.now());
-        orden.setPaymentCondition(cotizacion.getPaymentCondition());
-        orden.setDeliveryMode(cotizacion.getDeliveryMode());
-        orden.setDeliveryLocation(rfq.getDeliveryLocation());
-        orden.setMoneda(cotizacion.getMoneda());
-        orden.setSubtotal(cotizacion.getSubtotal());
-        orden.setTaxAmount(cotizacion.getTaxAmount());
-        orden.setTotal(cotizacion.getTotal());
-        orden.setStatus("EMITIDA");
-        orden.setCreatedBy(usuario);
-        ordenAbastecimientoRepository.save(orden);
-
-        for (CotizacionItem ci : items) {
-            RequerimientoItem requerimientoItem = ci.getRfqItem().getRequerimientoItem();
-            String atributo = ci.getVariante() != null ? " (" + ci.getVariante().getAttributeValue() + ")" : "";
-            OrdenItem orderItem = new OrdenItem();
-            orderItem.setOrderItemId(UUID.randomUUID());
-            orderItem.setOrden(orden);
-            orderItem.setRequerimientoItem(requerimientoItem);
-            orderItem.setProducto(ci.getProducto());
-            orderItem.setVariante(ci.getVariante());
-            orderItem.setDescription(ci.getProducto().getName() + atributo);
-            orderItem.setUom(ci.getRfqItem().getUom());
-            orderItem.setQtyOrdered(ci.getQty());
-            orderItem.setUnitCost(ci.getUnitCost());
-            orderItem.setLineSubtotal(ci.getLineTotal());
-            orderItem.setTaxAmount(BigDecimal.ZERO);
-            orderItem.setLineTotal(ci.getLineTotal());
-            ordenItemRepository.save(orderItem);
-
-            // DEC-L018: la primera compra de un SKU fija su proveedor habitual
-            // (la siguiente vez la RFQ sale sola). Editable en el Catalogo.
-            if (ci.getProducto().getProveedorHabitual() == null) {
-                ci.getProducto().setProveedorHabitual(cotizacion.getProveedor());
-                productoRepository.save(ci.getProducto());
-            }
-        }
-
-        return ComprasMapper.toDto(orden);
-    }
-
     public List<OrdenDto> listarOrdenes(UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
-        return ordenAbastecimientoRepository.findAllConDetalle().stream().map(ComprasMapper::toDto).toList();
+        List<OrdenAbastecimiento> ordenes = ordenAbastecimientoRepository.findAllConDetalle();
+        Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deOrdenes(
+                ordenes.stream().map(OrdenAbastecimiento::getOrderId).toList());
+        return ordenes.stream().map(o -> ComprasMapper.toDto(o, refs.getOrDefault(o.getOrderId(), List.of()))).toList();
     }
 
     public OrdenDetalleDto obtenerOrden(UUID orderId, UsuarioPrincipal principal) {
@@ -590,8 +379,8 @@ public class ComprasService {
         List<OrdenItemDto> items = ordenItemRepository.findByOrden(orderId).stream()
                 .map(ComprasMapper::toDto)
                 .toList();
-        return new OrdenDetalleDto(ComprasMapper.toDto(orden), items, orden.getProveedor().getRuc(),
-                orden.getEmpresa().getCode());
+        return new OrdenDetalleDto(ComprasMapper.toDto(orden, origen.deOrden(orderId)), items,
+                orden.getProveedor().getRuc(), orden.getEmpresa().getCode());
     }
 
     @Transactional
@@ -609,9 +398,26 @@ public class ComprasService {
         String anterior = orden.getStatus();
         orden.setStatus("ANULADA");
         ordenAbastecimientoRepository.save(orden);
+        // Sus consolidados vuelven a cotizacion sin adjudicar: se elige otra oferta o se anulan (DEC-L039).
+        for (OrdenItem oi : ordenItemRepository.findByOrden(orderId)) {
+            if (oi.getConsolidacion() == null) {
+                continue;
+            }
+            Consolidacion c = consolidacionRepository.bloquear(oi.getConsolidacion().getConsolidationId()).orElseThrow();
+            if (Consolidacion.ORDENADA.equals(c.getStatus())) {
+                c.setStatus(Consolidacion.EN_COTIZACION);
+                c.setAdjudicado(null);
+                c.setAwardedBy(null);
+                c.setAwardedAt(null);
+            }
+        }
+        Cotizacion cot = orden.getCotizacion();
+        if ("SELECCIONADA".equals(cot.getStatus())) {
+            cot.setStatus("RECIBIDA");
+        }
         auditoria.registrar("ORDEN_ABASTECIMIENTO", orderId, "ANULAR", Map.of("estado", anterior),
                 Map.of("estado", "ANULADA", "motivo", motivoLimpio), principal.userId());
-        return ComprasMapper.toDto(orden);
+        return ComprasMapper.toDto(orden, origen.deOrden(orderId));
     }
 
     /** RF-064: las operaciones irreversibles exigen motivo. */
@@ -625,12 +431,5 @@ public class ComprasService {
     public List<MonedaDto> listarMonedas(UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
         return monedaRepository.findAllByActiveTrueOrderByCurrencyCode().stream().map(ComprasMapper::toDto).toList();
-    }
-
-    /** Codigo legible unico por empresa: <prefijo>-<empresa>-<yyyyMMdd>-<sufijo>. */
-    private String generarCodigo(String prefijo, String empresaCode) {
-        String fecha = LocalDate.now().format(YYYYMMDD);
-        String sufijo = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        return prefijo + "-" + empresaCode + "-" + fecha + "-" + sufijo;
     }
 }
