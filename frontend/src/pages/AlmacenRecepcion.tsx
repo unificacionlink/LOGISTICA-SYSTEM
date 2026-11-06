@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { etiquetaRequerimientos } from "../components/compras/etiquetas";
+import { etiquetaRequerimientos } from "../components/compras/formato";
 import { useParams } from "react-router-dom";
 import { AlertTriangle, PackageOpen } from "lucide-react";
 import {
@@ -16,14 +16,8 @@ import type {
   RecepcionOrden,
   TipoIncidencia,
 } from "../api/types";
-import {
-  ETIQUETA_ACCION_PROVEEDOR,
-  ETIQUETA_TIPO_INCIDENCIA,
-  RecepcionBadge,
-  fmtCantidad,
-  fmtFecha,
-  hoyIso,
-} from "../components/AlmacenBadges";
+import { RecepcionBadge } from "../components/AlmacenBadges";
+import { ETIQUETA_ACCION_PROVEEDOR, ETIQUETA_TIPO_INCIDENCIA, fmtCantidad, fmtFecha, hoyIso } from "../components/formato";
 import OrdenEstadoBadge from "../components/OrdenEstadoBadge";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";

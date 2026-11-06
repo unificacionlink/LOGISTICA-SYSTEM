@@ -123,6 +123,10 @@ public class DespachoService {
         exigirLogisticaOAdmin(principal);
         Requerimiento r = requerimientoRepository.findByIdsConDetalle(List.of(requestId)).stream().findFirst()
                 .orElseThrow(() -> ApiException.notFound("Requerimiento no encontrado."));
+        // Tres consultas por REQ (no tres por item): con la BD lejos, cada ida y vuelta cuesta.
+        Map<UUID, BigDecimal> despachado = porItem(salidaItemRepository.sumarDespachadoPorItem(requestId));
+        Map<UUID, BigDecimal> entregado = porItem(salidaItemRepository.sumarEntregadoPorItem(requestId));
+        Map<UUID, BigDecimal> reservado = porItem(reservaRepository.sumarReservadoPorRequerimiento(requestId));
         List<ItemPorDespacharDto> items = requerimientoItemRepository.findByRequerimiento(requestId).stream()
                 .map(i -> new ItemPorDespacharDto(
                         i.getRequestItemId(),
@@ -132,11 +136,19 @@ public class DespachoService {
                         i.getVariante() != null ? i.getVariante().getInternalVariantCode() : null,
                         i.getUom().getCode(),
                         i.getQtyRequested(),
-                        salidaItemRepository.sumarDespachado(i.getRequestItemId()),
-                        salidaItemRepository.sumarEntregadoConfirmado(i.getRequestItemId()),
-                        reservaRepository.sumarReservadoPorItem(i.getRequestItemId())))
+                        despachado.getOrDefault(i.getRequestItemId(), BigDecimal.ZERO),
+                        entregado.getOrDefault(i.getRequestItemId(), BigDecimal.ZERO),
+                        reservado.getOrDefault(i.getRequestItemId(), BigDecimal.ZERO)))
                 .toList();
         return new DespachoRequerimientoDto(RequerimientoMapper.toDto(r), items, notasDto(notaRepository.findByRequerimiento(requestId)));
+    }
+
+    private static Map<UUID, BigDecimal> porItem(List<Object[]> filas) {
+        Map<UUID, BigDecimal> m = new HashMap<>();
+        for (Object[] f : filas) {
+            m.put((UUID) f[0], (BigDecimal) f[1]);
+        }
+        return m;
     }
 
     public List<NotaInventarioDto> listarNotas(UsuarioPrincipal principal) {

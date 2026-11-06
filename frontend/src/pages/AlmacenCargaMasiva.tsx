@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { CheckCircle2, FileSpreadsheet, Upload, XCircle } from "lucide-react";
 import { confirmarCargaMasiva, descargarPlantillaIngresos, validarCargaMasiva } from "../api/almacen";
 import type { CargaMasiva } from "../api/types";
-import { fmtCantidad } from "../components/AlmacenBadges";
+import { fmtCantidad } from "../components/formato";
 import BotonDescarga from "../components/BotonDescarga";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";

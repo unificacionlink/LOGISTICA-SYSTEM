@@ -7,7 +7,8 @@ import Button from "../ui/Button";
 import Field, { inputClass } from "../ui/Field";
 import { Skeleton } from "../ui/Skeleton";
 import { EstadoSolicitud } from "./BandejaSolicitudes";
-import { ETIQUETA_ATRIBUTO, SelectorFamilia, SelectorUnidad, unidadPorDefecto } from "./SelectoresMaestro";
+import { SelectorFamilia, SelectorUnidad } from "./SelectoresMaestro";
+import { ETIQUETA_ATRIBUTO, unidadPorDefecto } from "./atributos";
 
 /**
  * RF-004: "¿No encuentras el producto?" bajo el buscador del requerimiento.

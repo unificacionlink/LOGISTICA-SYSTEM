@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BellRing, X } from "lucide-react";
-import { useRealtime } from "../realtime/RealtimeProvider";
+import { useRealtime } from "../realtime/useRealtime";
 import { useAuth } from "../auth/AuthContext";
 import type { Requerimiento } from "../api/types";
 import Button from "./ui/Button";

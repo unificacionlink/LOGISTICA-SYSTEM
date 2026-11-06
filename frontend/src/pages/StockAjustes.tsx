@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { obtenerCatalogoFormulario } from "../api/requerimientos";
 import { registrarAjusteStock } from "../api/stock";
 import type { VarianteCatalogo } from "../api/types";
-import { fmtCantidad } from "../components/AlmacenBadges";
+import { fmtCantidad } from "../components/formato";
 import ProductoCombobox from "../components/ProductoCombobox";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";

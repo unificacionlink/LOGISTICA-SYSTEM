@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { etiquetaRequerimientos } from "../components/compras/etiquetas";
+import { etiquetaRequerimientos } from "../components/compras/formato";
 import { useParams } from "react-router-dom";
 import { PackageOpen } from "lucide-react";
 import { anularOrden, obtenerOrden } from "../api/compras";

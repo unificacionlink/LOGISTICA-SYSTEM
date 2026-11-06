@@ -22,7 +22,8 @@ import type {
 } from "../api/types";
 import { CONDICIONES } from "../components/compras/condiciones";
 import EditorCotizacion from "../components/compras/EditorCotizacion";
-import { cantidad, ConsolidadoEstadoBadge, dinero } from "../components/compras/etiquetas";
+import { ConsolidadoEstadoBadge } from "../components/compras/etiquetas";
+import { cantidad, dinero } from "../components/compras/formato";
 import { EMPRESAS } from "../components/empresas";
 import Alert from "../components/ui/Alert";
 import Badge from "../components/ui/Badge";
@@ -69,32 +70,35 @@ export default function ComprasComparativo() {
   const [params] = useSearchParams();
   const ids = useMemo(() => (params.get("ids") ?? "").split(",").filter(Boolean), [params]);
 
-  const [comparativo, setComparativo] = useState<Comparativo | null>(null);
+  const [comparativo, setComparativoBase] = useState<Comparativo | null>(null);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [monedas, setMonedas] = useState<Moneda[]>([]);
   const [porEmitir, setPorEmitir] = useState<PorEmitir[]>([]);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando] = useState(ids.length > 0);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [borradores, setBorradores] = useState<Borrador[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
-  const [seleccion, setSeleccion] = useState<Record<string, string>>({});
+  /** Ganadores elegidos a mano; el resto sale de lo adjudicado o del mejor precio. */
+  const [elecciones, setElecciones] = useState<Record<string, string>>({});
   const [tc, setTc] = useState("");
   const [procesando, setProcesando] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const destino = useRef<Destino>({ tipo: "nuevas" });
   const contador = useRef(0);
 
+  /** Cada comparativo nuevo vuelve a proponer lo adjudicado o el mejor precio. */
+  const setComparativo = useCallback((c: Comparativo) => {
+    setComparativoBase(c);
+    setElecciones({});
+  }, []);
+
   const cargarPorEmitir = useCallback(() => {
     listarPorEmitir().then((res) => res.ok && setPorEmitir(res.result ?? []));
   }, []);
 
   useEffect(() => {
-    if (ids.length === 0) {
-      setError("Elige en Compras los productos que quieres comparar.");
-      setCargando(false);
-      return;
-    }
+    if (ids.length === 0) return;
     Promise.all([obtenerComparativo(ids), listarProveedores(), listarMonedas()])
       .then(([c, p, m]) => {
         if (c.ok && c.result) setComparativo(c.result);
@@ -104,7 +108,7 @@ export default function ComprasComparativo() {
       })
       .finally(() => setCargando(false));
     cargarPorEmitir();
-  }, [ids, cargarPorEmitir]);
+  }, [ids, cargarPorEmitir, setComparativo]);
 
   const cotizadas = useMemo(() => comparativo?.proveedores.filter((c) => c.quotationId) ?? [], [comparativo]);
   const filasCotizables = useMemo(() => comparativo?.filas.filter((f) => EDITABLE.has(f.status)) ?? [], [comparativo]);
@@ -146,15 +150,15 @@ export default function ComprasComparativo() {
     return m;
   }, [comparativo, cotizadas, comparable]);
 
-  // Al cambiar el comparativo, la selección parte de lo adjudicado o, si no hay, del mejor precio.
-  useEffect(() => {
+  // La seleccion parte de lo adjudicado o, si no hay, del mejor precio; lo elegido a mano manda.
+  const seleccion = useMemo(() => {
     const s: Record<string, string> = {};
     for (const f of comparativo?.filas ?? []) {
       const id = f.adjudicadoQuotationItemId ?? mejores[f.consolidationId];
       if (id) s[f.consolidationId] = id;
     }
-    setSeleccion(s);
-  }, [comparativo, mejores]);
+    return { ...s, ...elecciones };
+  }, [comparativo, mejores, elecciones]);
 
   const precioSeleccionado = (consolidationId: string): ComparativoPrecio | null => {
     const id = seleccion[consolidationId];
@@ -353,7 +357,11 @@ export default function ComprasComparativo() {
     return (
       <div>
         <PageHeader title="Comparativo de cotizaciones" backTo="/compras" backLabel="Compras" />
-        <Alert tone="danger">{error ?? "No se pudo abrir el comparativo."}</Alert>
+        <Alert tone="danger">
+          {ids.length === 0
+            ? "Elige en Compras los productos que quieres comparar."
+            : (error ?? "No se pudo abrir el comparativo.")}
+        </Alert>
       </div>
     );
   }
@@ -629,7 +637,7 @@ export default function ComprasComparativo() {
                                 type="button"
                                 disabled={!elegible}
                                 aria-pressed={elegido}
-                                onClick={() => setSeleccion((s) => ({ ...s, [f.consolidationId]: p.quotationItemId }))}
+                                onClick={() => setElecciones((s) => ({ ...s, [f.consolidationId]: p.quotationItemId }))}
                                 className={`flex w-full flex-col items-end rounded-md px-2.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
                                   elegido
                                     ? "bg-brand-50 ring-1 ring-inset ring-brand-300"

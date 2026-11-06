@@ -1,5 +1,6 @@
-import type { EstadoConsolidado, Necesidad, OrigenConsolidado } from "../../api/types";
+import type { EstadoConsolidado, OrigenConsolidado } from "../../api/types";
 import Badge, { type BadgeTone } from "../ui/Badge";
+import { cantidad } from "./formato";
 
 const TONO: Record<EstadoConsolidado, BadgeTone> = {
   ABIERTA: "gris",
@@ -19,27 +20,6 @@ const ETIQUETA: Record<EstadoConsolidado, string> = {
 
 export function ConsolidadoEstadoBadge({ estado }: { estado: EstadoConsolidado }) {
   return <Badge tone={TONO[estado]}>{ETIQUETA[estado]}</Badge>;
-}
-
-export const ETIQUETA_SUGERENCIA: Record<NonNullable<Necesidad["suggestedReason"]>, string> = {
-  BAJO_MONTO: "Bajo monto",
-  MISMO_DIA: "Mismo día",
-  FALLA_PROVEEDOR: "Falla de proveedor",
-};
-
-export function cantidad(n: number): string {
-  return Number(n).toLocaleString("es-PE", { maximumFractionDigits: 3 });
-}
-
-export function dinero(n: number | null | undefined, moneda?: string | null): string {
-  if (n == null) return "—";
-  return `${moneda ?? ""} ${Number(n).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`.trim();
-}
-
-/** "Requerimiento X" o "Requerimientos X, Y" segun cuantos codigos traiga. */
-export function etiquetaRequerimientos(codigos: string | null): string {
-  if (!codigos) return "Sin requerimiento";
-  return codigos.includes(",") ? `Requerimientos ${codigos}` : `Requerimiento ${codigos}`;
 }
 
 /** De que CECO (proyecto) y requerimiento viene cada parte del consolidado. */

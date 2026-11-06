@@ -1192,3 +1192,89 @@ export interface OcrComparativo {
   precios: Record<string, number>;
   textoDetectado: string;
 }
+
+// ---------------------------------------------------------------------------
+// Bandeja operativa de Requerimientos (DEC-L048)
+// ---------------------------------------------------------------------------
+
+export type CodigoAccion =
+  | "DESPACHAR"
+  | "EMITIR_OC"
+  | "ADJUDICAR"
+  | "REGISTRAR_CAJA_CHICA"
+  | "DECIDIR_RUTA"
+  | "PEDIR_COTIZACION"
+  | "ESPERA_COTIZACION"
+  | "RECIBIR_OC"
+  | "CONFIRMAR_ENTREGA"
+  | "APROBACION"
+  | "CORRECCION"
+  | "ENVIAR"
+  | "CORREGIR";
+
+export interface AccionBandeja {
+  codigo: CodigoAccion;
+  /** Depende de otro (proveedor, aprobador, destino). */
+  espera: boolean;
+  /** Id que necesita la pantalla: REQ, consolidados separados por coma, OC o NI. */
+  destino: string | null;
+}
+
+export interface AvanceBandeja {
+  /** Fracciones 0..1 promediadas por producto. */
+  entregado: number;
+  enCamino: number;
+  listo: number;
+  enCompra: number;
+}
+
+export interface FilaBandeja {
+  id: string;
+  code: string;
+  empresaCode: string;
+  cecoCode: string | null;
+  cecoNombre: string | null;
+  requesterUserId: string | null;
+  solicitante: string | null;
+  priority: Prioridad;
+  status: EstadoRequerimiento;
+  requiredDate: string | null;
+  createdAt: string | null;
+  itemsCount: number;
+  itemsEntregados: number;
+  resumenItems: string | null;
+  avance: AvanceBandeja;
+  acciones: AccionBandeja[];
+}
+
+export interface Bandeja {
+  vista: string;
+  vistas: { id: string; label: string; total: number }[];
+  empresas: { code: string; total: number }[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+  filas: FilaBandeja[];
+}
+
+export type EtapaCompraItem = "RUTA" | "CAJA_CHICA" | "POR_COTIZAR" | "EN_COTIZACION" | "ADJUDICADO" | "OC";
+
+export interface AvanceItem {
+  requestItemId: string;
+  codigo: string;
+  nombreProducto: string;
+  atributo: string | null;
+  unidadMedida: string;
+  solicitado: number;
+  entregado: number;
+  enCamino: number;
+  listo: number;
+  enCompra: number;
+  recibidoCompra: number;
+  etapaCompra: EtapaCompraItem | null;
+  ofertas: number;
+  consolidationId: string | null;
+  consolidationCode: string | null;
+  orderId: string | null;
+  orderCode: string | null;
+}

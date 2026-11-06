@@ -6,7 +6,8 @@ import Alert from "../ui/Alert";
 import Button from "../ui/Button";
 import { Card, CardBody, CardHeader } from "../ui/Card";
 import Field, { inputClass } from "../ui/Field";
-import { ETIQUETA_ATRIBUTO, SelectorFamilia, SelectorUnidad, unidadPorDefecto } from "./SelectoresMaestro";
+import { SelectorFamilia, SelectorUnidad } from "./SelectoresMaestro";
+import { ETIQUETA_ATRIBUTO, unidadPorDefecto } from "./atributos";
 
 /** Alta directa de un SKU por Logistica (DEC-L025). El codigo lo genera el sistema. */
 export default function NuevoProducto({

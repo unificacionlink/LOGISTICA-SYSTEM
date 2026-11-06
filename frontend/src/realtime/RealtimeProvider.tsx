@@ -1,12 +1,11 @@
 import { Client } from "@stomp/stompjs";
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL } from "../api/http";
 import type { AprobacionPendiente, Requerimiento } from "../api/types";
+import { RealtimeContext, type Listener, type RealtimeContextValue } from "./useRealtime";
 
 const WS_URL = `${API_URL.replace(/^http/, "ws")}/ws`;
-
-type Listener<T> = (payload: T) => void;
 
 function crearBus<T>() {
   const listeners = new Set<Listener<T>>();
@@ -20,13 +19,6 @@ function crearBus<T>() {
     },
   };
 }
-
-interface RealtimeContextValue {
-  onNuevaAprobacion: (cb: Listener<AprobacionPendiente>) => () => void;
-  onMiRequerimientoDecidido: (cb: Listener<Requerimiento>) => () => void;
-}
-
-const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const { usuario, tieneAlgunRol } = useAuth();
@@ -77,10 +69,4 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   };
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
-}
-
-export function useRealtime() {
-  const ctx = useContext(RealtimeContext);
-  if (!ctx) throw new Error("useRealtime debe usarse dentro de RealtimeProvider.");
-  return ctx;
 }

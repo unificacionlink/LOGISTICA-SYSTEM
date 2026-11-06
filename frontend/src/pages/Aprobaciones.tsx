@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CheckSquare } from "lucide-react";
 import { listarPendientes } from "../api/aprobaciones";
 import type { AprobacionPendiente } from "../api/types";
-import { useRealtime } from "../realtime/RealtimeProvider";
+import { useRealtime } from "../realtime/useRealtime";
 import PrioridadBadge from "../components/PrioridadBadge";
 import Alert from "../components/ui/Alert";
 import Badge from "../components/ui/Badge";

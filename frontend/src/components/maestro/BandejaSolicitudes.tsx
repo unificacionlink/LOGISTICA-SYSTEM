@@ -8,7 +8,8 @@ import Button from "../ui/Button";
 import { Card } from "../ui/Card";
 import EmptyState from "../ui/EmptyState";
 import Field, { inputClass } from "../ui/Field";
-import { ETIQUETA_ATRIBUTO, SelectorFamilia, SelectorUnidad } from "./SelectoresMaestro";
+import { SelectorFamilia, SelectorUnidad } from "./SelectoresMaestro";
+import { ETIQUETA_ATRIBUTO } from "./atributos";
 
 export const PENDIENTE = "PENDIENTE_APROBACION_LOGISTICA";
 

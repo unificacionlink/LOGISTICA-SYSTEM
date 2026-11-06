@@ -21,14 +21,34 @@ public class RequerimientoController {
     private static final DateTimeFormatter DD_MM_YYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final RequerimientoService service;
+    private final BandejaService bandeja;
 
-    public RequerimientoController(RequerimientoService service) {
+    public RequerimientoController(RequerimientoService service, BandejaService bandeja) {
         this.service = service;
+        this.bandeja = bandeja;
     }
 
     @GetMapping
     public ApiResponse<List<RequerimientoDto>> listar(@AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.listar(principal));
+    }
+
+    /** Bandeja operativa (DEC-L048): vistas, conteos, busqueda y pagina calculados en el servidor. */
+    @GetMapping("/bandeja")
+    public ApiResponse<BandejaDto> bandeja(
+            @RequestParam(required = false) String vista,
+            @RequestParam(required = false) String empresa,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int pagina,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(bandeja.bandeja(vista, empresa, q, pagina, principal));
+    }
+
+    /** Avance por producto: listo, en compra, recibido, despachado y entregado (DEC-L048). */
+    @GetMapping("/{id}/avance")
+    public ApiResponse<AvanceRequerimientoDto> avance(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(bandeja.avance(id, principal));
     }
 
     @GetMapping("/catalogo")

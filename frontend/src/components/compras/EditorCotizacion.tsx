@@ -14,7 +14,7 @@ import Alert from "../ui/Alert";
 import Button from "../ui/Button";
 import Field, { inputClass } from "../ui/Field";
 import { CONDICIONES, ENTREGAS } from "./condiciones";
-import { cantidad, dinero } from "./etiquetas";
+import { cantidad, dinero } from "./formato";
 import ProveedorCombobox from "./ProveedorCombobox";
 
 function aTexto(n: number | null | undefined): string {

@@ -8,16 +8,8 @@ import {
   registrarEnvio,
 } from "../api/almacen";
 import type { ModalidadEntrega, NotaInventarioDetalle as Detalle, TipoAdjuntoEnvio } from "../api/types";
-import {
-  ETIQUETA_ADJUNTO,
-  ETIQUETA_MODALIDAD,
-  EnvioBadge,
-  NotaBadge,
-  fmtCantidad,
-  fmtDia,
-  fmtFecha,
-  hoyIso,
-} from "../components/AlmacenBadges";
+import { EnvioBadge, NotaBadge } from "../components/AlmacenBadges";
+import { ETIQUETA_ADJUNTO, ETIQUETA_MODALIDAD, fmtCantidad, fmtDia, fmtFecha, hoyIso } from "../components/formato";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
 import { Card, CardBody } from "../components/ui/Card";

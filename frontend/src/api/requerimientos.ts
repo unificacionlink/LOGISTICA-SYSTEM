@@ -1,5 +1,5 @@
 import { http } from "./http";
-import type { CatalogoFormulario, Requerimiento, RequerimientoDetalle } from "./types";
+import type { AvanceItem, Bandeja, CatalogoFormulario, Requerimiento, RequerimientoDetalle } from "./types";
 
 export interface ItemInput {
   variantId: string;
@@ -19,6 +19,20 @@ export interface CrearRequerimientoInput {
 
 export function listarRequerimientos() {
   return http.get<Requerimiento[]>("/api/requerimientos");
+}
+
+/** Bandeja operativa (DEC-L048): vista, empresa, busqueda y pagina se resuelven en el servidor. */
+export function obtenerBandeja(p: { vista?: string; empresa?: string; q?: string; pagina?: number }) {
+  const qs = new URLSearchParams();
+  if (p.vista) qs.set("vista", p.vista);
+  if (p.empresa) qs.set("empresa", p.empresa);
+  if (p.q?.trim()) qs.set("q", p.q.trim());
+  if (p.pagina) qs.set("pagina", String(p.pagina));
+  return http.get<Bandeja>(`/api/requerimientos/bandeja?${qs}`);
+}
+
+export function obtenerAvance(id: string) {
+  return http.get<{ items: AvanceItem[] }>(`/api/requerimientos/${id}/avance`);
 }
 
 export function obtenerRequerimiento(id: string) {

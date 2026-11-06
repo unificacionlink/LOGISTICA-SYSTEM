@@ -12,15 +12,10 @@ import {
   prepararSolicitudes,
 } from "../api/compras";
 import type { CompraCajaChica, Consolidado, Necesidad, PorEmitir, ReglaCajaChica, Rfq } from "../api/types";
-import { fmtDia } from "../components/AlmacenBadges";
+import { fmtDia } from "../components/formato";
 import PestanaCajaChica from "../components/cajachica/PestanaCajaChica";
-import {
-  cantidad,
-  ConsolidadoEstadoBadge,
-  dinero,
-  ETIQUETA_SUGERENCIA,
-  OrigenesConsolidado,
-} from "../components/compras/etiquetas";
+import { ConsolidadoEstadoBadge, OrigenesConsolidado } from "../components/compras/etiquetas";
+import { cantidad, dinero, ETIQUETA_SUGERENCIA } from "../components/compras/formato";
 import { EMPRESAS } from "../components/empresas";
 import PrioridadBadge from "../components/PrioridadBadge";
 import RfqEstadoBadge from "../components/RfqEstadoBadge";

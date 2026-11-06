@@ -1,12 +1,5 @@
-import type { Clasificacion, TipoAtributo } from "../../api/types";
+import type { Clasificacion } from "../../api/types";
 import { inputClass } from "../ui/Field";
-
-export const ETIQUETA_ATRIBUTO: Record<TipoAtributo, string> = {
-  TALLA: "Talla",
-  COLOR: "Color",
-  MODELO: "Modelo",
-  OTRO: "Otro",
-};
 
 /** Subfamilia agrupada por familia (EPP, Herramienta...), como el maestro SKU V38 (DEC-L034): una sola lista. */
 export function SelectorFamilia({
@@ -61,8 +54,4 @@ export function SelectorUnidad({
       ))}
     </select>
   );
-}
-
-export function unidadPorDefecto(c: Clasificacion): string {
-  return c.unidades.find((u) => u.code === "UND")?.id ?? c.unidades[0]?.id ?? "";
 }

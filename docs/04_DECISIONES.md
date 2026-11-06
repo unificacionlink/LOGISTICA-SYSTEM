@@ -5,6 +5,37 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L048 — Bandeja operativa de Requerimientos (2026-11-06).** Pedido del
+  usuario, con referencia funcional ERPNext Material Request: que Logistica
+  sepa que debe gestionar sin abrir cada requerimiento. El estado no lo dice
+  ("En atencion" mezclaba por cotizar, por adjudicar, OC por recibir, por
+  despachar y en transito).
+  - `GET /api/requerimientos/bandeja?vista&empresa&q&pagina`
+    (`BandejaService`, solo lectura, sin migracion): una SQL trae por REQ su
+    avance y lo pendiente en compras y almacen (misma logica que las etapas
+    del dashboard); vistas, busqueda (sin tildes, incluye productos), orden
+    (vencido, prioridad, fecha requerida, antiguedad), conteos y pagina de 50
+    se resuelven en el servidor. Alcance: LOGISTICA/ADMIN todo menos
+    borradores ajenos; el resto, solo lo suyo.
+  - **Siguiente accion** derivada de datos reales: DESPACHAR (reserva activa),
+    EMITIR_OC (consolidado adjudicado), ADJUDICAR (en cotizacion con ofertas),
+    REGISTRAR_CAJA_CHICA, DECIDIR_RUTA, PEDIR_COTIZACION (consolidado
+    abierto); en espera: ESPERA_COTIZACION, RECIBIR_OC, CONFIRMAR_ENTREGA,
+    APROBACION, CORRECCION; del dueno: ENVIAR, CORREGIR. Cada una lleva a su
+    pantalla existente.
+  - **Vistas** (sin estados nuevos). Logistica: Requieren atencion (alguna
+    accion propia) / Seguimiento (solo esperas) particionan lo abierto;
+    Compras y Despacho son cortes transversales (un REQ puede estar en ambas);
+    Cerrados. Quien pide: Pendientes mios / En proceso / Cerrados.
+  - **Avance** promediado por producto (no mezcla unidades): entregado, en
+    camino, listo en almacen, en compra. `GET /api/requerimientos/{id}/avance`
+    da el detalle por producto (recibido de compra, etapa, consolidado y OC)
+    con `exigirAcceso`.
+  - Panel lateral (`?req=id`) con productos, datos, compras vinculadas,
+    entregas, historial y acciones (aprobar/observar/rechazar, enviar,
+    siguiente paso); la ficha completa sigue existiendo. Reemplaza las
+    vistas por estado y los filtros Vencidos/Urgentes de DEC-L046.
+
 - **DEC-L047 — Comparativo de tres cotizaciones con OCR (2026-11-06).** El
   usuario: al crear la RFQ, subir 3 cotizaciones, leerlas por OCR y comparar
   cual tiene el mejor precio.

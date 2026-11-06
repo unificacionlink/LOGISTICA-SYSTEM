@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ArrowDownLeft, ArrowUpRight, SlidersHorizontal, X } from "lucide-react";
 import { fijarMinimoStock, obtenerKardex } from "../../api/stock";
 import type { MovimientoKardex, SaldoStock } from "../../api/types";
-import { fmtCantidad } from "../AlmacenBadges";
+import { fmtCantidad } from "../formato";
 import Alert from "../ui/Alert";
 import Button from "../ui/Button";
 import { inputClass } from "../ui/Field";

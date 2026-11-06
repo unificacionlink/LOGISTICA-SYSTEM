@@ -12,6 +12,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.31.0",
+    titulo: "Bandeja de requerimientos por trabajo pendiente",
+    cambios: [
+      "Requerimientos se ordena por lo que hay que hacer: Requieren atención, Compras, Despacho, Seguimiento y Cerrados.",
+      "Cada pedido muestra su siguiente paso (Despachar, Cotizar, Adjudicar, Emitir OC...) y te lleva directo a hacerlo.",
+      "Una barra muestra cuánto se entregó, qué está en camino, qué está listo en almacén y qué está en compra.",
+      "Al tocar un pedido se abre un panel con el avance de cada producto, sus compras, entregas e historial, sin salir de la lista.",
+      "Quien pide ve sus pendientes, lo que está en proceso y lo cerrado.",
+    ],
+  },
+  {
     version: "0.30.0",
     titulo: "Requerimientos ordenados y comparativo de cotizaciones",
     cambios: [

@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AuthProvider } from "./auth/AuthContext";
+import { AuthProvider } from "./auth/AuthProvider";
 import { RealtimeProvider } from "./realtime/RealtimeProvider";
 import CapaCarga from "./components/CapaCarga";
-import { ConfirmacionProvider } from "./components/ui/Confirmacion";
+import { ConfirmacionProvider } from "./components/ui/ConfirmacionProvider";
 import ProtectedLayout from "./components/ProtectedLayout";
 import Login from "./pages/Login";
 import Inicio from "./pages/Inicio";

@@ -8,7 +8,7 @@ import {
   obtenerRequerimiento,
 } from "../api/requerimientos";
 import type { Ceco, Familia, VarianteCatalogo } from "../api/types";
-import { etiquetaFamilia } from "../components/FiltroFamilia";
+import { etiquetaFamilia } from "../components/familia";
 import { useAuth } from "../auth/AuthContext";
 import BuscadorProductos, { Miniatura } from "../components/BuscadorProductos";
 import SolicitarProducto from "../components/maestro/SolicitarProducto";

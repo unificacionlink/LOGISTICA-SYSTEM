@@ -7,7 +7,7 @@ import { obtenerDetalleCompra } from "../api/compras";
 import { enviarRequerimiento, obtenerRequerimiento, programarEntrega } from "../api/requerimientos";
 import type { ComprasDetalle, RequerimientoDetalle as RequerimientoDetalleType } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { useRealtime } from "../realtime/RealtimeProvider";
+import { useRealtime } from "../realtime/useRealtime";
 import EstadoBadge from "../components/EstadoBadge";
 import Badge from "../components/ui/Badge";
 import RfqEstadoBadge from "../components/RfqEstadoBadge";
@@ -67,8 +67,9 @@ export default function RequerimientoDetalle() {
   const [msgDecision, setMsgDecision] = useState<string | null>(null);
 
   const [comprasDetalle, setComprasDetalle] = useState<ComprasDetalle | null>(null);
-  const [cargandoCompras, setCargandoCompras] = useState(false);
+  const [comprasFallo, setComprasFallo] = useState(false);
 
+  /** Recarga tras una accion (enviar, decidir): con esqueleto. */
   function cargar() {
     if (!id) return;
     setCargando(true);
@@ -80,7 +81,20 @@ export default function RequerimientoDetalle() {
       .finally(() => setCargando(false));
   }
 
-  useEffect(cargar, [id]);
+  // Carga inicial: el estado se toca solo cuando llega la respuesta.
+  useEffect(() => {
+    if (!id) return;
+    let vigente = true;
+    obtenerRequerimiento(id).then((res) => {
+      if (!vigente) return;
+      if (res.ok) setDetalle(res.result);
+      else setError(res.message);
+      setCargando(false);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [id]);
 
   useEffect(() => {
     return onMiRequerimientoDecidido((actualizado) => {
@@ -191,18 +205,16 @@ export default function RequerimientoDetalle() {
   useEffect(() => {
     if (!puedeVerCompras || !id) return;
     let vigente = true;
-    setCargandoCompras(true);
-    obtenerDetalleCompra(id)
-      .then((res) => {
-        if (vigente && res.ok && res.result) setComprasDetalle(res.result);
-      })
-      .finally(() => {
-        if (vigente) setCargandoCompras(false);
-      });
+    obtenerDetalleCompra(id).then((res) => {
+      if (!vigente) return;
+      if (res.ok && res.result) setComprasDetalle(res.result);
+      else setComprasFallo(true);
+    });
     return () => {
       vigente = false;
     };
   }, [puedeVerCompras, id]);
+  const cargandoCompras = puedeVerCompras && !comprasFallo && comprasDetalle?.requerimiento.id !== id;
 
   if (cargando) {
     return (
@@ -273,7 +285,8 @@ export default function RequerimientoDetalle() {
         <Alert tone={detalle.controlPresupuestal.estado === "CUBIERTO" ? "good" : "danger"} className="mb-4">
           {detalle.controlPresupuestal.estado === "CUBIERTO" ? (
             <p className="font-medium">
-              Cubierto por el presupuesto {detalle.controlPresupuestal.presupuestoCodigo} ({detalle.controlPresupuestal.periodo})
+              Cubierto por el presupuesto {detalle.controlPresupuestal.presupuestoCodigo} (
+              {detalle.controlPresupuestal.periodo})
               {detalle.controlPresupuestal.monto != null && ` · ${soles.format(detalle.controlPresupuestal.monto)}`}
             </p>
           ) : (
@@ -310,7 +323,11 @@ export default function RequerimientoDetalle() {
                 </Button>
               </>
             )}
-            {errorEnvio && <Alert tone="danger" className="w-full">{errorEnvio}</Alert>}
+            {errorEnvio && (
+              <Alert tone="danger" className="w-full">
+                {errorEnvio}
+              </Alert>
+            )}
           </CardBody>
         </Card>
       )}
@@ -326,7 +343,9 @@ export default function RequerimientoDetalle() {
                 Observar
               </Button>
               <MenuAcciones
-                acciones={[{ label: "Rechazar", peligro: true, disabled: decidiendo, onClick: () => onDecidir("RECHAZADO") }]}
+                acciones={[
+                  { label: "Rechazar", peligro: true, disabled: decidiendo, onClick: () => onDecidir("RECHAZADO") },
+                ]}
               />
             </div>
             {errorDecision && <Alert tone="danger">{errorDecision}</Alert>}
@@ -375,7 +394,11 @@ export default function RequerimientoDetalle() {
                   >
                     Cancelar
                   </Button>
-                  {errorFecha && <Alert tone="danger" className="w-full">{errorFecha}</Alert>}
+                  {errorFecha && (
+                    <Alert tone="danger" className="w-full">
+                      {errorFecha}
+                    </Alert>
+                  )}
                 </div>
               ) : (
                 <div className="mt-1 flex items-center gap-2 text-sm text-slate-700">
@@ -428,7 +451,9 @@ export default function RequerimientoDetalle() {
                   <td className="px-5 py-2.5 text-right tabular-nums text-slate-700">
                     {it.cantidad} <span className="text-slate-400">{it.unidadMedida}</span>
                   </td>
-                  <td className="col-flex px-5 py-2.5 text-slate-600" title={String(it.observacion ?? "—")}>{it.observacion ?? "—"}</td>
+                  <td className="col-flex px-5 py-2.5 text-slate-600" title={String(it.observacion ?? "—")}>
+                    {it.observacion ?? "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -461,45 +486,45 @@ export default function RequerimientoDetalle() {
               <p className="text-sm text-slate-500">Sin compras: lo pedido se atiende con stock.</p>
             ) : (
               <div className="flex flex-col gap-4">
-              {comprasDetalle.necesidades.length > 0 && (
-                <ul className="flex flex-col gap-2">
-                  {comprasDetalle.necesidades.map((n) => (
-                    <li key={n.needId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate text-slate-700" title={n.nombreProducto}>
-                        <span className="font-mono text-xs text-slate-500">{n.codigoVariante ?? n.skuBase}</span>{" "}
-                        {n.nombreProducto} · {n.qty} {n.unidadMedida}
-                      </span>
-                      {n.consolidationId ? (
+                {comprasDetalle.necesidades.length > 0 && (
+                  <ul className="flex flex-col gap-2">
+                    {comprasDetalle.necesidades.map((n) => (
+                      <li key={n.needId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span className="min-w-0 flex-1 truncate text-slate-700" title={n.nombreProducto}>
+                          <span className="font-mono text-xs text-slate-500">{n.codigoVariante ?? n.skuBase}</span>{" "}
+                          {n.nombreProducto} · {n.qty} {n.unidadMedida}
+                        </span>
+                        {n.consolidationId ? (
+                          <Link
+                            to={`/compras/consolidados/${n.consolidationId}`}
+                            className="flex items-center gap-2 font-mono text-xs font-medium text-brand-600 hover:text-brand-700"
+                          >
+                            {n.consolidationCode}
+                            {n.consolidationStatus && <ConsolidadoEstadoBadge estado={n.consolidationStatus} />}
+                          </Link>
+                        ) : (
+                          <Badge tone="amarillo">{n.status === "CAJA_CHICA" ? "Caja chica" : "Ruta por decidir"}</Badge>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {comprasDetalle.rfqs.length > 0 && (
+                  <ul className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+                    {comprasDetalle.rfqs.map((rfq) => (
+                      <li key={rfq.rfqId} className="flex items-center justify-between gap-2">
                         <Link
-                          to={`/compras/consolidados/${n.consolidationId}`}
-                          className="flex items-center gap-2 font-mono text-xs font-medium text-brand-600 hover:text-brand-700"
+                          to={`/compras/rfq/${rfq.rfqId}`}
+                          className="font-mono text-xs font-medium text-brand-600 hover:text-brand-700"
                         >
-                          {n.consolidationCode}
-                          {n.consolidationStatus && <ConsolidadoEstadoBadge estado={n.consolidationStatus} />}
+                          {rfq.rfqCode}
                         </Link>
-                      ) : (
-                        <Badge tone="amarillo">{n.status === "CAJA_CHICA" ? "Caja chica" : "Ruta por decidir"}</Badge>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {comprasDetalle.rfqs.length > 0 && (
-              <ul className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-                {comprasDetalle.rfqs.map((rfq) => (
-                  <li key={rfq.rfqId} className="flex items-center justify-between gap-2">
-                    <Link
-                      to={`/compras/rfq/${rfq.rfqId}`}
-                      className="font-mono text-xs font-medium text-brand-600 hover:text-brand-700"
-                    >
-                      {rfq.rfqCode}
-                    </Link>
-                    <span className="flex-1 text-sm text-slate-600">{rfq.proveedorNombre}</span>
-                    <RfqEstadoBadge estado={rfq.status} />
-                  </li>
-                ))}
-              </ul>
-              )}
+                        <span className="flex-1 text-sm text-slate-600">{rfq.proveedorNombre}</span>
+                        <RfqEstadoBadge estado={rfq.status} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </CardBody>

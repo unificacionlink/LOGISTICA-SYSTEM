@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload, XCircle } from "lucide-react";
 import { confirmarInventario, descargarPlantillaInventario, validarInventario } from "../api/stock";
 import type { CargaStock } from "../api/types";
-import { fmtCantidad } from "../components/AlmacenBadges";
+import { fmtCantidad } from "../components/formato";
 import BotonDescarga from "../components/BotonDescarga";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";

@@ -24,7 +24,7 @@ import BotonDescarga from "../components/BotonDescarga";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import { descargarPdfRfq } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
-import { cantidad } from "../components/compras/etiquetas";
+import { cantidad } from "../components/compras/formato";
 
 /** Texto de la solicitud para correo o WhatsApp (no constituye orden de compra). */
 function mensajeSolicitud(d: RfqDetalle): string {

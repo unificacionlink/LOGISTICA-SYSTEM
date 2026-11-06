@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.31.0 — 2026-11-06
+
+- **Bandeja operativa de Requerimientos** (DEC-L048, referencia ERPNext
+  Material Request): vistas Requieren atencion / Compras / Despacho /
+  Seguimiento / Cerrados (quien pide: Pendientes mios / En proceso /
+  Cerrados), siguiente accion por fila, barra de avance (entregado, en
+  camino, listo, en compra), busqueda y paginacion en el servidor y panel
+  lateral con el avance por producto, compras, entregas e historial.
+- API: `GET /api/requerimientos/bandeja` y `GET /api/requerimientos/{id}/avance`
+  (`BandejaService`, solo lectura). Pruebas: `BandejaTest`.
+- Almacen › Despacho: las cantidades por item salen en 3 consultas por REQ
+  (antes 3 por item).
+- Frontend sin avisos de lint: utilidades separadas de los componentes
+  (`components/formato.ts`, `compras/formato.ts`, `familia.ts`,
+  `maestro/atributos.ts`), proveedores de contexto en su propio archivo
+  (`auth/AuthProvider.tsx`, `ui/ConfirmacionProvider.tsx`,
+  `realtime/useRealtime.ts`) y cargas iniciales sin `setState` sincrono en
+  efectos.
+
 ## 0.30.0 — 2026-11-06
 
 - **Comparativo de cotizaciones** (DEC-L047): en Compras > Consolidados se

@@ -15,6 +15,18 @@ public interface SalidaItemRepository extends JpaRepository<SalidaItem, UUID> {
             "where i.salida.issueId = :issueId")
     List<SalidaItem> findBySalida(@Param("issueId") UUID issueId);
 
+    /** Despachado por item de un REQ, en una sola consulta: [requestItemId, suma]. */
+    @Query("select i.requerimientoItem.requestItemId, sum(i.qty) from SalidaItem i " +
+            "where i.requerimientoItem.requerimiento.requestId = :requestId group by i.requerimientoItem.requestItemId")
+    List<Object[]> sumarDespachadoPorItem(@Param("requestId") UUID requestId);
+
+    /** Entregado (envio recepcionado o cerrado) por item de un REQ: [requestItemId, suma]. */
+    @Query("select i.requerimientoItem.requestItemId, sum(i.qty) from SalidaItem i " +
+            "where i.requerimientoItem.requerimiento.requestId = :requestId " +
+            "and exists (select 1 from Envio e where e.salida = i.salida and e.status in ('RECEPCIONADO','CERRADO')) " +
+            "group by i.requerimientoItem.requestItemId")
+    List<Object[]> sumarEntregadoPorItem(@Param("requestId") UUID requestId);
+
     @Query("select coalesce(sum(i.qty), 0) from SalidaItem i where i.requerimientoItem.requestItemId = :requestItemId")
     BigDecimal sumarDespachado(@Param("requestItemId") UUID requestItemId);
 

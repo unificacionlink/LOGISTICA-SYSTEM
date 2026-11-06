@@ -22,6 +22,12 @@ public interface ReservaStockRepository extends JpaRepository<ReservaStock, UUID
             @Param("productId") UUID productId,
             @Param("variantId") UUID variantId);
 
+    /** Reservado (RESERVADA) por item de un REQ, en una sola consulta: [requestItemId, suma]. */
+    @Query("select r.requerimientoItem.requestItemId, sum(r.qtyReserved) from ReservaStock r " +
+            "where r.requerimientoItem.requerimiento.requestId = :requestId and r.status = 'RESERVADA' " +
+            "group by r.requerimientoItem.requestItemId")
+    List<Object[]> sumarReservadoPorRequerimiento(@Param("requestId") UUID requestId);
+
     @Query("select coalesce(sum(r.qtyReserved), 0) from ReservaStock r " +
             "where r.requerimientoItem.requestItemId = :requestItemId and r.status = 'RESERVADA'")
     BigDecimal sumarReservadoPorItem(@Param("requestItemId") UUID requestItemId);
