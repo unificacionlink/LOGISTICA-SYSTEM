@@ -26,6 +26,7 @@ import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
+import CampoNumero from "../components/ui/CampoNumero";
 interface FilaForm {
   qty: string;
   // Condicion, observacion e incidencia solo se muestran si hay un problema (ley de Hick).
@@ -233,13 +234,11 @@ export default function AlmacenRecepcion() {
                   {recibible && f && (
                     <div className="mt-3 flex flex-wrap items-end gap-3">
                       <Field label="Cantidad aceptada">
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
+                        <CampoNumero
+                          decimales={0}
                           max={it.qtyPending}
                           value={f.qty}
-                          onChange={(e) => actualizarFila(it.orderItemId, { qty: e.target.value })}
+                          onChange={(v) => actualizarFila(it.orderItemId, { qty: v })}
                           className={`${inputClass} w-32`}
                         />
                       </Field>
@@ -305,12 +304,10 @@ export default function AlmacenRecepcion() {
                             </select>
                           </Field>
                           <Field label="Cant. afectada">
-                            <input
-                              type="number"
-                              min="0"
-                              step="any"
+                            <CampoNumero
+                              decimales={0}
                               value={f.qtyAfectada}
-                              onChange={(e) => actualizarFila(it.orderItemId, { qtyAfectada: e.target.value })}
+                              onChange={(v) => actualizarFila(it.orderItemId, { qtyAfectada: v })}
                               className={`${inputClass} w-full`}
                             />
                           </Field>

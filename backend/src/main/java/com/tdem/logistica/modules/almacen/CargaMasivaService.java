@@ -313,6 +313,8 @@ public class CargaMasivaService {
             error = "Cantidad a ingresar invalida (\"" + textoCantidad + "\").";
         } else if (cantidad.signum() < 0) {
             error = "La cantidad no puede ser negativa.";
+        } else if (cantidad.stripTrailingZeros().scale() > 0) {
+            error = "La cantidad debe ser un numero entero.";
         } else if (cantidad.compareTo(pendiente) > 0) {
             error = "Supera lo pendiente (" + plano(pendiente) + ").";
         } else if (!RecepcionService.CONDICIONES.contains(estado)) {

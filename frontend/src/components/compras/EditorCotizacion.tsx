@@ -17,6 +17,7 @@ import { CONDICIONES, ENTREGAS } from "./condiciones";
 import { cantidad, dinero } from "./formato";
 import ProveedorCombobox from "./ProveedorCombobox";
 
+import CampoNumero from "../ui/CampoNumero";
 function aTexto(n: number | null | undefined): string {
   return n == null ? "" : String(n);
 }
@@ -268,11 +269,10 @@ export default function EditorCotizacion({
                   </select>
                 </Field>
                 <Field label="Plazo (días)">
-                  <input
-                    type="number"
-                    min={0}
+                  <CampoNumero
+                    decimales={0} maxEnteros={3}
                     value={plazo}
-                    onChange={(e) => setPlazo(e.target.value)}
+                    onChange={(v) => setPlazo(v)}
                     className={`${inputClass} w-full`}
                   />
                 </Field>
@@ -308,15 +308,12 @@ export default function EditorCotizacion({
                         </td>
                         <td className="px-3 py-2">
                           <div className="relative">
-                            <input
-                              type="number"
-                              min={0}
-                              step="any"
-                              inputMode="decimal"
+                            <CampoNumero
+                              decimales={4} maxEnteros={9}
                               aria-label={`Precio unitario de ${f.nombreProducto}`}
                               value={v}
                               placeholder="No cotiza"
-                              onChange={(e) => setPrecios((p) => ({ ...p, [f.consolidationId]: e.target.value }))}
+                              onChange={(v) => setPrecios((p) => ({ ...p, [f.consolidationId]: v }))}
                               className={`${inputClass} w-full py-1.5 text-right ${leido ? "border-brand-200! bg-brand-50!" : ""}`}
                             />
                           </div>

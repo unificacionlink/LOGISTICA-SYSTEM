@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import Button from "../ui/Button";
 import Field, { inputClass } from "../ui/Field";
 
+import CampoNumero from "../ui/CampoNumero";
 /**
  * Ventana para editar un solo valor numerico del maestro (precio de venta,
  * plazo de atencion; DEC-L035). `onGuardar` devuelve el mensaje de error o
@@ -34,6 +35,8 @@ export default function DialogoValor({
   onCerrar: () => void;
 }) {
   const [valor, setValor] = useState(valorInicial == null ? "" : String(valorInicial));
+  // "0.01" -> 2 decimales; "1" -> solo enteros.
+  const decimales = step.includes(".") ? step.split(".")[1].length : 0;
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -87,15 +90,12 @@ export default function DialogoValor({
         <Field label={etiqueta} className="mt-4" hint={permitirVacio ? "Vacío: sin configurar" : undefined}>
           <div className="flex items-center gap-2">
             {prefijo && <span className="text-sm text-slate-500">{prefijo}</span>}
-            <input
+            <CampoNumero
+              decimales={decimales} maxEnteros={9}
               autoFocus
-              type="number"
-              inputMode="decimal"
-              min={min}
               max={max}
-              step={step}
               value={valor}
-              onChange={(e) => setValor(e.target.value)}
+              onChange={(v) => setValor(v)}
               className={`${inputClass} w-full tabular-nums`}
             />
             {sufijo && <span className="shrink-0 text-sm text-slate-500">{sufijo}</span>}

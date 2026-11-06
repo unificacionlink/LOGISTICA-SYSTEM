@@ -24,6 +24,7 @@ import MenuAcciones from "../components/ui/MenuAcciones";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 
+import CampoNumero from "../components/ui/CampoNumero";
 const ESTADOS = Object.keys(ETIQUETA_PRESUPUESTO) as EstadoPresupuesto[];
 
 export default function Presupuestos() {
@@ -393,8 +394,10 @@ function DialogoPeriodo({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Año" required>
-          <input type="number" min={2020} max={2100} value={anio} onChange={(e) => setAnio(e.target.value)}
-            className={`${inputClass} w-full tabular-nums`} />
+          <CampoNumero
+            decimales={0} maxEnteros={4} max={2100} value={anio} onChange={(v) => setAnio(v)}
+            className={`${inputClass} w-full tabular-nums`}
+          />
         </Field>
         <Field label="Semestre" required>
           <select value={semestre} onChange={(e) => setSemestre(e.target.value)} className={`${inputClass} w-full`}>

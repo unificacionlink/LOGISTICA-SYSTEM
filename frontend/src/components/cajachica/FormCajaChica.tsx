@@ -7,6 +7,7 @@ import Button from "../ui/Button";
 import { Card, CardBody } from "../ui/Card";
 import Field, { inputClass } from "../ui/Field";
 
+import CampoNumero from "../ui/CampoNumero";
 const TIPOS = ["FACTURA", "BOLETA", "TICKET", "RECIBO", "OTRO"];
 
 function hoyLima(): string {
@@ -129,23 +130,19 @@ export default function FormCajaChica({
                     </p>
                   </td>
                   <td className="px-4 py-2.5">
-                    <input
-                      type="number"
-                      min={0}
+                    <CampoNumero
+                      decimales={0}
                       max={it.cantidadPendiente}
-                      step="any"
                       value={f?.qty ?? ""}
-                      onChange={(e) => setFilas((p) => ({ ...p, [it.requestItemId]: { ...p[it.requestItemId], qty: e.target.value } }))}
+                      onChange={(v) => setFilas((p) => ({ ...p, [it.requestItemId]: { ...p[it.requestItemId], qty: v } }))}
                       className={`${inputClass} w-24 py-1.5`}
                     />
                   </td>
                   <td className="px-4 py-2.5">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.0001"
+                    <CampoNumero
+                      decimales={4} maxEnteros={9}
                       value={f?.costo ?? ""}
-                      onChange={(e) => setFilas((p) => ({ ...p, [it.requestItemId]: { ...p[it.requestItemId], costo: e.target.value } }))}
+                      onChange={(v) => setFilas((p) => ({ ...p, [it.requestItemId]: { ...p[it.requestItemId], costo: v } }))}
                       className={`${inputClass} w-28 py-1.5`}
                     />
                   </td>

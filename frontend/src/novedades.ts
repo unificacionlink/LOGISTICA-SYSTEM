@@ -12,6 +12,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.31.1",
+    titulo: "Cantidades sin decimales",
+    cambios: [
+      "Las cantidades (pedidos, recepciones, despachos, ajustes y presupuestos) solo aceptan números enteros.",
+      "Los campos numéricos ya no dejan escribir letras, signos ni números demasiado largos.",
+    ],
+  },
+  {
     version: "0.31.0",
     titulo: "Bandeja de requerimientos por trabajo pendiente",
     cambios: [

@@ -11,5 +11,5 @@ import java.util.UUID;
 
 public record LineaRequest(@NotNull UUID productId,
                            @NotNull @Size(min = 6, max = 6)
-                           List<@NotNull @PositiveOrZero @Digits(integer = 11, fraction = 3) BigDecimal> meses) {
+                           List<@NotNull @PositiveOrZero @Digits(integer = 6, fraction = 0) BigDecimal> meses) {
 }

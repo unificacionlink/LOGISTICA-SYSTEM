@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.31.1 — 2026-11-06
+
+- **Fix**: los campos numericos aceptaban decimales en cantidades y textos de
+  largo ilimitado (incluido "e" y signos). Nuevo `components/ui/CampoNumero`
+  (con `utils/numeros.limpiarNumero`): cantidades, bultos, dias y anio solo
+  enteros; precios/costos hasta 4 decimales, montos 2, peso 3, tipo de cambio
+  3; tope de digitos en todos. Reemplaza los 22 `input type="number"`.
+- Backend: `@Digits` en los DTO de cantidades (enteras, hasta 6 digitos;
+  requerimiento, caja chica y cotizacion desde 1) y montos; inventario por
+  Excel y recepcion masiva rechazan cantidades con decimales. Pruebas:
+  `ValidacionCantidadesTest` y `StockCentralTest`.
+
 ## 0.31.0 — 2026-11-06
 
 - **Bandeja operativa de Requerimientos** (DEC-L048, referencia ERPNext

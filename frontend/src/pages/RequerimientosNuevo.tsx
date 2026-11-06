@@ -22,6 +22,7 @@ import { EMPRESAS } from "../components/empresas";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
+import CampoNumero from "../components/ui/CampoNumero";
 interface ItemCarrito {
   variante: VarianteCatalogo;
   qty: string;
@@ -375,12 +376,10 @@ export default function RequerimientosNuevo() {
                         </button>
                       </div>
                       <div className="flex gap-2">
-                        <input
-                          type="number"
-                          min={0.001}
-                          step="0.001"
+                        <CampoNumero
+                          decimales={0}
                           value={it.qty}
-                          onChange={(e) => actualizarItem(it.variante.variantId, { qty: e.target.value })}
+                          onChange={(v) => actualizarItem(it.variante.variantId, { qty: v })}
                           className={`${inputClass} w-20 py-1.5 text-sm`}
                         />
                         <input

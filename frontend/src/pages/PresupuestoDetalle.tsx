@@ -27,6 +27,7 @@ import MenuAcciones, { type AccionMenu } from "../components/ui/MenuAcciones";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 
+import CampoNumero from "../components/ui/CampoNumero";
 /** Partida en edicion: las cantidades se editan como texto. */
 interface Borrador {
   productId: string;
@@ -379,17 +380,14 @@ export default function PresupuestoDetalle() {
                           </td>
                           {b.meses.map((q, m) => (
                             <td key={m} className="px-1 py-2">
-                              <input
-                                type="number"
-                                min={0}
-                                step="any"
-                                inputMode="decimal"
+                              <CampoNumero
+                                decimales={0}
                                 aria-label={`${b.sku} ${meses[m]}`}
                                 value={q}
-                                onChange={(e) =>
+                                onChange={(v) =>
                                   setBorrador((prev) =>
                                     prev!.map((x, i) =>
-                                      i === fila ? { ...x, meses: x.meses.map((y, j) => (j === m ? e.target.value : y)) } : x,
+                                      i === fila ? { ...x, meses: x.meses.map((y, j) => (j === m ? v : y)) } : x,
                                     ),
                                   )
                                 }

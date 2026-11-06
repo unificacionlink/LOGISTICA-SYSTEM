@@ -1,6 +1,7 @@
 package com.tdem.logistica.modules.compras.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -33,8 +34,9 @@ public record RegistrarComparativoRequest(
             @NotNull(message = "Falta el producto cotizado.") UUID consolidationId,
             @NotNull(message = "El costo unitario es obligatorio.")
             @DecimalMin(value = "0.0001", message = "El costo unitario debe ser mayor a 0.")
+            @Digits(integer = 9, fraction = 4, message = "Costo invalido: hasta 9 digitos y 4 decimales.")
             BigDecimal unitCost,
-            @DecimalMin(value = "0.001", message = "La cantidad debe ser mayor a 0.") BigDecimal qty,
+            @DecimalMin(value = "1", message = "La cantidad debe ser al menos 1.") @Digits(integer = 6, fraction = 0, message = "La cantidad debe ser un numero entero de hasta 6 digitos.") BigDecimal qty,
             String offeredBrand,
             String offeredModel) {
     }

@@ -10,6 +10,7 @@ import { inputClass } from "../ui/Field";
 import { Skeleton } from "../ui/Skeleton";
 import EstadoStock from "./EstadoStock";
 
+import CampoNumero from "../ui/CampoNumero";
 const ORIGEN: Record<string, string> = {
   RECEPCION: "Recepción de OC",
   SALIDA: "Despacho",
@@ -121,12 +122,10 @@ export default function PanelKardex({
         <form onSubmit={onGuardarMinimo} className="flex flex-wrap items-end gap-2 border-b border-slate-200 px-5 py-3">
           <label className="flex flex-col gap-1">
             <span className="rotulo">Stock mínimo</span>
-            <input
-              type="number"
-              min={0}
-              step="any"
+            <CampoNumero
+              decimales={0}
               value={minimo}
-              onChange={(e) => setMinimo(e.target.value)}
+              onChange={(v) => setMinimo(v)}
               placeholder="Sin mínimo"
               className={`${inputClass} w-32`}
             />

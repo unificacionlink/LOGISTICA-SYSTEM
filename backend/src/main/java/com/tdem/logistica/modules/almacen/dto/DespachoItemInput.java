@@ -1,5 +1,6 @@
 package com.tdem.logistica.modules.almacen.dto;
 
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
@@ -10,5 +11,6 @@ public record DespachoItemInput(
         @NotNull(message = "Falta el item del requerimiento.") UUID requestItemId,
         @NotNull(message = "Indica la cantidad a despachar.")
         @DecimalMin(value = "0", message = "La cantidad no puede ser negativa.")
+        @Digits(integer = 6, fraction = 0, message = "La cantidad debe ser un numero entero de hasta 6 digitos.")
         BigDecimal qty) {
 }

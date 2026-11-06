@@ -12,6 +12,7 @@ import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
+import CampoNumero from "../components/ui/CampoNumero";
 type Tipo = "ingreso" | "salida";
 
 /**
@@ -118,13 +119,11 @@ export default function StockAjustes() {
                   </div>
                 </Field>
                 <Field label="Cantidad" required>
-                  <input
-                    type="number"
-                    min={0.001}
-                    step="0.001"
+                  <CampoNumero
+                    decimales={0}
                     required
                     value={qty}
-                    onChange={(e) => setQty(e.target.value)}
+                    onChange={(v) => setQty(v)}
                     className={`${inputClass} w-full`}
                   />
                 </Field>

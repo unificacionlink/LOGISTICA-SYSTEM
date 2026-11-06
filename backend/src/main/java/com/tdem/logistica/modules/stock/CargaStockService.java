@@ -369,8 +369,12 @@ public class CargaStockService {
         if (valor.signum() < 0) {
             return new Lectura(null, "no puede ser negativo.");
         }
-        if (valor.scale() > 3) {
-            return new Lectura(null, "usa como maximo 3 decimales.");
+        // Todas las unidades del catalogo son contables (UND, PAR, CAJA, MILLAR).
+        if (valor.scale() > 0) {
+            return new Lectura(null, "debe ser un numero entero.");
+        }
+        if (valor.precision() - valor.scale() > 6) {
+            return new Lectura(null, "es demasiado grande (maximo 6 digitos).");
         }
         return new Lectura(valor.scale() < 0 ? valor.setScale(0) : valor, null);
     }

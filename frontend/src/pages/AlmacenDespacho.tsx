@@ -13,6 +13,7 @@ import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
+import CampoNumero from "../components/ui/CampoNumero";
 const labelClass = "rotulo";
 
 export default function AlmacenDespacho() {
@@ -152,13 +153,11 @@ export default function AlmacenDespacho() {
                     <td className="px-5 py-2.5 font-medium text-slate-700">{fmtCantidad(it.qtyPorDespachar)}</td>
                     <td className="px-5 py-2.5">
                       {it.qtyPorDespachar > 0 ? (
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
+                        <CampoNumero
+                          decimales={0}
                           max={it.qtyPorDespachar}
                           value={cantidades[it.requestItemId] ?? ""}
-                          onChange={(e) => setCantidades({ ...cantidades, [it.requestItemId]: e.target.value })}
+                          onChange={(v) => setCantidades({ ...cantidades, [it.requestItemId]: v })}
                           className={`${inputClass} w-24 py-1.5`}
                           aria-label={`Cantidad a despachar de ${it.codigoVariante ?? it.skuBase}`}
                         />
@@ -177,11 +176,10 @@ export default function AlmacenDespacho() {
           <Card className="mb-4">
             <CardBody className="grid gap-4 sm:grid-cols-[140px_200px_1fr]">
               <Field label="Bultos">
-                <input
-                  type="number"
-                  min="1"
+                <CampoNumero
+                  decimales={0} maxEnteros={4}
                   value={bultos}
-                  onChange={(e) => setBultos(e.target.value)}
+                  onChange={(v) => setBultos(v)}
                   className={`${inputClass} w-full`}
                 />
               </Field>

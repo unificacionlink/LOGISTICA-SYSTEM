@@ -26,6 +26,7 @@ import { descargarPdfRfq } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
 import { cantidad } from "../components/compras/formato";
 
+import CampoNumero from "../components/ui/CampoNumero";
 /** Texto de la solicitud para correo o WhatsApp (no constituye orden de compra). */
 function mensajeSolicitud(d: RfqDetalle): string {
   const lineas = d.items.map(
@@ -594,15 +595,13 @@ export default function ComprasRfqDetalle() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.0001"
+                            <CampoNumero
+                              decimales={4} maxEnteros={9}
                               value={filas[it.rfqItemId]?.unitCost ?? ""}
-                              onChange={(e) => {
+                              onChange={(v) => {
                                 setFilas((prev) => ({
                                   ...prev,
-                                  [it.rfqItemId]: { ...prev[it.rfqItemId], unitCost: e.target.value },
+                                  [it.rfqItemId]: { ...prev[it.rfqItemId], unitCost: v },
                                 }));
                                 setItemsSugeridosIds((prev) => {
                                   if (!prev.has(it.rfqItemId)) return prev;
@@ -699,11 +698,10 @@ export default function ComprasRfqDetalle() {
                   </select>
                 </Field>
                 <Field label="Días de entrega">
-                  <input
-                    type="number"
-                    min={0}
+                  <CampoNumero
+                    decimales={0} maxEnteros={3}
                     value={leadDays}
-                    onChange={(e) => setLeadDays(e.target.value)}
+                    onChange={(v) => setLeadDays(v)}
                     className={`${inputClass} w-full`}
                   />
                 </Field>

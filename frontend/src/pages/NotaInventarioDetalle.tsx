@@ -20,6 +20,7 @@ import BotonDescarga from "../components/BotonDescarga";
 import { descargarPdfNota } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
 
+import CampoNumero from "../components/ui/CampoNumero";
 const labelClass = "rotulo";
 
 function Dato({ label, children }: { label: string; children: React.ReactNode }) {
@@ -256,32 +257,27 @@ export default function NotaInventarioDetalle() {
                 />
               </Field>
               <Field label="Bultos">
-                <input
-                  type="number"
-                  min="1"
+                <CampoNumero
+                  decimales={0} maxEnteros={4}
                   value={envio.packageCount}
-                  onChange={(ev) => setEnvio({ ...envio, packageCount: ev.target.value })}
+                  onChange={(v) => setEnvio({ ...envio, packageCount: v })}
                   placeholder={nota.packageCount ? String(nota.packageCount) : ""}
                   className={`${inputClass} w-full`}
                 />
               </Field>
               <Field label="Costo neto (sin IGV)">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <CampoNumero
+                  decimales={2} maxEnteros={9}
                   value={envio.shippingCostNet}
-                  onChange={(ev) => setEnvio({ ...envio, shippingCostNet: ev.target.value })}
+                  onChange={(v) => setEnvio({ ...envio, shippingCostNet: v })}
                   className={`${inputClass} w-full`}
                 />
               </Field>
               <Field label="IGV">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <CampoNumero
+                  decimales={2} maxEnteros={9}
                   value={envio.shippingTaxAmount}
-                  onChange={(ev) => setEnvio({ ...envio, shippingTaxAmount: ev.target.value })}
+                  onChange={(v) => setEnvio({ ...envio, shippingTaxAmount: v })}
                   className={`${inputClass} w-full`}
                 />
               </Field>
@@ -296,12 +292,10 @@ export default function NotaInventarioDetalle() {
                 </select>
               </Field>
               <Field label="Peso declarado (kg)">
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
+                <CampoNumero
+                  decimales={3}
                   value={envio.declaredWeight}
-                  onChange={(ev) => setEnvio({ ...envio, declaredWeight: ev.target.value })}
+                  onChange={(v) => setEnvio({ ...envio, declaredWeight: v })}
                   className={`${inputClass} w-full`}
                 />
               </Field>

@@ -11,6 +11,7 @@ import { Card, CardBody } from "../ui/Card";
 import EmptyState from "../ui/EmptyState";
 import Field, { inputClass } from "../ui/Field";
 
+import CampoNumero from "../ui/CampoNumero";
 function EstadoCompra({ estado }: { estado: CompraCajaChica["estado"] }) {
   if (estado === "PENDIENTE_REGULARIZACION") return <Badge tone="amarillo">Por regularizar</Badge>;
   if (estado === "OBSERVADO") return <Badge tone="rojo">Observada</Badge>;
@@ -242,7 +243,9 @@ function Regla({ regla, onRegla }: { regla: ReglaCajaChica; onRegla: (r: ReglaCa
         {editando && (
           <div className="flex flex-wrap items-end gap-4">
             <Field label={`Umbral de bajo monto (${regla.moneda})`}>
-              <input type="number" min={0} step="0.01" value={umbral} onChange={(e) => setUmbral(e.target.value)} className={`${inputClass} w-32`} />
+              <CampoNumero
+                decimales={2} maxEnteros={9} value={umbral} onChange={(v) => setUmbral(v)} className={`${inputClass} w-32`}
+              />
             </Field>
             {(
               [

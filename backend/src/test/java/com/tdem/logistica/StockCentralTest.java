@@ -121,6 +121,8 @@ class StockCentralTest {
 		// --- Errores: codigo inexistente, negativo, repetido ---
 		CargaStockDto malo = carga.validar(editar(plantilla, Map.of("AC01005-00", new String[] {"-1", null})), logistica);
 		assertEquals(1, malo.conError());
+		CargaStockDto decimal = carga.validar(editar(plantilla, Map.of("AC01005-00", new String[] {"2.5", null})), logistica);
+		assertEquals(1, decimal.conError(), "las cantidades son enteras");
 
 		// --- Kardex: del mas reciente al mas antiguo, con saldo acumulado ---
 		KardexDto k = stock.kardex(ac1, logistica);

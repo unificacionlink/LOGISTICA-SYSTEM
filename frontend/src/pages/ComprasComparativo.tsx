@@ -36,6 +36,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 import { comprimirImagen, esImagen } from "../utils/imagenes";
 
+import CampoNumero from "../components/ui/CampoNumero";
 const MAX_COTIZACIONES = 3;
 
 /** Una cotización subida que se está leyendo o espera revisión (aún no guardada). */
@@ -563,12 +564,10 @@ export default function ComprasComparativo() {
           {mixtas && (
             <label className="flex items-center gap-2 text-xs text-slate-600">
               Tipo de cambio S/ por US$
-              <input
-                type="number"
-                min={0}
-                step="0.001"
+              <CampoNumero
+                decimales={3} maxEnteros={3}
                 value={tc}
-                onChange={(e) => setTc(e.target.value)}
+                onChange={(v) => setTc(v)}
                 className={`${inputClass} w-24 py-1 text-right`}
               />
             </label>
