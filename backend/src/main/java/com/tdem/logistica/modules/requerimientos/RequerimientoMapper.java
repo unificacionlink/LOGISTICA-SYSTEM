@@ -34,7 +34,9 @@ public final class RequerimientoMapper {
                 r.getRequiredDate(),
                 r.getScheduledDeliveryDate(),
                 r.getCreatedAt(),
-                r.getEmpresa() != null ? r.getEmpresa().getCode() : null);
+                r.getEmpresa() != null ? r.getEmpresa().getCode() : null,
+                null,
+                null);
     }
 
     public static RequerimientoItemDto toDto(RequerimientoItem i) {

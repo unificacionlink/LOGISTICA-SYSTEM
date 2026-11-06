@@ -18,5 +18,13 @@ public record RequerimientoDto(
         LocalDate requiredDate,
         LocalDate scheduledDeliveryDate,
         OffsetDateTime createdAt,
-        String empresaCode) {
+        String empresaCode,
+        /** Solo en el listado: cantidad de items y nombres de sus productos (para buscar y resumir). */
+        Integer itemsCount,
+        String resumenItems) {
+
+    public RequerimientoDto conResumen(Integer items, String resumen) {
+        return new RequerimientoDto(id, code, requesterUserId, cecoId, cecoNombre, requesterNombre, priority, purpose,
+                justification, status, requiredDate, scheduledDeliveryDate, createdAt, empresaCode, items, resumen);
+    }
 }

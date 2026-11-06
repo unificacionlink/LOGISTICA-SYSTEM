@@ -1,21 +1,31 @@
 /**
- * Novedades de cada version, en lenguaje de usuario (botón "Novedades" del
- * menu). Es la fuente de la version que muestra la app: la primera entrada es
+ * Novedades de cada version, en lenguaje de usuario (pie "vX · Novedades" al
+ * final de cada pantalla, sin fecha). Es la fuente de la version que muestra la app: la primera entrada es
  * la actual. docs/CHANGELOG.md sigue siendo el registro tecnico; al publicar
  * una version se actualizan los dos con el mismo numero.
  */
 export interface VersionApp {
   version: string;
-  /** AAAA-MM-DD */
-  fecha: string;
   titulo: string;
   cambios: string[];
 }
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.30.0",
+    titulo: "Requerimientos ordenados y comparativo de cotizaciones",
+    cambios: [
+      "Requerimientos: elige una empresa o míralas todas con su color, y ve lo abierto agrupado por etapa.",
+      "Primero aparece lo vencido y lo urgente; cada pedido muestra cuántos días le quedan.",
+      "Busca un requerimiento también por el producto que pide.",
+      "Compras: elige los productos y sube hasta 3 cotizaciones en PDF o foto; el sistema lee el proveedor y los precios.",
+      "Las cotizaciones se ven lado a lado con el mejor precio marcado, y adjudicas todo con un clic.",
+      "Las órdenes de compra se emiten desde el mismo comparativo.",
+      "Las novedades ahora están al pie de cada pantalla, junto al número de versión.",
+    ],
+  },
+  {
     version: "0.29.0",
-    fecha: "2026-11-05",
     titulo: "Stock renovado",
     cambios: [
       "Todo el stock está en un solo almacén, el de TDEM, y atiende también los requerimientos de GOYDEL y METRIN.",
@@ -28,7 +38,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.28.2",
-    fecha: "2026-11-05",
     titulo: "Las fotos reemplazadas se eliminan",
     cambios: [
       "Al cambiar la foto de un producto, la foto anterior se elimina para no ocupar espacio.",
@@ -37,7 +46,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.28.1",
-    fecha: "2026-11-05",
     titulo: "Corrección al cambiar fotos",
     cambios: [
       "Se corrigió el error \"Ocurrió un conflicto al guardar\" al cambiar la foto de un producto que ya tenía una.",
@@ -46,7 +54,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.28.0",
-    fecha: "2026-11-05",
     titulo: "Fotos de productos en lote",
     cambios: [
       "En Catálogo de productos, el menú ⋯ tiene \"Carga masiva de fotos\": arrastra la carpeta y cada foto se asigna sola al producto cuyo código lleva en el nombre (por ejemplo AC01001.jpg).",
@@ -57,7 +64,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.27.0",
-    fecha: "2026-11-05",
     titulo: "Diseño renovado y búsqueda rápida",
     cambios: [
       "Nuevo buscador: presiona Ctrl+K (o el botón Buscar del menú) y escribe a dónde quieres ir, por ejemplo \"caja chica\" o \"nuevo requerimiento\".",
@@ -68,7 +74,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.26.0",
-    fecha: "2026-11-05",
     titulo: "Personal de cada empresa",
     cambios: [
       "Nueva pestaña Personal en Administración: todo el personal de cada empresa, con una lista separada para TDEM, GOYDEL y METRIN.",
@@ -79,13 +84,11 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.25.1",
-    fecha: "2026-11-05",
     titulo: "Corrección de ingreso",
     cambios: ["Se corrigió el error \"No se pudo conectar con el servidor\" al iniciar sesión en el sistema publicado."],
   },
   {
     version: "0.25.0",
-    fecha: "2026-11-05",
     titulo: "Compras consolidadas entre requerimientos",
     cambios: [
       "Al aprobar un requerimiento, lo que falta de cada producto se suma solo a un consolidado del mismo producto, junto con lo que piden otros requerimientos y CECOs.",
@@ -100,7 +103,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.24.0",
-    fecha: "2026-11-02",
     titulo: "Control presupuestal",
     cambios: [
       "PYC activa el control presupuestal por periodo.",
@@ -110,7 +112,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.23.0",
-    fecha: "2026-11-02",
     titulo: "Presupuestos semestrales",
     cambios: [
       "Nueva pantalla Presupuestos: programación por producto y mes para cada CECO y semestre.",
@@ -120,7 +121,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.22.0",
-    fecha: "2026-11-02",
     titulo: "Precios de venta y plazo de atención",
     cambios: [
       "Precio de venta por empresa en el Catálogo, registrado por PYC o Logística, con historial.",
@@ -130,7 +130,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.21.0",
-    fecha: "2026-10-12",
     titulo: "Roles PYC y Gerencia, aprobador por CECO",
     cambios: [
       "Nuevos roles PYC y Gerencia.",
@@ -141,7 +140,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.20.0",
-    fecha: "2026-10-02",
     titulo: "CECOs por usuario",
     cambios: [
       "El solicitante solo pide para los CECOs que tiene asignados, de cualquier empresa.",
@@ -150,7 +148,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.19.0",
-    fecha: "2026-09-30",
     titulo: "Personal de GOYDEL y METRIN",
     cambios: [
       "Carga de personal por Excel para GOYDEL y METRIN: altas, correcciones y ceses en un solo archivo.",
@@ -160,7 +157,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.18.0",
-    fecha: "2026-09-30",
     titulo: "Observar y programar entregas",
     cambios: [
       "El aprobador puede observar un requerimiento con motivo; el solicitante lo corrige y lo reenvía.",
@@ -170,7 +166,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.17.0",
-    fecha: "2026-09-28",
     titulo: "Caja Chica",
     cambios: [
       "Compras por Caja Chica con sugerencia según la regla (bajo monto, mismo día, falla de proveedor).",
@@ -180,7 +175,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.16.0",
-    fecha: "2026-09-28",
     titulo: "Alta de productos",
     cambios: [
       "Logística crea productos nuevos en el Catálogo con su código SKU y variantes.",
@@ -189,7 +183,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.15.0",
-    fecha: "2026-09-28",
     titulo: "Usuarios desde RR.HH. y Administración",
     cambios: [
       "Los usuarios y CECOs se sincronizan con RR.HH.; el personal cesado pierde acceso.",
@@ -199,7 +192,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.14.0",
-    fecha: "2026-09-28",
     titulo: "PDFs y carga masiva de ingresos",
     cambios: [
       "PDF corporativo del requerimiento, solicitud de cotización, orden de compra, nota de inventario y tracking.",
@@ -208,13 +200,11 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.13.0",
-    fecha: "2026-09-25",
     titulo: "Nueva imagen",
     cambios: ["Colores corporativos en toda la aplicación y nueva pantalla de inicio de sesión."],
   },
   {
     version: "0.12.0",
-    fecha: "2026-09-25",
     titulo: "Dashboard",
     cambios: [
       "Dashboard en Inicio: requerimientos abiertos, tiempos de aprobación y atención, respuesta de proveedores y ahorro.",
@@ -224,7 +214,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.11.0",
-    fecha: "2026-09-25",
     titulo: "Tracking del requerimiento",
     cambios: [
       "Seguimiento de cada requerimiento: avance, hitos, entregas e historial completo, con descarga en Excel.",
@@ -232,7 +221,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.10.0",
-    fecha: "2026-09-24",
     titulo: "Atención automática",
     cambios: [
       "Al aprobar un requerimiento se reserva solo el stock disponible, sin un paso manual.",
@@ -241,7 +229,6 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.9.0",
-    fecha: "2026-09-24",
     titulo: "Almacén",
     cambios: [
       "Recepción de órdenes de compra con incidencias y guía.",
@@ -251,13 +238,11 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.8.0",
-    fecha: "2026-09-24",
     titulo: "Fotos de productos",
     cambios: ["Clic en una miniatura para ver la foto del producto en grande."],
   },
   {
     version: "0.7.0",
-    fecha: "2026-09-23",
     titulo: "Proveedores y compras",
     cambios: [
       "Registro de proveedores.",
@@ -267,31 +252,26 @@ export const NOVEDADES: VersionApp[] = [
   },
   {
     version: "0.6.0",
-    fecha: "2026-09-23",
     titulo: "Catálogo con fotos",
     cambios: ["Catálogo de productos con fotos y nuevo pedido tipo carrito."],
   },
   {
     version: "0.5.0",
-    fecha: "2026-09-21",
     titulo: "Stock",
     cambios: ["Control de stock por almacén y ajustes de inventario."],
   },
   {
     version: "0.4.0",
-    fecha: "2026-09-18",
     titulo: "Avisos en vivo",
     cambios: ["Los aprobadores ven llegar requerimientos y los solicitantes reciben la decisión sin recargar."],
   },
   {
     version: "0.3.0",
-    fecha: "2026-09-18",
     titulo: "Aprobaciones",
     cambios: ["Bandeja de aprobaciones para aprobar o rechazar requerimientos."],
   },
   {
     version: "0.2.0",
-    fecha: "2026-09-18",
     titulo: "Primera versión",
     cambios: ["Inicio de sesión y creación de requerimientos con el catálogo de 725 productos."],
   },

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.30.0 — 2026-11-06
+
+- **Comparativo de cotizaciones** (DEC-L047): en Compras > Consolidados se
+  eligen productos de una empresa y "Comparar cotizaciones" abre
+  `/compras/comparativo`. Hasta 3 cotizaciones (PDF o foto) se leen por OCR
+  en paralelo: proveedor por RUC y precio unitario por nombre de producto.
+  Se revisan en un panel, se comparan lado a lado con el mejor precio
+  marcado (tipo de cambio si hay soles y dolares), se adjudica todo de una
+  vez y se emiten las OC ahi mismo.
+- API: `GET /api/compras/comparativo`, `POST /comparativo/ocr`,
+  `/comparativo/cotizaciones` y `/comparativo/adjudicar`.
+  `CotizacionOcrParser.parsearItems` busca por nombre cuando el proveedor no
+  usa nuestros codigos. Pruebas: `ComparativoCotizacionesTest`.
+- **Bandeja de Requerimientos** (DEC-L046): selector de empresa con conteos,
+  vistas Abiertos/Atendidos/Rechazados/Todos, grupos por etapa, orden por
+  urgencia, vencimientos visibles, filtros Vencidos/Urgentes y busqueda por
+  producto. El listado suma `itemsCount` y `resumenItems`.
+- Compras > Consolidados: una empresa a la vez; "Preparar solicitudes" pasa
+  a "Pedir cotizacion".
+- **Novedades** (DEC-L040): sale del menu (no es un modulo) y pasa a un pie
+  discreto "vX · Novedades" al final de cada pantalla; las versiones ya no
+  muestran fecha (`VersionApp.fecha` eliminado).
+
 ## 0.29.0 — 2026-11-05
 
 - **Stock central del grupo** (DEC-L045, Flyway V22): un solo almacen (el de

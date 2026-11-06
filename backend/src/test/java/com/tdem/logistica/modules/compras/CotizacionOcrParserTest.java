@@ -73,4 +73,35 @@ class CotizacionOcrParserTest {
         OcrCotizacionDto datos = CotizacionOcrParser.parsear(TEXTO_REAL, Map.of(UUID.randomUUID(), "NOEXISTE99"));
         assertTrue(datos.itemsSugeridos().isEmpty());
     }
+
+    /** Proveedor que no usa nuestros codigos: se reconoce cada producto por su nombre (DEC-L047). */
+    static final String SIN_CODIGOS =
+            "FERRETERIA LOS ANDES S.A.C.\n"
+                    + "RUC 20100000021\n"
+                    + "ITEM DESCRIPCION CANT P.UNIT TOTAL\n"
+                    + "1 Camara endoscopio HD 3m luz LED wifi 10 85.50 855.00\n"
+                    + "2 Repulsor ultrasonico canes 4 32.00 128.00\n"
+                    + "3 Linterna frontal recargable 2 15.00 30.00\n"
+                    + "TOTAL S/ 1,013.00\n";
+
+    @Test
+    void reconoceElProductoPorSuNombreYSeparaUnitarioDelTotal() {
+        UUID camara = UUID.randomUUID();
+        UUID repulsor = UUID.randomUUID();
+        UUID guantes = UUID.randomUUID();
+        Map<UUID, CotizacionOcrParser.ItemBuscado> items = Map.of(
+                camara, new CotizacionOcrParser.ItemBuscado("AC01003-00",
+                        "CAMARA ENDOSCOPIO HD 3 METROS CON LUZ LED WIFI P/CELULAR", new BigDecimal("10")),
+                repulsor, new CotizacionOcrParser.ItemBuscado("AC01008-00", "REPULSOR PARA CANES/PERROS", new BigDecimal("4")),
+                guantes, new CotizacionOcrParser.ItemBuscado("EP01001-00", "GUANTES DE NITRILO", new BigDecimal("20")));
+
+        OcrCotizacionDto datos = CotizacionOcrParser.parsearItems(SIN_CODIGOS, items);
+
+        Map<UUID, BigDecimal> costos = new java.util.HashMap<>();
+        datos.itemsSugeridos().forEach(i -> costos.put(i.rfqItemId(), i.costoSugerido()));
+        assertEquals(0, new BigDecimal("85.50").compareTo(costos.get(camara)), "unitario, no el total 855.00");
+        assertEquals(0, new BigDecimal("32.00").compareTo(costos.get(repulsor)));
+        assertTrue(!costos.containsKey(guantes), "lo que el proveedor no cotiza no se inventa");
+        assertEquals("20100000021", datos.rucDetectado());
+    }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Sparkles, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { NOVEDADES, VERSION_ACTUAL, type VersionApp } from "../novedades";
 
 // Ultima version que este usuario abrio en este navegador (solo para el aviso).
@@ -22,15 +22,12 @@ function marcarVista() {
   }
 }
 
-function fecha(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" });
-}
-
 /**
- * Boton del menu con la version actual; abre el historial de novedades.
- * Muestra un punto mientras el usuario no haya visto la version actual.
+ * Pie discreto al final de cada pantalla con la version actual: abre el
+ * historial de novedades. Muestra un punto mientras el usuario no haya visto
+ * la version actual. No va en el menu: no es un modulo.
  */
-export default function BotonNovedades({ etiquetaClase, onAbrir }: { etiquetaClase: string; onAbrir?: () => void }) {
+export default function PieVersion() {
   const [abierto, setAbierto] = useState(false);
   const [nueva, setNueva] = useState(() => leerVista() !== VERSION_ACTUAL);
 
@@ -38,31 +35,22 @@ export default function BotonNovedades({ etiquetaClase, onAbrir }: { etiquetaCla
     marcarVista();
     setNueva(false);
     setAbierto(true);
-    onAbrir?.();
   }
 
   return (
     <>
-      <button
-        type="button"
-        title={`Novedades · versión ${VERSION_ACTUAL}`}
-        onClick={abrir}
-        className="flex h-9 items-center gap-3 rounded-md px-[11px] text-[13px] text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-      >
-        <span className="relative shrink-0">
-          <Sparkles className="size-4.5" strokeWidth={2.1} />
-          {nueva && (
-            <>
-              <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-brand-600 ring-2 ring-slate-50" />
-              <span className="sr-only">Hay novedades</span>
-            </>
-          )}
-        </span>
-        <span className={`flex flex-1 items-baseline justify-between gap-2 ${etiquetaClase}`}>
-          Novedades
-          <span className="font-mono text-[10.5px] text-slate-400">v{VERSION_ACTUAL}</span>
-        </span>
-      </button>
+      <footer className="flex justify-center px-4 pb-6 pt-2">
+        <button
+          type="button"
+          onClick={abrir}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-slate-400 transition-colors hover:bg-slate-200/50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+        >
+          {nueva && <span aria-hidden="true" className="size-1.5 rounded-full bg-brand-600" />}
+          <span className="font-mono">v{VERSION_ACTUAL}</span>
+          <span aria-hidden="true">·</span>
+          <span>{nueva ? "Ver novedades" : "Novedades"}</span>
+        </button>
+      </footer>
       {abierto && <VentanaNovedades onCerrar={() => setAbierto(false)} />}
     </>
   );
@@ -123,7 +111,6 @@ function VentanaNovedades({ onCerrar }: { onCerrar: () => void }) {
                     <ChevronDown className="size-3.5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
                     <span className="font-mono text-xs text-slate-500">{v.version}</span>
                     <span className="min-w-0 flex-1 truncate text-slate-700">{v.titulo}</span>
-                    <span className="shrink-0 text-xs text-slate-400">{fecha(v.fecha)}</span>
                   </summary>
                   <ListaCambios cambios={v.cambios} className="pb-3 pl-5" />
                 </details>
@@ -142,9 +129,7 @@ function Version({ v }: { v: VersionApp }) {
     <section>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-medium text-slate-900">{v.titulo}</h3>
-        <span className="text-xs text-slate-400">
-          <span className="font-mono">{v.version}</span> · {fecha(v.fecha)}
-        </span>
+        <span className="font-mono text-xs text-slate-400">{v.version}</span>
       </div>
       <ListaCambios cambios={v.cambios} className="mt-2" />
     </section>

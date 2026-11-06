@@ -4,11 +4,14 @@ import com.tdem.logistica.modules.compras.dto.OcrCotizacionDto;
 import com.tdem.logistica.modules.compras.dto.OcrItemSugeridoDto;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,6 +47,15 @@ public final class CotizacionOcrParser {
     // Un monto de por item puede venir sin centavos (ej. "S/. 559"), a diferencia del total.
     private static final Pattern MONTO = Pattern.compile("(?:S/\\.?|US\\$|\\$)\\s*([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2})?)");
     private static final int VENTANA_BUSQUEDA_ITEM = 120;
+    // En una fila de tabla los importes suelen ir sin simbolo de moneda: cualquier numero con 2 decimales.
+    private static final Pattern NUMERO_CON_DECIMALES = Pattern.compile(
+            "(?<![\\d.,])(\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2})(?![\\d])");
+    private static final Set<String> PALABRAS_VACIAS = Set.of(
+            "DE", "DEL", "LA", "LAS", "EL", "LOS", "PARA", "CON", "SIN", "POR", "UND", "UNID", "UNIDAD", "TIPO", "COLOR");
+
+    /** Lo que se busca de cada item en el documento: su codigo, su nombre y la cantidad pedida. */
+    public record ItemBuscado(String codigo, String nombre, BigDecimal qty) {
+    }
 
     private CotizacionOcrParser() {
     }
@@ -54,6 +66,19 @@ public final class CotizacionOcrParser {
 
     /** @param codigosPorItem rfqItemId -> codigo de variante (SKU) tal como se le envio al proveedor en la RFQ. */
     public static OcrCotizacionDto parsear(String texto, Map<UUID, String> codigosPorItem) {
+        Map<UUID, ItemBuscado> items = new LinkedHashMap<>();
+        codigosPorItem.forEach((id, codigo) -> items.put(id, new ItemBuscado(codigo, null, null)));
+        return parsearItems(texto, items);
+    }
+
+    /**
+     * Como {@link #parsear(String, Map)}, pero si el codigo no aparece (lo normal: cada
+     * proveedor usa sus propios codigos) busca la linea que mas se parece al nombre del
+     * producto y, con la cantidad pedida, distingue el precio unitario del total de linea.
+     */
+    public static OcrCotizacionDto parsearItems(String texto, Map<UUID, ItemBuscado> items) {
+        Map<UUID, String> codigosPorItem = new LinkedHashMap<>();
+        items.forEach((id, i) -> codigosPorItem.put(id, i.codigo()));
         String proveedor = detectarProveedor(texto);
         String ruc = buscarPrimero(RUC, texto, Matcher::group);
         LocalDate fecha = buscarFecha(texto);
@@ -63,6 +88,16 @@ public final class CotizacionOcrParser {
         BigDecimal total = buscarUltimo(TOTAL, texto, m -> parsearMonto(m.group(1)));
         Integer plazo = buscarPrimero(PLAZO, texto, m -> Integer.valueOf(m.group(1)));
         List<OcrItemSugeridoDto> itemsSugeridos = sugerirCostosPorItem(texto, codigosPorItem);
+        Set<UUID> encontrados = new java.util.HashSet<>();
+        itemsSugeridos.forEach(i -> encontrados.add(i.rfqItemId()));
+        for (Map.Entry<UUID, ItemBuscado> e : items.entrySet()) {
+            if (!encontrados.contains(e.getKey()) && e.getValue().nombre() != null) {
+                BigDecimal costo = costoPorNombre(texto, e.getValue());
+                if (costo != null) {
+                    itemsSugeridos.add(new OcrItemSugeridoDto(e.getKey(), e.getValue().codigo(), costo));
+                }
+            }
+        }
         return new OcrCotizacionDto(proveedor, ruc, fecha, moneda, total, plazo, itemsSugeridos, texto);
     }
 
@@ -99,6 +134,79 @@ public final class CotizacionOcrParser {
             }
         }
         return sugerencias;
+    }
+
+    /**
+     * La linea del texto con mas palabras del nombre del producto (al menos la mitad, y
+     * dos si el nombre tiene dos o mas). De sus importes, si la cantidad pedida se conoce,
+     * el unitario es el que multiplicado por ella da otro importe de la linea (el total);
+     * si no, el menor que no sea la propia cantidad.
+     */
+    static BigDecimal costoPorNombre(String texto, ItemBuscado item) {
+        if (texto == null) return null;
+        List<String> palabras = palabrasClave(item.nombre());
+        if (palabras.isEmpty()) return null;
+        int minimo = Math.max(palabras.size() >= 2 ? 2 : 1, (palabras.size() + 1) / 2);
+        String[] lineas = texto.split("\\r?\\n");
+        int mejor = -1;
+        int mejorPuntaje = 0;
+        for (int i = 0; i < lineas.length; i++) {
+            String linea = " " + normalizar(lineas[i]) + " ";
+            int puntaje = 0;
+            for (String p : palabras) {
+                // Prefijo de la palabra: "GUANTE" encuentra "GUANTES", "CASCO" encuentra "CASCOS".
+                if (linea.contains(" " + p.substring(0, Math.min(p.length(), 6)))) puntaje++;
+            }
+            if (puntaje >= minimo && puntaje > mejorPuntaje) {
+                mejorPuntaje = puntaje;
+                mejor = i;
+            }
+        }
+        if (mejor < 0) return null;
+        List<BigDecimal> importes = importes(lineas[mejor]);
+        // Tablas partidas por el OCR: los importes pueden quedar en la linea siguiente.
+        if (importes.isEmpty() && mejor + 1 < lineas.length) importes = importes(lineas[mejor + 1]);
+        if (importes.isEmpty()) return null;
+        BigDecimal qty = item.qty();
+        if (qty != null && qty.signum() > 0) {
+            for (BigDecimal unitario : importes) {
+                BigDecimal esperado = unitario.multiply(qty);
+                for (BigDecimal total : importes) {
+                    if (total != unitario && esperado.signum() > 0
+                            && esperado.subtract(total).abs().compareTo(esperado.multiply(new BigDecimal("0.01"))) <= 0
+                            && qty.compareTo(BigDecimal.ONE) != 0) {
+                        return unitario;
+                    }
+                }
+            }
+        }
+        return importes.stream()
+                .filter(m -> qty == null || m.compareTo(qty) != 0)
+                .min(BigDecimal::compareTo)
+                .orElse(importes.get(0));
+    }
+
+    private static List<BigDecimal> importes(String linea) {
+        List<BigDecimal> out = new ArrayList<>();
+        Matcher m = NUMERO_CON_DECIMALES.matcher(linea);
+        while (m.find()) {
+            BigDecimal monto = parsearMonto(m.group(1));
+            if (monto != null && monto.signum() > 0) out.add(monto);
+        }
+        return out;
+    }
+
+    private static List<String> palabrasClave(String nombre) {
+        List<String> out = new ArrayList<>();
+        if (nombre == null) return out;
+        for (String p : normalizar(nombre).split("[^A-Z0-9]+")) {
+            if (p.length() >= 3 && !PALABRAS_VACIAS.contains(p) && !out.contains(p)) out.add(p);
+        }
+        return out;
+    }
+
+    private static String normalizar(String t) {
+        return Normalizer.normalize(t, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase();
     }
 
     private static BigDecimal buscarMenorMonto(String ventana) {

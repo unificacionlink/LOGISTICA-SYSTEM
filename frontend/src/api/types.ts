@@ -37,6 +37,10 @@ export interface Requerimiento {
   scheduledDeliveryDate: string | null;
   createdAt: string | null;
   empresaCode: string | null;
+  /** Solo en el listado. */
+  itemsCount?: number | null;
+  /** Solo en el listado: nombres de los productos pedidos. */
+  resumenItems?: string | null;
 }
 
 export interface RequerimientoItem {
@@ -1120,4 +1124,71 @@ export interface ProductoPresupuesto {
   familia: string;
   unidad: string;
   precio: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// Comparativo de cotizaciones (DEC-L047)
+// ---------------------------------------------------------------------------
+
+export interface ComparativoFila {
+  consolidationId: string;
+  consolidationCode: string;
+  status: EstadoConsolidado;
+  codigo: string;
+  nombreProducto: string;
+  atributo: string | null;
+  unidadMedida: string;
+  totalQty: number;
+  adjudicadoQuotationItemId: string | null;
+  adjudicadoProveedor: string | null;
+}
+
+export interface ComparativoPrecio {
+  consolidationId: string;
+  quotationId: string;
+  quotationItemId: string;
+  currencyCode: string;
+  qty: number;
+  unitCost: number;
+  lineTotal: number;
+  offeredBrand: string | null;
+  offeredModel: string | null;
+}
+
+export interface ComparativoColumna {
+  supplierId: string;
+  proveedorNombre: string;
+  ruc: string | null;
+  rfqId: string;
+  rfqCode: string;
+  /** null: tiene RFQ pero aun no cotiza. */
+  quotationId: string | null;
+  supplierQuoteNumber: string | null;
+  source: "OCR" | "MANUAL" | null;
+  currencyCode: string | null;
+  paymentCondition: string | null;
+  deliveryMode: string | null;
+  leadDays: number | null;
+  documentoUrl: string | null;
+  documentoNombre: string | null;
+  precios: ComparativoPrecio[];
+}
+
+export interface Comparativo {
+  empresaCode: string;
+  filas: ComparativoFila[];
+  proveedores: ComparativoColumna[];
+}
+
+export interface OcrComparativo {
+  supplierId: string | null;
+  proveedorDetectado: string | null;
+  rucDetectado: string | null;
+  fechaDetectada: string | null;
+  monedaDetectada: string | null;
+  totalDetectado: number | null;
+  plazoDetectadoDias: number | null;
+  /** consolidationId -> costo unitario leido. */
+  precios: Record<string, number>;
+  textoDetectado: string;
 }

@@ -21,6 +21,9 @@ public interface ConsolidacionRepository extends JpaRepository<Consolidacion, UU
     @Query(DETALLE + "where c.status in :statuses order by c.createdAt")
     List<Consolidacion> findByStatusIn(@Param("statuses") Collection<String> statuses);
 
+    @Query(DETALLE + "where c.consolidationId in :ids order by c.createdAt")
+    List<Consolidacion> findDetalleByIds(@Param("ids") Collection<UUID> ids);
+
     @Query(DETALLE + "where c.consolidationId = :id")
     Optional<Consolidacion> findDetalleById(@Param("id") UUID id);
 

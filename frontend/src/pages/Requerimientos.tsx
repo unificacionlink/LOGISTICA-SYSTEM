@@ -1,138 +1,132 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { ChevronDown, Plus } from "lucide-react";
-import { listarRequerimientos, obtenerRequerimiento } from "../api/requerimientos";
-import type { Requerimiento, RequerimientoDetalle } from "../api/types";
+import { useSearchParams } from "react-router-dom";
+import { AlertTriangle, ChevronDown, Flame, Inbox, Plus, Search, X } from "lucide-react";
+import { listarRequerimientos } from "../api/requerimientos";
+import type { Requerimiento } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { fmtDia } from "../components/AlmacenBadges";
-import EstadoBadge from "../components/EstadoBadge";
 import { EMPRESAS } from "../components/empresas";
-import PrioridadBadge from "../components/PrioridadBadge";
+import FilaRequerimiento from "../components/requerimientos/FilaRequerimiento";
+import {
+  coincideBusqueda,
+  enVista,
+  esPrioritario,
+  estaVencido,
+  ETAPAS,
+  etapaDe,
+  etapasAbiertas,
+  ordenar,
+  type Etapa,
+  type Vista,
+  VISTAS,
+} from "../components/requerimientos/bandeja";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import EmptyState from "../components/ui/EmptyState";
+import { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
-function fmtFecha(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "short" });
-}
+const POR_GRUPO = 30;
+const CLAVE_EMPRESA = "requerimientos.empresa";
 
-function fmtCantidad(n: number): string {
-  return Number(n).toLocaleString("es-PE", { maximumFractionDigits: 3 });
-}
-
-/** Detalle rapido de la tarjeta: se pide al abrirla por primera vez y queda en memoria. */
-function DetalleRapido({ id }: { id: string }) {
-  const [detalle, setDetalle] = useState<RequerimientoDetalle | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    obtenerRequerimiento(id).then((res) => {
-      if (res.ok && res.result) setDetalle(res.result);
-      else setError(res.message);
-    });
-  }, [id]);
-
-  if (error) return <p className="text-xs text-rose-700">{error}</p>;
-  if (!detalle) {
-    return (
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-3 w-2/3" />
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-4/5" />
-      </div>
-    );
+function leerEmpresaGuardada(): string {
+  try {
+    return localStorage.getItem(CLAVE_EMPRESA) ?? "";
+  } catch {
+    return "";
   }
+}
 
-  const { requerimiento: r, items } = detalle;
+/** Encabezado de columnas (solo en pantallas anchas): mismo grid que cada fila. */
+function Columnas({ esGestor }: { esGestor: boolean }) {
   return (
-    <div className="flex flex-col gap-2.5 text-xs">
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-        <div>
-          <dt className="rotulo">Propósito</dt>
-          <dd className="text-slate-700">{r.purpose ?? "—"}</dd>
-        </div>
-        <div>
-          <dt className="rotulo">Fecha requerida</dt>
-          <dd className="text-slate-700">{fmtDia(r.requiredDate)}</dd>
-        </div>
-      </dl>
-      {r.justification && <p className="line-clamp-3 text-slate-600">{r.justification}</p>}
-      <ul className="divide-y divide-slate-100 rounded-md border border-slate-100">
-        {items.map((i) => (
-          <li key={i.id} className="flex items-start justify-between gap-3 px-2.5 py-1.5">
-            <div className="min-w-0">
-              <p className="truncate text-slate-700" title={i.nombreProducto}>
-                {i.nombreProducto}
-                {i.atributo ? ` (${i.atributo})` : ""}
-              </p>
-              <p className="font-mono text-[11px] text-slate-400">{i.codigoVariante ?? i.skuBase}</p>
-            </div>
-            <span className="shrink-0 tabular-nums text-slate-700">
-              {fmtCantidad(i.cantidad)} <span className="text-slate-400">{i.unidadMedida}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
+    <div className="cabecera-tabla hidden border-b border-slate-200 pl-4 pr-12 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_7.5rem_11rem] md:gap-x-4">
+      <span className="py-2.5">Requerimiento</span>
+      <span className="py-2.5">{esGestor ? "CECO · Solicitante" : "CECO"}</span>
+      <span className="py-2.5">Requerido</span>
+      <span className="py-2.5 text-right">Estado</span>
     </div>
   );
 }
 
-function Tarjeta({ r, esGestor }: { r: Requerimiento; esGestor: boolean }) {
-  const [abierto, setAbierto] = useState(false);
-  const idDetalle = `detalle-${r.id}`;
+function Grupo({
+  etapa,
+  filas,
+  esGestor,
+  conEmpresa,
+  plano = false,
+}: {
+  etapa: Etapa;
+  filas: Requerimiento[];
+  esGestor: boolean;
+  conEmpresa: boolean;
+  /** Sin encabezado de etapa (vistas cerradas o "Todos"). */
+  plano?: boolean;
+}) {
+  const [plegado, setPlegado] = useState(false);
+  const [visibles, setVisibles] = useState(POR_GRUPO);
+  const info = ETAPAS[etapa];
+  const vencidos = filas.filter(estaVencido).length;
   return (
-    <li className="rounded-lg border border-slate-200 bg-white shadow-superficie transition-[border-color,box-shadow] duration-200 hover:border-slate-300 hover:shadow-[0_4px_12px_-4px_rgb(8_27_52/0.12)]">
-      <Link
-        to={`/requerimientos/${r.id}`}
-        className="group block rounded-t-lg px-3.5 pb-2 pt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-      >
-        <div className="flex items-start justify-between gap-2">
-          <span className="truncate font-mono text-xs font-medium text-slate-800 group-hover:text-slate-950">
-            {r.code}
-          </span>
-          <PrioridadBadge prioridad={r.priority} />
-        </div>
-        <p className="mt-1.5 truncate text-[13px] text-slate-600" title={r.cecoNombre ?? ""}>
-          {r.cecoNombre ?? "—"}
-        </p>
-        <div className="mt-2.5 flex items-center justify-between gap-2">
-          <EstadoBadge estado={r.status} />
-          <span className="shrink-0 text-[11px] text-slate-400">{fmtFecha(r.createdAt)}</span>
-        </div>
-        {esGestor && r.requesterNombre && (
-          <p className="mt-2 truncate border-t border-slate-100 pt-2 text-xs text-slate-500">{r.requesterNombre}</p>
-        )}
-      </Link>
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        aria-expanded={abierto}
-        aria-controls={idDetalle}
-        className="flex w-full items-center justify-center gap-1 rounded-b-lg border-t border-slate-100 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-      >
-        {abierto ? "Ocultar detalle" : "Ver detalle"}
-        <ChevronDown className={`size-3.5 transition-transform duration-200 ${abierto ? "rotate-180" : ""}`} />
-      </button>
-      {abierto && (
-        <div id={idDetalle} className="border-t border-slate-100 px-3.5 py-3">
-          <DetalleRapido id={r.id} />
-        </div>
+    <section aria-labelledby={plano ? undefined : `grupo-${etapa}`}>
+      {!plano && (
+        <button
+          type="button"
+          onClick={() => setPlegado((v) => !v)}
+          aria-expanded={!plegado}
+          className="flex w-full items-center gap-2.5 border-b border-slate-200 bg-slate-50/80 px-4 py-2 text-left transition-colors hover:bg-slate-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
+        >
+          <ChevronDown
+            className={`size-3.5 text-slate-400 transition-transform duration-200 ${plegado ? "-rotate-90" : ""}`}
+          />
+          <span className={`size-2 rounded-full ${info.marca}`} aria-hidden="true" />
+          <h2 id={`grupo-${etapa}`} className="text-[13px] font-semibold text-slate-800">
+            {info.label}
+          </h2>
+          <span className="font-mono text-xs tabular-nums text-slate-500">{filas.length}</span>
+          {vencidos > 0 && <span className="ml-auto text-xs font-medium text-rose-700">{vencidos} vencido(s)</span>}
+        </button>
       )}
-    </li>
+      {!plegado && (
+        <>
+          <ul className="divide-y divide-slate-100 border-b border-slate-200 last:border-b-0">
+            {filas.slice(0, visibles).map((r) => (
+              <FilaRequerimiento key={r.id} r={r} esGestor={esGestor} conEmpresa={conEmpresa} />
+            ))}
+          </ul>
+          {filas.length > visibles && (
+            <div className="border-b border-slate-200 px-4 py-2 text-center">
+              <Button variant="ghost" size="sm" onClick={() => setVisibles((v) => v + POR_GRUPO)}>
+                Mostrar {Math.min(POR_GRUPO, filas.length - visibles)} más de {filas.length - visibles}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
+/**
+ * Bandeja de Requerimientos (DEC-L046): una empresa a la vez (o todas, con la
+ * marca de cada una en la fila), lo abierto agrupado por etapa y ordenado por
+ * urgencia, y busqueda por codigo, CECO, solicitante o producto.
+ */
 export default function Requerimientos() {
-  const { tieneAlgunRol } = useAuth();
+  const { usuario, tieneAlgunRol } = useAuth();
   const esGestor = tieneAlgunRol("LOGISTICA", "ADMIN");
-  // Quien ve todo (Logistica/Admin/Aprobador/Gerencia) ve las 3 columnas aunque alguna este vacia;
-  // el solicitante solo las empresas donde tiene requerimientos.
   const veTodo = esGestor || tieneAlgunRol("APROBADOR", "GERENCIA");
+  const [params, setParams] = useSearchParams();
   const [items, setItems] = useState<Requerimiento[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [texto, setTexto] = useState("");
+  const [soloVencidos, setSoloVencidos] = useState(false);
+  const [soloPrioritarios, setSoloPrioritarios] = useState(false);
+
+  const vista = (VISTAS.some((v) => v.id === params.get("vista")) ? params.get("vista") : "abiertos") as Vista;
+  const empresa = params.get("empresa") ?? leerEmpresaGuardada();
 
   useEffect(() => {
     listarRequerimientos()
@@ -143,92 +137,282 @@ export default function Requerimientos() {
       .finally(() => setCargando(false));
   }, []);
 
-  const grupos = useMemo(() => {
-    const extra = [...new Set(items.map((r) => r.empresaCode ?? "SIN_EMPRESA"))]
-      .filter((c) => !EMPRESAS.some((e) => e.code === c))
-      .map((c) => ({ code: c, label: c === "SIN_EMPRESA" ? "Sin empresa" : c, marca: "bg-slate-400" }));
-    return [...EMPRESAS, ...extra]
-      .map((e) => ({ ...e, filas: items.filter((r) => (r.empresaCode ?? "SIN_EMPRESA") === e.code) }))
-      .filter((g) => veTodo || g.filas.length > 0);
-  }, [items, veTodo]);
+  function cambiar(clave: "vista" | "empresa", valor: string) {
+    const p = new URLSearchParams(params);
+    if (!valor || (clave === "vista" && valor === "abiertos")) p.delete(clave);
+    else p.set(clave, valor);
+    setParams(p, { replace: true });
+    if (clave === "empresa") {
+      try {
+        localStorage.setItem(CLAVE_EMPRESA, valor);
+      } catch {
+        // Sin almacenamiento: solo no se recuerda la eleccion.
+      }
+    }
+  }
 
-  // Tantas columnas como empresas (3 normalmente); en pantallas angostas se apilan.
-  const columnas = cargando ? EMPRESAS.length : Math.max(grupos.length, 1);
-  const gridCols = columnas >= 3 ? "lg:grid-cols-3" : columnas === 2 ? "lg:grid-cols-2" : "lg:grid-cols-1 lg:max-w-xl";
+  // Los borradores ajenos no son trabajo de nadie mas que su dueno: solo aparecen en "Todos".
+  const propios = useMemo(
+    () => items.filter((r) => r.status !== "BORRADOR" || r.requesterUserId === usuario?.id || vista === "todos"),
+    [items, usuario?.id, vista],
+  );
+
+  const empresas = useMemo(() => {
+    const extra = [...new Set(propios.map((r) => r.empresaCode ?? ""))]
+      .filter((c) => c && !EMPRESAS.some((e) => e.code === c))
+      .map((c) => ({ code: c, label: c, marca: "bg-slate-400" }));
+    return [...EMPRESAS, ...extra]
+      .map((e) => ({
+        ...e,
+        abiertos: propios.filter((r) => r.empresaCode === e.code && enVista("abiertos", r)).length,
+        total: propios.filter((r) => r.empresaCode === e.code).length,
+      }))
+      .filter((e) => veTodo || e.total > 0);
+  }, [propios, veTodo]);
+
+  const empresaValida = empresas.some((e) => e.code === empresa) ? empresa : "";
+  const conSelectorEmpresa = empresas.length > 1;
+
+  // Empresa + busqueda primero: los conteos de vistas y filtros responden a ellas.
+  const base = useMemo(
+    () => propios.filter((r) => (!empresaValida || r.empresaCode === empresaValida) && coincideBusqueda(r, texto)),
+    [propios, empresaValida, texto],
+  );
+
+  const conteoVista = useMemo(() => {
+    const c = { abiertos: 0, atendidos: 0, rechazados: 0, todos: base.length } as Record<Vista, number>;
+    for (const r of base) {
+      if (enVista("abiertos", r)) c.abiertos++;
+      else if (enVista("atendidos", r)) c.atendidos++;
+      else if (enVista("rechazados", r)) c.rechazados++;
+    }
+    return c;
+  }, [base]);
+
+  const enLaVista = useMemo(() => base.filter((r) => enVista(vista, r)), [base, vista]);
+  const vencidos = enLaVista.filter(estaVencido).length;
+  const prioritarios = enLaVista.filter(esPrioritario).length;
+
+  const filtrados = useMemo(
+    () =>
+      vista !== "abiertos"
+        ? enLaVista
+        : enLaVista.filter((r) => (!soloVencidos || estaVencido(r)) && (!soloPrioritarios || esPrioritario(r))),
+    [enLaVista, soloVencidos, soloPrioritarios, vista],
+  );
+
+  const grupos = useMemo(() => {
+    if (vista !== "abiertos") return null;
+    return etapasAbiertas(esGestor)
+      .map((etapa) => ({
+        etapa,
+        filas: ordenar(
+          filtrados.filter((r) => etapaDe(r.status) === etapa),
+          true,
+        ),
+      }))
+      .filter((g) => g.filas.length > 0);
+  }, [filtrados, vista, esGestor]);
+
+  const conEmpresa = conSelectorEmpresa && !empresaValida;
+  const hayFiltros = texto.trim() !== "" || (vista === "abiertos" && (soloVencidos || soloPrioritarios));
 
   return (
     <div>
-      <div>
-        <PageHeader
-          title="Requerimientos"
-          subtitle={
-            esGestor
-              ? "Bandeja de Logística: todos los requerimientos, por empresa."
-              : "Tus solicitudes de productos y su seguimiento."
-          }
-          actions={
-            <Button href="/requerimientos/nuevo" icon={<Plus className="size-4" />}>
-              Nuevo requerimiento
-            </Button>
-          }
-        />
-        {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
-      </div>
+      <PageHeader
+        title="Requerimientos"
+        actions={
+          <Button href="/requerimientos/nuevo" icon={<Plus className="size-4" />}>
+            Nuevo requerimiento
+          </Button>
+        }
+      />
+      {error && (
+        <Alert tone="danger" className="mb-4">
+          {error}
+        </Alert>
+      )}
 
-      {!cargando && !error && items.length === 0 && !veTodo ? (
-        <p className="py-10 text-sm text-slate-500">
-          Aún no tienes requerimientos. Crea el primero con el botón "Nuevo requerimiento".
-        </p>
-      ) : (
-        <div className={`grid grid-cols-1 items-start gap-4 ${gridCols}`}>
-          {(cargando ? EMPRESAS.map((e) => ({ ...e, filas: [] as Requerimiento[] })) : grupos).map((g) => {
-            const pendientes = g.filas.filter((r) => r.status === "PENDIENTE_APROBACION").length;
+      {conSelectorEmpresa && (
+        <div
+          role="tablist"
+          aria-label="Empresa"
+          className="mb-4 flex gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-1 sm:inline-flex"
+        >
+          {[
+            { code: "", label: "Todas", marca: "", abiertos: empresas.reduce((s, e) => s + e.abiertos, 0) },
+            ...empresas,
+          ].map((e) => {
+            const activa = empresaValida === e.code;
             return (
-              <section
-                key={g.code}
-                aria-labelledby={`col-${g.code}`}
-                className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/60 shadow-superficie"
+              <button
+                key={e.code || "todas"}
+                type="button"
+                role="tab"
+                aria-selected={activa}
+                onClick={() => cambiar("empresa", e.code)}
+                className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activa ? "bg-white text-slate-900 shadow-boton" : "text-slate-500 hover:text-slate-800"
+                }`}
               >
-                <header className="flex items-center gap-2.5 border-b border-slate-200 bg-white px-4 py-3">
-                  <span className={`size-2 shrink-0 rounded-full ${g.marca}`} aria-hidden="true" />
-                  <h2 id={`col-${g.code}`} className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
-                    {g.label}
-                  </h2>
-                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs tabular-nums text-slate-600">
-                    {cargando ? "–" : g.filas.length}
-                  </span>
-                  {pendientes > 0 && (
-                    <span className="ml-auto text-xs font-medium text-amber-700">{pendientes} por aprobar</span>
-                  )}
-                </header>
-
-                {/* Cada columna se desplaza sola, asi las 3 quedan a la vista a la vez. */}
-                <div className="max-h-[calc(100dvh-15rem)] overflow-y-auto p-2.5">
-                  {cargando ? (
-                    <div className="flex flex-col gap-2">
-                      {[0, 1, 2].map((k) => (
-                        <div key={k} className="flex flex-col gap-2.5 rounded-md border border-slate-200 bg-white px-3.5 py-3">
-                          <Skeleton className="h-3.5 w-1/2" />
-                          <Skeleton className="h-3.5 w-4/5" />
-                          <Skeleton className="h-4 w-1/3" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : g.filas.length === 0 ? (
-                    <p className="px-1.5 py-6 text-center text-sm text-slate-400">Sin requerimientos de {g.label}.</p>
-                  ) : (
-                    <ul className="flex flex-col gap-2">
-                      {g.filas.map((r) => (
-                        <Tarjeta key={r.id} r={r} esGestor={esGestor} />
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </section>
+                {e.marca && <span className={`size-2 rounded-full ${e.marca}`} aria-hidden="true" />}
+                {e.label}
+                <span className={`font-mono text-xs tabular-nums ${activa ? "text-slate-500" : "text-slate-400"}`}>
+                  {cargando ? "–" : e.abiertos}
+                </span>
+              </button>
             );
           })}
         </div>
       )}
+
+      <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center">
+        <label className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder={
+              esGestor ? "Buscar por código, CECO, solicitante o producto" : "Buscar por código, CECO o producto"
+            }
+            className={`${inputClass} w-full pl-9 pr-9`}
+          />
+          {texto && (
+            <button
+              type="button"
+              onClick={() => setTexto("")}
+              aria-label="Limpiar búsqueda"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </label>
+        <div
+          role="tablist"
+          aria-label="Vista"
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200 lg:border-b-0"
+        >
+          {VISTAS.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              role="tab"
+              aria-selected={vista === v.id}
+              onClick={() => cambiar("vista", v.id)}
+              className={`-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:mb-0 ${
+                vista === v.id
+                  ? "border-brand-600 text-brand-700"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {v.label}
+              <span className="font-mono text-xs tabular-nums text-slate-400">
+                {cargando ? "–" : conteoVista[v.id]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!cargando && vista === "abiertos" && (vencidos > 0 || prioritarios > 0 || soloVencidos || soloPrioritarios) && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {(vencidos > 0 || soloVencidos) && (
+            <button
+              type="button"
+              aria-pressed={soloVencidos}
+              onClick={() => setSoloVencidos((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                soloVencidos
+                  ? "border-rose-300 bg-rose-50 text-rose-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              <AlertTriangle className="size-3.5" />
+              Vencidos <span className="tabular-nums">{vencidos}</span>
+            </button>
+          )}
+          {(prioritarios > 0 || soloPrioritarios) && (
+            <button
+              type="button"
+              aria-pressed={soloPrioritarios}
+              onClick={() => setSoloPrioritarios((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                soloPrioritarios
+                  ? "border-amber-300 bg-amber-50 text-amber-800"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              <Flame className="size-3.5" />
+              Urgentes y críticos <span className="tabular-nums">{prioritarios}</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      <Card className="overflow-hidden">
+        {cargando ? (
+          <div className="divide-y divide-slate-100">
+            {[0, 1, 2, 3, 4, 5].map((k) => (
+              <div key={k} className="grid gap-2 px-4 py-3.5 md:grid-cols-[minmax(0,1fr)_15rem_7.5rem_11rem] md:gap-4">
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3.5 w-28" />
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+                <Skeleton className="h-3.5 w-4/5" />
+                <Skeleton className="h-3.5 w-20" />
+                <Skeleton className="h-5 w-28 md:ml-auto" />
+              </div>
+            ))}
+          </div>
+        ) : filtrados.length === 0 ? (
+          <EmptyState
+            icon={Inbox}
+            title={
+              hayFiltros
+                ? "Sin resultados"
+                : items.length === 0
+                  ? "Aún no hay requerimientos"
+                  : vista === "abiertos"
+                    ? "Nada pendiente"
+                    : "Sin requerimientos en esta vista"
+            }
+            action={
+              hayFiltros ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setTexto("");
+                    setSoloVencidos(false);
+                    setSoloPrioritarios(false);
+                  }}
+                >
+                  Quitar filtros
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <>
+            <Columnas esGestor={esGestor} />
+            {grupos ? (
+              grupos.map((g) => (
+                <Grupo key={g.etapa} etapa={g.etapa} filas={g.filas} esGestor={esGestor} conEmpresa={conEmpresa} />
+              ))
+            ) : (
+              <Grupo
+                key={vista}
+                etapa={vista === "atendidos" ? "atendido" : vista === "rechazados" ? "rechazado" : "atencion"}
+                filas={ordenar(filtrados, false)}
+                esGestor={esGestor}
+                conEmpresa={conEmpresa}
+                plano
+              />
+            )}
+          </>
+        )}
+      </Card>
     </div>
   );
 }

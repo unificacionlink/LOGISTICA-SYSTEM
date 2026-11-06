@@ -19,6 +19,11 @@ public interface RfqItemRepository extends JpaRepository<RfqItem, UUID> {
             "where i.consolidacion.consolidationId = :consolidationId order by r.createdAt")
     List<RfqItem> findByConsolidacion(@Param("consolidationId") UUID consolidationId);
 
+    /** Comparativo: las lineas de RFQ de varios consolidados, con su RFQ y proveedor. */
+    @Query("select i from RfqItem i join fetch i.rfq r join fetch r.proveedor " +
+            "where i.consolidacion.consolidationId in :ids order by r.createdAt")
+    List<RfqItem> findConProveedorByConsolidaciones(@Param("ids") Collection<UUID> ids);
+
     @Query("select i from RfqItem i join fetch i.rfq where i.consolidacion.consolidationId in :ids")
     List<RfqItem> findByConsolidaciones(@Param("ids") Collection<UUID> ids);
 }

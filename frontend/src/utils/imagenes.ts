@@ -15,7 +15,8 @@ export function esImagen(file: File): boolean {
  * puede procesar (formato que el navegador no lee) o no gana nada, devuelve la
  * original cuando el servidor la acepta.
  */
-export async function comprimirImagen(file: File): Promise<File> {
+/** @param lado lado mayor final (las cotizaciones usan mas para que el OCR lea bien la letra chica). */
+export async function comprimirImagen(file: File, lado = LADO_MAXIMO): Promise<File> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -23,7 +24,7 @@ export async function comprimirImagen(file: File): Promise<File> {
     if (ACEPTADOS.includes(file.type)) return file;
     throw new Error("Formato no soportado: usa JPG, PNG o WEBP.");
   }
-  const escala = Math.min(1, LADO_MAXIMO / Math.max(bitmap.width, bitmap.height));
+  const escala = Math.min(1, lado / Math.max(bitmap.width, bitmap.height));
   const ancho = Math.max(1, Math.round(bitmap.width * escala));
   const alto = Math.max(1, Math.round(bitmap.height * escala));
   const canvas = document.createElement("canvas");

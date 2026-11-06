@@ -417,7 +417,7 @@ public class AbastecimientoService {
         return origen.deRfqs(rfqs.stream().map(Rfq::getRfqId).toList());
     }
 
-    private Rfq nuevaRfq(Empresa empresa, Proveedor proveedor, Usuario usuario) {
+    public Rfq nuevaRfq(Empresa empresa, Proveedor proveedor, Usuario usuario) {
         Rfq rfq = new Rfq();
         rfq.setRfqId(UUID.randomUUID());
         rfq.setRfqCode(CodigoCompra.generar("RFQ", empresa.getCode()));
@@ -449,7 +449,7 @@ public class AbastecimientoService {
     }
 
     /** Requisitos tecnicos de los items de origen, sin repetir. */
-    private Map<UUID, String> especificaciones(List<UUID> consolidationIds) {
+    public Map<UUID, String> especificaciones(List<UUID> consolidationIds) {
         Map<UUID, Set<String>> textos = new HashMap<>();
         for (NecesidadCompra n : necesidadRepository.findByConsolidaciones(consolidationIds)) {
             String t = n.getRequerimientoItem().getTechnicalRequirement();
@@ -489,6 +489,14 @@ public class AbastecimientoService {
     @Transactional
     public ConsolidadoDetalleDto adjudicar(UUID consolidationId, UUID quotationItemId, UsuarioPrincipal principal) {
         exigirLogistica(principal);
+        adjudicarLinea(consolidationId, quotationItemId, principal);
+        return obtenerConsolidado(consolidationId, principal);
+    }
+
+    /** Adjudica sin volver a leer el detalle (el comparativo adjudica varios consolidados de una vez). */
+    @Transactional
+    public void adjudicarLinea(UUID consolidationId, UUID quotationItemId, UsuarioPrincipal principal) {
+        exigirLogistica(principal);
         Consolidacion c = consolidacionRepository.bloquear(consolidationId)
                 .orElseThrow(() -> ApiException.notFound("Consolidado no encontrado."));
         if (!Consolidacion.EN_COTIZACION.equals(c.getStatus()) && !Consolidacion.ADJUDICADA.equals(c.getStatus())) {
@@ -517,7 +525,6 @@ public class AbastecimientoService {
                 Map.of("estado", Consolidacion.ADJUDICADA, "oferta", quotationItemId,
                         "proveedor", ci.getCotizacion().getProveedor().getLegalName()), principal.userId());
         consolidacionRepository.flush();
-        return obtenerConsolidado(consolidationId, principal);
     }
 
     /** Adjudicados sin OC agrupados por cotizacion (= por proveedor y sus condiciones). */

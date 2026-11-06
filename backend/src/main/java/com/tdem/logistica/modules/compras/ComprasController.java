@@ -19,10 +19,46 @@ public class ComprasController {
 
     private final ComprasService service;
     private final AbastecimientoService abastecimiento;
+    private final ComparativoService comparativo;
 
-    public ComprasController(ComprasService service, AbastecimientoService abastecimiento) {
+    public ComprasController(ComprasService service, AbastecimientoService abastecimiento,
+                             ComparativoService comparativo) {
         this.service = service;
         this.abastecimiento = abastecimiento;
+        this.comparativo = comparativo;
+    }
+
+    // ---------------------------------------------------------------- Comparativo (DEC-L047)
+
+    @GetMapping("/comparativo")
+    public ApiResponse<ComparativoDto> comparativo(
+            @RequestParam("ids") List<UUID> ids, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(comparativo.obtener(ids, principal));
+    }
+
+    @PostMapping(value = "/comparativo/ocr", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<OcrComparativoDto> leerCotizacion(
+            @RequestParam("ids") List<UUID> ids,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        OcrComparativoDto ocr = comparativo.leer(ids, file, principal);
+        return ApiResponse.ok(ocr, ocr.precios().isEmpty()
+                ? "No se reconocieron precios: ingresalos a mano."
+                : ocr.precios().size() + " precio(s) leido(s): revisalos antes de guardar.");
+    }
+
+    @PostMapping("/comparativo/cotizaciones")
+    public ApiResponse<ComparativoDto> registrarEnComparativo(
+            @Valid @RequestBody RegistrarComparativoRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(comparativo.registrar(request, principal), "Cotizacion guardada.");
+    }
+
+    @PostMapping("/comparativo/adjudicar")
+    public ApiResponse<ComparativoDto> adjudicarComparativo(
+            @Valid @RequestBody AdjudicarComparativoRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(comparativo.adjudicar(request, principal), "Productos adjudicados.");
     }
 
     // ---------------------------------------------------------------- Lote 16 (DEC-L039)

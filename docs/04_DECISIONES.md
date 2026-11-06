@@ -5,6 +5,53 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L047 — Comparativo de tres cotizaciones con OCR (2026-11-06).** El
+  usuario: al crear la RFQ, subir 3 cotizaciones, leerlas por OCR y comparar
+  cual tiene el mejor precio.
+  - Pantalla `/compras/comparativo?ids=...` sobre un grupo de consolidados
+    **de una sola empresa** (cada empresa compra con su RFQ). Se entra desde
+    Compras > Consolidados ("Comparar cotizaciones"); la pestana trabaja una
+    empresa a la vez.
+  - **Hasta 3 cotizaciones vigentes por producto** y una sola por proveedor:
+    cargar otra del mismo proveedor exige "Reemplazar" (la anterior queda
+    DESCARTADA).
+  - **OCR** (`ComparativoService.leer`, mismo Tesseract/PDFBox): reconoce al
+    proveedor por su RUC y propone el costo unitario de cada producto. Como
+    los proveedores no usan nuestros codigos, si el codigo no aparece busca
+    la linea con mas palabras del nombre del producto y, con la cantidad
+    pedida, distingue unitario de total de linea
+    (`CotizacionOcrParser.parsearItems`). Solo propone: Logistica revisa en
+    un panel y guarda; `cotizacion.source = OCR` si se leyo algo.
+  - **Guardar** usa el modelo de siempre: la RFQ abierta de empresa +
+    proveedor que mas cubre esos consolidados (o una nueva), agrega las
+    lineas que falten, pasa a EN_COTIZACION los consolidados abiertos y
+    registra la cotizacion con `ComprasService.registrarCotizacion`. Quien
+    cotiza un producto queda habilitado en `proveedor_producto`. "Pedir
+    cotizacion" (RFQ a todos los habilitados para enviar) sigue existiendo;
+    sus proveedores aparecen en el comparativo como "sin respuesta".
+  - **Comparar**: matriz producto x proveedor con el mejor precio marcado;
+    con soles y dolares se pide el tipo de cambio (solo para comparar, no se
+    guarda). La seleccion parte de lo adjudicado o del mejor precio y se
+    puede cambiar por celda; "Adjudicar" decide todo de una vez
+    (`adjudicarLinea` por consolidado, auditado) y las OC se emiten desde la
+    misma pantalla.
+
+- **DEC-L046 — Bandeja de Requerimientos por empresa y etapa (2026-11-06).**
+  El usuario: con tres empresas y muchos pedidos, Logistica se confundia con
+  las tres columnas de tarjetas.
+  - Selector de empresa (Todas / TDEM / GOYDEL / METRIN, con lo abierto de
+    cada una); con "Todas" cada fila lleva la marca de color y el nombre de
+    su empresa. La eleccion se recuerda en el navegador.
+  - Vistas Abiertos / Atendidos / Rechazados / Todos. En Abiertos, grupos por
+    etapa (para Logistica: En atencion, Atencion parcial, Por aprobar,
+    Observados; para quien pide, primero lo que debe corregir).
+  - Orden por urgencia: vencidos, luego prioridad (critica, urgente), fecha
+    requerida y antiguedad. Cada fila muestra cuanto falta o hace cuanto
+    vencio. Filtros rapidos Vencidos y Urgentes solo si hay.
+  - Busqueda por codigo, CECO, solicitante **y producto**: el listado trae
+    `itemsCount` y `resumenItems` (una sola consulta agregada).
+  - Los borradores ajenos solo aparecen en "Todos".
+
 - **DEC-L045 — Stock central del grupo, inventario por Excel, minimos y
   kardex (2026-11-05).** El usuario: "todo el stock solo lo maneja TDEM" y el
   modulo era muy simple.
@@ -97,6 +144,9 @@ actualizar esta lista y el CHANGELOG.
   mismo historial**. `novedades.ts` es la fuente de la version visible; al
   publicar una version se agrega alli y en el CHANGELOG con el mismo numero.
   El historial parte en 0.2.0 (primera version utilizable).
+  - 2026-11-06 (pedido del usuario): sale del menu, no es un modulo; queda
+    como pie discreto "vX · Novedades" al final de cada pantalla, y las
+    versiones ya no muestran fecha.
 
 - **DEC-L039 — Lote 16: necesidad, consolidacion y RFQ multiproducto
   (2026-11-05).** Adopta `purchaseNeeds`, `consolidations`, `rfqBundles` y la

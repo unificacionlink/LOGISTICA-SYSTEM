@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import CambiarPassword from "../pages/CambiarPassword";
 import BusquedaRapida from "./BusquedaRapida";
 import { abrirBusquedaRapida, NAV_GRUPOS } from "./navegacion";
-import BotonNovedades from "./Novedades";
+import PieVersion from "./Novedades";
 import PantallaCarga from "./PantallaCarga";
 import Toast from "./Toast";
 
@@ -161,7 +161,6 @@ export default function ProtectedLayout() {
             <KeyRound className="size-4.5 shrink-0" strokeWidth={2.1} />
             <span className={ETIQUETA}>Cambiar contraseña</span>
           </NavLink>
-          <BotonNovedades etiquetaClase={ETIQUETA} onAbrir={() => setMenuAbierto(false)} />
           <button
             type="button"
             title="Cerrar sesión"
@@ -198,12 +197,13 @@ export default function ProtectedLayout() {
         </header>
 
         {/* Todas las pantallas usan todo el ancho, con un margen lateral minimo. */}
-        <main id="contenido" className="w-full flex-1 px-3 pb-16 pt-6 sm:px-4 lg:px-6 lg:pt-10">
+        <main id="contenido" className="w-full flex-1 px-3 pb-10 pt-6 sm:px-4 lg:px-6 lg:pt-10">
           {/* key: cada cambio de pantalla repite la entrada suave. */}
           <div key={pathname} className="animate-pagina-in">
             <Outlet />
           </div>
         </main>
+        <PieVersion />
       </div>
 
       <BusquedaRapida />

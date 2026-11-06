@@ -110,10 +110,20 @@ public class RequerimientoService {
     }
 
     public List<RequerimientoDto> listar(UsuarioPrincipal principal) {
-        List<Requerimiento> filas = esLogisticaOAdmin(principal)
+        boolean todos = esLogisticaOAdmin(principal);
+        List<Requerimiento> filas = todos
                 ? requerimientoRepository.findAllConDetalle()
                 : requerimientoRepository.findByRequester(principal.userId());
-        return filas.stream().map(RequerimientoMapper::toDto).toList();
+        Map<String, Object[]> resumen = new HashMap<>();
+        for (Object[] f : todos ? requerimientoItemRepository.resumenTodos()
+                : requerimientoItemRepository.resumenDeSolicitante(principal.userId())) {
+            resumen.put((String) f[0], f);
+        }
+        return filas.stream().map(r -> {
+            Object[] f = resumen.get(r.getRequestId().toString());
+            RequerimientoDto dto = RequerimientoMapper.toDto(r);
+            return f == null ? dto.conResumen(0, null) : dto.conResumen(((Number) f[1]).intValue(), (String) f[2]);
+        }).toList();
     }
 
     /**

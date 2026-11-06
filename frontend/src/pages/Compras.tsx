@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ClipboardList, FileQuestion, Layers, ListTodo, Send, Wallet } from "lucide-react";
+import { ClipboardList, FileQuestion, Layers, ListTodo, Scale, Send, Wallet } from "lucide-react";
 import { listarCajaChica, obtenerReglaCajaChica } from "../api/cajachica";
 import {
   decidirRuta,
@@ -21,6 +21,7 @@ import {
   ETIQUETA_SUGERENCIA,
   OrigenesConsolidado,
 } from "../components/compras/etiquetas";
+import { EMPRESAS } from "../components/empresas";
 import PrioridadBadge from "../components/PrioridadBadge";
 import RfqEstadoBadge from "../components/RfqEstadoBadge";
 import Alert from "../components/ui/Alert";
@@ -350,6 +351,9 @@ function ListosParaOc({
   );
 }
 
+/** Se pueden comparar los que aun no tienen OC (DEC-L047). */
+const COMPARABLES = new Set(["ABIERTA", "EN_COTIZACION", "ADJUDICADA"]);
+
 function TablaConsolidados({
   consolidados,
   seleccion,
@@ -363,6 +367,19 @@ function TablaConsolidados({
   onPreparar: () => void;
   preparando: boolean;
 }) {
+  const navigate = useNavigate();
+  const [empresa, setEmpresa] = useState("");
+  const empresas = useMemo(
+    () =>
+      EMPRESAS.map((e) => ({
+        ...e,
+        n: consolidados.filter((c) => c.empresaCode === e.code && COMPARABLES.has(c.status)).length,
+      })).filter((e) => e.n > 0),
+    [consolidados],
+  );
+  // Comparar y pedir cotizacion es por empresa (cada una compra con su RFQ): se trabaja una a la vez.
+  const empresaActiva = empresas.some((e) => e.code === empresa) ? empresa : (empresas[0]?.code ?? "");
+
   if (consolidados.length === 0) {
     return (
       <Card>
@@ -370,8 +387,11 @@ function TablaConsolidados({
       </Card>
     );
   }
-  const abiertos = consolidados.filter((c) => c.status === "ABIERTA");
-  const todos = abiertos.length > 0 && abiertos.every((c) => seleccion.has(c.consolidationId));
+  const visibles = consolidados.filter((c) => !empresaActiva || c.empresaCode === empresaActiva);
+  const seleccionables = visibles.filter((c) => COMPARABLES.has(c.status));
+  const elegidos = seleccionables.filter((c) => seleccion.has(c.consolidationId));
+  const todos = seleccionables.length > 0 && seleccionables.every((c) => seleccion.has(c.consolidationId));
+  const soloAbiertos = elegidos.length > 0 && elegidos.every((c) => c.status === "ABIERTA");
 
   function alternar(id: string) {
     const s = new Set(seleccion);
@@ -380,21 +400,60 @@ function TablaConsolidados({
     onSeleccion(s);
   }
 
+  function cambiarEmpresa(code: string) {
+    setEmpresa(code);
+    onSeleccion(new Set());
+  }
+
   return (
     <Card className="overflow-hidden">
+      {empresas.length > 1 && (
+        <div role="tablist" aria-label="Empresa" className="flex gap-1 overflow-x-auto border-b border-slate-200 px-3 pt-2">
+          {empresas.map((e) => (
+            <button
+              key={e.code}
+              type="button"
+              role="tab"
+              aria-selected={empresaActiva === e.code}
+              onClick={() => cambiarEmpresa(e.code)}
+              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                empresaActiva === e.code
+                  ? "border-brand-600 text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <span className={`size-2 rounded-full ${e.marca}`} aria-hidden="true" />
+              {e.label}
+              <span className="font-mono text-xs tabular-nums text-slate-400">{e.n}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
         <span className="text-sm text-slate-500">
-          {seleccion.size > 0 ? `${seleccion.size} seleccionado(s)` : `${abiertos.length} abierto(s) por cotizar`}
+          {elegidos.length > 0 ? `${elegidos.length} seleccionado(s)` : "Selecciona los productos a cotizar"}
         </span>
-        <Button
-          size="sm"
-          icon={<Send className="size-3.5" />}
-          disabled={seleccion.size === 0}
-          loading={preparando}
-          onClick={onPreparar}
-        >
-          Preparar solicitudes
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Send className="size-3.5" />}
+            disabled={!soloAbiertos}
+            loading={preparando}
+            onClick={onPreparar}
+            title="Crea una solicitud por cada proveedor habilitado para enviarla por correo o WhatsApp"
+          >
+            Pedir cotización
+          </Button>
+          <Button
+            size="sm"
+            icon={<Scale className="size-3.5" />}
+            disabled={elegidos.length === 0}
+            onClick={() => navigate(`/compras/comparativo?ids=${elegidos.map((c) => c.consolidationId).join(",")}`)}
+          >
+            Comparar cotizaciones
+          </Button>
+        </div>
       </div>
       <table className="tabla">
         <thead>
@@ -402,10 +461,10 @@ function TablaConsolidados({
             <th className="w-10 px-5 py-3">
               <input
                 type="checkbox"
-                aria-label="Seleccionar todos los abiertos"
+                aria-label="Seleccionar todos"
                 checked={todos}
-                disabled={abiertos.length === 0}
-                onChange={() => onSeleccion(todos ? new Set() : new Set(abiertos.map((c) => c.consolidationId)))}
+                disabled={seleccionables.length === 0}
+                onChange={() => onSeleccion(todos ? new Set() : new Set(seleccionables.map((c) => c.consolidationId)))}
               />
             </th>
             <th className={th}>Producto</th>
@@ -417,8 +476,8 @@ function TablaConsolidados({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {consolidados.map((c) => {
-            const abierto = c.status === "ABIERTA";
+          {visibles.map((c) => {
+            const abierto = COMPARABLES.has(c.status);
             return (
               <tr key={c.consolidationId} className="align-top hover:bg-slate-50">
                 <td className="px-5 py-3">
@@ -434,7 +493,7 @@ function TablaConsolidados({
                 <td className="col-flex px-5 py-3" title={c.nombreProducto}>
                   <p className="text-sm text-slate-700">{c.nombreProducto}</p>
                   <p className="font-mono text-xs text-slate-500">
-                    {c.codigoVariante ?? c.skuBase} · {c.empresaCode}
+                    {c.codigoVariante ?? c.skuBase}
                   </p>
                 </td>
                 <td className="px-5 py-3">
@@ -463,7 +522,7 @@ function TablaConsolidados({
                 </td>
                 <td className="whitespace-nowrap px-5 py-3 text-right">
                   <Link to={`/compras/consolidados/${c.consolidationId}`} className={linkClass}>
-                    {c.status === "EN_COTIZACION" ? "Comparar" : "Ver"}
+                    Ver
                   </Link>
                 </td>
               </tr>

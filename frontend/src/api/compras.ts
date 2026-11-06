@@ -1,5 +1,6 @@
 import { http } from "./http";
 import type {
+  Comparativo,
   ComprasDetalle,
   Consolidado,
   ConsolidadoDetalle,
@@ -7,6 +8,7 @@ import type {
   DocumentoSubido,
   Moneda,
   Necesidad,
+  OcrComparativo,
   OcrCotizacion,
   Orden,
   OrdenDetalle,
@@ -15,6 +17,46 @@ import type {
   Rfq,
   RfqDetalle,
 } from "./types";
+
+// ---------------------------------------------------------------- Comparativo (DEC-L047)
+
+export function obtenerComparativo(ids: string[]) {
+  return http.get<Comparativo>(`/api/compras/comparativo?ids=${ids.map(encodeURIComponent).join(",")}`);
+}
+
+/** Lectura OCR de una cotizacion: propone proveedor y precios, no guarda nada. Sin capa: cada tarjeta muestra su avance. */
+export function leerCotizacionComparativo(ids: string[], file: File) {
+  const form = new FormData();
+  form.append("ids", ids.join(","));
+  form.append("file", file);
+  return http.postFormEnLote<OcrComparativo>("/api/compras/comparativo/ocr", form);
+}
+
+export interface RegistrarComparativoInput {
+  supplierId: string;
+  consolidationIds: string[];
+  supplierQuoteNumber?: string;
+  issueDate?: string;
+  currencyCode: string;
+  paymentCondition: string;
+  deliveryMode: string;
+  leadDays?: number;
+  documentId?: string;
+  reemplazaQuotationId?: string;
+  leidaPorOcr: boolean;
+  items: { consolidationId: string; unitCost: number; qty?: number }[];
+}
+
+export function registrarEnComparativo(input: RegistrarComparativoInput) {
+  return http.post<Comparativo>("/api/compras/comparativo/cotizaciones", input);
+}
+
+export function adjudicarComparativo(
+  consolidationIds: string[],
+  elecciones: { consolidationId: string; quotationItemId: string }[],
+) {
+  return http.post<Comparativo>("/api/compras/comparativo/adjudicar", { consolidationIds, elecciones });
+}
 
 // ---------------------------------------------------------------- Lote 16 (DEC-L039)
 
