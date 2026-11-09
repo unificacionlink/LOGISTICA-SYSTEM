@@ -5,6 +5,31 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L049 — Requerimientos en borrador al aprobar un presupuesto (2026-11-09).**
+  Pedido del usuario: que no se vuelva a digitar en un REQ lo que ya se
+  programo en el presupuesto. Al aprobar (`PresupuestoService.decidir`), en la
+  misma transaccion, `BorradoresPresupuestoService.generar` crea **un REQ en
+  BORRADOR por cada mes del semestre con cantidades** de la version aprobada.
+  - Dueno: el solicitante del presupuesto (puede editarlo y enviarlo aunque no
+    tenga rol SOLICITANTE). CECO y empresa del periodo; prioridad NORMAL,
+    proposito CONSUMO, justificacion "Programacion PRE-xxxxx vN · Mes Anio",
+    fecha requerida = primer dia del mes (hoy si el mes ya empezo), para que
+    el control presupuestal lo cuente en su semestre. Meses ya terminados no
+    se generan.
+  - Trazabilidad: V23 agrega `requerimiento.budget_id`, `budget_version_id` y
+    `budget_month`, con indice unico (presupuesto, mes). Re-aprobar tras
+    Modificar rehace los borradores que siguen en BORRADOR con la version
+    nueva; los ya enviados no se tocan ni se duplican.
+  - Productos con una sola variante activa van con ella; con tallas/colores
+    el item queda sin variante ("Elegir talla/color"): la edicion del REQ lo
+    muestra para elegirla y `RequerimientoService.enviar` no deja enviarlo
+    sin elegir. Los items que no van se quitan editando el borrador.
+  - El detalle del presupuesto lista los REQ generados por mes con su estado.
+  - Tambien en v0.32.0, sin decision aparte: Excel de la programacion del
+    presupuesto (`GET /api/presupuestos/{id}/excel`, quien puede verlo) y
+    columna "Cotizado" en Compras › Consolidados (mayor cantidad ofertada en
+    cotizaciones no descartadas, no la suma, + numero de ofertas).
+
 - **DEC-L048 — Bandeja operativa de Requerimientos (2026-11-06).** Pedido del
   usuario, con referencia funcional ERPNext Material Request: que Logistica
   sepa que debe gestionar sin abrir cada requerimiento. El estado no lo dice

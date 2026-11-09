@@ -276,20 +276,25 @@ public class AbastecimientoService {
         }
         Map<UUID, List<String>> proveedores = proveedoresHabilitados(
                 cs.stream().map(c -> c.getProducto().getProductId()).collect(Collectors.toSet()));
+        // Ofertas vigentes y la mayor cantidad ofertada (no la suma: varios proveedores
+        // suelen cotizar el total y sumar sobrecontaria).
         Map<UUID, Integer> cotizaciones = new HashMap<>();
+        Map<UUID, BigDecimal> cotizado = new HashMap<>();
         named.query("""
-                select ri.consolidation_id, count(*) from cotizacion_item ci
+                select ri.consolidation_id, count(*), max(ci.qty) from cotizacion_item ci
                 join rfq_item ri on ri.rfq_item_id = ci.rfq_item_id
                 join cotizacion c on c.quotation_id = ci.quotation_id
                 where ri.consolidation_id in (:ids) and c.status <> 'DESCARTADA' group by ri.consolidation_id""",
                 new MapSqlParameterSource("ids", ids),
                 rs -> {
                     cotizaciones.put(rs.getObject(1, UUID.class), rs.getInt(2));
+                    cotizado.put(rs.getObject(1, UUID.class), rs.getBigDecimal(3));
                 });
         return cs.stream().map(c -> ComprasMapper.toDto(c,
                         origenes.getOrDefault(c.getConsolidationId(), List.of()),
                         proveedores.getOrDefault(c.getProducto().getProductId(), List.of()),
-                        cotizaciones.getOrDefault(c.getConsolidationId(), 0)))
+                        cotizaciones.getOrDefault(c.getConsolidationId(), 0),
+                        cotizado.get(c.getConsolidationId())))
                 .toList();
     }
 

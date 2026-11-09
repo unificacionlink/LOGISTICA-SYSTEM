@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { X } from "lucide-react";
 import {
   anularPresupuesto,
   catalogoPresupuesto,
   decidirPresupuesto,
+  descargarPresupuestoExcel,
   emitirPresupuesto,
   guardarLineas,
   modificarPresupuesto,
@@ -12,6 +13,8 @@ import {
 } from "../api/presupuestos";
 import type { ApiResponse } from "../api/http";
 import type { PresupuestoDetalle as Detalle, ProductoPresupuesto } from "../api/types";
+import BotonDescarga from "../components/BotonDescarga";
+import EstadoBadge from "../components/EstadoBadge";
 import PresupuestoEstadoBadge from "../components/PresupuestoEstadoBadge";
 import BuscadorSku from "../components/presupuestos/BuscadorSku";
 import CumplimientoPresupuesto from "../components/presupuestos/CumplimientoPresupuesto";
@@ -330,9 +333,14 @@ export default function PresupuestoDetalle() {
       ) : (
       <Card className="mb-4 overflow-hidden">
         <CardBody className="pb-3">
-          <div className="rotulo">
-            Partidas ({editando ? borrador.length : d.lineas.length})
-            {!editando && d.lineas.some((l) => l.precioCongelado) && " · precios congelados al aprobar"}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="rotulo">
+              Partidas ({editando ? borrador.length : d.lineas.length})
+              {!editando && d.lineas.some((l) => l.precioCongelado) && " · precios congelados al aprobar"}
+            </div>
+            {!editando && d.lineas.length > 0 && (
+              <BotonDescarga tipo="excel" etiqueta="Excel" descargar={() => descargarPresupuestoExcel(d.id, d.codigo)} />
+            )}
           </div>
           {editando && (
             <div className="mt-3 max-w-xl">
@@ -445,6 +453,30 @@ export default function PresupuestoDetalle() {
         )}
       </Card>
 
+      )}
+
+      {d.requerimientos.length > 0 && (
+        <details open className="group mb-4 rounded-xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-slate-700">
+            Requerimientos generados ({d.requerimientos.length})
+          </summary>
+          <ul className="divide-y divide-slate-100 border-t border-slate-100">
+            {d.requerimientos.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-sm">
+                <span className="w-24 text-slate-700">{mesesDelSemestre(d.semestre)[r.mes - 1]}</span>
+                <Link to={`/requerimientos/${r.id}`} className="font-mono text-xs text-brand-700 hover:underline">
+                  {r.codigo}
+                </Link>
+                <span className="text-xs text-slate-500">
+                  {r.items} {r.items === 1 ? "ítem" : "ítems"}
+                </span>
+                <span className="ml-auto">
+                  <EstadoBadge estado={r.estado} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {d.historial.length > 0 && (

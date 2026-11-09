@@ -12,6 +12,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.32.0",
+    titulo: "Requerimientos desde el presupuesto",
+    cambios: [
+      "Al aprobar un presupuesto se crea un requerimiento en borrador por cada mes programado: solo quita lo que no va y envíalo.",
+      "Si un producto tiene tallas o colores, elige cuál al editar el borrador.",
+      "El presupuesto muestra los requerimientos que generó, mes a mes.",
+      "Descarga el presupuesto en Excel desde la tarjeta de partidas.",
+      "Compras › Consolidados muestra cuántas unidades se cotizaron y cuántas ofertas hay.",
+    ],
+  },
+  {
     version: "0.31.1",
     titulo: "Cantidades sin decimales",
     cambios: [

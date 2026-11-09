@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.32.0 — 2026-11-09
+
+- **Requerimientos desde el presupuesto** (DEC-L049): al aprobar un
+  presupuesto se crea un REQ en BORRADOR por mes con cantidades, a nombre del
+  solicitante del presupuesto (`BorradoresPresupuestoService`). Re-aprobar
+  rehace los que siguen en borrador. Migracion V23 (`requerimiento.budget_id`,
+  `budget_version_id`, `budget_month` + indice unico). Productos con
+  tallas/colores quedan sin variante: la edicion los muestra para elegirla y
+  enviar lo exige. El detalle del presupuesto lista los REQ generados.
+- **Excel del presupuesto**: `GET /api/presupuestos/{id}/excel`
+  (`PresupuestoExcel`): metadatos y SKU x 6 meses con total, precio e importe.
+  Boton Excel en la tarjeta Partidas.
+- **Cantidad cotizada en consolidados**: `ConsolidadoDto.cantidadCotizada`
+  (max de `cotizacion_item.qty` no descartadas); columna "Cotizado" en
+  Compras › Consolidados (en todos los estados, con el numero de ofertas) y
+  columna "Cant. cotizada" en el detalle del consolidado.
+- `RequerimientoService.generarRequestCode` usa la fecha de Lima.
+- Pruebas: `PresupuestosTest.aprobarGeneraBorradoresPorMesYExcel`,
+  `ConsolidacionComprasTest` (cantidad cotizada), `MigracionesFlywayTest` (23).
+
 ## 0.31.1 — 2026-11-06
 
 - **Fix**: los campos numericos aceptaban decimales en cantidades y textos de

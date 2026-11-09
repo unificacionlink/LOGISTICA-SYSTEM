@@ -29,6 +29,15 @@ interface ItemCarrito {
   observacion: string;
 }
 
+/** Item que llego sin talla/color (borrador generado desde un presupuesto, DEC-L049). */
+interface ItemPendiente {
+  key: string;
+  skuBase: string;
+  nombre: string;
+  qty: string;
+  observacion: string;
+}
+
 export default function RequerimientosNuevo() {
   const { id } = useParams<{ id: string }>();
   const editando = Boolean(id);
@@ -47,6 +56,7 @@ export default function RequerimientosNuevo() {
   const [requiredDate, setRequiredDate] = useState("");
   const [justification, setJustification] = useState("");
   const [items, setItems] = useState<ItemCarrito[]>([]);
+  const [pendientes, setPendientes] = useState<ItemPendiente[]>([]);
   // Plazo de atencion (DEC-L035): el mayor de los SKU del pedido, contado desde hoy.
   const plazoMaximo = items.reduce<number | null>(
     (max, it) => (it.variante.plazoAtencionDias == null ? max : Math.max(max ?? 0, it.variante.plazoAtencionDias)),
@@ -107,12 +117,25 @@ export default function RequerimientosNuevo() {
           setJustification(requerimiento.justification);
 
           const porCodigoVariante = new Map(catalogoRes.result.variantes.map((v) => [v.codigoVariante, v]));
+          const conVariantes = new Set(catalogoRes.result.variantes.map((v) => v.skuBase));
           const itemsPrecargados: ItemCarrito[] = [];
+          const sinVariante: ItemPendiente[] = [];
           for (const it of itemsExistentes) {
-            const variante = porCodigoVariante.get(it.codigoVariante);
-            if (variante) itemsPrecargados.push({ variante, qty: String(it.cantidad), observacion: it.observacion ?? "" });
+            const variante = it.codigoVariante ? porCodigoVariante.get(it.codigoVariante) : undefined;
+            if (variante) {
+              itemsPrecargados.push({ variante, qty: String(it.cantidad), observacion: it.observacion ?? "" });
+            } else if (!it.codigoVariante && conVariantes.has(it.skuBase)) {
+              sinVariante.push({
+                key: it.id,
+                skuBase: it.skuBase,
+                nombre: it.nombreProducto,
+                qty: String(it.cantidad),
+                observacion: it.observacion === "Elegir talla/color" ? "" : (it.observacion ?? ""),
+              });
+            }
           }
           setItems(itemsPrecargados);
+          setPendientes(sinVariante);
         }
       })
       .finally(() => setCargando(false));
@@ -151,6 +174,21 @@ export default function RequerimientosNuevo() {
     setItems((prev) => prev.map((it) => (it.variante.variantId === variantId ? { ...it, ...cambios } : it)));
   }
 
+  /** Al elegir la talla/color, el pendiente pasa al pedido con su cantidad. */
+  function elegirVariante(p: ItemPendiente, variantId: string) {
+    const v = variantes.find((x) => x.variantId === variantId);
+    if (!v) return;
+    setErrorItems(null);
+    setPendientes((prev) => prev.filter((x) => x.key !== p.key));
+    setItems((prev) => {
+      const idx = prev.findIndex((it) => it.variante.variantId === v.variantId);
+      if (idx === -1) return [...prev, { variante: v, qty: p.qty, observacion: p.observacion }];
+      const copia = [...prev];
+      copia[idx] = { ...copia[idx], qty: String((Number(copia[idx].qty) || 0) + (Number(p.qty) || 0)) };
+      return copia;
+    });
+  }
+
   function quitarItem(variantId: string) {
     setItems((prev) => prev.filter((it) => it.variante.variantId !== variantId));
   }
@@ -164,6 +202,10 @@ export default function RequerimientosNuevo() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (pendientes.length > 0) {
+      setErrorItems(`Elige la talla/color de ${pendientes.map((p) => p.skuBase).join(", ")} o quítalo.`);
+      return;
+    }
     const validos = items.filter((it) => Number(it.qty) > 0);
     if (validos.length === 0) {
       setErrorItems("Agrega al menos un producto con cantidad mayor a 0.");
@@ -337,10 +379,56 @@ export default function RequerimientosNuevo() {
                   <ShoppingCart className="size-4.5 text-slate-500" />
                   <h2 className="font-semibold text-slate-900">Tu pedido</h2>
                 </div>
-                <Badge tone={items.length > 0 ? "azul" : "gris"}>{items.length}</Badge>
+                <Badge tone={items.length + pendientes.length > 0 ? "azul" : "gris"}>
+                  {items.length + pendientes.length}
+                </Badge>
               </CardHeader>
 
-              {items.length === 0 ? (
+              {pendientes.length > 0 && (
+                <ul className="divide-y divide-amber-100 border-b border-amber-100 bg-amber-50/60">
+                  {pendientes.map((p) => (
+                    <li key={p.key} className="flex flex-col gap-2 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-slate-700" title={p.nombre}>
+                            {p.nombre}
+                          </p>
+                          <p className="font-mono text-xs text-slate-500">
+                            {p.skuBase} · {p.qty} und
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPendientes((prev) => prev.filter((x) => x.key !== p.key))}
+                          title="Quitar del pedido"
+                          className="shrink-0 text-slate-400 hover:text-rose-600"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                      <select
+                        value=""
+                        onChange={(e) => elegirVariante(p, e.target.value)}
+                        aria-label={`Talla o color de ${p.skuBase}`}
+                        className={`${inputClass} w-full py-1.5 text-sm`}
+                      >
+                        <option value="" disabled>
+                          Elige talla/color…
+                        </option>
+                        {variantes
+                          .filter((v) => v.skuBase === p.skuBase)
+                          .map((v) => (
+                            <option key={v.variantId} value={v.variantId}>
+                              {v.atributo ?? v.codigoVariante}
+                            </option>
+                          ))}
+                      </select>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {items.length === 0 && pendientes.length > 0 ? null : items.length === 0 ? (
                 <EmptyState
                   icon={ShoppingCart}
                   title="Aún no agregas productos"
@@ -398,7 +486,7 @@ export default function RequerimientosNuevo() {
               <div className="flex flex-col gap-3 border-t border-slate-100 p-4">
                 {errorItems && <Alert tone="danger">{errorItems}</Alert>}
                 {errorEnvio && <Alert tone="danger">{errorEnvio}</Alert>}
-                <Button type="submit" loading={enviando} disabled={items.length === 0} className="w-full">
+                <Button type="submit" loading={enviando} disabled={items.length + pendientes.length === 0} className="w-full">
                   {enviando ? "Guardando…" : editando ? "Guardar cambios" : "Solicitar"}
                 </Button>
               </div>

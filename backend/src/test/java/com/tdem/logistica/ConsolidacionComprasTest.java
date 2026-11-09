@@ -162,6 +162,10 @@ class ConsolidacionComprasTest {
 		ConsolidadoDetalleDto det = abastecimiento.obtenerConsolidado(cx.consolidationId(), logistica);
 		assertEquals(2, det.ofertas().size());
 		assertEquals(0, det.ofertas().get(0).unitCost().compareTo(new BigDecimal("8")), "la mas barata primero");
+		assertEquals(2, det.consolidado().cotizaciones());
+		assertEquals(0, det.consolidado().cantidadCotizada().compareTo(new BigDecimal("7")),
+				"la mayor cantidad ofertada, no la suma de las dos ofertas");
+		assertNull(cx2.cantidadCotizada(), "sin ofertas todavia");
 
 		// --- Adjudicacion por producto a proveedores distintos ---
 		abastecimiento.adjudicar(cx.consolidationId(), linea(cot2, "AC01001"), logistica);

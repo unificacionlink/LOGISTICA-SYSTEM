@@ -48,7 +48,8 @@ export interface RequerimientoItem {
   skuBase: string;
   nombreProducto: string;
   atributo: string | null;
-  codigoVariante: string;
+  /** null en borradores generados desde un presupuesto con producto de tallas/colores (DEC-L049). */
+  codigoVariante: string | null;
   unidadMedida: string;
   cantidad: number;
   requisitoTecnico: string | null;
@@ -388,6 +389,8 @@ export interface Consolidado {
   /** Proveedores habilitados del producto. */
   proveedores: string[];
   cotizaciones: number;
+  /** Mayor cantidad ofertada en las cotizaciones vigentes; null si aun no hay ofertas. */
+  cantidadCotizada: number | null;
   adjudicado: Adjudicacion | null;
   createdAt: string;
 }
@@ -1045,6 +1048,8 @@ export interface PresupuestoDetalle {
   controlObligatorio: boolean;
   /** REQ del periodo enviados con excepcion justificada (solo PYC, Gerencia, Logistica y Admin). */
   excepciones: ExcepcionPresupuestal[];
+  /** REQ en borrador generados al aprobar, uno por mes (DEC-L049). */
+  requerimientos: { id: string; codigo: string; mes: number; estado: EstadoRequerimiento; items: number }[];
 }
 
 // ---------------------------------------------------------------- Control presupuestal (Lote 15, DEC-L038)

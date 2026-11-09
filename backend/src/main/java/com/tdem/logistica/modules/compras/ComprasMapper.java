@@ -178,7 +178,7 @@ public final class ComprasMapper {
     }
 
     public static ConsolidadoDto toDto(Consolidacion c, List<OrigenDto> origenes, List<String> proveedores,
-                                       int cotizaciones) {
+                                       int cotizaciones, BigDecimal cantidadCotizada) {
         return new ConsolidadoDto(
                 c.getConsolidationId(),
                 c.getConsolidationCode(),
@@ -194,6 +194,7 @@ public final class ComprasMapper {
                 origenes,
                 proveedores,
                 cotizaciones,
+                cantidadCotizada,
                 toAdjudicacion(c.getAdjudicado()),
                 c.getCreatedAt());
     }

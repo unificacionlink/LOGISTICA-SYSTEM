@@ -56,6 +56,10 @@ export function descargarCumplimientoExcel(id: string, codigo: string) {
   return http.descargar(`/api/presupuestos/${id}/cumplimiento/excel`, `Cumplimiento_${codigo}.xlsx`);
 }
 
+export function descargarPresupuestoExcel(id: string, codigo: string) {
+  return http.descargar(`/api/presupuestos/${id}/excel`, `Presupuesto_${codigo}.xlsx`);
+}
+
 export function guardarLineas(id: string, lineas: { productId: string; meses: number[] }[]) {
   return http.put<PresupuestoDetalle>(`/api/presupuestos/${id}/lineas`, { lineas });
 }

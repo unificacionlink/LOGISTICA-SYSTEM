@@ -177,6 +177,7 @@ export default function ComprasConsolidado() {
             <thead>
               <tr className={cabecera}>
                 <th className="px-5 py-2.5">Proveedor</th>
+                <th className="px-5 py-2.5">Cant. cotizada</th>
                 <th className="px-5 py-2.5">Costo unit.</th>
                 <th className="px-5 py-2.5 col-sec">Total</th>
                 <th className="px-5 py-2.5 col-sec">Condiciones</th>
@@ -201,12 +202,19 @@ export default function ComprasConsolidado() {
                     </p>
                   </td>
                   {o.unitCost == null ? (
-                    <td colSpan={3} className="px-5 py-2.5">
+                    <td colSpan={4} className="px-5 py-2.5">
                       <RfqEstadoBadge estado={o.rfqStatus} />
                       <span className="ml-2 text-xs text-slate-400">sin respuesta</span>
                     </td>
                   ) : (
                     <>
+                      <td
+                        className={`whitespace-nowrap px-5 py-2.5 ${
+                          o.qty < c.totalQty ? "text-amber-700" : "text-slate-700"
+                        }`}
+                      >
+                        {cantidad(o.qty)} {c.unidadMedida}
+                      </td>
                       <td className="whitespace-nowrap px-5 py-2.5 font-medium text-slate-800">
                         {dinero(o.unitCost, o.currencyCode)}
                         {o.cotizacionStatus === "DESCARTADA" && (
@@ -217,9 +225,6 @@ export default function ComprasConsolidado() {
                       </td>
                       <td className="col-sec whitespace-nowrap px-5 py-2.5 text-slate-600">
                         {dinero(o.lineTotal, o.currencyCode)}
-                        <span className="block text-xs text-slate-400">
-                          {cantidad(o.qty)} {c.unidadMedida}
-                        </span>
                       </td>
                       <td className="col-sec px-5 py-2.5 text-xs text-slate-500">
                         {[

@@ -3,6 +3,7 @@ package com.tdem.logistica;
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.modules.presupuestos.PresupuestoService;
 import com.tdem.logistica.modules.presupuestos.dto.*;
+import com.tdem.logistica.modules.requerimientos.RequerimientoService;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
@@ -14,9 +15,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +34,7 @@ class PresupuestosTest {
 
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private PresupuestoService service;
+	@Autowired private RequerimientoService requerimientos;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -185,6 +189,77 @@ class PresupuestosTest {
 		// Asignado como aprobador del CECO, ya lo ve.
 		jdbc.update("update ceco set approver_user_id = ? where ceco_id = ?", aprobador.userId(), ceco);
 		assertEquals(b.id(), service.obtener(b.id(), aprobador).id());
+	}
+
+	/** DEC-L049: al aprobar queda un REQ en borrador por mes programado; Excel de la programacion. */
+	@Test
+	void aprobarGeneraBorradoresPorMesYExcel() throws IOException {
+		UsuarioPrincipal solicitante = principal("solicitante@logistica.test", "SOLICITANTE");
+		UsuarioPrincipal pyc = principal("pyc@logistica.test", "PYC");
+		UsuarioPrincipal aprobador = principal("aprobador@logistica.test", "APROBADOR");
+		UsuarioPrincipal gerencia = principal("gerencia@logistica.test", "GERENCIA");
+		UUID ceco = ceco("TDEMSRL", 0);
+		UUID tdem = empresa("TDEMSRL");
+		jdbc.update("update ceco set approver_user_id = ? where ceco_id = ?", aprobador.userId(), ceco);
+		UUID simple = producto("AC01002");
+		UUID tallas = jdbc.queryForObject("""
+				select p.product_id from producto p
+				where (select count(*) from producto_variante v where v.product_id = p.product_id and v.active) > 1
+				order by p.sku_base limit 1""", UUID.class);
+		precio(tdem, simple, "10");
+		precio(tdem, tallas, "30");
+
+		PeriodoDto periodo = service.crearPeriodo(new CrearPeriodoRequest(ceco, 2040, 2), pyc);
+		UUID id = service.crear(new CrearPresupuestoRequest(periodo.periodId(), null), solicitante).id();
+		service.guardarLineas(id, List.of(linea(simple, 4, 0, 0, 0, 0, 2), linea(tallas, 0, 3, 0, 0, 0, 0)), solicitante);
+		service.emitir(id, solicitante);
+		PresupuestoDetalleDto b = service.decidir(id, "APROBADO", null, aprobador);
+
+		// Julio, Agosto y Diciembre: los meses con cantidades.
+		assertEquals(List.of(1, 2, 6), b.requerimientos().stream().map(RequerimientoGeneradoDto::mes).toList());
+		assertTrue(b.requerimientos().stream().allMatch(r -> "BORRADOR".equals(r.estado())));
+		UUID julio = b.requerimientos().get(0).id();
+		UUID agosto = b.requerimientos().get(1).id();
+		var reqJulio = requerimientos.obtener(julio, solicitante);
+		assertEquals(solicitante.userId(), reqJulio.requerimiento().requesterUserId());
+		assertEquals(LocalDate.of(2040, 7, 1), reqJulio.requerimiento().requiredDate());
+		assertEquals("CONSUMO", reqJulio.requerimiento().purpose());
+		assertEquals(1, reqJulio.items().size());
+		assertEquals(0, reqJulio.items().getFirst().cantidad().compareTo(BigDecimal.valueOf(4)));
+		assertNotNull(reqJulio.items().getFirst().codigoVariante(), "una sola variante: va con ella");
+		assertNull(requerimientos.obtener(agosto, solicitante).items().getFirst().codigoVariante(),
+				"con tallas/colores se elige al editar");
+
+		// Sin talla/color no se envia; el de julio si.
+		assertThrows(ApiException.class, () -> requerimientos.enviar(agosto, solicitante));
+		assertEquals("PENDIENTE_APROBACION", requerimientos.enviar(julio, solicitante).status());
+
+		// Re-aprobar: rehace los borradores, no toca el enviado ni duplica.
+		service.modificar(id, solicitante);
+		service.guardarLineas(id, List.of(linea(simple, 9, 0, 0, 0, 0, 2), linea(tallas, 0, 1, 0, 0, 0, 0)), solicitante);
+		service.emitir(id, solicitante);
+		b = service.decidir(id, "APROBADO", null, gerencia);
+		assertEquals(3, b.requerimientos().size());
+		assertEquals(0, requerimientos.obtener(julio, solicitante).items().getFirst().cantidad()
+				.compareTo(BigDecimal.valueOf(4)), "ya enviado: no cambia");
+		assertEquals(0, requerimientos.obtener(agosto, solicitante).items().getFirst().cantidad()
+				.compareTo(BigDecimal.ONE));
+		assertTrue(requerimientos.obtener(agosto, solicitante).requerimiento().justification().contains(" v2 "));
+
+		// Excel: metadatos, cabecera con los meses del semestre y una fila por SKU.
+		PresupuestoService.Archivo excel = service.excel(id, solicitante);
+		assertTrue(excel.nombre().endsWith(".xlsx"));
+		try (var wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(new ByteArrayInputStream(excel.contenido()))) {
+			var hoja = wb.getSheet("Presupuesto");
+			var cab = hoja.getRow(9);
+			assertEquals("SKU", cab.getCell(0).getStringCellValue());
+			assertEquals("Julio", cab.getCell(4).getStringCellValue());
+			assertEquals("Diciembre", cab.getCell(9).getStringCellValue());
+			var fila = java.util.stream.IntStream.rangeClosed(10, hoja.getLastRowNum()).mapToObj(hoja::getRow)
+					.filter(r -> r.getCell(0) != null && "AC01002".equals(r.getCell(0).getStringCellValue()))
+					.findFirst().orElseThrow();
+			assertEquals(11.0, fila.getCell(10).getNumericCellValue(), "9 + 2");
+		}
 	}
 
 	// ------------------------------------------------------------------

@@ -443,7 +443,11 @@ export default function RequerimientoDetalle() {
             <tbody className="divide-y divide-slate-100">
               {items.map((it) => (
                 <tr key={it.id}>
-                  <td className="px-5 py-2.5 font-mono text-xs text-slate-600">{it.codigoVariante}</td>
+                  <td className="px-5 py-2.5 font-mono text-xs text-slate-600">
+                    {it.codigoVariante ?? (
+                      <span className="font-sans text-amber-700">{it.skuBase} · elegir talla/color</span>
+                    )}
+                  </td>
                   <td className="col-flex px-5 py-2.5 text-slate-700" title={String(it.nombreProducto)}>
                     {it.nombreProducto}
                     {it.atributo && <span className="text-slate-400"> · {it.atributo}</span>}

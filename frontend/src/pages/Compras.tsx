@@ -465,6 +465,7 @@ function TablaConsolidados({
             <th className={th}>Producto</th>
             <th className={th}>Origen (CECO · REQ)</th>
             <th className={th}>Total</th>
+            <th className={th}>Cotizado</th>
             <th className={`${th} col-sec`}>Proveedores</th>
             <th className={th}>Estado</th>
             <th className={th} />
@@ -497,6 +498,24 @@ function TablaConsolidados({
                 <td className="whitespace-nowrap px-5 py-3 font-medium text-slate-800">
                   {cantidad(c.totalQty)} {c.unidadMedida}
                 </td>
+                <td className="whitespace-nowrap px-5 py-3">
+                  {c.cantidadCotizada == null ? (
+                    <span className="text-slate-400">—</span>
+                  ) : (
+                    <>
+                      <p
+                        className={`font-medium ${
+                          c.cantidadCotizada >= c.totalQty ? "text-emerald-700" : "text-amber-700"
+                        }`}
+                      >
+                        {cantidad(c.cantidadCotizada)} {c.unidadMedida}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {c.cotizaciones} {c.cotizaciones === 1 ? "oferta" : "ofertas"}
+                      </p>
+                    </>
+                  )}
+                </td>
                 <td className="col-sec px-5 py-3 text-xs" title={c.proveedores.join(", ")}>
                   {c.proveedores.length === 0 ? (
                     <span className="text-rose-600">Sin proveedor</span>
@@ -506,9 +525,6 @@ function TablaConsolidados({
                 </td>
                 <td className="px-5 py-3">
                   <ConsolidadoEstadoBadge estado={c.status} />
-                  {c.status === "EN_COTIZACION" && (
-                    <p className="mt-1 text-xs text-slate-500">{c.cotizaciones} oferta(s)</p>
-                  )}
                   {c.adjudicado && (
                     <p className="mt-1 max-w-40 truncate text-xs text-slate-500" title={c.adjudicado.proveedorNombre}>
                       {c.adjudicado.proveedorNombre}

@@ -96,6 +96,13 @@ public class PresupuestoController {
         return Descargas.archivo(excel.contenido(), excel.nombre(), Descargas.XLSX);
     }
 
+    /** Programacion del presupuesto en Excel. */
+    @GetMapping("/{id}/excel")
+    public ResponseEntity<byte[]> excel(@PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        PresupuestoService.Archivo excel = service.excel(id, principal);
+        return Descargas.archivo(excel.contenido(), excel.nombre(), Descargas.XLSX);
+    }
+
     @PutMapping("/{id}/lineas")
     public ApiResponse<PresupuestoDetalleDto> guardarLineas(@PathVariable UUID id,
                                                             @Valid @RequestBody GuardarLineasRequest request,
@@ -115,9 +122,13 @@ public class PresupuestoController {
                                                       @Valid @RequestBody DecidirPresupuestoRequest request,
                                                       @AuthenticationPrincipal UsuarioPrincipal principal) {
         PresupuestoDetalleDto p = service.decidir(id, request.decision(), request.motivo(), principal);
-        return ApiResponse.ok(p, "APROBADO".equals(p.estado())
-                ? "Presupuesto aprobado: version " + p.versionVigente() + " con precios congelados."
-                : "Presupuesto observado.");
+        if (!"APROBADO".equals(p.estado())) {
+            return ApiResponse.ok(p, "Presupuesto observado.");
+        }
+        long borradores = p.requerimientos().stream().filter(r -> "BORRADOR".equals(r.estado())).count();
+        return ApiResponse.ok(p, "Presupuesto aprobado: version " + p.versionVigente() + " con precios congelados."
+                + (borradores == 0 ? "" : borradores == 1 ? " Se dejo 1 requerimiento en borrador."
+                : " Se dejaron " + borradores + " requerimientos en borrador."));
     }
 
     @PostMapping("/{id}/modificar")

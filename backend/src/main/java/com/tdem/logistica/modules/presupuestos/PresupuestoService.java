@@ -72,13 +72,15 @@ public class PresupuestoService {
     private final NamedParameterJdbcTemplate named;
     private final Auditoria auditoria;
     private final ControlPresupuestalService control;
+    private final BorradoresPresupuestoService borradores;
 
     public PresupuestoService(JdbcTemplate jdbc, NamedParameterJdbcTemplate named, Auditoria auditoria,
-                              ControlPresupuestalService control) {
+                              ControlPresupuestalService control, BorradoresPresupuestoService borradores) {
         this.jdbc = jdbc;
         this.named = named;
         this.auditoria = auditoria;
         this.control = control;
+        this.borradores = borradores;
     }
 
     /** Lo necesario para autorizar una accion sobre un presupuesto. */
@@ -282,13 +284,20 @@ public class PresupuestoService {
                 order by lc.created_at""",
                 (rs, i) -> new HistorialPresupuestoDto(rs.getString(1), rs.getString(2), instante(rs, 3),
                         rs.getString(4)), id);
+        List<RequerimientoGeneradoDto> requerimientos = jdbc.query("""
+                select r.request_id, r.request_code, r.budget_month, r.status,
+                       (select count(*) from requerimiento_item ri where ri.request_id = r.request_id)
+                from requerimiento r where r.budget_id = ? order by r.budget_month""",
+                (rs, i) -> new RequerimientoGeneradoDto(rs.getObject(1, UUID.class), rs.getString(2), rs.getInt(3),
+                        rs.getString(4), rs.getInt(5)), id);
         return new PresupuestoDetalleDto(c.id(), c.codigo(), c.periodId(), (String) h[1], (String) h[2], (String) h[3],
                 (Integer) h[4], (Integer) h[5], c.cerrado(), c.estado(), c.requesterId(), (String) h[6],
                 (String) h[7], (String) h[8], (String) h[9], (Instant) h[10], (Integer) h[11], (Instant) h[12],
                 (String) h[13], lineas, lineas.isEmpty() ? null : total, sinPrecio,
                 permisos(c, principal, lineas.size()), historial, (Boolean) h[14],
                 principal.tieneAlgunRol(Roles.PYC, Roles.GERENCIA, Roles.LOGISTICA, Roles.ADMIN)
-                        ? control.excepciones(c.periodId()) : List.of());
+                        ? control.excepciones(c.periodId()) : List.of(),
+                requerimientos);
     }
 
     private List<LineaPresupuestoDto> lineas(UUID budgetId) {
@@ -512,9 +521,11 @@ public class PresupuestoService {
             auditoria.registrar("PRESUPUESTO", id, "OBSERVAR", Map.of("estado", EMITIDO),
                     Map.of("estado", OBSERVADO, "motivo", motivo.trim()), principal.userId());
         } else {
-            int version = congelar(c, principal);
+            Congelada v = congelar(c, principal);
             auditoria.registrar("PRESUPUESTO", id, "APROBAR", Map.of("estado", EMITIDO),
-                    Map.of("estado", APROBADO, "version", version), principal.userId());
+                    Map.of("estado", APROBADO, "version", v.numero()), principal.userId());
+            // DEC-L049: un REQ en borrador por mes programado.
+            borradores.generar(id, v.id(), principal.userId());
         }
         return obtener(id, principal);
     }
@@ -524,7 +535,10 @@ public class PresupuestoService {
      * y el ultimo precio de compra de la empresa (OC no anulada; null si no es PEN
      * o no hay compra, nunca se inventa).
      */
-    private int congelar(Ctx c, UsuarioPrincipal principal) {
+    private record Congelada(UUID id, int numero) {
+    }
+
+    private Congelada congelar(Ctx c, UsuarioPrincipal principal) {
         record Fila(UUID productId, String sku, BigDecimal[] meses, BigDecimal venta, BigDecimal costo,
                     String moneda, UUID orden) {
         }
@@ -579,7 +593,7 @@ public class PresupuestoService {
                 update presupuesto set status = 'APROBADO', current_version_id = ?, decision_reason = null,
                   updated_at = now()
                 where budget_id = ?""", versionId, c.id());
-        return version;
+        return new Congelada(versionId, version);
     }
 
     @Transactional
@@ -704,6 +718,14 @@ public class PresupuestoService {
         String nombre = ("Cumplimiento_" + dto.codigo() + "_" + dto.empresa() + "_" + dto.periodo())
                 .replaceAll("[^a-zA-Z0-9_-]", "_") + ".xlsx";
         return new Archivo(CumplimientoExcel.generar(dto), nombre);
+    }
+
+    /** Excel de la programacion: lo descarga quien puede ver el presupuesto. */
+    public Archivo excel(UUID id, UsuarioPrincipal principal) {
+        PresupuestoDetalleDto dto = obtener(id, principal);
+        String nombre = ("Presupuesto_" + dto.codigo() + "_" + dto.empresa() + "_" + dto.anio() + "-S" + dto.semestre())
+                .replaceAll("[^a-zA-Z0-9_-]", "_") + ".xlsx";
+        return new Archivo(PresupuestoExcel.generar(dto), nombre);
     }
 
     /** Cantidades x precio; precio null = SIN PRECIO, salvo lo programado de un SKU sin presupuesto (0). */

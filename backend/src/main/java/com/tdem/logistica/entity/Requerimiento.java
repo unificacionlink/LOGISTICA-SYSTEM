@@ -61,6 +61,17 @@ public class Requerimiento {
     @Column(name = "scheduled_delivery_date", insertable = false)
     private LocalDate scheduledDeliveryDate;
 
+    // DEC-L049: borrador generado al aprobar un presupuesto (mes 1..6 del semestre).
+    // Solo lo escribe BorradoresPresupuestoService.
+    @Column(name = "budget_id", insertable = false, updatable = false)
+    private UUID budgetId;
+
+    @Column(name = "budget_version_id", insertable = false, updatable = false)
+    private UUID budgetVersionId;
+
+    @Column(name = "budget_month", insertable = false, updatable = false)
+    private Short budgetMonth;
+
     // Snapshots V37 (Tracking): aun no los escribe ningun flujo, solo se leen.
 
     @Column(name = "delivery_address_snapshot", insertable = false, updatable = false)

@@ -426,6 +426,14 @@ public class RequerimientoService {
         if (!EstadoRequerimiento.EDITABLES.contains(r.getStatus())) {
             throw ApiException.badRequest("Solo se puede enviar un requerimiento en borrador u observado.");
         }
+        // Los borradores que salen de un presupuesto (DEC-L049) traen sin variante los
+        // productos con tallas/colores: hay que elegirla antes de enviar.
+        List<String> sinVariante = requerimientoItemRepository.findByRequerimiento(id).stream()
+                .filter(i -> i.getVariante() == null).map(i -> i.getProducto().getSkuBase()).toList();
+        if (!sinVariante.isEmpty()) {
+            throw ApiException.badRequest("Edita el requerimiento y elige la talla/color de "
+                    + String.join(", ", sinVariante) + ".");
+        }
         controlPresupuestal.verificar(r.getRequestId(), justificacionPresupuestal, principal.userId());
 
         r.setStatus(EstadoRequerimiento.PENDIENTE_APROBACION);
@@ -495,8 +503,9 @@ public class RequerimientoService {
     }
 
     /** Codigo legible unico por empresa: REQ-<empresa>-<yyyyMMdd>-<sufijo>. */
-    private String generarRequestCode(String empresaCode) {
-        String fecha = LocalDate.now().format(YYYYMMDD);
+    /** Codigo nuevo de REQ; tambien lo usan los borradores generados desde un presupuesto. */
+    public static String generarRequestCode(String empresaCode) {
+        String fecha = LocalDate.now(ZoneId.of("America/Lima")).format(YYYYMMDD);
         String sufijo = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
         return "REQ-" + empresaCode + "-" + fecha + "-" + sufijo;
     }

@@ -20,6 +20,7 @@ public record ConsolidadoDto(
         List<OrigenDto> origenes,
         List<String> proveedores,
         int cotizaciones,
+        BigDecimal cantidadCotizada,
         AdjudicacionDto adjudicado,
         Instant createdAt) {
 }
