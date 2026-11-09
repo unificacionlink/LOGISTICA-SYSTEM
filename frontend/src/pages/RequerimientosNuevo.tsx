@@ -10,7 +10,7 @@ import {
 import type { Ceco, Familia, VarianteCatalogo } from "../api/types";
 import { etiquetaFamilia } from "../components/familia";
 import { useAuth } from "../auth/AuthContext";
-import BuscadorProductos, { Miniatura } from "../components/BuscadorProductos";
+import BuscadorProductos, { Miniatura, StockDisponible } from "../components/BuscadorProductos";
 import SolicitarProducto from "../components/maestro/SolicitarProducto";
 import Alert from "../components/ui/Alert";
 import Badge from "../components/ui/Badge";
@@ -446,6 +446,14 @@ export default function RequerimientosNuevo() {
                           />
                           <div className="min-w-0 flex-1">
                             <span className="block truncate font-mono text-xs text-slate-700">{it.variante.etiqueta}</span>
+                            <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <StockDisponible cantidad={it.variante.stockDisponible} />
+                              {it.variante.stockDisponible > 0 && Number(it.qty) > it.variante.stockDisponible && (
+                                <span className="text-xs text-amber-700">
+                                  {Number(it.qty) - it.variante.stockDisponible} se comprarán
+                                </span>
+                              )}
+                            </span>
                             {it.variante.plazoAtencionDias != null && (
                               <span className="text-xs text-slate-400">
                                 Atención en {it.variante.plazoAtencionDias}{" "}

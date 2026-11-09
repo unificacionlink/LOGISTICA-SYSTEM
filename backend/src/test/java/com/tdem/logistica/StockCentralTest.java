@@ -3,6 +3,7 @@ package com.tdem.logistica;
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.modules.aprobaciones.AprobacionService;
 import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
+import com.tdem.logistica.modules.requerimientos.RequerimientoService;
 import com.tdem.logistica.modules.stock.CargaStockService;
 import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.modules.stock.dto.*;
@@ -41,6 +42,7 @@ class StockCentralTest {
 	@Autowired private StockService stock;
 	@Autowired private CargaStockService carga;
 	@Autowired private AprobacionService aprobacionService;
+	@Autowired private RequerimientoService requerimientos;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -166,6 +168,14 @@ class StockCentralTest {
 				select e.code from reserva_stock r join almacen a on a.warehouse_id = r.warehouse_id
 				join empresa e on e.company_id = a.company_id where r.request_item_id = ?""", String.class, item));
 		assertEquals(0, new BigDecimal("3").compareTo(saldo(variante, logistica).disponible()));
+
+		// Quien pide ve el disponible del almacen central al armar su requerimiento: 8 - 5 reservados.
+		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
+		var catalogo = requerimientos.obtenerDatosFormulario(solicitante).variantes();
+		assertEquals(0, new BigDecimal("3").compareTo(catalogo.stream()
+				.filter(v -> v.variantId().equals(variante)).findFirst().orElseThrow().stockDisponible()));
+		assertTrue(catalogo.stream().filter(v -> !v.variantId().equals(variante))
+				.allMatch(v -> v.stockDisponible().signum() >= 0));
 	}
 
 	// ------------------------------------------------------------------

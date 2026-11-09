@@ -81,6 +81,8 @@ export interface VarianteCatalogo {
   imagenUrl: string | null;
   /** Plazo de atención del SKU en días calendario; null = sin configurar (DEC-L035). */
   plazoAtencionDias: number | null;
+  /** Disponible en el almacén central (físico - reservado). */
+  stockDisponible: number;
 }
 
 /** Subfamilia del maestro SKU (`familia_producto`) con su familia (`tipo_producto`), DEC-L034. */

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.33.0 — 2026-11-09
+
+- **Stock visible al pedir** (DEC-L050): el catalogo del formulario de
+  requerimiento trae `stockDisponible` (fisico - reservado del almacen
+  central, `StockService.disponiblesCentral`). El buscador de productos y el
+  pedido muestran "Stock N" o "Sin stock", y el pedido avisa cuantas unidades
+  se compraran si se pide mas de lo disponible. Prueba en `StockCentralTest`.
+
 ## 0.32.1 — 2026-11-09
 
 - **Fix**: el menu "⋯" (`MenuAcciones`) y las listas de los buscadores

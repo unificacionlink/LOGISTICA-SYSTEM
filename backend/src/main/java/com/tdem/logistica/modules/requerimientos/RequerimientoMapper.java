@@ -52,7 +52,7 @@ public final class RequerimientoMapper {
                 i.getObservation());
     }
 
-    public static VarianteCatalogoDto toDto(ProductoVariante v, String imagenUrl) {
+    public static VarianteCatalogoDto toDto(ProductoVariante v, String imagenUrl, java.math.BigDecimal stock) {
         String nombre = v.getProducto().getName();
         String atributo = v.getAttributeValue();
         String etiqueta = v.getInternalVariantCode() + " — " + nombre + (atributo != null ? " (" + atributo + ")" : "");
@@ -69,7 +69,8 @@ public final class RequerimientoMapper {
                 v.getProducto().getFamilia().getTipo().getProductTypeId(),
                 v.getProducto().getFamilia().getTipo().getName(),
                 imagenUrl,
-                v.getProducto().getAttentionDays());
+                v.getProducto().getAttentionDays(),
+                stock != null ? stock : java.math.BigDecimal.ZERO);
     }
 
     public static FamiliaDto toDto(FamiliaProducto f) {

@@ -25,6 +25,11 @@ public class AlmacenCentral {
                 .orElseThrow(() -> ApiException.badRequest("No hay un almacen central del grupo configurado."));
     }
 
+    /** El almacen central, si esta configurado (para lecturas que no deben fallar sin el). */
+    public java.util.Optional<Almacen> buscar() {
+        return almacenRepository.findCentralDelGrupo();
+    }
+
     /** Bloquea la fila del almacen: serializa reservas y cargas de inventario concurrentes. */
     public Almacen bloquear() {
         return almacenRepository.bloquear(obtener().getWarehouseId())

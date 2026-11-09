@@ -198,6 +198,7 @@ export default function BuscadorProductos({
               <li key={v.variantId} className="flex items-center gap-3 px-4 py-2.5">
                 <Miniatura url={v.imagenUrl} titulo={v.nombre} detalle={`${v.codigoVariante} · ${etiquetaFamilia(v.tipoNombre, v.familiaNombre)}`} />
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-600">{v.etiqueta}</span>
+                <StockDisponible cantidad={v.stockDisponible} />
                 {enCarrito > 0 && (
                   <span className="shrink-0 text-xs font-medium text-brand-600">En tu pedido · {enCarrito}</span>
                 )}
@@ -226,5 +227,18 @@ export default function BuscadorProductos({
         )}
       </ul>
     </div>
+  );
+}
+
+/** Stock del almacén central que ve quien pide: verde si hay, gris si no. */
+export function StockDisponible({ cantidad }: { cantidad: number }) {
+  return cantidad > 0 ? (
+    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title="Disponible en almacén">
+      Stock {cantidad.toLocaleString("es-PE")}
+    </span>
+  ) : (
+    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500" title="Sin stock en almacén: se comprará">
+      Sin stock
+    </span>
   );
 }

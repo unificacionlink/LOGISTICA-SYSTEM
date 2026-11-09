@@ -85,6 +85,28 @@ public class StockService {
         this.jdbc = jdbc;
     }
 
+    /**
+     * Disponible (fisico - reservado) por variante en el almacen central, en una
+     * consulta. Una variante sin movimientos no aparece (= 0). Vacio si no hay
+     * almacen central. Lo ve quien pide al armar su requerimiento.
+     */
+    public Map<UUID, BigDecimal> disponiblesCentral() {
+        Map<UUID, BigDecimal> out = new HashMap<>();
+        almacenCentral.buscar().ifPresent(a -> jdbc.query("""
+                with fis as (
+                    select variant_id, sum(qty) q
+                      from movimiento_inventario where warehouse_id = ? group by variant_id),
+                res as (
+                    select variant_id, sum(qty_reserved) q
+                      from reserva_stock where warehouse_id = ? and status = 'RESERVADA' group by variant_id)
+                select fis.variant_id, fis.q - coalesce(res.q, 0)
+                  from fis left join res on res.variant_id = fis.variant_id""",
+                rs -> {
+                    out.put(rs.getObject(1, UUID.class), rs.getBigDecimal(2).max(BigDecimal.ZERO));
+                }, a.getWarehouseId(), a.getWarehouseId()));
+        return out;
+    }
+
     static void exigirLogisticaOAdmin(UsuarioPrincipal principal) {
         if (!principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN)) {
             throw ApiException.forbidden("No tienes permiso para gestionar stock.");

@@ -5,6 +5,16 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L050 — Quien pide ve el stock del almacen (2026-11-09).** Pedido del
+  usuario: al armar un requerimiento, el solicitante ve cuanto hay en el
+  almacen central (DEC-L045) de cada producto. Se muestra el **disponible**
+  (fisico - reservas activas), no el fisico: lo reservado ya es de otro
+  pedido. `GET /api/requerimientos/catalogo` trae `stockDisponible` por
+  variante (`StockService.disponiblesCentral`, una consulta; 0 si no hay o si
+  no hay almacen central). Es informativo: no cambia la reserva al aprobar
+  (DEC-L018) ni bloquea pedir mas; el pedido avisa cuantas unidades se
+  compraran.
+
 - **DEC-L049 — Requerimientos en borrador al aprobar un presupuesto (2026-11-09).**
   Pedido del usuario: que no se vuelva a digitar en un REQ lo que ya se
   programo en el presupuesto. Al aprobar (`PresupuestoService.decidir`), en la

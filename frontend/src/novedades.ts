@@ -12,6 +12,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.33.0",
+    titulo: "Stock a la vista al pedir",
+    cambios: [
+      "Al armar un requerimiento ves cuánto hay en el almacén de cada producto (lo libre, sin contar lo ya reservado para otros pedidos).",
+      "Si pides más de lo que hay, el pedido te avisa cuántas unidades se comprarán.",
+    ],
+  },
+  {
     version: "0.32.1",
     titulo: "Menús que se ven completos",
     cambios: [

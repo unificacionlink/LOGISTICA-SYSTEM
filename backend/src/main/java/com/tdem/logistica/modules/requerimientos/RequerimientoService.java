@@ -10,6 +10,7 @@ import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.aprobaciones.AmbitoAprobacion;
 import com.tdem.logistica.modules.presupuestos.ControlPresupuestalService;
+import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.modules.aprobaciones.dto.AprobacionPendienteDto;
 import com.tdem.logistica.modules.requerimientos.dto.*;
 import com.tdem.logistica.realtime.RealtimeNotifier;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -71,6 +73,7 @@ public class RequerimientoService {
     private final Auditoria auditoria;
     private final AmbitoAprobacion ambitoAprobacion;
     private final ControlPresupuestalService controlPresupuestal;
+    private final StockService stockService;
 
     public RequerimientoService(
             RequerimientoRepository requerimientoRepository,
@@ -87,7 +90,9 @@ public class RequerimientoService {
             StorageClient storageClient,
             Auditoria auditoria,
             AmbitoAprobacion ambitoAprobacion,
-            ControlPresupuestalService controlPresupuestal) {
+            ControlPresupuestalService controlPresupuestal,
+            StockService stockService) {
+        this.stockService = stockService;
         this.ambitoAprobacion = ambitoAprobacion;
         this.controlPresupuestal = controlPresupuestal;
         this.realtimeNotifier = realtimeNotifier;
@@ -182,8 +187,11 @@ public class RequerimientoService {
                         pi -> pi.getDocumento().getFileUrl(),
                         (a, b) -> a));
 
+        // Stock del almacen central (DEC-L045): quien pide ve que hay antes de pedir.
+        Map<UUID, BigDecimal> stock = stockService.disponiblesCentral();
         List<VarianteCatalogoDto> variantes = productoVarianteRepository.findCatalogoActivo().stream()
-                .map(v -> RequerimientoMapper.toDto(v, imagenesPorProducto.get(v.getProducto().getProductId())))
+                .map(v -> RequerimientoMapper.toDto(v, imagenesPorProducto.get(v.getProducto().getProductId()),
+                        stock.get(v.getVariantId())))
                 .toList();
         List<FamiliaDto> familias = familiaProductoRepository.findActivasConTipo().stream()
                 .map(RequerimientoMapper::toDto)
