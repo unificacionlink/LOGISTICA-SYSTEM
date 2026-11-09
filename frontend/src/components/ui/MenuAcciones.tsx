@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
+import Flotante from "./Flotante";
 
 export interface AccionMenu {
   label: string;
@@ -15,11 +16,14 @@ export interface AccionMenu {
 export default function MenuAcciones({ acciones, etiqueta = "Más acciones" }: { acciones: AccionMenu[]; etiqueta?: string }) {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const boton = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!abierto) return;
     const fuera = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !panel.current?.contains(t)) setAbierto(false);
     };
     const escape = (e: KeyboardEvent) => e.key === "Escape" && setAbierto(false);
     document.addEventListener("mousedown", fuera);
@@ -35,6 +39,7 @@ export default function MenuAcciones({ acciones, etiqueta = "Más acciones" }: {
   return (
     <div ref={ref} className="relative">
       <button
+        ref={boton}
         type="button"
         aria-label={etiqueta}
         aria-haspopup="menu"
@@ -45,9 +50,12 @@ export default function MenuAcciones({ acciones, etiqueta = "Más acciones" }: {
         <MoreHorizontal className="size-4" />
       </button>
       {abierto && (
-        <div
+        <Flotante
+          ancla={boton}
+          panelRef={panel}
+          alinear="fin"
           role="menu"
-          className="absolute right-0 z-30 mt-1.5 min-w-44 rounded-md border border-slate-200 bg-white py-1 shadow-flotante"
+          className="min-w-44 rounded-md border border-slate-200 bg-white py-1 shadow-flotante"
         >
           {acciones.map((a) => (
             <button
@@ -66,7 +74,7 @@ export default function MenuAcciones({ acciones, etiqueta = "Más acciones" }: {
               {a.label}
             </button>
           ))}
-        </div>
+        </Flotante>
       )}
     </div>
   );

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { asignarCecos } from "../../api/admin";
 import type { AdminDatos, CecoAdmin, UsuarioAdmin } from "../../api/types";
 import Button from "../ui/Button";
 import { inputClass } from "../ui/Field";
 import { EMPRESAS } from "../empresas";
+import Flotante from "../ui/Flotante";
 
 const MAX_RESULTADOS = 8;
 
@@ -26,6 +27,7 @@ export default function CecosUsuario({
   aplicar: (res: { ok: boolean; result: AdminDatos | null; message: string }) => boolean;
 }) {
   const [seleccion, setSeleccion] = useState<string[]>(u.cecoIds);
+  const caja = useRef<HTMLDivElement>(null);
   const [busqueda, setBusqueda] = useState("");
   const [guardando, setGuardando] = useState(false);
   const porId = useMemo(() => new Map(cecos.map((c) => [c.id, c])), [cecos]);
@@ -90,7 +92,7 @@ export default function CecosUsuario({
         </ul>
       )}
 
-      <div className="relative mt-2 max-w-sm">
+      <div ref={caja} className="relative mt-2 max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
         <input
           value={busqueda}
@@ -103,31 +105,33 @@ export default function CecosUsuario({
           className={`${inputClass} w-full pl-9 text-sm`}
         />
         {busqueda.trim() && (
-          <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
-            {resultados.length === 0 ? (
-              <li className="px-3 py-2 text-xs text-slate-500">Sin resultados</li>
-            ) : (
-              resultados.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSeleccion((prev) => [...prev, c.id]);
-                      setBusqueda("");
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                  >
-                    <span className="w-14 shrink-0 font-mono text-[10px] text-slate-500">
-                      {etiquetaEmpresa(c.empresaCode)}
-                    </span>
-                    <span className="truncate">
-                      {c.code} · {c.nombre}
-                    </span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
+          <Flotante ancla={caja} anchoAncla altoMaximo={288} className="rounded-md border border-slate-200 bg-white shadow-lg">
+            <ul>
+              {resultados.length === 0 ? (
+                <li className="px-3 py-2 text-xs text-slate-500">Sin resultados</li>
+              ) : (
+                resultados.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSeleccion((prev) => [...prev, c.id]);
+                        setBusqueda("");
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <span className="w-14 shrink-0 font-mono text-[10px] text-slate-500">
+                        {etiquetaEmpresa(c.empresaCode)}
+                      </span>
+                      <span className="truncate">
+                        {c.code} · {c.nombre}
+                      </span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </Flotante>
         )}
       </div>
 

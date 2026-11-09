@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.32.1 — 2026-11-09
+
+- **Fix**: el menu "⋯" (`MenuAcciones`) y las listas de los buscadores
+  quedaban cortados cuando estaban al fondo de una tarjeta o tabla (por su
+  `overflow`). Nuevo `components/ui/Flotante`: portal a `body` con
+  `position: fixed`, sigue al ancla en scroll/resize, se abre hacia arriba si
+  abajo no cabe y va sobre los dialogos (z-70). Lo usan `MenuAcciones`,
+  `ProveedorCombobox`, `ProductoCombobox`, `presupuestos/BuscadorSku`,
+  `admin/CecosUsuario` y `admin/CecosAprobados`.
+
 ## 0.32.0 — 2026-11-09
 
 - **Requerimientos desde el presupuesto** (DEC-L049): al aprobar un

@@ -12,6 +12,13 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.32.1",
+    titulo: "Menús que se ven completos",
+    cambios: [
+      "El menú ⋯ y las listas de búsqueda ya no se cortan al final de una tarjeta o tabla: se muestran completos y, si no hay espacio abajo, se abren hacia arriba.",
+    ],
+  },
+  {
     version: "0.32.0",
     titulo: "Requerimientos desde el presupuesto",
     cambios: [

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import type { Proveedor } from "../../api/types";
 import { inputClass } from "../ui/Field";
+import Flotante from "../ui/Flotante";
 
 function normalizar(t: string): string {
   return t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -23,6 +24,7 @@ export default function ProveedorCombobox({
   excluir?: string[];
 }) {
   const [texto, setTexto] = useState("");
+  const caja = useRef<HTMLDivElement>(null);
   const [abierto, setAbierto] = useState(false);
   const [activo, setActivo] = useState(0);
   const lista = useRef<HTMLUListElement>(null);
@@ -43,7 +45,7 @@ export default function ProveedorCombobox({
   }
 
   return (
-    <div className="relative">
+    <div ref={caja} className="relative">
       <input
         role="combobox"
         aria-expanded={abierto}
@@ -79,32 +81,30 @@ export default function ProveedorCombobox({
       />
       <ChevronsUpDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
       {abierto && (
-        <ul
-          ref={lista}
-          role="listbox"
-          className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-flotante"
-        >
-          {opciones.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-slate-500">Sin coincidencias</li>
-          ) : (
-            opciones.map((p, i) => (
-              <li
-                key={p.supplierId}
-                role="option"
-                aria-selected={p.supplierId === valor}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  elegir(p);
-                }}
-                onMouseEnter={() => setActivo(i)}
-                className={`cursor-pointer px-3 py-2 text-sm ${i === activo ? "bg-slate-100" : ""}`}
-              >
-                <p className="truncate text-slate-800">{p.legalName}</p>
-                <p className="font-mono text-xs text-slate-500">{p.ruc}</p>
-              </li>
-            ))
-          )}
-        </ul>
+        <Flotante ancla={caja} anchoAncla altoMaximo={256} className="rounded-md border border-slate-200 bg-white py-1 shadow-flotante">
+          <ul ref={lista} role="listbox">
+            {opciones.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-slate-500">Sin coincidencias</li>
+            ) : (
+              opciones.map((p, i) => (
+                <li
+                  key={p.supplierId}
+                  role="option"
+                  aria-selected={p.supplierId === valor}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    elegir(p);
+                  }}
+                  onMouseEnter={() => setActivo(i)}
+                  className={`cursor-pointer px-3 py-2 text-sm ${i === activo ? "bg-slate-100" : ""}`}
+                >
+                  <p className="truncate text-slate-800">{p.legalName}</p>
+                  <p className="font-mono text-xs text-slate-500">{p.ruc}</p>
+                </li>
+              ))
+            )}
+          </ul>
+        </Flotante>
       )}
     </div>
   );
