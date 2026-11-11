@@ -2,7 +2,8 @@
  * Novedades de cada version, en lenguaje de usuario (pie "vX · Novedades" al
  * final de cada pantalla, sin fecha). Es la fuente de la version que muestra la app: la primera entrada es
  * la actual. docs/CHANGELOG.md sigue siendo el registro tecnico; al publicar
- * una version se actualizan los dos con el mismo numero.
+ * una version se actualizan los dos con el mismo numero. vite.config.ts lee de
+ * aqui la version actual (version.ts) para no cargar todo el historial al entrar.
  */
 export interface VersionApp {
   version: string;
@@ -11,6 +12,16 @@ export interface VersionApp {
 }
 
 export const NOVEDADES: VersionApp[] = [
+  {
+    version: "0.34.0",
+    titulo: "Más rápida en cada pantalla",
+    cambios: [
+      "La aplicación abre más rápido y, desde la segunda visita, casi no descarga nada.",
+      "Cada pantalla se carga al entrar a ella; al pasar el mouse por el menú ya queda lista.",
+      "Buscar en Requerimientos y editar las cantidades de un presupuesto responden al instante.",
+      "Recibir una orden, aprobar un requerimiento y abrir una solicitud de cotización tardan menos.",
+    ],
+  },
   {
     version: "0.33.1",
     titulo: "Carga más rápida",
@@ -331,4 +342,3 @@ export const NOVEDADES: VersionApp[] = [
   },
 ];
 
-export const VERSION_ACTUAL = NOVEDADES[0].version;

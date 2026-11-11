@@ -1,3 +1,4 @@
+import { enCache, luegoInvalidar, MINUTO } from "./cache";
 import { http } from "./http";
 import type { AvanceItem, Bandeja, CatalogoFormulario, Requerimiento, RequerimientoDetalle } from "./types";
 
@@ -39,8 +40,18 @@ export function obtenerRequerimiento(id: string) {
   return http.get<RequerimientoDetalle>(`/api/requerimientos/${id}`);
 }
 
+/**
+ * Catalogo de productos + familias + CECOs del usuario: en la pestana 10 min
+ * (unos 300 KB); se invalida al crear o editar productos, variantes, plazos o
+ * fotos. El stock no viene aqui: ver obtenerStockDisponible.
+ */
 export function obtenerCatalogoFormulario() {
-  return http.get<CatalogoFormulario>("/api/requerimientos/catalogo");
+  return enCache("catalogo", 10 * MINUTO, () => http.get<CatalogoFormulario>("/api/requerimientos/catalogo"));
+}
+
+/** Disponible del almacen central por variante (solo las que tienen); siempre fresco. */
+export function obtenerStockDisponible() {
+  return http.get<Record<string, number>>("/api/requerimientos/stock-disponible");
 }
 
 export function crearRequerimiento(input: CrearRequerimientoInput) {
@@ -64,5 +75,5 @@ export function subirImagenProducto(productId: string, file: File, enLote = fals
   const form = new FormData();
   form.append("file", file);
   const ruta = `/api/requerimientos/productos/${productId}/imagen`;
-  return enLote ? http.postFormEnLote<string>(ruta, form) : http.postForm<string>(ruta, form);
+  return luegoInvalidar(enLote ? http.postFormEnLote<string>(ruta, form) : http.postForm<string>(ruta, form), "catalogo");
 }

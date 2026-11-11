@@ -16,7 +16,5 @@ public record VarianteCatalogoDto(
         String tipoNombre,
         String imagenUrl,
         /** Plazo de atencion del SKU en dias calendario; null = sin configurar (DEC-L035). */
-        Integer plazoAtencionDias,
-        /** Disponible en el almacen central (fisico - reservado); 0 si no hay. */
-        java.math.BigDecimal stockDisponible) {
+        Integer plazoAtencionDias) {
 }

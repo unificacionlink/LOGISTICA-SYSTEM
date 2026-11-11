@@ -15,6 +15,11 @@ public interface CotizacionItemRepository extends JpaRepository<CotizacionItem, 
             "join fetch i.rfqItem where i.cotizacion.quotationId = :quotationId")
     List<CotizacionItem> findByCotizacion(UUID quotationId);
 
+    /** Items de todas las cotizaciones de una RFQ, en una consulta (detalle de RFQ). */
+    @Query("select i from CotizacionItem i join fetch i.producto left join fetch i.variante " +
+            "join fetch i.rfqItem join fetch i.cotizacion c where c.rfq.rfqId = :rfqId")
+    List<CotizacionItem> findByRfq(@Param("rfqId") UUID rfqId);
+
     /** Comparativo de un consolidado: lo cotizado por cada proveedor a sus lineas de RFQ. */
     @Query("select i from CotizacionItem i join fetch i.cotizacion c join fetch c.proveedor join fetch c.moneda " +
             "join fetch i.rfqItem ri left join fetch c.documento where ri.rfqItemId in :rfqItemIds")

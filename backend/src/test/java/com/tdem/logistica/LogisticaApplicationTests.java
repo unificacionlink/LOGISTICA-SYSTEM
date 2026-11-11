@@ -10,6 +10,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -17,6 +20,12 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Arranca la aplicacion completa con la configuracion real de application.yml
@@ -36,6 +45,9 @@ class LogisticaApplicationTests {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private WebApplicationContext contexto;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -68,6 +80,18 @@ class LogisticaApplicationTests {
 		String hash = jdbc.queryForObject(
 				"select password_hash from usuario where corporate_email = 'logistica@logistica.test'", String.class);
 		assertTrue(passwordEncoder.matches("Logistica2026!", hash));
+	}
+
+	/** Los archivos con hash del build se guardan un anio; la API sigue sin cache (datos privados). */
+	@Test
+	void assetsConHashSeCacheanYLaApiNo() throws Exception {
+		MockMvc mvc = MockMvcBuilders.webAppContextSetup(contexto).apply(springSecurity()).build();
+		mvc.perform(get("/assets/prueba-abc123.js"))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Cache-Control",
+						allOf(containsString("max-age=31536000"), containsString("public"), containsString("immutable"))));
+		mvc.perform(get("/api/health"))
+				.andExpect(header().string("Cache-Control", containsString("no-store")));
 	}
 
 }

@@ -32,6 +32,9 @@ import { SkeletonTable } from "../components/ui/Skeleton";
 type Pestana = "necesidades" | "consolidados" | "solicitudes" | "caja";
 const PESTANAS: Pestana[] = ["necesidades", "consolidados", "solicitudes", "caja"];
 
+type Parte = "necesidades" | "consolidados" | "porEmitir" | "rfqs" | "caja" | "regla";
+const TODAS: readonly Parte[] = ["necesidades", "consolidados", "porEmitir", "rfqs", "caja", "regla"];
+
 const th = "px-5 py-3";
 const cabecera =
   "border-b border-slate-200 cabecera-tabla";
@@ -60,23 +63,27 @@ export default function Compras() {
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [procesando, setProcesando] = useState<string | null>(null);
 
-  const cargar = useCallback(() => {
+  // Abrir trae todo (los conteos de las pestanas lo necesitan); cada accion
+  // recarga solo las listas que cambia.
+  const cargar = useCallback((partes: readonly Parte[] = TODAS) => {
+    const pide = new Set(partes);
+    const nada = Promise.resolve(null);
     return Promise.all([
-      listarNecesidades(),
-      listarConsolidados(),
-      listarPorEmitir(),
-      listarRfqsAbiertas(),
-      listarCajaChica(),
-      obtenerReglaCajaChica(),
+      pide.has("necesidades") ? listarNecesidades() : nada,
+      pide.has("consolidados") ? listarConsolidados() : nada,
+      pide.has("porEmitir") ? listarPorEmitir() : nada,
+      pide.has("rfqs") ? listarRfqsAbiertas() : nada,
+      pide.has("caja") ? listarCajaChica() : nada,
+      pide.has("regla") ? obtenerReglaCajaChica() : nada,
     ]).then(([nec, con, emi, rfq, caja, reg]) => {
-      const fallo = [nec, con, emi, rfq].find((r) => !r.ok);
+      const fallo = [nec, con, emi, rfq].find((r) => r && !r.ok);
       setError(fallo ? fallo.message : null);
-      if (nec.ok) setNecesidades(nec.result ?? []);
-      if (con.ok) setConsolidados(con.result ?? []);
-      if (emi.ok) setPorEmitir(emi.result ?? []);
-      if (rfq.ok) setRfqs(rfq.result ?? []);
-      if (caja.ok) setCompras(caja.result ?? []);
-      if (reg.ok) setRegla(reg.result);
+      if (nec?.ok) setNecesidades(nec.result ?? []);
+      if (con?.ok) setConsolidados(con.result ?? []);
+      if (emi?.ok) setPorEmitir(emi.result ?? []);
+      if (rfq?.ok) setRfqs(rfq.result ?? []);
+      if (caja?.ok) setCompras(caja.result ?? []);
+      if (reg?.ok) setRegla(reg.result);
     });
   }, []);
 
@@ -89,7 +96,11 @@ export default function Compras() {
     setAviso(null);
   }
 
-  async function ejecutar(clave: string, accion: () => Promise<{ ok: boolean; message: string }>) {
+  async function ejecutar(
+    clave: string,
+    accion: () => Promise<{ ok: boolean; message: string }>,
+    recargar: readonly Parte[],
+  ) {
     setProcesando(clave);
     setAviso(null);
     try {
@@ -100,7 +111,7 @@ export default function Compras() {
       }
       setError(null);
       setAviso(res.message);
-      await cargar();
+      await cargar(recargar);
       return true;
     } finally {
       setProcesando(null);
@@ -108,12 +119,12 @@ export default function Compras() {
   }
 
   async function onRuta(n: Necesidad, ruta: "COMPRA" | "CAJA_CHICA") {
-    await ejecutar(n.needId, () => decidirRuta(n.needId, ruta));
+    await ejecutar(n.needId, () => decidirRuta(n.needId, ruta), ["necesidades", "consolidados"]);
   }
 
   async function onPreparar() {
     const ids = Array.from(seleccion);
-    const ok = await ejecutar("__preparar__", () => prepararSolicitudes(ids));
+    const ok = await ejecutar("__preparar__", () => prepararSolicitudes(ids), ["necesidades", "consolidados", "rfqs"]);
     if (ok) {
       setSeleccion(new Set());
       irA("solicitudes");

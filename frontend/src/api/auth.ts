@@ -1,11 +1,17 @@
+import { vaciarCache } from "./cache";
 import { http } from "./http";
 import type { Usuario } from "./types";
 
+// Al entrar o salir se vacia la cache de la pestana (api/cache.ts): los CECOs y
+// datos del usuario anterior no quedan para el siguiente.
+
 export function login(correo: string, password: string) {
+  vaciarCache();
   return http.post<Usuario>("/api/auth/login", { correo, password });
 }
 
 export function logout() {
+  vaciarCache();
   return http.post<void>("/api/auth/logout");
 }
 

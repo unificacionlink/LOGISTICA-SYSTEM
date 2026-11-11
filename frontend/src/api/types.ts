@@ -81,7 +81,10 @@ export interface VarianteCatalogo {
   imagenUrl: string | null;
   /** Plazo de atención del SKU en días calendario; null = sin configurar (DEC-L035). */
   plazoAtencionDias: number | null;
-  /** Disponible en el almacén central (físico - reservado). */
+}
+
+/** Variante con el disponible del almacén central (físico - reservado), pedido aparte y fresco. */
+export interface VarianteConStock extends VarianteCatalogo {
   stockDisponible: number;
 }
 

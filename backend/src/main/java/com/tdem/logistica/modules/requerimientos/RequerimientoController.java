@@ -56,6 +56,12 @@ public class RequerimientoController {
         return ApiResponse.ok(service.obtenerDatosFormulario(principal));
     }
 
+    @GetMapping("/stock-disponible")
+    public ApiResponse<java.util.Map<UUID, java.math.BigDecimal>> stockDisponible(
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.stockDisponible(principal));
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<RequerimientoDetalleDto> obtener(
             @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {

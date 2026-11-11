@@ -59,7 +59,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/health", "/api/auth/login").permitAll()
                         // Assets del SPA cuando el backend los sirve empaquetados (ver Dockerfile);
                         // en desarrollo local estas rutas simplemente no se piden (Vite corre aparte).
-                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/favicon.svg").permitAll()
                         .requestMatchers(
                                 "/login", "/inicio", "/requerimientos/**", "/aprobaciones", "/presupuestos", "/presupuestos/**",
                                 "/stock", "/stock/ajustes", "/stock/carga", "/catalogo",

@@ -37,10 +37,11 @@ public interface ReservaStockRepository extends JpaRepository<ReservaStock, UUID
      * Es lo que Compras descuenta del pendiente de compra: las reservas
      * RECEPCION_OC ya estan contadas como cantidad ordenada (DEC-L017).
      */
-    @Query("select coalesce(sum(r.qtyReserved), 0) from ReservaStock r " +
-            "where r.requerimientoItem.requestItemId = :requestItemId " +
-            "and r.origin = 'VERIFICACION_STOCK' and r.status in ('RESERVADA','DESPACHADA')")
-    BigDecimal sumarCubiertoPorStockPorItem(@Param("requestItemId") UUID requestItemId);
+    @Query("select r.requerimientoItem.requestItemId, sum(r.qtyReserved) from ReservaStock r " +
+            "where r.requerimientoItem.requerimiento.requestId = :requestId " +
+            "and r.origin = 'VERIFICACION_STOCK' and r.status in ('RESERVADA','DESPACHADA') " +
+            "group by r.requerimientoItem.requestItemId")
+    List<Object[]> sumarCubiertoPorStockPorRequerimiento(@Param("requestId") UUID requestId);
 
     /** Lo ya repartido a cada necesidad desde recepciones de OC (DEC-L039). */
     @Query("select r.necesidad.needId, sum(r.qtyReserved) from ReservaStock r " +

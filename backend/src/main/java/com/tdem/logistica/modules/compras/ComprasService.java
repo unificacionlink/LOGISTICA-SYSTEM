@@ -145,10 +145,12 @@ public class ComprasService {
                 .orElseThrow(() -> ApiException.notFound("RFQ no encontrada."));
 
         List<RfqItemDto> items = rfqItemRepository.findByRfq(rfqId).stream().map(ComprasMapper::toDto).toList();
+        // Items de todas las cotizaciones en una consulta (antes una por cotizacion).
+        Map<UUID, List<CotizacionItemDto>> itemsPorCotizacion = cotizacionItemRepository.findByRfq(rfqId).stream()
+                .collect(Collectors.groupingBy(i -> i.getCotizacion().getQuotationId(),
+                        Collectors.mapping(ComprasMapper::toDto, Collectors.toList())));
         List<CotizacionDto> cotizaciones = cotizacionRepository.findByRfq(rfqId).stream()
-                .map(c -> ComprasMapper.toDto(c, cotizacionItemRepository.findByCotizacion(c.getQuotationId()).stream()
-                        .map(ComprasMapper::toDto)
-                        .toList()))
+                .map(c -> ComprasMapper.toDto(c, itemsPorCotizacion.getOrDefault(c.getQuotationId(), List.of())))
                 .toList();
         Proveedor p = rfq.getProveedor();
         return new RfqDetalleDto(ComprasMapper.toDto(rfq, origen.deRfq(rfqId)), items, cotizaciones, p.getRuc(),
@@ -399,11 +401,14 @@ public class ComprasService {
         orden.setStatus("ANULADA");
         ordenAbastecimientoRepository.save(orden);
         // Sus consolidados vuelven a cotizacion sin adjudicar: se elige otra oferta o se anulan (DEC-L039).
+        Set<UUID> consolidados = new HashSet<>();
         for (OrdenItem oi : ordenItemRepository.findByOrden(orderId)) {
-            if (oi.getConsolidacion() == null) {
-                continue;
+            if (oi.getConsolidacion() != null) {
+                consolidados.add(oi.getConsolidacion().getConsolidationId());
             }
-            Consolidacion c = consolidacionRepository.bloquear(oi.getConsolidacion().getConsolidationId()).orElseThrow();
+        }
+        for (Consolidacion c : consolidados.isEmpty() ? List.<Consolidacion>of()
+                : consolidacionRepository.bloquearVarios(consolidados)) {
             if (Consolidacion.ORDENADA.equals(c.getStatus())) {
                 c.setStatus(Consolidacion.EN_COTIZACION);
                 c.setAdjudicado(null);

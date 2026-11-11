@@ -20,7 +20,7 @@ public interface SalidaItemRepository extends JpaRepository<SalidaItem, UUID> {
             "where i.requerimientoItem.requerimiento.requestId = :requestId group by i.requerimientoItem.requestItemId")
     List<Object[]> sumarDespachadoPorItem(@Param("requestId") UUID requestId);
 
-    /** Entregado (envio recepcionado o cerrado) por item de un REQ: [requestItemId, suma]. */
+    /** RF-079: entregado (envio recepcionado o cerrado) por item de un REQ: [requestItemId, suma]. */
     @Query("select i.requerimientoItem.requestItemId, sum(i.qty) from SalidaItem i " +
             "where i.requerimientoItem.requerimiento.requestId = :requestId " +
             "and exists (select 1 from Envio e where e.salida = i.salida and e.status in ('RECEPCIONADO','CERRADO')) " +
@@ -29,12 +29,6 @@ public interface SalidaItemRepository extends JpaRepository<SalidaItem, UUID> {
 
     @Query("select coalesce(sum(i.qty), 0) from SalidaItem i where i.requerimientoItem.requestItemId = :requestItemId")
     BigDecimal sumarDespachado(@Param("requestItemId") UUID requestItemId);
-
-    /** RF-079: solo cuenta lo despachado cuyo envio ya fue recepcionado en destino. */
-    @Query("select coalesce(sum(i.qty), 0) from SalidaItem i " +
-            "where i.requerimientoItem.requestItemId = :requestItemId " +
-            "and exists (select 1 from Envio e where e.salida = i.salida and e.status in ('RECEPCIONADO','CERRADO'))")
-    BigDecimal sumarEntregadoConfirmado(@Param("requestItemId") UUID requestItemId);
 
     @Query("select i from SalidaItem i join fetch i.producto left join fetch i.variante join fetch i.salida s " +
             "join fetch i.requerimientoItem where s.requerimiento.requestId = :requestId")

@@ -17,7 +17,7 @@ export default function Proveedores() {
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    listarProveedores()
+    listarProveedores({ fresco: true })
       .then((res) => {
         if (res.ok) setProveedores(res.result ?? []);
         else setError(res.message);

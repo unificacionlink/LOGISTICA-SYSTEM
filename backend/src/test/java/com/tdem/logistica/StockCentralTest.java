@@ -171,11 +171,9 @@ class StockCentralTest {
 
 		// Quien pide ve el disponible del almacen central al armar su requerimiento: 8 - 5 reservados.
 		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
-		var catalogo = requerimientos.obtenerDatosFormulario(solicitante).variantes();
-		assertEquals(0, new BigDecimal("3").compareTo(catalogo.stream()
-				.filter(v -> v.variantId().equals(variante)).findFirst().orElseThrow().stockDisponible()));
-		assertTrue(catalogo.stream().filter(v -> !v.variantId().equals(variante))
-				.allMatch(v -> v.stockDisponible().signum() >= 0));
+		var stock = requerimientos.stockDisponible(solicitante);
+		assertEquals(0, new BigDecimal("3").compareTo(stock.get(variante)));
+		assertTrue(stock.values().stream().allMatch(q -> q.signum() > 0));
 	}
 
 	// ------------------------------------------------------------------

@@ -6,32 +6,34 @@ import { ConfirmacionProvider } from "./components/ui/ConfirmacionProvider";
 import ProtectedLayout from "./components/ProtectedLayout";
 import Login from "./pages/Login";
 import Inicio from "./pages/Inicio";
-import Requerimientos from "./pages/Requerimientos";
-import RequerimientosNuevo from "./pages/RequerimientosNuevo";
-import RequerimientoDetalle from "./pages/RequerimientoDetalle";
-import Aprobaciones from "./pages/Aprobaciones";
-import Presupuestos from "./pages/Presupuestos";
-import PresupuestoDetalle from "./pages/PresupuestoDetalle";
-import Stock from "./pages/Stock";
-import StockAjustes from "./pages/StockAjustes";
-import StockCarga from "./pages/StockCarga";
-import CatalogoProductos from "./pages/CatalogoProductos";
-import Proveedores from "./pages/Proveedores";
-import ProveedorForm from "./pages/ProveedorForm";
-import Compras from "./pages/Compras";
-import ComprasCajaChica from "./pages/ComprasCajaChica";
-import ComprasConsolidado from "./pages/ComprasConsolidado";
-import ComprasComparativo from "./pages/ComprasComparativo";
-import ComprasRfqDetalle from "./pages/ComprasRfqDetalle";
-import ComprasOrdenes from "./pages/ComprasOrdenes";
-import ComprasOrdenDetalle from "./pages/ComprasOrdenDetalle";
-import Almacen from "./pages/Almacen";
-import AlmacenRecepcion from "./pages/AlmacenRecepcion";
-import AlmacenCargaMasiva from "./pages/AlmacenCargaMasiva";
-import AlmacenDespacho from "./pages/AlmacenDespacho";
-import NotaInventarioDetalle from "./pages/NotaInventarioDetalle";
-import Administracion from "./pages/Administracion";
 import CambiarPassword from "./pages/CambiarPassword";
+import {
+  Requerimientos,
+  RequerimientosNuevo,
+  RequerimientoDetalle,
+  Aprobaciones,
+  Presupuestos,
+  PresupuestoDetalle,
+  Stock,
+  StockAjustes,
+  StockCarga,
+  CatalogoProductos,
+  Proveedores,
+  ProveedorForm,
+  Compras,
+  ComprasCajaChica,
+  ComprasConsolidado,
+  ComprasComparativo,
+  ComprasRfqDetalle,
+  ComprasOrdenes,
+  ComprasOrdenDetalle,
+  Almacen,
+  AlmacenRecepcion,
+  AlmacenCargaMasiva,
+  AlmacenDespacho,
+  NotaInventarioDetalle,
+  Administracion,
+} from "./paginas";
 
 export default function App() {
   return (

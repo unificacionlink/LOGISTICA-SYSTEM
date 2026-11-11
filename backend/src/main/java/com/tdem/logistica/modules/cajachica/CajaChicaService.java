@@ -162,24 +162,28 @@ public class CajaChicaService {
     }
 
     /**
-     * Ruta sugerida para el faltante de un item al aprobar (DEC-L039): MISMO_DIA
-     * o BAJO_MONTO si la regla vigente lo habilita; null = compra normal.
+     * Ruta sugerida para el faltante de cada item al aprobar (DEC-L039): MISMO_DIA
+     * o BAJO_MONTO si la regla vigente lo habilita; null = compra normal. La regla
+     * se lee una vez por requerimiento, no una vez por item.
      */
-    public String motivoSugerido(Requerimiento r, RequerimientoItem item, BigDecimal faltante) {
+    public java.util.function.BiFunction<RequerimientoItem, BigDecimal, String> sugeridor(Requerimiento r) {
         ReglaCajaChicaDto regla;
         try {
             regla = regla(r.getEmpresa().getCompanyId());
         } catch (ApiException sinRegla) {
-            return null;
+            return (item, faltante) -> null;
         }
-        if (regla.mismoDia() && esMismoDia(r)) {
-            return MISMO_DIA;
-        }
-        BigDecimal costo = item.getVariante() != null ? ultimoCosto(item.getVariante().getVariantId()) : null;
-        if (regla.bajoMonto() && costo != null && costo.multiply(faltante).compareTo(regla.umbral()) <= 0) {
-            return BAJO_MONTO;
-        }
-        return null;
+        boolean mismoDia = regla.mismoDia() && esMismoDia(r);
+        return (item, faltante) -> {
+            if (mismoDia) {
+                return MISMO_DIA;
+            }
+            if (!regla.bajoMonto() || item.getVariante() == null) {
+                return null;
+            }
+            BigDecimal costo = ultimoCosto(item.getVariante().getVariantId());
+            return costo != null && costo.multiply(faltante).compareTo(regla.umbral()) <= 0 ? BAJO_MONTO : null;
+        };
     }
 
     /**
@@ -350,19 +354,33 @@ public class CajaChicaService {
                 supplierId, ruc, req.proveedorNombre().trim(), total, moneda, tipo, serie, numero, req.documentId(), clave,
                 motivo, detalle, regla.id(), usuario.getUserId());
 
+        // Se compra contra la necesidad de cada item, que queda en ruta Caja Chica (DEC-L039).
+        // Una consulta y una actualizacion para todos los items (antes dos por item).
+        List<UUID> idsItems = req.items().stream().map(RegistrarCajaChicaRequest.Item::requestItemId).distinct().toList();
+        String marcas = String.join(",", Collections.nCopies(idsItems.size(), "?"));
+        Map<UUID, UUID> necesidadPorItem = new HashMap<>();
+        jdbc.query("""
+                select distinct on (request_item_id) request_item_id, need_id from necesidad_compra
+                where request_item_id in (%s) and status in ('PENDIENTE_RUTA','CAJA_CHICA')
+                order by request_item_id, created_at""".formatted(marcas),
+                rs -> {
+                    necesidadPorItem.put(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class));
+                }, idsItems.toArray());
+        if (!necesidadPorItem.isEmpty()) {
+            List<Object> args = new ArrayList<>();
+            args.add(usuario.getUserId());
+            args.addAll(necesidadPorItem.values());
+            jdbc.update("""
+                    update necesidad_compra set status = 'CAJA_CHICA',
+                      route_decided_by = coalesce(route_decided_by, ?), route_decided_at = coalesce(route_decided_at, now())
+                    where need_id in (%s)""".formatted(String.join(",", Collections.nCopies(necesidadPorItem.size(), "?"))),
+                    args.toArray());
+        }
+
         for (RegistrarCajaChicaRequest.Item in : req.items()) {
             RequerimientoItem item = itemsReq.get(in.requestItemId());
             UUID itemId = UUID.randomUUID();
-            // Se compra contra la necesidad del item, que queda en ruta Caja Chica (DEC-L039).
-            UUID needId = jdbc.queryForList("""
-                    select need_id from necesidad_compra where request_item_id = ? and status in ('PENDIENTE_RUTA','CAJA_CHICA')
-                    order by created_at limit 1""", UUID.class, item.getRequestItemId()).stream().findFirst().orElse(null);
-            if (needId != null) {
-                jdbc.update("""
-                        update necesidad_compra set status = 'CAJA_CHICA',
-                          route_decided_by = coalesce(route_decided_by, ?), route_decided_at = coalesce(route_decided_at, now())
-                        where need_id = ?""", usuario.getUserId(), needId);
-            }
+            UUID needId = necesidadPorItem.get(item.getRequestItemId());
             jdbc.update("""
                     insert into caja_chica_item (petty_cash_item_id, petty_cash_ref_id, request_item_id, product_id,
                       variant_id, quantity, unit_cost, line_total, need_id)

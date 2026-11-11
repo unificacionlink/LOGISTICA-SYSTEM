@@ -1,3 +1,4 @@
+import { enCache, MINUTO } from "./cache";
 import { http } from "./http";
 import type {
   Comparativo,
@@ -179,6 +180,7 @@ export function anularOrden(orderId: string, motivo: string) {
   return http.post<Orden>(`/api/compras/ordenes/${orderId}/anular`, { motivo });
 }
 
+/** Monedas: casi nunca cambian; una vez por pestana (24 h). */
 export function listarMonedas() {
-  return http.get<Moneda[]>("/api/compras/monedas");
+  return enCache("monedas", 24 * 60 * MINUTO, () => http.get<Moneda[]>("/api/compras/monedas"));
 }

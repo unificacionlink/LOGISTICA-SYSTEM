@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { KeyRound, LogOut, Menu, Search, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import CambiarPassword from "../pages/CambiarPassword";
+import { precargarPagina } from "../paginas";
+import CargaPagina from "./CargaPagina";
 import BusquedaRapida from "./BusquedaRapida";
 import { abrirBusquedaRapida, NAV_GRUPOS } from "./navegacion";
 import PieVersion from "./Novedades";
@@ -124,6 +126,8 @@ export default function ProtectedLayout() {
                   to={to}
                   title={label}
                   onClick={() => setMenuAbierto(false)}
+                  onPointerEnter={() => precargarPagina(to)}
+                  onFocus={() => precargarPagina(to)}
                   className={({ isActive }) =>
                     `flex h-9 items-center gap-3 rounded-md border px-[11px] text-[13.5px] transition-colors duration-150 ${
                       isActive
@@ -200,7 +204,9 @@ export default function ProtectedLayout() {
         <main id="contenido" className="w-full flex-1 px-3 pb-10 pt-6 sm:px-4 lg:px-6 lg:pt-10">
           {/* key: cada cambio de pantalla repite la entrada suave. */}
           <div key={pathname} className="animate-pagina-in">
-            <Outlet />
+            <Suspense fallback={<CargaPagina />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
         <PieVersion />

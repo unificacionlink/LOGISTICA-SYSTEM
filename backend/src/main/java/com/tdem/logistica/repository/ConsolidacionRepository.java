@@ -31,6 +31,11 @@ public interface ConsolidacionRepository extends JpaRepository<Consolidacion, UU
     @Query("select c from Consolidacion c where c.consolidationId = :id")
     Optional<Consolidacion> bloquear(@Param("id") UUID id);
 
+    /** Bloquea varios en una consulta, siempre en el mismo orden (id) para no cruzarse con otra operacion. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Consolidacion c where c.consolidationId in :ids order by c.consolidationId")
+    List<Consolidacion> bloquearVarios(@Param("ids") java.util.Collection<UUID> ids);
+
     /** Consolidados adjudicados a lineas de la cotizacion y aun sin OC (emision por proveedor). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Consolidacion c where c.status = 'ADJUDICADA' " +

@@ -94,8 +94,12 @@ public class RecepcionService {
         OrdenAbastecimiento orden = ordenRepository.findDetalleById(orderId)
                 .orElseThrow(() -> ApiException.notFound("Orden de compra no encontrada."));
 
-        List<ItemPorRecibirDto> items = ordenItemRepository.findByOrden(orderId).stream()
-                .map(i -> AlmacenMapper.toItemPorRecibir(i, recepcionItemRepository.sumarRecibido(i.getOrderItemId())))
+        List<OrdenItem> itemsOc = ordenItemRepository.findByOrden(orderId);
+        // Una consulta para lo recibido de todos los items (antes una por item).
+        Map<UUID, BigDecimal> recibido = recepcionItemRepository.recibidoPorItem(
+                itemsOc.stream().map(OrdenItem::getOrderItemId).toList());
+        List<ItemPorRecibirDto> items = itemsOc.stream()
+                .map(i -> AlmacenMapper.toItemPorRecibir(i, recibido.getOrDefault(i.getOrderItemId(), BigDecimal.ZERO)))
                 .toList();
 
         Map<UUID, List<RecepcionItem>> itemsPorRecepcion = recepcionItemRepository.findByOrden(orderId).stream()
@@ -141,6 +145,7 @@ public class RecepcionService {
 
         Map<UUID, OrdenItem> itemsOrden = ordenItemRepository.findByOrden(orderId).stream()
                 .collect(Collectors.toMap(OrdenItem::getOrderItemId, Function.identity()));
+        Map<UUID, BigDecimal> recibidoPrevio = recepcionItemRepository.recibidoPorItem(itemsOrden.keySet());
         Set<UUID> vistos = new HashSet<>();
         boolean algoQueRegistrar = false;
         for (RecepcionItemInput in : request.items()) {
@@ -151,7 +156,8 @@ public class RecepcionService {
             if (!vistos.add(in.orderItemId())) {
                 throw ApiException.badRequest("Un item de la orden esta repetido.");
             }
-            BigDecimal pendiente = oi.getQtyOrdered().subtract(recepcionItemRepository.sumarRecibido(oi.getOrderItemId()));
+            BigDecimal pendiente = oi.getQtyOrdered()
+                    .subtract(recibidoPrevio.getOrDefault(oi.getOrderItemId(), BigDecimal.ZERO));
             if (in.qtyReceived().compareTo(pendiente) > 0) {
                 throw ApiException.badRequest("La cantidad recibida de \"" + oi.getDescription()
                         + "\" supera lo pendiente (" + pendiente.stripTrailingZeros().toPlainString() + ").");
@@ -206,8 +212,9 @@ public class RecepcionService {
             }
         }
 
+        Map<UUID, BigDecimal> recibidoAhora = recepcionItemRepository.recibidoPorItem(itemsOrden.keySet());
         boolean ordenCompleta = itemsOrden.values().stream().allMatch(oi ->
-                recepcionItemRepository.sumarRecibido(oi.getOrderItemId()).compareTo(oi.getQtyOrdered()) >= 0);
+                recibidoAhora.getOrDefault(oi.getOrderItemId(), BigDecimal.ZERO).compareTo(oi.getQtyOrdered()) >= 0);
         orden.setStatus(ordenCompleta ? "RECEPCION_COMPLETA" : "RECEPCION_PARCIAL");
         ordenRepository.save(orden);
         recepcion.setStatus(observada ? "OBSERVADA" : (ordenCompleta ? "COMPLETA" : "PARCIAL"));

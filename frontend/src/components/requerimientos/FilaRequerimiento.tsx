@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Link } from "react-router-dom";
 import { Clock3 } from "lucide-react";
 import type { FilaBandeja } from "../../api/types";
@@ -38,8 +39,11 @@ function TextoAvance({ f }: { f: FilaBandeja }) {
  * Fila de la bandeja (DEC-L048): lo pedido como titulo, empresa y codigo como
  * dato secundario, avance, vencimiento, estado y la siguiente accion. Clic en
  * la fila abre el panel lateral; el boton de accion lleva a su pantalla.
+ *
+ * Memorizada: al escribir en el buscador o abrir el panel solo se redibujan
+ * las filas que cambian (onAbrir debe ser estable).
  */
-export default function FilaRequerimiento({
+export default memo(function FilaRequerimiento({
   f,
   esGestor,
   conEmpresa,
@@ -52,7 +56,7 @@ export default function FilaRequerimiento({
   conEmpresa: boolean;
   seleccionada: boolean;
   vista: string;
-  onAbrir: () => void;
+  onAbrir: (id: string) => void;
 }) {
   const empresa = MARCA.get(f.empresaCode);
   const { principal, extra } = titulo(f);
@@ -69,7 +73,7 @@ export default function FilaRequerimiento({
       )}
       <button
         type="button"
-        onClick={onAbrir}
+        onClick={() => onAbrir(f.id)}
         aria-current={seleccionada || undefined}
         className={`grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 py-3 pl-4 pr-3 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none md:items-center ${GRID_FILA}`}
       >
@@ -139,4 +143,4 @@ export default function FilaRequerimiento({
       </div>
     </li>
   );
-}
+});

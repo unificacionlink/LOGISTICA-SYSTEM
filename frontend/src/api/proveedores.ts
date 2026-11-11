@@ -1,3 +1,4 @@
+import { enCache, invalidar, luegoInvalidar, MINUTO } from "./cache";
 import { http } from "./http";
 import type { Proveedor } from "./types";
 
@@ -12,8 +13,20 @@ export interface GuardarProveedorInput {
   active: boolean;
 }
 
-export function listarProveedores() {
-  return http.get<Proveedor[]>("/api/proveedores");
+const pedirProveedores = () => http.get<Proveedor[]>("/api/proveedores");
+
+/**
+ * Proveedores para elegir (comparativo, catalogo): en la pestana 5 min; se
+ * invalida al guardar uno. La pantalla Proveedores pide siempre la lista fresca.
+ */
+export function listarProveedores(opciones: { fresco?: boolean } = {}) {
+  if (opciones.fresco) {
+    return pedirProveedores().then((res) => {
+      if (res.ok) invalidar("proveedores");
+      return res;
+    });
+  }
+  return enCache("proveedores", 5 * MINUTO, pedirProveedores);
 }
 
 export function obtenerProveedor(id: string) {
@@ -21,9 +34,9 @@ export function obtenerProveedor(id: string) {
 }
 
 export function crearProveedor(input: GuardarProveedorInput) {
-  return http.post<Proveedor>("/api/proveedores", input);
+  return luegoInvalidar(http.post<Proveedor>("/api/proveedores", input), "proveedores");
 }
 
 export function actualizarProveedor(id: string, input: GuardarProveedorInput) {
-  return http.put<Proveedor>(`/api/proveedores/${id}`, input);
+  return luegoInvalidar(http.put<Proveedor>(`/api/proveedores/${id}`, input), "proveedores");
 }

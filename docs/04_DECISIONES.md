@@ -5,6 +5,42 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L051 — Rendimiento: cache, carga por pantalla y consultas agrupadas (2026-11-11).**
+  Resultado de la auditoria de rendimiento pedida por el usuario.
+  - **Cache del navegador**: `/assets/**` (archivos con hash de Vite) va con
+    `public, max-age=31536000, immutable` (`CacheAssetsConfig`); `index.html`
+    y la API siguen con `no-store` de Spring Security. Antes cada visita
+    volvia a bajar ~190 KB.
+  - **Cache de datos en la pestana** (`frontend/src/api/cache.ts`): solo datos
+    de referencia, en memoria de la pestana, vaciada al entrar y salir
+    (`api/auth.ts`). Nunca una cache compartida: la API no cambia sus
+    cabeceras. Catalogo del formulario 10 min (se invalida al crear/editar
+    producto, variante, plazo, foto o aprobar una solicitud), clasificacion
+    10 min, proveedores 5 min (se invalida al guardar; la pantalla Proveedores
+    pide fresco), monedas 24 h. Stock, bandejas, aprobaciones y dashboard no
+    se guardan.
+  - **El stock sale del catalogo**: `GET /api/requerimientos/stock-disponible`
+    (variantes con disponible > 0) se pide fresco al abrir Nuevo
+    requerimiento; el catalogo (que ya no trae `stockDisponible`) puede venir
+    de la cache. Reemplaza el detalle tecnico de DEC-L050; la regla de
+    negocio no cambia.
+  - **Carga por pantalla** (`frontend/src/paginas.ts`): cada pantalla se
+    descarga al entrar (Login, Inicio y el layout van en el archivo
+    principal); el menu la precarga al pasar el mouse. Si tras un deploy un
+    archivo viejo ya no existe, se recarga una vez. La lista de Novedades
+    tambien va aparte; la version visible la lee `vite.config.ts` de
+    `novedades.ts` (`src/version.ts`), que sigue siendo la unica fuente.
+  - **Consultas agrupadas** en lugar de una por item: recibido por item de OC
+    (recepcion), entregado por item (estado de atencion), cubierto por stock y
+    regla de Caja Chica (aprobar), items de las cotizaciones (detalle de RFQ),
+    necesidades (registrar Caja Chica), estado de CECOs y proveedores, y
+    bloqueo de consolidados con un solo `for update` ordenado por id.
+  - **Compras** no se une en un solo endpoint: las 6 listas se piden en
+    paralelo y unirlas las haria secuenciales en el servidor. Lo que se
+    corrige es que cada accion recarga solo las listas que cambia.
+  - **V24**: solo indices sobre llaves foraneas que se buscan seguido; no
+    cambia tablas ni datos.
+
 - **DEC-L050 — Quien pide ve el stock del almacen (2026-11-09).** Pedido del
   usuario: al armar un requerimiento, el solicitante ve cuanto hay en el
   almacen central (DEC-L045) de cada producto. Se muestra el **disponible**

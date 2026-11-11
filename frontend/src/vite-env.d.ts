@@ -7,3 +7,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Version actual, tomada de src/novedades.ts en vite.config.ts. */
+declare const __VERSION_APP__: string;

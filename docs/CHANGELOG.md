@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.34.0 — 2026-11-11
+
+Rendimiento (DEC-L051).
+
+- **Cache de `/assets`**: los archivos con hash se guardan un ano en el
+  navegador (`CacheAssetsConfig`); antes se volvian a bajar en cada visita.
+  `/favicon.svg` pasa a `permitAll()` (en el login devolvia 401).
+- **Carga por pantalla**: `paginas.ts` con `React.lazy` por ruta, `Suspense`
+  con esqueleto en `ProtectedLayout` y precarga al pasar por el menu. JS
+  inicial 731 KB -> 327 KB (brotli 150 -> 87 KB). Novedades bajo demanda
+  (`VentanaNovedades`, version por `define` en `vite.config.ts`).
+- **Renders**: `FilaRequerimiento` memorizada con `onAbrir(id)` estable (el
+  buscador y el panel ya no redibujan toda la bandeja); `FilaBorrador` en la
+  edicion del presupuesto (escribir una cantidad redibuja solo su fila).
+- **Llamadas**: cache en la pestana para catalogo, clasificacion, proveedores
+  y monedas (`api/cache.ts`), vaciada al entrar/salir. Stock aparte y fresco:
+  `GET /api/requerimientos/stock-disponible`; `VarianteCatalogoDto` ya no trae
+  `stockDisponible`. Compras recarga solo las listas que cambia cada accion.
+- **Consultas**: sin N+1 en recepcion de OC, estado de atencion, generacion de
+  necesidades, detalle de RFQ, registro de Caja Chica, preparar solicitudes,
+  comparativo, anular OC (`bloquearVarios`), proveedores por producto y CECOs
+  del aprobador.
+- **V24**: indices en `rfq_item(rfq_id)`, `cotizacion_item(rfq_item_id)`,
+  `salida_item(issue_id)`, `recepcion_item(receipt_id)`,
+  `requerimiento(ceco_id, required_date)`, `rfq(company_id, supplier_id)`,
+  `cotizacion(supplier_id)`, `orden_abastecimiento(supplier_id)` y
+  `usuario_ceco(ceco_id)`.
+
 ## 0.33.1 — 2026-11-09
 
 - **Fotos de producto livianas**: las miniaturas (40px) se piden al servicio

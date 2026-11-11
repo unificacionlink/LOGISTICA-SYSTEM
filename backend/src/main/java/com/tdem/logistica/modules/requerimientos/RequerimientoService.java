@@ -176,10 +176,7 @@ public class RequerimientoService {
     }
 
     public CatalogoFormularioDto obtenerDatosFormulario(UsuarioPrincipal principal) {
-        // PYC y GERENCIA leen el catalogo para registrar precios de venta (DEC-L035); no crean REQ.
-        if (!principal.tieneAlgunRol(Roles.SOLICITANTE, Roles.LOGISTICA, Roles.ADMIN, Roles.PYC, Roles.GERENCIA)) {
-            throw ApiException.forbidden("No tienes permiso para ver el catalogo.");
-        }
+        exigirLecturaCatalogo(principal);
 
         Map<UUID, String> imagenesPorProducto = productoImagenRepository.findPrincipalesActivas().stream()
                 .collect(Collectors.toMap(
@@ -187,11 +184,8 @@ public class RequerimientoService {
                         pi -> pi.getDocumento().getFileUrl(),
                         (a, b) -> a));
 
-        // Stock del almacen central (DEC-L045): quien pide ve que hay antes de pedir.
-        Map<UUID, BigDecimal> stock = stockService.disponiblesCentral();
         List<VarianteCatalogoDto> variantes = productoVarianteRepository.findCatalogoActivo().stream()
-                .map(v -> RequerimientoMapper.toDto(v, imagenesPorProducto.get(v.getProducto().getProductId()),
-                        stock.get(v.getVariantId())))
+                .map(v -> RequerimientoMapper.toDto(v, imagenesPorProducto.get(v.getProducto().getProductId())))
                 .toList();
         List<FamiliaDto> familias = familiaProductoRepository.findActivasConTipo().stream()
                 .map(RequerimientoMapper::toDto)
@@ -200,6 +194,29 @@ public class RequerimientoService {
                 .map(RequerimientoMapper::toDto)
                 .toList();
         return new CatalogoFormularioDto(variantes, familias, cecos);
+    }
+
+    /**
+     * Disponible del almacen central (DEC-L045/L050) por variante, solo las que
+     * tienen stock: quien pide ve que hay antes de pedir. Va aparte del catalogo
+     * para que el catalogo se pueda guardar en la pestana y el stock llegue fresco.
+     */
+    public Map<UUID, BigDecimal> stockDisponible(UsuarioPrincipal principal) {
+        exigirLecturaCatalogo(principal);
+        Map<UUID, BigDecimal> out = new java.util.HashMap<>();
+        stockService.disponiblesCentral().forEach((variante, q) -> {
+            if (q.signum() > 0) {
+                out.put(variante, q);
+            }
+        });
+        return out;
+    }
+
+    private static void exigirLecturaCatalogo(UsuarioPrincipal principal) {
+        // PYC y GERENCIA leen el catalogo para registrar precios de venta (DEC-L035); no crean REQ.
+        if (!principal.tieneAlgunRol(Roles.SOLICITANTE, Roles.LOGISTICA, Roles.ADMIN, Roles.PYC, Roles.GERENCIA)) {
+            throw ApiException.forbidden("No tienes permiso para ver el catalogo.");
+        }
     }
 
     /**

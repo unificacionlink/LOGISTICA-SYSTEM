@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L050 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L051 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -75,11 +75,11 @@ Reglas clave:
 - Al aprobar un REQ (`AprobacionService.decidir`) se reserva stock disponible y el faltante de cada ítem crea una `necesidad_compra` (`AbastecimientoService.generarNecesidades`): entra sola al consolidado ABIERTO de su empresa + SKU, o queda PENDIENTE_RUTA si la regla de Caja Chica aplica (DEC-L039). Las RFQ son por empresa + proveedor con varios consolidados; se adjudica por consolidado y la OC sale por cotización (`orden_item.consolidation_id`); el comparativo (`ComparativoService`, DEC-L047) carga hasta 3 cotizaciones por OCR sobre consolidados de una empresa y crea la RFQ del proveedor si no existía; la recepción reparte lo recibido entre las necesidades del consolidado. Proveedores habilitados por producto en `proveedor_producto` (ya no hay proveedor habitual). `OrigenCompras` da los REQ de origen de una RFQ/OC. El estado de atención (PARCIAL/COMPLETA) se calcula solo desde envíos recepcionados (`AtencionCalculator`). El Tracking se reconstruye desde los datos, no tiene tabla propia (DEC-L019).
 - Al aprobar un presupuesto, `BorradoresPresupuestoService` deja un REQ en BORRADOR por mes programado a nombre del solicitante del presupuesto (`requerimiento.budget_id/budget_month`, DEC-L049); un item sin variante (producto con tallas/colores) se elige al editar y `enviar` lo exige.
 - La bandeja de Requerimientos (`BandejaService`, DEC-L048) calcula en el servidor vistas, siguiente accion y avance a partir de reserva, necesidad, consolidado, OC y envio; no agregar estados nuevos para la interfaz.
-- **Nueva ruta del frontend** (`frontend/src/App.tsx`) ⇒ agregarla también a `SpaController` (lista explícita, no regex catch-all) y a `permitAll()` en `SecurityConfig`.
+- **Nueva ruta del frontend** (`frontend/src/App.tsx`) ⇒ agregarla también a `SpaController` (lista explícita, no regex catch-all) y a `permitAll()` en `SecurityConfig`. La pantalla nueva se importa con `lazy` en `frontend/src/paginas.ts` (no directo en `App.tsx`); si va en el menú, también en `DEL_MENU` para la precarga.
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V24__descripcion.sql` (existen V1..V23).
+- Siguiente migración: `V25__descripcion.sql` (existen V1..V24).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.
@@ -87,7 +87,7 @@ Reglas clave:
 
 ## Frontend (`frontend/src/`)
 
-- `api/` — un archivo por módulo; `http.ts` es el cliente fetch (siempre `credentials: "include"`, captura errores de red y devuelve `ApiResponse`), `types.ts` con los tipos compartidos, `progreso.ts` alimenta la barra de carga.
+- `api/` — un archivo por módulo; `http.ts` es el cliente fetch (siempre `credentials: "include"`, captura errores de red y devuelve `ApiResponse`), `types.ts` con los tipos compartidos, `progreso.ts` alimenta la barra de carga. `cache.ts`: cache en memoria de la pestaña solo para datos de referencia (catálogo, clasificación, proveedores, monedas), vaciada al entrar/salir; toda escritura que los cambie llama `luegoInvalidar`. Nunca cachear datos privados fuera de la pestaña ni cambiar el `no-store` de la API (DEC-L051).
 - `auth/AuthContext.tsx` — sesión y `tieneAlgunRol`. `components/ProtectedLayout` llama `GET /api/auth/me` y redirige a `/login`; contiene el sidebar colapsable.
 - `pages/` — una por pantalla; `components/` — badges de estado, buscador de productos, dashboard, tracking, escena animada del login; `components/ui/` — primitivas (Button, Card, Field, Alert, etc.).
 - `realtime/` — cliente STOMP.

@@ -108,6 +108,14 @@ export default function Requerimientos() {
     [setParams],
   );
 
+  // setParams cambia con cada cambio de URL: la fila memorizada recibe una
+  // funcion fija que usa siempre la ultima version de cambiar.
+  const cambiarRef = useRef(cambiar);
+  useEffect(() => {
+    cambiarRef.current = cambiar;
+  }, [cambiar]);
+  const abrirReq = useCallback((id: string) => cambiarRef.current({ req: id }), []);
+
   // La busqueda espera a que se deje de escribir.
   useEffect(() => {
     const t = setTimeout(() => {
@@ -299,7 +307,7 @@ export default function Requerimientos() {
                   conEmpresa={conEmpresa}
                   seleccionada={f.id === reqAbierto}
                   vista={vista}
-                  onAbrir={() => cambiar({ req: f.id })}
+                  onAbrir={abrirReq}
                 />
               ))}
             </ul>

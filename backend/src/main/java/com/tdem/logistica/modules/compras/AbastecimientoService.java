@@ -112,9 +112,15 @@ public class AbastecimientoService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void generarNecesidades(Requerimiento r) {
+        // Lo cubierto por stock de todos los items y la regla de Caja Chica, una vez.
+        Map<UUID, BigDecimal> cubierto = new HashMap<>();
+        for (Object[] fila : reservaStockRepository.sumarCubiertoPorStockPorRequerimiento(r.getRequestId())) {
+            cubierto.put((UUID) fila[0], (BigDecimal) fila[1]);
+        }
+        var sugerir = cajaChicaService.sugeridor(r);
         for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
             BigDecimal faltante = item.getQtyRequested()
-                    .subtract(reservaStockRepository.sumarCubiertoPorStockPorItem(item.getRequestItemId()));
+                    .subtract(cubierto.getOrDefault(item.getRequestItemId(), BigDecimal.ZERO));
             if (faltante.signum() <= 0) {
                 continue;
             }
@@ -126,7 +132,7 @@ public class AbastecimientoService {
             n.setVariante(item.getVariante());
             n.setUom(item.getUom());
             n.setQty(faltante);
-            String motivo = cajaChicaService.motivoSugerido(r, item, faltante);
+            String motivo = sugerir.apply(item, faltante);
             n.setSuggestedReason(motivo);
             if (motivo == null) {
                 agregarAConsolidado(n);
@@ -371,10 +377,16 @@ public class AbastecimientoService {
         exigirLogistica(principal);
         Usuario usuario = usuarioRepository.findById(principal.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
+        // Un bloqueo para todos (ordenado por id); se conserva el orden en que se eligieron.
+        LinkedHashSet<UUID> elegidos = new LinkedHashSet<>(consolidationIds);
+        Map<UUID, Consolidacion> bloqueados = consolidacionRepository.bloquearVarios(elegidos).stream()
+                .collect(Collectors.toMap(Consolidacion::getConsolidationId, c -> c));
         List<Consolidacion> cs = new ArrayList<>();
-        for (UUID id : new LinkedHashSet<>(consolidationIds)) {
-            Consolidacion c = consolidacionRepository.bloquear(id)
-                    .orElseThrow(() -> ApiException.notFound("Consolidado no encontrado."));
+        for (UUID id : elegidos) {
+            Consolidacion c = bloqueados.get(id);
+            if (c == null) {
+                throw ApiException.notFound("Consolidado no encontrado.");
+            }
             if (!Consolidacion.ABIERTA.equals(c.getStatus())) {
                 throw ApiException.badRequest("El consolidado " + c.getConsolidationCode() + " ya tiene solicitud de cotizacion.");
             }
@@ -712,8 +724,11 @@ public class AbastecimientoService {
         Set<UUID> nuevos = supplierIds == null ? Set.of() : new LinkedHashSet<>(supplierIds);
         Set<UUID> actuales = new HashSet<>(jdbc.queryForList(
                 "select supplier_id from proveedor_producto where product_id = ?", UUID.class, productId));
-        for (UUID s : nuevos) {
-            if (!actuales.contains(s) && !proveedorRepository.findById(s).map(Proveedor::isActive).orElse(false)) {
+        // Los que se agregan deben estar activos: una consulta para todos.
+        List<UUID> agregados = nuevos.stream().filter(s -> !actuales.contains(s)).toList();
+        if (!agregados.isEmpty()) {
+            long activos = proveedorRepository.findAllById(agregados).stream().filter(Proveedor::isActive).count();
+            if (activos != agregados.size()) {
                 throw ApiException.badRequest("Selecciona proveedores activos.");
             }
         }

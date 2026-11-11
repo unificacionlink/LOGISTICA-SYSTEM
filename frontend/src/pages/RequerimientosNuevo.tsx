@@ -5,9 +5,10 @@ import {
   actualizarRequerimiento,
   crearRequerimiento,
   obtenerCatalogoFormulario,
+  obtenerStockDisponible,
   obtenerRequerimiento,
 } from "../api/requerimientos";
-import type { Ceco, Familia, VarianteCatalogo } from "../api/types";
+import type { Ceco, Familia, VarianteConStock } from "../api/types";
 import { etiquetaFamilia } from "../components/familia";
 import { useAuth } from "../auth/AuthContext";
 import BuscadorProductos, { Miniatura, StockDisponible } from "../components/BuscadorProductos";
@@ -24,7 +25,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 
 import CampoNumero from "../components/ui/CampoNumero";
 interface ItemCarrito {
-  variante: VarianteCatalogo;
+  variante: VarianteConStock;
   qty: string;
   observacion: string;
 }
@@ -46,7 +47,7 @@ export default function RequerimientosNuevo() {
   const puedeEditarImagenes = tieneAlgunRol("LOGISTICA", "ADMIN");
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
-  const [variantes, setVariantes] = useState<VarianteCatalogo[]>([]);
+  const [variantes, setVariantes] = useState<VarianteConStock[]>([]);
   const [familias, setFamilias] = useState<Familia[]>([]);
   const [cecos, setCecos] = useState<Ceco[]>([]);
 
@@ -75,16 +76,23 @@ export default function RequerimientosNuevo() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
+    // El catalogo puede venir de la cache de la pestana; el stock siempre fresco.
     Promise.all([
       obtenerCatalogoFormulario(),
+      obtenerStockDisponible(),
       editando ? obtenerRequerimiento(id!) : Promise.resolve(null),
     ])
-      .then(([catalogoRes, detalleRes]) => {
+      .then(([catalogoRes, stockRes, detalleRes]) => {
         if (!catalogoRes.ok || !catalogoRes.result) {
           setErrorCarga(catalogoRes.message);
           return;
         }
-        setVariantes(catalogoRes.result.variantes);
+        const stock = stockRes.ok ? (stockRes.result ?? {}) : {};
+        const conStock: VarianteConStock[] = catalogoRes.result.variantes.map((v) => ({
+          ...v,
+          stockDisponible: stock[v.variantId] ?? 0,
+        }));
+        setVariantes(conStock);
         setFamilias(catalogoRes.result.familias);
         setCecos(catalogoRes.result.cecos);
 
@@ -116,7 +124,7 @@ export default function RequerimientosNuevo() {
           setRequiredDate(requerimiento.requiredDate ?? "");
           setJustification(requerimiento.justification);
 
-          const porCodigoVariante = new Map(catalogoRes.result.variantes.map((v) => [v.codigoVariante, v]));
+          const porCodigoVariante = new Map(conStock.map((v) => [v.codigoVariante, v]));
           const conVariantes = new Set(catalogoRes.result.variantes.map((v) => v.skuBase));
           const itemsPrecargados: ItemCarrito[] = [];
           const sinVariante: ItemPendiente[] = [];
@@ -158,7 +166,7 @@ export default function RequerimientosNuevo() {
     return mapa;
   }, [items]);
 
-  function agregarAlCarrito(v: VarianteCatalogo) {
+  function agregarAlCarrito(v: VarianteConStock) {
     setErrorItems(null);
     setItems((prev) => {
       const idx = prev.findIndex((it) => it.variante.variantId === v.variantId);

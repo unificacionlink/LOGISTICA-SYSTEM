@@ -239,15 +239,16 @@ public class ComparativoService {
         }
 
         // Bloqueo en orden fijo para no cruzarse con otra carga del mismo comparativo.
-        List<Consolidacion> aCotizar = new ArrayList<>();
-        for (UUID id : cotizados.stream().sorted().toList()) {
-            Consolidacion c = consolidacionRepository.bloquear(id)
-                    .orElseThrow(() -> ApiException.notFound("Consolidado no encontrado."));
+        List<UUID> ordenados = cotizados.stream().distinct().sorted().toList();
+        List<Consolidacion> aCotizar = consolidacionRepository.bloquearVarios(ordenados);
+        if (aCotizar.size() != ordenados.size()) {
+            throw ApiException.notFound("Consolidado no encontrado.");
+        }
+        for (Consolidacion c : aCotizar) {
             if (!Consolidacion.ABIERTA.equals(c.getStatus()) && !Consolidacion.EN_COTIZACION.equals(c.getStatus())
                     && !Consolidacion.ADJUDICADA.equals(c.getStatus())) {
                 throw ApiException.badRequest("El consolidado " + c.getConsolidationCode() + " ya no se puede cotizar.");
             }
-            aCotizar.add(c);
         }
 
         Rfq rfq = rfqDelProveedor(aCotizar, proveedor, req.reemplazaQuotationId() != null, principal);

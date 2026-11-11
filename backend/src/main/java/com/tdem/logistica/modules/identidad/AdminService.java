@@ -342,18 +342,27 @@ public class AdminService {
         // transaccion y una entidad ya cargada devolveria el aprobador viejo.
         Set<UUID> actuales = new HashSet<>(jdbc.queryForList(
                 "select ceco_id from ceco where approver_user_id = ?", UUID.class, userId));
-        for (UUID cecoId : nuevos) {
-            if (actuales.contains(cecoId)) {
-                continue;
+        List<UUID> agregados = nuevos.stream().filter(c -> !actuales.contains(c)).toList();
+        if (!agregados.isEmpty()) {
+            // Estado de todos los CECO nuevos en una consulta (antes una por CECO).
+            Map<UUID, Boolean> activos = new HashMap<>();
+            jdbc.query("select ceco_id, active from ceco where ceco_id in ("
+                            + String.join(",", Collections.nCopies(agregados.size(), "?")) + ")",
+                    rs -> {
+                        activos.put(rs.getObject(1, UUID.class), rs.getBoolean(2));
+                    }, agregados.toArray());
+            for (UUID cecoId : agregados) {
+                Boolean activo = activos.get(cecoId);
+                if (activo == null) {
+                    throw ApiException.badRequest("CECO no encontrado.");
+                }
+                if (!activo) {
+                    throw ApiException.badRequest("No se asignan CECOs inactivos.");
+                }
             }
-            List<Boolean> activo = jdbc.queryForList("select active from ceco where ceco_id = ?", Boolean.class, cecoId);
-            if (activo.isEmpty()) {
-                throw ApiException.badRequest("CECO no encontrado.");
+            for (UUID cecoId : agregados) {
+                aplicarAprobador(cecoId, userId, principal);
             }
-            if (!activo.get(0)) {
-                throw ApiException.badRequest("No se asignan CECOs inactivos.");
-            }
-            aplicarAprobador(cecoId, userId, principal);
         }
         for (UUID cecoId : actuales) {
             if (!nuevos.contains(cecoId)) {

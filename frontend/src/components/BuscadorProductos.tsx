@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ImageOff, Loader2, Plus, Search, Upload, X } from "lucide-react";
 import { subirImagenProducto } from "../api/requerimientos";
-import type { Familia, VarianteCatalogo } from "../api/types";
+import type { Familia, VarianteConStock } from "../api/types";
 import FiltroFamilia from "./FiltroFamilia";
 import { coincideFamilia, etiquetaFamilia } from "./familia";
 import { inputClass } from "./ui/Field";
@@ -128,10 +128,10 @@ export default function BuscadorProductos({
   puedeEditarImagenes,
   onImagenSubida,
 }: {
-  variantes: VarianteCatalogo[];
+  variantes: VarianteConStock[];
   familias: Familia[];
   cantidadesEnCarrito: Record<string, number>;
-  onAgregar: (v: VarianteCatalogo) => void;
+  onAgregar: (v: VarianteConStock) => void;
   puedeEditarImagenes: boolean;
   onImagenSubida: (productId: string, url: string) => void;
 }) {

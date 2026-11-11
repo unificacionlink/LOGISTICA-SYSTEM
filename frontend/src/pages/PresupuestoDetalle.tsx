@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { X } from "lucide-react";
 import {
@@ -58,6 +58,63 @@ function fmtFechaHora(iso: string | null): string {
   return new Date(iso).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" });
 }
 
+/**
+ * Fila de una partida en edicion. Memorizada: al escribir una cantidad solo se
+ * redibuja su fila, no las 6 celdas de cada partida de la tabla.
+ */
+const FilaBorrador = memo(function FilaBorrador({
+  b,
+  semestre,
+  onCambiar,
+  onQuitar,
+}: {
+  b: Borrador;
+  semestre: number;
+  onCambiar: (productId: string, mes: number, valor: string) => void;
+  onQuitar: (productId: string) => void;
+}) {
+  const meses = mesesDelSemestre(semestre);
+  const total = b.meses.reduce((s, q) => s + (Number(q) || 0), 0);
+  return (
+    <tr>
+      <td className="max-w-64 px-4 py-2">
+        <div className="font-mono text-xs text-slate-600">{b.sku}</div>
+        <div className="truncate text-xs text-slate-500" title={b.nombre}>{b.nombre}</div>
+      </td>
+      {b.meses.map((q, m) => (
+        <td key={m} className="px-1 py-2">
+          <CampoNumero
+            decimales={0}
+            aria-label={`${b.sku} ${meses[m]}`}
+            value={q}
+            onChange={(v) => onCambiar(b.productId, m, v)}
+            className={`${inputClass} w-20 px-2 text-right tabular-nums`}
+          />
+        </td>
+      ))}
+      <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+        {cantidad.format(total)} <span className="text-xs text-slate-400">{b.unidad}</span>
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+        {b.precio == null ? <span className="text-xs text-amber-600">Sin precio</span> : soles.format(b.precio)}
+      </td>
+      <td className="px-4 py-2 text-right tabular-nums text-slate-700">
+        {b.precio == null ? "—" : soles.format(b.precio * total)}
+      </td>
+      <td className="px-2 py-2">
+        <button
+          type="button"
+          aria-label={`Quitar ${b.sku}`}
+          onClick={() => onQuitar(b.productId)}
+          className="text-slate-400 hover:text-rose-600"
+        >
+          <X className="size-4" />
+        </button>
+      </td>
+    </tr>
+  );
+});
+
 export default function PresupuestoDetalle() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -82,6 +139,18 @@ export default function PresupuestoDetalle() {
   }, [id]);
 
   const excluir = useMemo(() => new Set(borrador?.map((b) => b.productId)), [borrador]);
+
+  // Fijas para que FilaBorrador (memorizada) solo se redibuje en la fila que cambia.
+  const cambiarCantidad = useCallback((productId: string, mes: number, valor: string) => {
+    setBorrador((prev) =>
+      prev!.map((x) =>
+        x.productId === productId ? { ...x, meses: x.meses.map((y, j) => (j === mes ? valor : y)) } : x,
+      ),
+    );
+  }, []);
+  const quitarPartida = useCallback((productId: string) => {
+    setBorrador((prev) => prev!.filter((x) => x.productId !== productId));
+  }, []);
 
   /** Ejecuta una accion que devuelve el detalle actualizado. */
   async function ejecutar(accion: () => Promise<ApiResponse<Detalle>>) {
@@ -378,53 +447,15 @@ export default function PresupuestoDetalle() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {editando
-                  ? borrador.map((b, fila) => {
-                      const total = b.meses.reduce((s, q) => s + (Number(q) || 0), 0);
-                      return (
-                        <tr key={b.productId}>
-                          <td className="max-w-64 px-4 py-2">
-                            <div className="font-mono text-xs text-slate-600">{b.sku}</div>
-                            <div className="truncate text-xs text-slate-500" title={b.nombre}>{b.nombre}</div>
-                          </td>
-                          {b.meses.map((q, m) => (
-                            <td key={m} className="px-1 py-2">
-                              <CampoNumero
-                                decimales={0}
-                                aria-label={`${b.sku} ${meses[m]}`}
-                                value={q}
-                                onChange={(v) =>
-                                  setBorrador((prev) =>
-                                    prev!.map((x, i) =>
-                                      i === fila ? { ...x, meses: x.meses.map((y, j) => (j === m ? v : y)) } : x,
-                                    ),
-                                  )
-                                }
-                                className={`${inputClass} w-20 px-2 text-right tabular-nums`}
-                              />
-                            </td>
-                          ))}
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                            {cantidad.format(total)} <span className="text-xs text-slate-400">{b.unidad}</span>
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                            {b.precio == null ? <span className="text-xs text-amber-600">Sin precio</span> : soles.format(b.precio)}
-                          </td>
-                          <td className="px-4 py-2 text-right tabular-nums text-slate-700">
-                            {b.precio == null ? "—" : soles.format(b.precio * total)}
-                          </td>
-                          <td className="px-2 py-2">
-                            <button
-                              type="button"
-                              aria-label={`Quitar ${b.sku}`}
-                              onClick={() => setBorrador((prev) => prev!.filter((_, i) => i !== fila))}
-                              className="text-slate-400 hover:text-rose-600"
-                            >
-                              <X className="size-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
+                  ? borrador.map((b) => (
+                      <FilaBorrador
+                        key={b.productId}
+                        b={b}
+                        semestre={d.semestre}
+                        onCambiar={cambiarCantidad}
+                        onQuitar={quitarPartida}
+                      />
+                    ))
                   : d.lineas.map((l) => (
                       <tr key={l.productId}>
                         <td className="max-w-64 px-4 py-2.5">

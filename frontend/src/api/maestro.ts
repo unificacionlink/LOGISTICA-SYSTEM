@@ -1,10 +1,12 @@
+import { enCache, luegoInvalidar, MINUTO } from "./cache";
 import { http } from "./http";
 import type { Clasificacion, PrecioVenta, PreciosVenta, ProductoCreado, SolicitudProducto, TipoAtributo } from "./types";
 
 // Maestro de productos y solicitudes de alta (DEC-L025, RF-004).
 
+/** Tipos, familias y unidades: en la pestana 10 min; se invalida al aprobar una solicitud de producto. */
 export function obtenerClasificacion() {
-  return http.get<Clasificacion>("/api/maestro/clasificacion");
+  return enCache("clasificacion", 10 * MINUTO, () => http.get<Clasificacion>("/api/maestro/clasificacion"));
 }
 
 export interface CrearProductoInput {
@@ -15,15 +17,18 @@ export interface CrearProductoInput {
 }
 
 export function crearProducto(input: CrearProductoInput) {
-  return http.post<ProductoCreado>("/api/maestro/productos", input);
+  return luegoInvalidar(http.post<ProductoCreado>("/api/maestro/productos", input), "catalogo");
 }
 
 export function editarProducto(productId: string, cambios: { nombre?: string; uomId?: string; activo?: boolean }) {
-  return http.patch<ProductoCreado>(`/api/maestro/productos/${productId}`, cambios);
+  return luegoInvalidar(http.patch<ProductoCreado>(`/api/maestro/productos/${productId}`, cambios), "catalogo");
 }
 
 export function agregarVariante(productId: string, tipo: TipoAtributo, valor: string) {
-  return http.post<ProductoCreado>(`/api/maestro/productos/${productId}/variantes`, { tipo, valor });
+  return luegoInvalidar(
+    http.post<ProductoCreado>(`/api/maestro/productos/${productId}/variantes`, { tipo, valor }),
+    "catalogo",
+  );
 }
 
 export function listarSolicitudesProducto() {
@@ -45,7 +50,11 @@ export function crearSolicitudProducto(input: CrearSolicitudInput) {
 }
 
 export function aprobarSolicitudProducto(id: string, familyId: string, nombre: string, uomId: string) {
-  return http.post<SolicitudProducto>(`/api/maestro/solicitudes/${id}/aprobar`, { familyId, nombre, uomId });
+  return luegoInvalidar(
+    http.post<SolicitudProducto>(`/api/maestro/solicitudes/${id}/aprobar`, { familyId, nombre, uomId }),
+    "catalogo",
+    "clasificacion",
+  );
 }
 
 export function rechazarSolicitudProducto(id: string, motivo: string) {
@@ -63,5 +72,5 @@ export function registrarPrecio(productId: string, companyId: string, precio: nu
 }
 
 export function configurarPlazo(productId: string, dias: number | null) {
-  return http.put<number | null>(`/api/maestro/productos/${productId}/plazo`, { dias });
+  return luegoInvalidar(http.put<number | null>(`/api/maestro/productos/${productId}/plazo`, { dias }), "catalogo");
 }
