@@ -1,4 +1,4 @@
-import { Client } from "@stomp/stompjs";
+import type { Client } from "@stomp/stompjs";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL } from "../api/http";
@@ -34,30 +34,38 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     }
 
     const esAprobador = tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN");
+    let cancelado = false;
+    let client: Client | null = null;
 
-    const client = new Client({
-      brokerURL: WS_URL,
-      reconnectDelay: 4000,
-      onConnect: () => {
-        client.subscribe("/user/queue/mis-requerimientos", (msg) => {
-          busDecision.emit(JSON.parse(msg.body) as Requerimiento);
-        });
-        if (esAprobador) {
-          client.subscribe("/topic/aprobaciones", (msg) => {
-            busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
+    // La libreria STOMP (~22 KB) se descarga recien con sesion: el login no la necesita.
+    import("@stomp/stompjs").then(({ Client }) => {
+      if (cancelado) return;
+      const c = new Client({
+        brokerURL: WS_URL,
+        reconnectDelay: 4000,
+        onConnect: () => {
+          c.subscribe("/user/queue/mis-requerimientos", (msg) => {
+            busDecision.emit(JSON.parse(msg.body) as Requerimiento);
           });
-          // REQ de un CECO con aprobador asignado: solo le llega a ese usuario (DEC-L030).
-          client.subscribe("/user/queue/aprobaciones", (msg) => {
-            busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
-          });
-        }
-      },
+          if (esAprobador) {
+            c.subscribe("/topic/aprobaciones", (msg) => {
+              busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
+            });
+            // REQ de un CECO con aprobador asignado: solo le llega a ese usuario (DEC-L030).
+            c.subscribe("/user/queue/aprobaciones", (msg) => {
+              busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
+            });
+          }
+        },
+      });
+      c.activate();
+      client = c;
+      clientRef.current = c;
     });
-    client.activate();
-    clientRef.current = client;
 
     return () => {
-      client.deactivate();
+      cancelado = true;
+      client?.deactivate();
       clientRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

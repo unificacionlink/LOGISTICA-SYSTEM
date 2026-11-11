@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.33.1 — 2026-11-09
+
+- **Fotos de producto livianas**: las miniaturas (40px) se piden al servicio
+  de transformacion de Supabase a 80x80 en WebP (`components/imagenes.ts`,
+  `urlImagen`) con `loading="lazy"`; el visor, a 1344px. Las 5 fotos actuales
+  pasan de 4,9 MB a 7 KB en la lista, con cache publica de 1 ano (las
+  originales venian con `no-cache`). Si la transformacion falla, se usa la
+  original.
+- **Fuentes**: sin Geist 700 (no se usa) y Newsreader con tamano optico fijo
+  36 (titulos): 180 KB -> 108 KB. La hoja de Google Fonts ya no bloquea el
+  primer dibujo (preload + `display=swap`).
+- **STOMP** se descarga solo con sesion (import dinamico en
+  `RealtimeProvider`): 22,6 KB menos en el login.
+- Favicon con la marca (241 B; era el logo de la plantilla de Vite, 9,5 KB) y
+  se elimina `public/icons.svg`, sobrante de la plantilla y sin uso.
+
 ## 0.33.0 — 2026-11-09
 
 - **Stock visible al pedir** (DEC-L050): el catalogo del formulario de

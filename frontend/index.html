@@ -8,10 +8,24 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Fuentes sin bloquear el primer dibujo: se piden en paralelo y se aplican al
+      llegar (display=swap: mientras tanto se ve el texto con la fuente del sistema).
+      Solo los grosores usados; Newsreader (titulos) con tamano optico fijo 36
+      (titulos de 26-44px): 56 KB en vez de 128 KB del eje completo.
+    -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Newsreader:opsz,wght@36,500;36,600&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Newsreader:opsz,wght@36,500;36,600&display=swap"
+      />
+    </noscript>
     <title>ERP Logístico Corporativo</title>
   </head>
   <body>

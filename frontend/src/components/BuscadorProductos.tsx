@@ -6,6 +6,7 @@ import type { Familia, VarianteCatalogo } from "../api/types";
 import FiltroFamilia from "./FiltroFamilia";
 import { coincideFamilia, etiquetaFamilia } from "./familia";
 import { inputClass } from "./ui/Field";
+import { respaldoOriginal, urlImagen } from "./imagenes";
 
 /**
  * Miniatura de producto. Con foto, un clic la amplia en un visor con el
@@ -37,9 +38,15 @@ export function Miniatura({
         title="Ver foto"
         className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
+        {/* Miniatura de 40px: se pide de 80x80 (WebP) y solo al acercarse a la vista. */}
         <img
-          src={url}
+          src={urlImagen(url, 80, 80)}
+          onError={respaldoOriginal(url)}
           alt={titulo ?? ""}
+          width={40}
+          height={40}
+          loading="lazy"
+          decoding="async"
           className="size-10 cursor-zoom-in rounded-md border border-slate-200 object-cover transition hover:opacity-80"
         />
       </button>
@@ -92,7 +99,14 @@ function VisorFoto({
           <X className="size-4" />
         </button>
         <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-50">
-          <img src={url} alt={titulo ?? ""} className="max-h-[70vh] w-full object-contain" />
+          {/* El visor mide hasta 672px de ancho (max-w-2xl): se pide a 1344px. */}
+          <img
+            src={urlImagen(url, 1344)}
+            onError={respaldoOriginal(url)}
+            alt={titulo ?? ""}
+            decoding="async"
+            className="max-h-[70vh] w-full object-contain"
+          />
         </div>
         {(titulo || detalle) && (
           <figcaption className="border-t border-slate-100 px-5 py-3">

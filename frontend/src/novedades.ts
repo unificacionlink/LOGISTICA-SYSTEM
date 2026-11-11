@@ -12,6 +12,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.33.1",
+    titulo: "Carga más rápida",
+    cambios: [
+      "Las fotos de los productos cargan mucho más rápido: se descargan al tamaño en que se ven.",
+      "La aplicación muestra el texto apenas abre, sin esperar a que lleguen las fuentes.",
+      "La pestaña del navegador muestra el ícono de la empresa.",
+    ],
+  },
+  {
     version: "0.33.0",
     titulo: "Stock a la vista al pedir",
     cambios: [
