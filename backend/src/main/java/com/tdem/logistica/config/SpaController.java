@@ -48,6 +48,7 @@ public class SpaController {
             "/almacen/notas/{id}",
             "/admin",
             "/cambiar-password",
+            "/cotizar/{token}",
     })
     public String forward() {
         return "forward:/index.html";

@@ -10,8 +10,10 @@ export function descargarPdfTracking(requestId: string, codigo: string) {
   return http.descargar(`/api/requerimientos/${requestId}/tracking/pdf`, `TRACKING_${codigo}.pdf`);
 }
 
-export function descargarPdfRfq(rfqId: string, codigo: string) {
-  return http.descargar(`/api/compras/rfq/${rfqId}/pdf`, `${codigo}.pdf`);
+/** Con el token recien generado, el PDF lleva el enlace del proveedor y su QR (DEC-L052). */
+export function descargarPdfRfq(rfqId: string, codigo: string, tokenEnlace?: string) {
+  const enlace = tokenEnlace ? `?enlace=${encodeURIComponent(tokenEnlace)}` : "";
+  return http.descargar(`/api/compras/rfq/${rfqId}/pdf${enlace}`, `${codigo}.pdf`);
 }
 
 export function descargarPdfOrden(orderId: string, codigo: string) {

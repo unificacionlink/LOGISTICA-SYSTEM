@@ -5,6 +5,34 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L052 — Enlace unico para que el proveedor cotice en linea (2026-11-12).**
+  El usuario: los proveedores cotizan con sus propios nombres y codigos, y
+  muchos generan la cotizacion desde su sistema, asi que no pueden citar
+  nuestro SKU. Con un enlace ponen sus precios **sobre nuestras lineas** y el
+  emparejamiento es exacto.
+  - **Un enlace por RFQ** (`rfq_enlace`, Flyway V25): Logistica lo genera en
+    el detalle de la RFQ y lo copia o descarga el PDF de la RFQ con el enlace y
+    un QR (`PdfCorporativo.enlaceConQr`, zxing). El token son 32 bytes
+    aleatorios; en la BD solo queda su SHA-256, asi que la URL se ve una sola
+    vez. Generar otro anula el anterior. Vence a los 30 dias o al cerrar la RFQ.
+  - **Pagina publica** `/cotizar/:token` (sin sesion) y API
+    `/api/publico/cotizacion/{token}` (`EnlacePublicoController`). Muestra solo
+    empresa, RFQ, proveedor, condiciones pedidas y lineas: nada de REQ, CECO,
+    costos ni otros proveedores. Token invalido, anulado o vencido: el mismo
+    404 generico. Tope de 30 solicitudes por minuto e IP (`LimiteSolicitudes`,
+    ultima IP de `X-Forwarded-For`, la que agrega Render).
+  - **El envio** (precio por linea, marca/modelo, moneda, pago, entrega,
+    plazo, vigencia, su numero y un PDF/foto opcional en el mismo multipart)
+    se registra con las reglas de `ComprasService.registrarCotizacion` (su
+    cuerpo pasa a `registrarCotizacionInterna`, sin rol), con
+    `cotizacion.source = ENLACE` y quien genero el enlace como responsable.
+    Entra solo al comparativo. Reenviar reemplaza el envio anterior (lo
+    descarta); si ya fue adjudicado o seleccionado, se rechaza.
+  - Aviso en tiempo real solo a quien genero el enlace (`/user/queue/cotizaciones`).
+  - El PDF de la RFQ pide citar nuestro SKU a quien mande su propio formato.
+  - Lo que sigue (v0.37): equivalencias por proveedor y revision asistida para
+    los PDF que no lleguen por el enlace.
+
 - **DEC-L051 — Rendimiento: cache, carga por pantalla y consultas agrupadas (2026-11-11).**
   Resultado de la auditoria de rendimiento pedida por el usuario.
   - **Cache del navegador**: `/assets/**` (archivos con hash de Vite) va con

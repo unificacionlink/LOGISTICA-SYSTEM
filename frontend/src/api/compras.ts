@@ -2,6 +2,7 @@ import { enCache, MINUTO } from "./cache";
 import { http } from "./http";
 import type {
   Comparativo,
+  EnlaceCotizacion,
   ComprasDetalle,
   Consolidado,
   ConsolidadoDetalle,
@@ -121,6 +122,19 @@ export function obtenerDetalleCompra(requestId: string) {
 
 export function obtenerRfq(rfqId: string) {
   return http.get<RfqDetalle>(`/api/compras/rfq/${rfqId}`);
+}
+
+// Enlace para que el proveedor cotice en linea (DEC-L052).
+export function obtenerEnlaceRfq(rfqId: string) {
+  return http.get<EnlaceCotizacion | null>(`/api/compras/rfq/${rfqId}/enlace`);
+}
+
+export function generarEnlaceRfq(rfqId: string) {
+  return http.post<EnlaceCotizacion>(`/api/compras/rfq/${rfqId}/enlace`);
+}
+
+export function anularEnlaceRfq(rfqId: string) {
+  return http.delete<null>(`/api/compras/rfq/${rfqId}/enlace`);
 }
 
 export function cerrarRfq(rfqId: string, motivo: string) {

@@ -7,11 +7,14 @@ import {
   descartarCotizacion,
   extraerOcrCotizacion,
   listarMonedas,
+  obtenerEnlaceRfq,
   obtenerRfq,
   registrarCotizacion,
   subirDocumentoCotizacion,
 } from "../api/compras";
-import type { Moneda, OcrCotizacion, RfqDetalle } from "../api/types";
+import type { EnlaceCotizacion, Moneda, OcrCotizacion, RfqDetalle } from "../api/types";
+import EnlaceProveedor from "../components/compras/EnlaceProveedor";
+import { useRealtime } from "../realtime/useRealtime";
 import CotizacionEstadoBadge from "../components/CotizacionEstadoBadge";
 import RfqEstadoBadge from "../components/RfqEstadoBadge";
 import Alert from "../components/ui/Alert";
@@ -28,7 +31,7 @@ import { cantidad } from "../components/compras/formato";
 
 import CampoNumero from "../components/ui/CampoNumero";
 /** Texto de la solicitud para correo o WhatsApp (no constituye orden de compra). */
-function mensajeSolicitud(d: RfqDetalle): string {
+function mensajeSolicitud(d: RfqDetalle, urlEnlace: string | null): string {
   const lineas = d.items.map(
     (it) =>
       `- ${it.codigoVariante ?? it.skuBase} | ${it.nombreProducto}${it.atributo ? ` (${it.atributo})` : ""} | ${cantidad(it.qty)} ${it.unidadMedida}` +
@@ -39,6 +42,7 @@ function mensajeSolicitud(d: RfqDetalle): string {
     "",
     ...lineas,
     "",
+    ...(urlEnlace ? ["Puede cotizar en línea, sobre estas mismas líneas, aquí:", urlEnlace, ""] : []),
     "Indicar precio unitario por producto, moneda, condición de pago, plazo y lugar de entrega, y vigencia de la oferta.",
     "Esta solicitud no constituye una orden de compra.",
   ].join("\n");
@@ -64,6 +68,8 @@ export default function ComprasRfqDetalle() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<RfqDetalle | null>(null);
+  const [enlace, setEnlace] = useState<EnlaceCotizacion | null>(null);
+  const { onCotizacionPorEnlace } = useRealtime();
   const [monedas, setMonedas] = useState<Moneda[]>([]);
 
   const [supplierQuoteNumber, setSupplierQuoteNumber] = useState("");
@@ -103,12 +109,31 @@ export default function ComprasRfqDetalle() {
     });
   }
 
+  function cargarEnlace() {
+    if (!id) return;
+    return obtenerEnlaceRfq(id).then((res) => res.ok && setEnlace(res.result));
+  }
+
   useEffect(() => {
-    Promise.all([cargar(), listarMonedas().then((res) => res.ok && setMonedas(res.result ?? []))]).finally(() =>
-      setCargando(false),
-    );
+    Promise.all([
+      cargar(),
+      cargarEnlace(),
+      listarMonedas().then((res) => res.ok && setMonedas(res.result ?? [])),
+    ]).finally(() => setCargando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // El proveedor respondio por su enlace: se recarga sin perder la URL recien generada.
+  useEffect(
+    () =>
+      onCotizacionPorEnlace((e) => {
+        if (e.rfqId !== id) return;
+        cargar();
+        setEnlace((prev) => (prev ? { ...prev, respondidoEl: new Date().toISOString() } : prev));
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, onCotizacionPorEnlace],
+  );
 
   const items = useMemo(() => detalle?.items ?? [], [detalle]);
 
@@ -273,7 +298,7 @@ export default function ComprasRfqDetalle() {
   const rfqCerrada = rfq.status === "CERRADA";
   const porEnviar = rfq.status === "BORRADOR";
   const mostrarForm = !rfqCerrada && !porEnviar && (formAbierto ?? cotizaciones.length === 0);
-  const mensaje = mensajeSolicitud(detalle);
+  const mensaje = mensajeSolicitud(detalle, enlace?.url ?? null);
   const whatsapp = telefonoWhatsapp(detalle.proveedorTelefono);
   const consolidados = Array.from(
     new Map(items.filter((it) => it.consolidationId).map((it) => [it.consolidationId!, it])).values(),
@@ -302,6 +327,19 @@ export default function ComprasRfqDetalle() {
       />
 
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
+
+      {!rfqCerrada && (
+        <EnlaceProveedor
+          rfqId={rfq.rfqId}
+          rfqCode={rfq.rfqCode}
+          enlace={enlace}
+          onCambio={(e) => {
+            setError(null);
+            setEnlace(e);
+          }}
+          onError={setError}
+        />
+      )}
 
       {porEnviar && (
         <Card className="mb-6">
@@ -416,6 +454,9 @@ export default function ComprasRfqDetalle() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <CotizacionEstadoBadge estado={c.status} />
+                    {c.source === "ENLACE" && (
+                      <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">Por enlace</span>
+                    )}
                     <span className="text-sm font-medium text-slate-800">
                       {c.total} {c.currencyCode}
                     </span>

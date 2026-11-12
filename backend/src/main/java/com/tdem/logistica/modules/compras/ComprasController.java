@@ -20,12 +20,35 @@ public class ComprasController {
     private final ComprasService service;
     private final AbastecimientoService abastecimiento;
     private final ComparativoService comparativo;
+    private final EnlaceCotizacionService enlaces;
 
     public ComprasController(ComprasService service, AbastecimientoService abastecimiento,
-                             ComparativoService comparativo) {
+                             ComparativoService comparativo, EnlaceCotizacionService enlaces) {
         this.service = service;
         this.abastecimiento = abastecimiento;
         this.comparativo = comparativo;
+        this.enlaces = enlaces;
+    }
+
+    // ---------------------------------------------------------------- Enlace del proveedor (DEC-L052)
+
+    @GetMapping("/rfq/{id}/enlace")
+    public ApiResponse<EnlaceCotizacionDto> enlace(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(enlaces.vigente(id, principal));
+    }
+
+    @PostMapping("/rfq/{id}/enlace")
+    public ApiResponse<EnlaceCotizacionDto> generarEnlace(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(enlaces.generar(id, principal), "Enlace generado.");
+    }
+
+    @DeleteMapping("/rfq/{id}/enlace")
+    public ApiResponse<Void> anularEnlace(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        enlaces.anular(id, principal);
+        return ApiResponse.ok(null, "Enlace anulado.");
     }
 
     // ---------------------------------------------------------------- Comparativo (DEC-L047)

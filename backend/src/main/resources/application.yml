@@ -54,6 +54,11 @@ app:
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  # Base de los enlaces que se mandan al proveedor (DEC-L052). Vacio: el primer
+  # origen de CORS_ALLOWED_ORIGINS (en produccion, https://logistica.tdemperu.com).
+  public-url: ${APP_PUBLIC_URL:}
+  publico:
+    limite-por-minuto: ${PUBLICO_LIMITE_POR_MINUTO:30}
   cookie-secure: ${COOKIE_SECURE:true}
   # Storage compatible con S3 (DEC-L015/DEC-L016). Hoy: Supabase Storage del
   # proyecto de RRHH (endpoint https://<ref>.storage.supabase.co/storage/v1/s3,

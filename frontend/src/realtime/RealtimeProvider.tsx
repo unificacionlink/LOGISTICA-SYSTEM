@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL } from "../api/http";
 import type { AprobacionPendiente, Requerimiento } from "../api/types";
-import { RealtimeContext, type Listener, type RealtimeContextValue } from "./useRealtime";
+import { RealtimeContext, type CotizacionPorEnlace, type Listener, type RealtimeContextValue } from "./useRealtime";
 
 const WS_URL = `${API_URL.replace(/^http/, "ws")}/ws`;
 
@@ -24,6 +24,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const { usuario, tieneAlgunRol } = useAuth();
   const busAprobacion = useRef(crearBus<AprobacionPendiente>()).current;
   const busDecision = useRef(crearBus<Requerimiento>()).current;
+  const busCotizacion = useRef(crearBus<CotizacionPorEnlace>()).current;
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     }
 
     const esAprobador = tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN");
+    const esLogistica = tieneAlgunRol("LOGISTICA", "ADMIN");
     let cancelado = false;
     let client: Client | null = null;
 
@@ -47,6 +49,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           c.subscribe("/user/queue/mis-requerimientos", (msg) => {
             busDecision.emit(JSON.parse(msg.body) as Requerimiento);
           });
+          if (esLogistica) {
+            c.subscribe("/user/queue/cotizaciones", (msg) => {
+              busCotizacion.emit(JSON.parse(msg.body) as CotizacionPorEnlace);
+            });
+          }
           if (esAprobador) {
             c.subscribe("/topic/aprobaciones", (msg) => {
               busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
@@ -74,6 +81,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const value: RealtimeContextValue = {
     onNuevaAprobacion: busAprobacion.subscribe,
     onMiRequerimientoDecidido: busDecision.subscribe,
+    onCotizacionPorEnlace: busCotizacion.subscribe,
   };
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

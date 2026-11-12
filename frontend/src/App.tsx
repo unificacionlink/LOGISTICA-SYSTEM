@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { RealtimeProvider } from "./realtime/RealtimeProvider";
 import CapaCarga from "./components/CapaCarga";
+import CargaPagina from "./components/CargaPagina";
 import { ConfirmacionProvider } from "./components/ui/ConfirmacionProvider";
 import ProtectedLayout from "./components/ProtectedLayout";
 import Login from "./pages/Login";
@@ -33,6 +35,7 @@ import {
   AlmacenDespacho,
   NotaInventarioDetalle,
   Administracion,
+  CotizarProveedor,
 } from "./paginas";
 
 export default function App() {
@@ -44,6 +47,20 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/inicio" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route
+              path="/cotizar/:token"
+              element={
+                <Suspense
+                  fallback={
+                    <div className="mx-auto max-w-3xl px-4 py-10">
+                      <CargaPagina />
+                    </div>
+                  }
+                >
+                  <CotizarProveedor />
+                </Suspense>
+              }
+            />
             <Route element={<ProtectedLayout />}>
               <Route path="/inicio" element={<Inicio />} />
               <Route path="/requerimientos" element={<Requerimientos />} />

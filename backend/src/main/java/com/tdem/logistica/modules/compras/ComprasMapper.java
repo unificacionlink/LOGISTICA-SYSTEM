@@ -97,6 +97,7 @@ public final class ComprasMapper {
                 c.getLeadDays(),
                 c.getStatus(),
                 c.getDocumento() != null ? c.getDocumento().getFileUrl() : null,
+                c.getSource(),
                 items);
     }
 

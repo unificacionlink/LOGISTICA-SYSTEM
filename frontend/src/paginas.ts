@@ -66,6 +66,7 @@ const c = {
   almacenDespacho: conRecarga(() => import("./pages/AlmacenDespacho")),
   notaInventario: conRecarga(() => import("./pages/NotaInventarioDetalle")),
   administracion: conRecarga(() => import("./pages/Administracion")),
+  cotizarProveedor: conRecarga(() => import("./pages/CotizarProveedor")),
 };
 
 export const Requerimientos = lazy(c.requerimientos);
@@ -93,6 +94,8 @@ export const AlmacenCargaMasiva = lazy(c.almacenCargaMasiva);
 export const AlmacenDespacho = lazy(c.almacenDespacho);
 export const NotaInventarioDetalle = lazy(c.notaInventario);
 export const Administracion = lazy(c.administracion);
+/** Publica, sin sesion: el proveedor cotiza desde su enlace (DEC-L052). */
+export const CotizarProveedor = lazy(c.cotizarProveedor);
 
 /** Entradas del menu lateral (navegacion.ts). */
 const DEL_MENU: Record<string, Carga> = {

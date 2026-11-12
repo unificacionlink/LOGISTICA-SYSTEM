@@ -149,6 +149,9 @@ Backend (`backend/src/main/resources/application-local.yml`, gitignored):
 **usar el pooler, no la conexion directa**: ver nota en 03_GUIA_OPERATIVA.md),
 `DB_SCHEMA` (default `logistica`), `DB_POOL_SIZE` (default 5),
 `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `COOKIE_SECURE`.
+Enlace del proveedor (DEC-L052): `APP_PUBLIC_URL` (base de los enlaces;
+vacio = primer origen de `CORS_ALLOWED_ORIGINS`) y `PUBLICO_LIMITE_POR_MINUTO`
+(default 30, por IP en `/api/publico/**`).
 Storage S3 (DEC-L015/DEC-L016): `STORAGE_ENDPOINT`, `STORAGE_REGION`,
 `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_BUCKET`
 (default `logistica-productos`), `STORAGE_PUBLIC_URL`.

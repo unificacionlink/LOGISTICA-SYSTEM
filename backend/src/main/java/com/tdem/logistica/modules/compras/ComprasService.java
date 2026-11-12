@@ -183,6 +183,12 @@ public class ComprasService {
     @Transactional
     public DocumentoDto subirDocumento(MultipartFile file, String tipo, UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
+        return guardarDocumento(file, tipo, principal.userId());
+    }
+
+    /** Guarda el archivo sin validar rol (lo usa tambien el enlace del proveedor, DEC-L052). */
+    @Transactional
+    DocumentoDto guardarDocumento(MultipartFile file, String tipo, UUID userId) {
         if (!"COTIZACION".equals(tipo) && !"COMPROBANTE_CAJA_CHICA".equals(tipo)) {
             throw ApiException.badRequest("Tipo de documento invalido.");
         }
@@ -211,7 +217,7 @@ public class ComprasService {
         documento.setFileName(nombreOriginal != null ? nombreOriginal : path);
         documento.setFileUrl(url);
         documento.setMimeType(contentType);
-        documento.setUploadedBy(principal.userId());
+        documento.setUploadedBy(userId);
         documento.setUploadedAt(Instant.now());
         documento.setStatus("ACTIVO");
         documentoRepository.save(documento);
@@ -252,6 +258,16 @@ public class ComprasService {
     @Transactional
     public CotizacionDto registrarCotizacion(UUID rfqId, RegistrarCotizacionRequest request, UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
+        return registrarCotizacionInterna(rfqId, request, principal.userId(), "MANUAL");
+    }
+
+    /**
+     * Registro sin validar rol: lo usan {@link #registrarCotizacion} y el enlace del
+     * proveedor (DEC-L052), que valida su token antes. {@code userId} queda como
+     * responsable del envio si la RFQ no estaba marcada como enviada.
+     */
+    @Transactional
+    CotizacionDto registrarCotizacionInterna(UUID rfqId, RegistrarCotizacionRequest request, UUID userId, String source) {
         Rfq rfq = rfqRepository.findDetalleById(rfqId)
                 .orElseThrow(() -> ApiException.notFound("RFQ no encontrada."));
         if ("CERRADA".equals(rfq.getStatus())) {
@@ -318,7 +334,7 @@ public class ComprasService {
         cotizacion.setPaymentCondition(request.paymentCondition());
         cotizacion.setDeliveryMode(request.deliveryMode());
         cotizacion.setLeadDays(request.leadDays());
-        cotizacion.setSource("MANUAL");
+        cotizacion.setSource(source);
         cotizacion.setDocumento(documento);
         cotizacion.setStatus("RECIBIDA");
         cotizacionRepository.save(cotizacion);
@@ -332,7 +348,7 @@ public class ComprasService {
             if (rfq.getSentAt() == null) {
                 // Respondio sin que se confirmara el envio: se da por enviada.
                 rfq.setSentAt(Instant.now());
-                rfq.setSentBy(principal.userId());
+                rfq.setSentBy(userId);
                 rfq.setSentChannel("OTRO");
             }
             rfq.setStatus("RESPONDIDA");
@@ -349,6 +365,12 @@ public class ComprasService {
     @Transactional
     public CotizacionDto descartarCotizacion(UUID cotizacionId, UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
+        return descartarCotizacionInterna(cotizacionId);
+    }
+
+    /** Descarte sin validar rol (el enlace del proveedor reemplaza su envio anterior, DEC-L052). */
+    @Transactional
+    CotizacionDto descartarCotizacionInterna(UUID cotizacionId) {
         Cotizacion cotizacion = cotizacionRepository.findDetalleById(cotizacionId)
                 .orElseThrow(() -> ApiException.notFound("Cotizacion no encontrada."));
         if ("SELECCIONADA".equals(cotizacion.getStatus())) {

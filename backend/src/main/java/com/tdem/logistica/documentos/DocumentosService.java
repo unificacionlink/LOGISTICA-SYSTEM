@@ -3,6 +3,7 @@ package com.tdem.logistica.documentos;
 import com.tdem.logistica.entity.Usuario;
 import com.tdem.logistica.modules.almacen.DespachoService;
 import com.tdem.logistica.modules.compras.ComprasService;
+import com.tdem.logistica.modules.compras.EnlaceCotizacionService;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
 import com.tdem.logistica.modules.tracking.TrackingService;
 import com.tdem.logistica.repository.UsuarioRepository;
@@ -30,10 +31,12 @@ public class DocumentosService {
     private final ComprasService comprasService;
     private final DespachoService despachoService;
     private final UsuarioRepository usuarioRepository;
+    private final EnlaceCotizacionService enlaces;
 
     public DocumentosService(RequerimientoService requerimientoService, TrackingService trackingService,
                              ComprasService comprasService, DespachoService despachoService,
-                             UsuarioRepository usuarioRepository) {
+                             UsuarioRepository usuarioRepository, EnlaceCotizacionService enlaces) {
+        this.enlaces = enlaces;
         this.requerimientoService = requerimientoService;
         this.trackingService = trackingService;
         this.comprasService = comprasService;
@@ -51,9 +54,11 @@ public class DocumentosService {
         return new Pdf("TRACKING_" + t.requerimiento().code() + ".pdf", DocumentosPdf.tracking(t, pie(principal)));
     }
 
-    public Pdf rfq(UUID id, UsuarioPrincipal principal) {
+    /** @param tokenEnlace token recien generado (DEC-L052): si es el vigente, el PDF lleva el enlace y su QR. */
+    public Pdf rfq(UUID id, String tokenEnlace, UsuarioPrincipal principal) {
         var d = comprasService.obtenerRfq(id, principal);
-        return new Pdf(d.rfq().rfqCode() + ".pdf", DocumentosPdf.rfq(d, pie(principal)));
+        String url = tokenEnlace != null ? enlaces.urlSiVigente(id, tokenEnlace, principal) : null;
+        return new Pdf(d.rfq().rfqCode() + ".pdf", DocumentosPdf.rfq(d, pie(principal), url));
     }
 
     public Pdf orden(UUID id, UsuarioPrincipal principal) {

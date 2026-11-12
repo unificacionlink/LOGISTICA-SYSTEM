@@ -307,6 +307,7 @@ export interface Cotizacion {
   leadDays: number | null;
   status: EstadoCotizacion;
   documentoUrl: string | null;
+  source: OrigenCotizacion;
   items: CotizacionItem[];
 }
 
@@ -1174,7 +1175,7 @@ export interface ComparativoColumna {
   /** null: tiene RFQ pero aun no cotiza. */
   quotationId: string | null;
   supplierQuoteNumber: string | null;
-  source: "OCR" | "MANUAL" | null;
+  source: OrigenCotizacion | null;
   currencyCode: string | null;
   paymentCondition: string | null;
   deliveryMode: string | null;
@@ -1287,4 +1288,76 @@ export interface AvanceItem {
   consolidationCode: string | null;
   orderId: string | null;
   orderCode: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Enlace del proveedor para cotizar en linea (DEC-L052)
+
+/** MANUAL: la registro Logistica; OCR: leida de su documento; ENLACE: la envio el proveedor. */
+export type OrigenCotizacion = "OCR" | "MANUAL" | "ENLACE";
+
+export interface EnlaceCotizacion {
+  /** Solo al generarlo: despues no se puede recuperar. */
+  url: string | null;
+  token: string | null;
+  creadoEl: string | null;
+  venceEl: string;
+  abiertoEl: string | null;
+  respondidoEl: string | null;
+  vigente: boolean;
+}
+
+export interface CotizacionPublicaLinea {
+  rfqItemId: string;
+  numero: number;
+  sku: string;
+  producto: string;
+  atributo: string | null;
+  unidad: string;
+  cantidad: number;
+  especificacion: string | null;
+}
+
+export interface CotizacionPublicaPrecio {
+  rfqItemId: string;
+  unitCost: number;
+  offeredBrand: string | null;
+  offeredModel: string | null;
+}
+
+export interface CotizacionPublica {
+  empresa: string;
+  rfqCode: string;
+  proveedor: string;
+  proveedorRuc: string;
+  fechaEmision: string;
+  monedaSolicitada: string | null;
+  plazoSolicitadoDias: number | null;
+  condicionPago: string | null;
+  modalidadEntrega: string | null;
+  lugarEntrega: string | null;
+  venceEl: string;
+  lineas: CotizacionPublicaLinea[];
+  monedas: Moneda[];
+  enviada: {
+    enviadaEl: string | null;
+    currencyCode: string;
+    paymentCondition: string;
+    deliveryMode: string;
+    leadDays: number | null;
+    expirationDate: string | null;
+    supplierQuoteNumber: string | null;
+    documentoNombre: string | null;
+    precios: CotizacionPublicaPrecio[];
+  } | null;
+}
+
+export interface EnviarCotizacionPublica {
+  currencyCode: string;
+  paymentCondition: string;
+  deliveryMode: string;
+  leadDays?: number;
+  expirationDate?: string;
+  supplierQuoteNumber?: string;
+  precios: { rfqItemId: string; unitCost: number; offeredBrand?: string; offeredModel?: string }[];
 }

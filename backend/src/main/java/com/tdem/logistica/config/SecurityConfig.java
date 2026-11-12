@@ -57,6 +57,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/health", "/api/auth/login").permitAll()
+                        // Enlace del proveedor (DEC-L052): lo autoriza el token, con tope por IP (LimiteSolicitudes).
+                        .requestMatchers("/api/publico/**").permitAll()
                         // Assets del SPA cuando el backend los sirve empaquetados (ver Dockerfile);
                         // en desarrollo local estas rutas simplemente no se piden (Vite corre aparte).
                         .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/favicon.svg").permitAll()
@@ -64,7 +66,7 @@ public class SecurityConfig {
                                 "/login", "/inicio", "/requerimientos/**", "/aprobaciones", "/presupuestos", "/presupuestos/**",
                                 "/stock", "/stock/ajustes", "/stock/carga", "/catalogo",
                                 "/proveedores", "/proveedores/**", "/compras", "/compras/**",
-                                "/almacen", "/almacen/**", "/admin", "/cambiar-password")
+                                "/almacen", "/almacen/**", "/admin", "/cambiar-password", "/cotizar/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

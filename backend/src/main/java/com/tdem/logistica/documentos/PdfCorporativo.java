@@ -172,6 +172,60 @@ public final class PdfCorporativo {
         y -= 6f;
     }
 
+    /**
+     * Recuadro con un QR a la izquierda y, a su lado, un titulo, un texto y la
+     * URL (DEC-L052: enlace del proveedor en la RFQ). El QR se dibuja con
+     * rectangulos, sin imagenes.
+     */
+    public void enlaceConQr(String tituloEnlace, String texto, String url) {
+        com.google.zxing.common.BitMatrix m;
+        try {
+            m = new com.google.zxing.qrcode.QRCodeWriter().encode(url, com.google.zxing.BarcodeFormat.QR_CODE, 0, 0,
+                    Map.of(com.google.zxing.EncodeHintType.MARGIN, 0,
+                            com.google.zxing.EncodeHintType.ERROR_CORRECTION,
+                            com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M));
+        } catch (com.google.zxing.WriterException e) {
+            throw new IllegalStateException("No se pudo generar el QR.", e);
+        }
+        float lado = 88f;
+        float modulo = lado / m.getWidth();
+        float alto = lado + 16f;
+        asegurarEspacio(alto + 8f);
+        float top = y - 8f;
+        float x0 = MARGEN + 8f;
+        float y0 = top - lado;
+        io(() -> {
+            cs.setStrokingColor(LINEA);
+            cs.setLineWidth(0.6f);
+            cs.addRect(MARGEN, top - alto + 8f, ANCHO, alto);
+            cs.stroke();
+            cs.setNonStrokingColor(Color.BLACK);
+            for (int fy = 0; fy < m.getHeight(); fy++) {
+                for (int fx = 0; fx < m.getWidth(); fx++) {
+                    if (m.get(fx, fy)) {
+                        cs.addRect(x0 + fx * modulo, y0 + (m.getHeight() - 1 - fy) * modulo, modulo, modulo);
+                    }
+                }
+            }
+            cs.fill();
+        });
+        float xt = x0 + lado + 14f;
+        float anchoTexto = MARGEN + ANCHO - xt - 8f;
+        float yl = top - 12f;
+        escribir(tituloEnlace, negrita, 10f, xt, yl, MARINO);
+        yl -= 14f;
+        for (String l : envolver(texto, normal, 8.5f, anchoTexto)) {
+            escribir(l, normal, 8.5f, xt, yl, TEXTO);
+            yl -= 11f;
+        }
+        yl -= 3f;
+        for (String l : envolver(url, normal, 7.5f, anchoTexto)) {
+            escribir(l, normal, 7.5f, xt, yl, MARINO);
+            yl -= 9.5f;
+        }
+        y = top - alto;
+    }
+
     /** Lineas etiqueta/valor alineadas a la derecha, bajo una tabla (totales). */
     public void totales(List<String[]> lineas) {
         for (String[] l : lineas) {

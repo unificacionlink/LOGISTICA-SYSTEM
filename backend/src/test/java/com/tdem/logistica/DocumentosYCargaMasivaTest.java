@@ -154,7 +154,7 @@ class DocumentosYCargaMasivaTest {
 		assertTrue(req.contains("REQUERIMIENTO") && req.contains("REQ-TEST-DOC") && req.contains("AC01001-00"), req);
 		assertTrue(req.contains("PLT-REQ v1") && req.contains("Página 1 de 1"), req);
 
-		String rfq = texto(documentosService.rfq(f.rfqId, logistica).contenido());
+		String rfq = texto(documentosService.rfq(f.rfqId, null, logistica).contenido());
 		assertTrue(rfq.contains("SOLICITUD DE COTIZACIÓN") && rfq.contains("RFQ-TEST-DOC") && rfq.contains("20111222333"), rfq);
 
 		String oc = texto(documentosService.orden(f.orderId, logistica).contenido());

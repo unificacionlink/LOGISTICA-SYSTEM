@@ -33,6 +33,15 @@ public class RealtimeNotifier {
         messagingTemplate.convertAndSendToUser(aprobadorUserId.toString(), "/queue/aprobaciones", dto);
     }
 
+    /** Aviso de que un proveedor respondio por su enlace (DEC-L052). */
+    public record CotizacionRecibida(UUID rfqId, String rfqCode, String proveedor) {
+    }
+
+    /** Solo a quien genero el enlace: es quien sigue esa solicitud. */
+    public void cotizacionPorEnlace(UUID userId, CotizacionRecibida dto) {
+        messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/cotizaciones", dto);
+    }
+
     /** Avisa solo al dueno del requerimiento (cualquier pestana suya conectada). */
     public void decisionTomada(UUID requesterUserId, RequerimientoDto dto) {
         messagingTemplate.convertAndSendToUser(requesterUserId.toString(), "/queue/mis-requerimientos", dto);

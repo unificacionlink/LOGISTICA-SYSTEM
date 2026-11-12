@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.36.0 — 2026-11-12
+
+Enlace del proveedor para cotizar en linea (DEC-L052).
+
+- **V25**: tabla `rfq_enlace` (hash SHA-256 del token, vence, anulado,
+  abierto, respondido) y `cotizacion.source` admite `ENLACE`.
+- **Backend**: `EnlaceCotizacionService` (generar, estado, anular, URL para el
+  PDF; publico: obtener y enviar), `EnlacePublicoController`
+  (`/api/publico/cotizacion/{token}`, GET y POST multipart `datos` + `archivo`),
+  `LimiteSolicitudes` (429 por IP en `/api/publico/**`), `GET/POST/DELETE
+  /api/compras/rfq/{id}/enlace`. `ComprasService`: `registrarCotizacionInterna`,
+  `descartarCotizacionInterna` y `guardarDocumento` sin rol para el enlace.
+  `CotizacionDto` trae `source`. PDF de la RFQ con QR (`?enlace=<token>`,
+  zxing core 3.5.3). `app.public-url` (`APP_PUBLIC_URL`, por defecto el primer
+  origen de CORS) y `app.publico.limite-por-minuto`.
+- **Frontend**: pagina publica `CotizarProveedor` (`/cotizar/:token`, fuera
+  del layout), `EnlaceProveedor` en el detalle de la RFQ (generar, copiar,
+  PDF con enlace, estado, generar otro, anular), el enlace va en el mensaje de
+  correo/WhatsApp, chip "Por enlace" en la RFQ y el comparativo, aviso en
+  tiempo real. `http.delete`.
+- **Pruebas**: `EnlaceCotizacionTest` (hash, PDF, sin datos internos, envio y
+  reemplazo, anular/regenerar/vencer/cerrar, ruta sin sesion y tope por IP).
+
 ## 0.35.0 — 2026-11-12
 
 - **Nuevo requerimiento**: `StockDisponible` recibe `enPedido` y muestra lo

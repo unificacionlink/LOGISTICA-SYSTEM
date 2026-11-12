@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.36.0",
+    titulo: "El proveedor cotiza desde un enlace",
+    cambios: [
+      "En cada solicitud de cotización puedes generar un enlace para el proveedor: lo abre sin usuario ni contraseña y pone sus precios sobre nuestros mismos productos.",
+      "El PDF de la solicitud puede llevar ese enlace con un código QR.",
+      "Su cotización llega sola al comparativo, marcada «Por enlace», y te avisa al instante.",
+      "El proveedor puede corregir su cotización mientras el enlace esté vigente; tú puedes anularlo o generar otro.",
+    ],
+  },
+  {
     version: "0.35.0",
     titulo: "El stock se descuenta mientras armas tu pedido",
     cambios: [

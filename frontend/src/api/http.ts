@@ -101,6 +101,7 @@ export const http = {
     request<T>(path, { method: "PUT", body: body !== undefined ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body !== undefined ? JSON.stringify(body) : undefined }),
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   // Sin header Content-Type manual: el navegador arma el boundary de multipart.
   postForm: <T>(path: string, form: FormData) =>
     fetchSeguro<T>(`${API_URL}${path}`, { method: "POST", credentials: "include", body: form }),

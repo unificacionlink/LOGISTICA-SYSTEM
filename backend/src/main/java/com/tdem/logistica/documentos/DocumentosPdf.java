@@ -87,6 +87,11 @@ final class DocumentosPdf {
     }
 
     static byte[] rfq(RfqDetalleDto d, String pie) {
+        return rfq(d, pie, null);
+    }
+
+    /** @param urlEnlace enlace del proveedor para cotizar en linea (DEC-L052), o null. */
+    static byte[] rfq(RfqDetalleDto d, String pie, String urlEnlace) {
         RfqDto q = d.rfq();
         PdfCorporativo pdf = new PdfCorporativo("SOLICITUD DE COTIZACIÓN", q.rfqCode(), d.empresaCode(), PLANTILLA_RFQ, pie);
         pdf.seccion("Proveedor y condiciones");
@@ -115,8 +120,13 @@ final class DocumentosPdf {
                 Columna.texto("Unidad", 1f),
                 Columna.numero("Cantidad", 1.1f),
                 Columna.texto("Especificación técnica", 3f)), filas);
+        if (urlEnlace != null) {
+            pdf.enlaceConQr("Cotice en línea", "Escanee el código o abra el enlace para poner sus precios sobre "
+                    + "estas mismas líneas. No necesita usuario ni contraseña.", urlEnlace);
+        }
         pdf.parrafo("La presente solicitud no constituye una Orden de Compra. Indicar en la cotización precio "
-                + "unitario, moneda, plazo de entrega, condición de pago y vigencia de la oferta.");
+                + "unitario, moneda, plazo de entrega, condición de pago y vigencia de la oferta. Si envía su propio "
+                + "formato, cite en cada línea el SKU de esta solicitud.");
         return pdf.terminar();
     }
 

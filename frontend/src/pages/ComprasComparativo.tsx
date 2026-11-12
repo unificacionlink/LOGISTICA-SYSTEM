@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AlertTriangle, Check, FileText, Loader2, ScanText, Trophy, Upload } from "lucide-react";
+import { AlertTriangle, Check, FileText, Link2, Loader2, ScanText, Trophy, Upload } from "lucide-react";
 import {
   adjudicarComparativo,
   descartarCotizacion,
@@ -475,6 +475,11 @@ export default function ComprasComparativo() {
                   {c.source === "OCR" && (
                     <Badge tone="azul">
                       <ScanText className="size-3" /> Leída por OCR
+                    </Badge>
+                  )}
+                  {c.source === "ENLACE" && (
+                    <Badge tone="azul">
+                      <Link2 className="size-3" /> Por enlace
                     </Badge>
                   )}
                   {reemplazo && <EstadoBorrador b={reemplazo} onRevisar={() => setAbierto(reemplazo.clave)} />}

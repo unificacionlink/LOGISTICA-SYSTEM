@@ -83,6 +83,12 @@
 			<artifactId>pdfbox</artifactId>
 			<version>3.0.7</version>
 		</dependency>
+		<!-- QR del enlace del proveedor en el PDF de la RFQ (DEC-L052); solo el nucleo, sin AWT extra. -->
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>3.5.3</version>
+		</dependency>
 		<!-- Excel: exportacion del Tracking (RF-081) y, mas adelante, plantillas de
 			 carga masiva de ingresos (RF-031). -->
 		<dependency>

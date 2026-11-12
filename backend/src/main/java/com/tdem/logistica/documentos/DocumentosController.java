@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -30,8 +31,10 @@ public class DocumentosController {
     }
 
     @GetMapping("/api/compras/rfq/{id}/pdf")
-    public ResponseEntity<byte[]> rfq(@PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return descargar(service.rfq(id, principal));
+    public ResponseEntity<byte[]> rfq(@PathVariable UUID id,
+                                      @RequestParam(value = "enlace", required = false) String enlace,
+                                      @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return descargar(service.rfq(id, enlace, principal));
     }
 
     @GetMapping("/api/compras/ordenes/{id}/pdf")

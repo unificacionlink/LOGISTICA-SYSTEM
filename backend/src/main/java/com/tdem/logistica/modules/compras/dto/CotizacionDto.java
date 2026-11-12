@@ -22,5 +22,7 @@ public record CotizacionDto(
         Integer leadDays,
         String status,
         String documentoUrl,
+        /** MANUAL, OCR o ENLACE (la envio el proveedor desde su enlace, DEC-L052). */
+        String source,
         List<CotizacionItemDto> items) {
 }
