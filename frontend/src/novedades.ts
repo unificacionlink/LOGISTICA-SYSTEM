@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.37.1",
+    titulo: "Reemplazar una cotización ganadora",
+    cambios: [
+      "Si vuelves a subir la cotización de un proveedor que ya ganó productos, la adjudicación pasa a la nueva.",
+      "Descartar una cotización ganadora deja sus productos sin adjudicar para elegir otra oferta, con aviso previo.",
+    ],
+  },
+  {
     version: "0.37.0",
     titulo: "El sistema aprende cómo llama cada proveedor a tus productos",
     cambios: [

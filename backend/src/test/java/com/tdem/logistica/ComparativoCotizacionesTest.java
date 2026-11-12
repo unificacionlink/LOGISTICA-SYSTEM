@@ -152,6 +152,21 @@ class ComparativoCotizacionesTest {
 		assertThrows(ApiException.class, () -> comparativo.adjudicar(new AdjudicarComparativoRequest(ids, elecciones), logistica));
 		assertEquals(2, abastecimiento.listarPorEmitir(logistica).size(), "una OC por proveedor ganador");
 
+		// --- Reemplazar la ganadora: la adjudicacion pasa a la nueva cotizacion ---
+		UUID ganadora = columna(adj, s1).quotationId();
+		c = registrar(ids, s1, ganadora, false, Map.of(cx, "78.00"));
+		assertEquals("ADJUDICADA", estado(cx));
+		assertEquals(precio(columna(c, s1), cx).quotationItemId(), fila(c, cx).adjudicadoQuotationItemId());
+		assertEquals("DESCARTADA", jdbc.queryForObject("select status from cotizacion where quotation_id = ?", String.class, ganadora));
+
+		// --- Descartar una ganadora: su producto vuelve a "en cotizacion" ---
+		compras.descartarCotizacion(columna(c, s2).quotationId(), logistica);
+		assertEquals("EN_COTIZACION", estado(cy));
+		assertEquals(1, abastecimiento.listarPorEmitir(logistica).size());
+		assertEquals(1, jdbc.queryForObject("""
+				select count(*) from log_cambios where entidad = 'CONSOLIDACION' and accion = 'DESADJUDICAR'
+				and entidad_id = ?""", Integer.class, cy));
+
 		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
 		assertThrows(ApiException.class, () -> comparativo.obtener(ids, solicitante));
 	}

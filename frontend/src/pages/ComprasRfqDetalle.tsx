@@ -250,6 +250,13 @@ export default function ComprasRfqDetalle() {
   }
 
   async function onDescartar(cotizacionId: string) {
+    const r = await confirmar({
+      titulo: "¿Descartar esta cotización?",
+      mensaje: "Deja de compararse; si ganó productos, quedarán sin adjudicar.",
+      confirmar: "Descartar",
+      peligro: true,
+    });
+    if (!r) return;
     setProcesandoId(cotizacionId);
     try {
       const res = await descartarCotizacion(cotizacionId);

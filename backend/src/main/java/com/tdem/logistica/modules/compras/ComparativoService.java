@@ -244,13 +244,19 @@ public class ComparativoService {
                 .filter(Proveedor::isActive)
                 .orElseThrow(() -> ApiException.badRequest("Selecciona un proveedor activo."));
 
+        // Lo que ganaba la cotizacion reemplazada pasa a la nueva (si vuelve a cotizarlo).
+        List<UUID> readjudicar = List.of();
         if (req.reemplazaQuotationId() != null) {
             Cotizacion anterior = cotizacionRepository.findDetalleById(req.reemplazaQuotationId())
                     .orElseThrow(() -> ApiException.notFound("La cotizacion a reemplazar no existe."));
             if (!anterior.getProveedor().getSupplierId().equals(proveedor.getSupplierId())) {
                 throw ApiException.badRequest("Solo puedes reemplazar una cotizacion del mismo proveedor.");
             }
+            if ("SELECCIONADA".equals(anterior.getStatus())) {
+                throw ApiException.badRequest("Esta cotizacion ya tiene orden de compra: no se puede reemplazar.");
+            }
             if (!"DESCARTADA".equals(anterior.getStatus())) {
+                readjudicar = compras.liberarAdjudicados(anterior.getQuotationId(), principal.userId());
                 compras.descartarCotizacion(anterior.getQuotationId(), principal);
             }
         }
@@ -318,6 +324,14 @@ public class ComparativoService {
                 blanco(req.supplierQuoteNumber()), req.issueDate(), req.expirationDate(), req.currencyCode(),
                 req.paymentCondition(), req.deliveryMode(), req.leadDays(), req.documentId(), items), principal);
         aprenderEquivalencias(req, cotizacion, lineaPorConsolidado, porId, proveedor, principal);
+        for (UUID cid : readjudicar) {
+            RfqItem li = lineaPorConsolidado.get(cid);
+            if (li == null) continue;
+            cotizacion.items().stream()
+                    .filter(i -> li.getRfqItemId().equals(i.rfqItemId()))
+                    .findFirst()
+                    .ifPresent(i -> abastecimiento.adjudicarLinea(cid, i.quotationItemId(), principal));
+        }
         if (req.leidaPorOcr()) {
             cotizacionRepository.findById(cotizacion.quotationId()).ifPresent(c -> c.setSource("OCR"));
         }

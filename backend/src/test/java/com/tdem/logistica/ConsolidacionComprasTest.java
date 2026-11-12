@@ -173,8 +173,6 @@ class ConsolidacionComprasTest {
 				() -> abastecimiento.adjudicar(cx.consolidationId(), linea(cot1, "AC01002"), logistica));
 		assertTrue(ajena.getMessage().contains("no corresponde"), ajena.getMessage());
 		abastecimiento.adjudicar(cy.consolidationId(), linea(cot1, "AC01002"), logistica);
-		assertThrows(ApiException.class, () -> compras.descartarCotizacion(cot1.quotationId(), logistica),
-				"tiene un producto adjudicado");
 
 		List<PorEmitirDto> porEmitir = abastecimiento.listarPorEmitir(logistica);
 		assertEquals(2, porEmitir.size());

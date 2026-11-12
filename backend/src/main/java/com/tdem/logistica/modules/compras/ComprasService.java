@@ -369,7 +369,32 @@ public class ComprasService {
     @Transactional
     public CotizacionDto descartarCotizacion(UUID cotizacionId, UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
+        liberarAdjudicados(cotizacionId, principal.userId());
         return descartarCotizacionInterna(cotizacionId);
+    }
+
+    /**
+     * Quita la adjudicacion (aun sin OC) de los productos que gano esta cotizacion:
+     * vuelven a "en cotizacion" para adjudicarlos a otra oferta. Devuelve sus consolidados.
+     */
+    @Transactional
+    List<UUID> liberarAdjudicados(UUID cotizacionId, UUID userId) {
+        List<UUID> liberados = new ArrayList<>();
+        for (com.tdem.logistica.entity.Consolidacion c : consolidacionRepository.bloquearAdjudicadasDe(cotizacionId)) {
+            UUID oferta = c.getAdjudicado().getQuotationItemId();
+            c.setAdjudicado(null);
+            c.setStatus(com.tdem.logistica.entity.Consolidacion.EN_COTIZACION);
+            c.setAwardedBy(null);
+            c.setAwardedAt(null);
+            consolidacionRepository.save(c);
+            auditoria.registrar("CONSOLIDACION", c.getConsolidationId(), "DESADJUDICAR",
+                    Map.of("estado", com.tdem.logistica.entity.Consolidacion.ADJUDICADA, "oferta", oferta),
+                    Map.of("estado", com.tdem.logistica.entity.Consolidacion.EN_COTIZACION,
+                            "motivo", "Cotizacion descartada o reemplazada"), userId);
+            liberados.add(c.getConsolidationId());
+        }
+        consolidacionRepository.flush();
+        return liberados;
     }
 
     /** Descarte sin validar rol (el enlace del proveedor reemplaza su envio anterior, DEC-L052). */

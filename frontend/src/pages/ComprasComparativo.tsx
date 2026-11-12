@@ -263,9 +263,16 @@ export default function ComprasComparativo() {
 
   async function onDescartar(c: ComparativoColumna) {
     if (!c.quotationId) return;
+    const suyas = new Set(c.precios.map((p) => p.quotationItemId));
+    const ganados = (comparativo?.filas ?? []).filter(
+      (f) => f.adjudicadoQuotationItemId && suyas.has(f.adjudicadoQuotationItemId),
+    ).length;
     const r = await confirmar({
       titulo: `¿Descartar la cotización de ${c.proveedorNombre}?`,
-      mensaje: "Deja de compararse; el documento sigue en su solicitud de cotización.",
+      mensaje:
+        ganados > 0
+          ? `Tiene ${ganados} producto(s) adjudicado(s): quedarán sin adjudicar para elegir otra oferta.`
+          : "Deja de compararse; el documento sigue en su solicitud de cotización.",
       confirmar: "Descartar",
       peligro: true,
     });

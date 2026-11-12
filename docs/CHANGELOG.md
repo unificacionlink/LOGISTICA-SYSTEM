@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.37.1 — 2026-11-12
+
+Reemplazar o descartar una cotizacion que ya gano productos.
+
+- **Reemplazo** (`ComparativoService.registrar`): lo adjudicado a la cotizacion
+  reemplazada pasa a la linea del mismo consolidado en la nueva; si la nueva no
+  lo cotiza, queda en cotizacion. Ya no responde "Tiene productos adjudicados".
+  Una cotizacion con OC (`SELECCIONADA`) no se reemplaza.
+- **Descartar** (`ComprasService.descartarCotizacion`): libera sus adjudicados
+  sin OC (vuelven a `EN_COTIZACION`, auditado `DESADJUDICAR`) en vez de
+  rechazar. El reenvio por enlace del proveedor sigue rechazandose si su
+  cotizacion ya gano productos.
+- Frontend: la confirmacion de descartar avisa cuantos productos quedan sin
+  adjudicar; la RFQ ahora tambien confirma antes de descartar.
+
 ## 0.37.0 — 2026-11-12
 
 Equivalencias por proveedor y revision asistida (DEC-L053).
