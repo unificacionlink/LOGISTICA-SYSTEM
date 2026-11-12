@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.38.1",
+    titulo: "Caja chica aunque haya stock",
+    cambios: [
+      "Si sugieres la caja chica del proyecto, el pedido llega a Logística aunque haya stock en el almacén.",
+      "En Necesidades, Logística ve cuánto hay en el almacén y puede usarlo o autorizar la caja chica.",
+    ],
+  },
+  {
     version: "0.38.0",
     titulo: "Caja chica del proyecto",
     cambios: [

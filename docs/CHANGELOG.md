@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.38.1 — 2026-11-12
+
+Caja chica sugerida con stock en el almacen (DEC-L054).
+
+- Si el solicitante sugiere la caja chica, la aprobacion **no aparta stock**
+  (`StockService.reservarDisponible`): todo lo pedido llega a Necesidades.
+- Nueva ruta `STOCK` en `decidirRuta` (no es estado): reserva del almacen
+  central lo disponible (`StockService.reservarParaItem`); si cubre todo, la
+  necesidad se elimina; si no, lo que falta sigue por decidir. Auditado
+  (`NECESIDAD_COMPRA` / `USAR_STOCK`).
+- `NecesidadDto.stockDisponible` en una consulta (`StockService.disponibles`);
+  Necesidades muestra "Almacen: N disp. · Usar".
+- Prueba `CajaChicaTest.conStockLogisticaDecideSiUsaElAlmacen`.
+
 ## 0.38.0 — 2026-11-12
 
 Caja chica del proyecto (DEC-L054).

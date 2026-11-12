@@ -144,6 +144,10 @@ public final class ComprasMapper {
 
     /** qty = lo que queda por atender en esa ruta (en Caja Chica, descontado lo ya comprado). */
     public static NecesidadDto toDto(NecesidadCompra n, BigDecimal qty) {
+        return toDto(n, qty, null);
+    }
+
+    public static NecesidadDto toDto(NecesidadCompra n, BigDecimal qty, BigDecimal stockDisponible) {
         Requerimiento r = n.getRequerimientoItem().getRequerimiento();
         Consolidacion c = n.getConsolidacion();
         return new NecesidadDto(
@@ -167,7 +171,8 @@ public final class ComprasMapper {
                 c != null ? c.getConsolidationCode() : null,
                 c != null ? c.getStatus() : null,
                 n.getCreatedAt(),
-                r.isPettyCashSuggested() ? r.getPettyCashSuggestionNote() : null);
+                r.isPettyCashSuggested() ? r.getPettyCashSuggestionNote() : null,
+                stockDisponible);
     }
 
     public static OrigenDto toOrigen(NecesidadCompra n) {

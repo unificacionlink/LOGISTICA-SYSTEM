@@ -75,7 +75,7 @@ export function listarNecesidades() {
   return http.get<Necesidad[]>("/api/compras/necesidades");
 }
 
-export function decidirRuta(needId: string, ruta: "COMPRA" | "CAJA_CHICA") {
+export function decidirRuta(needId: string, ruta: "COMPRA" | "CAJA_CHICA" | "STOCK") {
   return http.post<Necesidad>(`/api/compras/necesidades/${needId}/ruta`, { ruta });
 }
 

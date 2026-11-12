@@ -5,6 +5,7 @@ import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.common.Auditoria;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.cajachica.CajaChicaService;
+import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -43,7 +44,9 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AbastecimientoService {
 
-    private static final Set<String> RUTAS = Set.of(NecesidadCompra.COMPRA, NecesidadCompra.CAJA_CHICA);
+    /** STOCK: Logistica usa el almacen para una necesidad (DEC-L054); no es un estado. */
+    private static final String RUTA_STOCK = "STOCK";
+    private static final Set<String> RUTAS = Set.of(NecesidadCompra.COMPRA, NecesidadCompra.CAJA_CHICA, RUTA_STOCK);
     private static final Set<String> CANALES = Set.of("CORREO", "WHATSAPP", "OTRO");
     private static final List<String> CONSOLIDADOS_VIGENTES =
             List.of(Consolidacion.ABIERTA, Consolidacion.EN_COTIZACION, Consolidacion.ADJUDICADA);
@@ -64,6 +67,7 @@ public class AbastecimientoService {
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
     private final CajaChicaService cajaChicaService;
+    private final StockService stockService;
     private final OrigenCompras origen;
     private final Auditoria auditoria;
 
@@ -76,7 +80,7 @@ public class AbastecimientoService {
                                  CotizacionItemRepository cotizacionItemRepository,
                                  OrdenAbastecimientoRepository ordenRepository, OrdenItemRepository ordenItemRepository,
                                  ProveedorRepository proveedorRepository, ProductoRepository productoRepository,
-                                 UsuarioRepository usuarioRepository, CajaChicaService cajaChicaService,
+                                 UsuarioRepository usuarioRepository, CajaChicaService cajaChicaService, StockService stockService,
                                  OrigenCompras origen, Auditoria auditoria) {
         this.jdbc = jdbc;
         this.named = named;
@@ -94,6 +98,7 @@ public class AbastecimientoService {
         this.productoRepository = productoRepository;
         this.usuarioRepository = usuarioRepository;
         this.cajaChicaService = cajaChicaService;
+        this.stockService = stockService;
         this.origen = origen;
         this.auditoria = auditoria;
     }
@@ -182,11 +187,14 @@ public class AbastecimientoService {
         List<NecesidadCompra> needs = necesidadRepository.findByStatusIn(
                 List.of(NecesidadCompra.PENDIENTE_RUTA, NecesidadCompra.CAJA_CHICA));
         Map<UUID, BigDecimal> comprado = compradoPorCajaChica(needs.stream().map(NecesidadCompra::getNeedId).toList());
+        Map<UUID, BigDecimal> disponibles = stockService.disponibles(needs.stream()
+                .filter(n -> n.getVariante() != null).map(n -> n.getVariante().getVariantId()).distinct().toList());
         List<NecesidadDto> out = new ArrayList<>();
         for (NecesidadCompra n : needs) {
             BigDecimal resta = n.getQty().subtract(comprado.getOrDefault(n.getNeedId(), BigDecimal.ZERO));
             if (resta.signum() > 0) {
-                out.add(ComprasMapper.toDto(n, resta));
+                out.add(ComprasMapper.toDto(n, resta, n.getVariante() != null
+                        ? disponibles.getOrDefault(n.getVariante().getVariantId(), BigDecimal.ZERO) : BigDecimal.ZERO));
             }
         }
         return out;
@@ -221,6 +229,9 @@ public class AbastecimientoService {
         }
         NecesidadCompra n = necesidadRepository.bloquear(needId)
                 .orElseThrow(() -> ApiException.notFound("Necesidad no encontrada."));
+        if (RUTA_STOCK.equals(destino)) {
+            return usarStock(n, principal);
+        }
         String anterior = n.getStatus();
         if (anterior.equals(destino)) {
             throw ApiException.badRequest("La necesidad ya esta en esa ruta.");
@@ -265,6 +276,36 @@ public class AbastecimientoService {
             cajaChicaService.avisar(n.getRequerimientoItem().getRequerimiento(), "AUTORIZADA", null);
         }
         return ComprasMapper.toDto(n, n.getQty());
+    }
+
+    /**
+     * DEC-L054: Logistica atiende la necesidad con el almacen central. Reserva lo
+     * disponible; si cubre todo, la necesidad desaparece; si no, lo que falta
+     * sigue en la misma ruta para decidir.
+     */
+    private NecesidadDto usarStock(NecesidadCompra n, UsuarioPrincipal principal) {
+        if (!NecesidadCompra.PENDIENTE_RUTA.equals(n.getStatus()) && !NecesidadCompra.CAJA_CHICA.equals(n.getStatus())) {
+            throw ApiException.badRequest("Solo una necesidad por decidir o en caja chica puede usar stock.");
+        }
+        if (compradoPorCajaChica(List.of(n.getNeedId())).getOrDefault(n.getNeedId(), BigDecimal.ZERO).signum() > 0) {
+            throw ApiException.badRequest("Ya hay compras por caja chica para esta necesidad.");
+        }
+        BigDecimal reservado = stockService.reservarParaItem(n.getRequerimientoItem(), n.getQty());
+        if (reservado.signum() <= 0) {
+            throw ApiException.badRequest("No hay stock disponible de " + n.getProducto().getSkuBase() + " en el almacen.");
+        }
+        BigDecimal resta = n.getQty().subtract(reservado);
+        auditoria.registrar("NECESIDAD_COMPRA", n.getNeedId(), "USAR_STOCK",
+                Map.of("estado", n.getStatus(), "cantidad", n.getQty().toPlainString()),
+                Map.of("reservado", reservado.toPlainString(), "resta", resta.toPlainString()), principal.userId());
+        NecesidadDto dto = ComprasMapper.toDto(n, resta.max(BigDecimal.ZERO));
+        if (resta.signum() <= 0) {
+            necesidadRepository.delete(n);
+        } else {
+            n.setQty(resta);
+            necesidadRepository.save(n);
+        }
+        return dto;
     }
 
     // ================================================================ consolidados

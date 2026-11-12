@@ -30,6 +30,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -155,6 +156,47 @@ class CajaChicaTest {
 				.anyMatch(e -> e.accion().contains("caja chica del proyecto")));
 		assertEquals(6, jdbc.queryForObject("select count(*) from log_cambios where entidad = 'CAJA_CHICA'", Integer.class),
 				"registrar x2, observar, corregir, regularizar x2");
+	}
+
+	/** Con stock en el almacen: la sugerencia no reserva; Logistica decide si usa el stock. */
+	@Test
+	void conStockLogisticaDecideSiUsaElAlmacen() {
+		UsuarioPrincipal solicitante = principal("solicitante@logistica.test", "SOLICITANTE");
+		UsuarioPrincipal logistica = principal("logistica@logistica.test", "LOGISTICA");
+		UsuarioPrincipal aprobador = principal("aprobador@logistica.test", "APROBADOR");
+		jdbc.update("""
+				insert into movimiento_inventario (company_id, warehouse_id, product_id, variant_id, movement_type,
+				  qty, reference_type, reference_id, created_by)
+				select a.company_id, a.warehouse_id, v.product_id, v.variant_id, 'AJUSTE', 3, 'AJUSTE', gen_random_uuid(), ?
+				from almacen a join empresa e on e.company_id = a.company_id and e.code = 'TDEMSRL'
+				cross join producto_variante v where a.code = 'CENTRAL' and v.internal_variant_code = 'AC01003-00'""",
+				logistica.userId());
+
+		RequerimientoDto req = requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "NORMAL", "CONSUMO",
+				"Guantes para la obra del proyecto", LocalDate.now(LIMA).plusDays(5), List.of(item("AC01003-00", 5)),
+				true, null), solicitante);
+		requerimientos.enviar(req.id(), solicitante);
+		aprobaciones.decidir(requerimientos.obtener(req.id(), aprobador).pendingApprovalId(),
+				new DecidirAprobacionRequest("APROBADO", null, null), aprobador);
+		UUID item = itemDe(req.id(), "AC01003-00");
+		assertEquals(0, jdbc.queryForObject("select count(*) from reserva_stock where request_item_id = ?", Integer.class, item),
+				"la sugerencia no aparta stock al aprobar");
+
+		NecesidadDto n = abastecimiento.listarNecesidades(logistica).stream()
+				.filter(x -> x.requestId().equals(req.id())).findFirst().orElseThrow();
+		assertEquals(0, n.qty().compareTo(new BigDecimal("5")));
+		assertEquals(0, n.stockDisponible().compareTo(new BigDecimal("3")));
+
+		// --- Usar stock: reserva lo que hay y lo que falta sigue por decidir ---
+		abastecimiento.decidirRuta(n.needId(), "STOCK", logistica);
+		assertEquals(0, new BigDecimal("3").compareTo(jdbc.queryForObject(
+				"select sum(qty_reserved) from reserva_stock where request_item_id = ? and status = 'RESERVADA'",
+				BigDecimal.class, item)));
+		Map<String, Object> resto = jdbc.queryForMap("select status, qty from necesidad_compra where need_id = ?", n.needId());
+		assertEquals("PENDIENTE_RUTA", resto.get("status"));
+		assertEquals(0, new BigDecimal("2").compareTo((BigDecimal) resto.get("qty")));
+		ApiException sinStock = assertThrows(ApiException.class, () -> abastecimiento.decidirRuta(n.needId(), "STOCK", logistica));
+		assertTrue(sinStock.getMessage().contains("No hay stock"), sinStock.getMessage());
 	}
 
 	@Test

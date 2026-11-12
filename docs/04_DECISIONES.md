@@ -12,8 +12,11 @@ actualizar esta lista y el CHANGELOG.
     (`requerimiento.petty_cash_suggested/petty_cash_suggestion_note`, V27). Al
     aprobarse, el faltante queda PENDIENTE_RUTA con `suggested_reason =
     SOLICITANTE` (antes que las reglas de bajo monto / mismo dia / falla).
+  - **Con stock** (v0.38.1): si el solicitante la sugiere, la aprobacion no
+    aparta stock y todo lo pedido llega a Necesidades; ahi Logistica puede
+    "Usar" el almacen (reserva lo disponible; lo que falte sigue por decidir).
   - **Autorizacion**: Logistica decide en Necesidades ("Caja chica del
-    proyecto" o "Compra normal"); al pasarla a CAJA_CHICA se avisa al
+    proyecto", "Compra normal" o "Usar" stock); al pasarla a CAJA_CHICA se avisa al
     solicitante en vivo (`/user/queue/caja-chica`).
   - **Compra**: la registra el dueno del REQ (o Logistica en su nombre) en
     `/requerimientos/:id/caja-chica`, solo sobre lo autorizado, con el

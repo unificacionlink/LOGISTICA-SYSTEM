@@ -27,5 +27,7 @@ public record NecesidadDto(
         String consolidationStatus,
         Instant createdAt,
         /** DEC-L054: nota del solicitante al sugerir la caja chica del proyecto. */
-        String notaSolicitante) {
+        String notaSolicitante,
+        /** Disponible en el almacen central (solo en la bandeja de Necesidades). */
+        BigDecimal stockDisponible) {
 }

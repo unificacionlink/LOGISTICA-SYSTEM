@@ -118,7 +118,7 @@ export default function Compras() {
     }
   }
 
-  async function onRuta(n: Necesidad, ruta: "COMPRA" | "CAJA_CHICA") {
+  async function onRuta(n: Necesidad, ruta: "COMPRA" | "CAJA_CHICA" | "STOCK") {
     await ejecutar(n.needId, () => decidirRuta(n.needId, ruta), ["necesidades", "consolidados"]);
   }
 
@@ -233,7 +233,7 @@ function TablaNecesidades({
 }: {
   necesidades: Necesidad[];
   procesando: string | null;
-  onRuta: (n: Necesidad, ruta: "COMPRA" | "CAJA_CHICA") => void;
+  onRuta: (n: Necesidad, ruta: "COMPRA" | "CAJA_CHICA" | "STOCK") => void;
 }) {
   if (necesidades.length === 0) {
     return (
@@ -276,6 +276,19 @@ function TablaNecesidades({
               </td>
               <td className="whitespace-nowrap px-5 py-3 text-slate-700">
                 {cantidad(n.qty)} {n.unidadMedida}
+                {(n.stockDisponible ?? 0) > 0 && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Almacén: {cantidad(n.stockDisponible ?? 0)} disp. ·{" "}
+                    <button
+                      type="button"
+                      disabled={procesando === n.needId}
+                      onClick={() => onRuta(n, "STOCK")}
+                      className="font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                    >
+                      Usar
+                    </button>
+                  </p>
+                )}
               </td>
               <td className="px-5 py-3">
                 {n.status === "CAJA_CHICA" ? (

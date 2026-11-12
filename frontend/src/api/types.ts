@@ -361,6 +361,8 @@ export interface Necesidad {
   createdAt: string;
   /** DEC-L054: nota del solicitante al sugerir la caja chica. */
   notaSolicitante: string | null;
+  /** Disponible en el almacen central (solo en la bandeja de Necesidades). */
+  stockDisponible: number | null;
 }
 
 export interface OrigenConsolidado {

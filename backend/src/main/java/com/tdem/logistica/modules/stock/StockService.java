@@ -121,6 +121,11 @@ public class StockService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void reservarDisponible(Requerimiento r) {
+        // DEC-L054: si el solicitante sugiere la caja chica del proyecto no se aparta
+        // stock; Logistica decide en Necesidades si usa el almacen o la caja chica.
+        if (r.isPettyCashSuggested()) {
+            return;
+        }
         Almacen almacen = almacenCentral.bloquear();
         for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
             UUID variantId = item.getVariante() != null ? item.getVariante().getVariantId() : null;
@@ -139,6 +144,54 @@ public class StockService {
             reserva.setStatus("RESERVADA");
             reservaStockRepository.save(reserva);
         }
+    }
+
+    /**
+     * Aparta del almacen central para el item hasta {@code maximo} (Logistica
+     * elige "Usar stock" en una necesidad, DEC-L054). Devuelve lo reservado.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public BigDecimal reservarParaItem(RequerimientoItem item, BigDecimal maximo) {
+        Almacen almacen = almacenCentral.bloquear();
+        UUID variantId = item.getVariante() != null ? item.getVariante().getVariantId() : null;
+        BigDecimal aReservar = saldoDisponible(almacen, item.getProducto().getProductId(), variantId).min(maximo);
+        if (aReservar.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        ReservaStock reserva = new ReservaStock();
+        reserva.setReservationId(UUID.randomUUID());
+        reserva.setRequerimientoItem(item);
+        reserva.setAlmacen(almacen);
+        reserva.setProducto(item.getProducto());
+        reserva.setVariante(item.getVariante());
+        reserva.setQtyReserved(aReservar);
+        reserva.setStatus("RESERVADA");
+        reservaStockRepository.save(reserva);
+        return aReservar;
+    }
+
+    /** Disponible (fisico - reservado) del almacen central por variante, en una consulta. */
+    public Map<UUID, BigDecimal> disponibles(Collection<UUID> variantIds) {
+        Map<UUID, BigDecimal> out = new HashMap<>();
+        if (variantIds.isEmpty()) {
+            return out;
+        }
+        UUID almacen = almacenCentral.obtener().getWarehouseId();
+        String marcas = String.join(",", Collections.nCopies(variantIds.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(almacen);
+        args.add(almacen);
+        args.addAll(variantIds);
+        jdbc.query("""
+                select v.variant_id,
+                       coalesce((select sum(m.qty) from movimiento_inventario m
+                                  where m.warehouse_id = ? and m.variant_id = v.variant_id), 0)
+                     - coalesce((select sum(r.qty_reserved) from reserva_stock r
+                                  where r.warehouse_id = ? and r.variant_id = v.variant_id and r.status = 'RESERVADA'), 0)
+                  from producto_variante v where v.variant_id in (%s)""".formatted(marcas), rs -> {
+            out.put(rs.getObject(1, UUID.class), rs.getBigDecimal(2).max(BigDecimal.ZERO));
+        }, args.toArray());
+        return out;
     }
 
     /** Todo el catalogo con su stock: la pantalla filtra (con stock, sin stock, bajo minimo). */

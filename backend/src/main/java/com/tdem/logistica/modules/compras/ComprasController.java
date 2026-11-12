@@ -98,9 +98,14 @@ public class ComprasController {
             @Valid @RequestBody DecidirRutaRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
         NecesidadDto n = abastecimiento.decidirRuta(id, request.ruta(), principal);
-        return ApiResponse.ok(n, "COMPRA".equals(n.status())
-                ? "Agregado al consolidado " + n.consolidationCode() + "."
-                : "Ruta Caja Chica confirmada.");
+        String mensaje = "STOCK".equalsIgnoreCase(request.ruta().trim())
+                ? (n.qty().signum() > 0
+                    ? "Reservado del almacen; faltan " + n.qty().stripTrailingZeros().toPlainString() + " por decidir."
+                    : "Reservado del almacen: listo para despachar.")
+                : "COMPRA".equals(n.status())
+                    ? "Agregado al consolidado " + n.consolidationCode() + "."
+                    : "Caja chica del proyecto autorizada: se aviso al solicitante.";
+        return ApiResponse.ok(n, mensaje);
     }
 
     @GetMapping("/consolidados")
