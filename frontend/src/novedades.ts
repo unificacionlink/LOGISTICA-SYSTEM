@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.37.0",
+    titulo: "El sistema aprende cómo llama cada proveedor a tus productos",
+    cambios: [
+      "Al revisar una cotización ves qué línea del documento del proveedor se tomó para cada producto, y puedes elegir otra con «Cambiar».",
+      "Lo que confirmas se recuerda: la próxima cotización de ese proveedor reconoce sus nombres y códigos sola («Reconocido»).",
+      "La orden de compra muestra también cómo llama el proveedor a cada producto.",
+      "En la ficha del proveedor puedes revisar y quitar lo aprendido.",
+    ],
+  },
+  {
     version: "0.36.0",
     titulo: "El proveedor cotiza desde un enlace",
     cambios: [

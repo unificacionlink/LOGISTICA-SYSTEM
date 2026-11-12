@@ -2,6 +2,7 @@ package com.tdem.logistica.modules.compras;
 
 import com.tdem.logistica.modules.compras.dto.OcrCotizacionDto;
 import com.tdem.logistica.modules.compras.dto.OcrItemSugeridoDto;
+import com.tdem.logistica.modules.compras.dto.OcrLineaDto;
 
 import java.math.BigDecimal;
 import java.text.Normalizer;
@@ -53,9 +54,24 @@ public final class CotizacionOcrParser {
     private static final Set<String> PALABRAS_VACIAS = Set.of(
             "DE", "DEL", "LA", "LAS", "EL", "LOS", "PARA", "CON", "SIN", "POR", "UND", "UNID", "UNIDAD", "TIPO", "COLOR");
 
-    /** Lo que se busca de cada item en el documento: su codigo, su nombre y la cantidad pedida. */
-    public record ItemBuscado(String codigo, String nombre, BigDecimal qty) {
+    /** Lo que se busca de cada item en el documento: su codigo, su nombre, la cantidad pedida y lo aprendido del proveedor. */
+    public record ItemBuscado(String codigo, String nombre, BigDecimal qty, List<Equivalencia> equivalencias) {
+        public ItemBuscado(String codigo, String nombre, BigDecimal qty) {
+            this(codigo, nombre, qty, List.of());
+        }
     }
+
+    /** Como llama el proveedor al producto (DEC-L053): su codigo y su descripcion normalizada ({@link #clave}). */
+    public record Equivalencia(String codigo, String clave) {
+    }
+
+    public static final String ORIGEN_SKU = "SKU";
+    public static final String ORIGEN_EQUIVALENCIA = "EQUIVALENCIA";
+    public static final String ORIGEN_NOMBRE = "NOMBRE";
+
+    private static final Pattern PALABRA_NO_ITEM = Pattern.compile("(?i)\\b(SUB\\s*-?\\s*TOTAL|TOTAL|I\\.?G\\.?V|IMPUESTO|DESCUENTO)\\b");
+    private static final Pattern CODIGO_PROVEEDOR = Pattern.compile("^[A-Z0-9][A-Z0-9./-]{2,19}$");
+    private static final Pattern NUMERO_SUELTO = Pattern.compile("(?<![A-Z0-9])\\d+(?:[.,]\\d+)*(?![A-Z0-9])");
 
     private CotizacionOcrParser() {
     }
@@ -71,34 +87,50 @@ public final class CotizacionOcrParser {
         return parsearItems(texto, items);
     }
 
+    /** RUC del documento (para saber de que proveedor es antes de buscar sus equivalencias). */
+    public static String ruc(String texto) {
+        return buscarPrimero(RUC, texto, Matcher::group);
+    }
+
     /**
      * Como {@link #parsear(String, Map)}, pero si el codigo no aparece (lo normal: cada
-     * proveedor usa sus propios codigos) busca la linea que mas se parece al nombre del
-     * producto y, con la cantidad pedida, distingue el precio unitario del total de linea.
+     * proveedor usa sus propios codigos) busca primero lo aprendido de ese proveedor
+     * (DEC-L053) y luego la linea que mas se parece al nombre del producto; con la
+     * cantidad pedida distingue el precio unitario del total de linea.
      */
     public static OcrCotizacionDto parsearItems(String texto, Map<UUID, ItemBuscado> items) {
         Map<UUID, String> codigosPorItem = new LinkedHashMap<>();
         items.forEach((id, i) -> codigosPorItem.put(id, i.codigo()));
         String proveedor = detectarProveedor(texto);
-        String ruc = buscarPrimero(RUC, texto, Matcher::group);
+        String ruc = ruc(texto);
         LocalDate fecha = buscarFecha(texto);
         String moneda = detectarMoneda(texto);
         // El total final suele aparecer despues del subtotal/IGV en el documento;
         // se prefiere la ultima coincidencia en vez de la primera.
         BigDecimal total = buscarUltimo(TOTAL, texto, m -> parsearMonto(m.group(1)));
         Integer plazo = buscarPrimero(PLAZO, texto, m -> Integer.valueOf(m.group(1)));
-        List<OcrItemSugeridoDto> itemsSugeridos = sugerirCostosPorItem(texto, codigosPorItem);
+        List<OcrLineaDto> lineas = lineasConPrecio(texto);
+        List<OcrItemSugeridoDto> itemsSugeridos = sugerirCostosPorItem(texto, codigosPorItem, lineas);
         Set<UUID> encontrados = new java.util.HashSet<>();
         itemsSugeridos.forEach(i -> encontrados.add(i.rfqItemId()));
         for (Map.Entry<UUID, ItemBuscado> e : items.entrySet()) {
-            if (!encontrados.contains(e.getKey()) && e.getValue().nombre() != null) {
-                BigDecimal costo = costoPorNombre(texto, e.getValue());
-                if (costo != null) {
-                    itemsSugeridos.add(new OcrItemSugeridoDto(e.getKey(), e.getValue().codigo(), costo));
-                }
+            if (encontrados.contains(e.getKey())) continue;
+            ItemBuscado item = e.getValue();
+            OcrLineaDto porEquivalencia = lineaPorEquivalencia(lineas, item.equivalencias());
+            if (porEquivalencia != null) {
+                itemsSugeridos.add(new OcrItemSugeridoDto(e.getKey(), item.codigo(),
+                        unitarioDeLinea(porEquivalencia.importes(), item.qty()), porEquivalencia.indice(),
+                        ORIGEN_EQUIVALENCIA));
+                continue;
+            }
+            if (item.nombre() == null) continue;
+            OcrLineaDto porNombre = lineaPorNombre(lineas, item);
+            if (porNombre != null) {
+                itemsSugeridos.add(new OcrItemSugeridoDto(e.getKey(), item.codigo(),
+                        unitarioDeLinea(porNombre.importes(), item.qty()), porNombre.indice(), ORIGEN_NOMBRE));
             }
         }
-        return new OcrCotizacionDto(proveedor, ruc, fecha, moneda, total, plazo, itemsSugeridos, texto);
+        return new OcrCotizacionDto(proveedor, ruc, fecha, moneda, total, plazo, itemsSugeridos, texto, lineas);
     }
 
     /**
@@ -109,7 +141,8 @@ public final class CotizacionOcrParser {
      * corta antes de que empiece el codigo del siguiente item para no
      * "leer" montos que en realidad son de otra fila de la tabla.
      */
-    private static List<OcrItemSugeridoDto> sugerirCostosPorItem(String texto, Map<UUID, String> codigosPorItem) {
+    private static List<OcrItemSugeridoDto> sugerirCostosPorItem(String texto, Map<UUID, String> codigosPorItem,
+                                                                 List<OcrLineaDto> lineas) {
         List<OcrItemSugeridoDto> sugerencias = new ArrayList<>();
         if (texto == null || codigosPorItem == null || codigosPorItem.isEmpty()) return sugerencias;
         String textoMayus = texto.toUpperCase();
@@ -130,51 +163,60 @@ public final class CotizacionOcrParser {
             }
             BigDecimal sugerido = buscarMenorMonto(texto.substring(pos, finVentana));
             if (sugerido != null) {
-                sugerencias.add(new OcrItemSugeridoDto(entrada.getKey(), codigo, sugerido));
+                int indice = (int) texto.substring(0, pos).chars().filter(ch -> ch == '\n').count();
+                Integer conPrecio = lineas.stream().map(OcrLineaDto::indice).filter(i -> i == indice).findFirst()
+                        .orElse(null);
+                sugerencias.add(new OcrItemSugeridoDto(entrada.getKey(), codigo, sugerido, conPrecio, ORIGEN_SKU));
             }
         }
         return sugerencias;
     }
 
     /**
-     * La linea del texto con mas palabras del nombre del producto (al menos la mitad, y
-     * dos si el nombre tiene dos o mas). De sus importes, si la cantidad pedida se conoce,
-     * el unitario es el que multiplicado por ella da otro importe de la linea (el total);
-     * si no, el menor que no sea la propia cantidad.
+     * Lineas del documento que pueden ser un producto cotizado: tienen texto y
+     * importes (o sus importes quedaron en la linea siguiente, cuando el OCR parte
+     * la tabla). Se saltan totales, IGV y descuentos.
      */
-    static BigDecimal costoPorNombre(String texto, ItemBuscado item) {
-        if (texto == null) return null;
-        List<String> palabras = palabrasClave(item.nombre());
-        if (palabras.isEmpty()) return null;
-        int minimo = Math.max(palabras.size() >= 2 ? 2 : 1, (palabras.size() + 1) / 2);
+    public static List<OcrLineaDto> lineasConPrecio(String texto) {
+        List<OcrLineaDto> out = new ArrayList<>();
+        if (texto == null) return out;
         String[] lineas = texto.split("\\r?\\n");
-        int mejor = -1;
-        int mejorPuntaje = 0;
         for (int i = 0; i < lineas.length; i++) {
-            String linea = " " + normalizar(lineas[i]) + " ";
-            int puntaje = 0;
-            for (String p : palabras) {
-                // Prefijo de la palabra: "GUANTE" encuentra "GUANTES", "CASCO" encuentra "CASCOS".
-                if (linea.contains(" " + p.substring(0, Math.min(p.length(), 6)))) puntaje++;
+            String linea = lineas[i].trim();
+            if (!tieneTexto(linea) || PALABRA_NO_ITEM.matcher(normalizar(linea)).find()) continue;
+            List<BigDecimal> importes = importes(linea);
+            if (importes.isEmpty() && i + 1 < lineas.length && !tieneTexto(lineas[i + 1])) {
+                importes = importes(lineas[i + 1]);
             }
-            if (puntaje >= minimo && puntaje > mejorPuntaje) {
-                mejorPuntaje = puntaje;
-                mejor = i;
-            }
+            if (importes.isEmpty()) continue;
+            String descripcion = descripcionDe(linea);
+            if (descripcion.isBlank()) continue;
+            out.add(new OcrLineaDto(i, linea, descripcion, codigoDe(linea), importes));
         }
-        if (mejor < 0) return null;
-        List<BigDecimal> importes = importes(lineas[mejor]);
-        // Tablas partidas por el OCR: los importes pueden quedar en la linea siguiente.
-        if (importes.isEmpty() && mejor + 1 < lineas.length) importes = importes(lineas[mejor + 1]);
-        if (importes.isEmpty()) return null;
-        BigDecimal qty = item.qty();
-        if (qty != null && qty.signum() > 0) {
+        return out;
+    }
+
+    /** Clave para recordar una descripcion del proveedor: mayusculas, sin tildes, sin montos ni numeros sueltos. */
+    public static String clave(String descripcion) {
+        if (descripcion == null) return "";
+        String t = NUMERO_SUELTO.matcher(normalizar(descripcion)).replaceAll(" ");
+        t = t.replaceAll("[^A-Z0-9]+", " ").trim().replaceAll("\\s+", " ");
+        return t.length() > 250 ? t.substring(0, 250) : t;
+    }
+
+    /**
+     * Precio unitario de una linea: si la cantidad pedida se conoce, el importe que
+     * multiplicado por ella da otro importe de la linea (el total); si no, el menor
+     * que no sea la propia cantidad.
+     */
+    public static BigDecimal unitarioDeLinea(List<BigDecimal> importes, BigDecimal qty) {
+        if (importes == null || importes.isEmpty()) return null;
+        if (qty != null && qty.signum() > 0 && qty.compareTo(BigDecimal.ONE) != 0) {
             for (BigDecimal unitario : importes) {
                 BigDecimal esperado = unitario.multiply(qty);
                 for (BigDecimal total : importes) {
                     if (total != unitario && esperado.signum() > 0
-                            && esperado.subtract(total).abs().compareTo(esperado.multiply(new BigDecimal("0.01"))) <= 0
-                            && qty.compareTo(BigDecimal.ONE) != 0) {
+                            && esperado.subtract(total).abs().compareTo(esperado.multiply(new BigDecimal("0.01"))) <= 0) {
                         return unitario;
                     }
                 }
@@ -184,6 +226,86 @@ public final class CotizacionOcrParser {
                 .filter(m -> qty == null || m.compareTo(qty) != 0)
                 .min(BigDecimal::compareTo)
                 .orElse(importes.get(0));
+    }
+
+    /** Linea que coincide con lo aprendido del proveedor: su codigo exacto o su descripcion (DEC-L053). */
+    static OcrLineaDto lineaPorEquivalencia(List<OcrLineaDto> lineas, List<Equivalencia> equivalencias) {
+        if (equivalencias == null || equivalencias.isEmpty()) return null;
+        for (Equivalencia eq : equivalencias) {
+            if (eq.codigo() == null || eq.codigo().isBlank()) continue;
+            String codigo = normalizar(eq.codigo().trim());
+            for (OcrLineaDto l : lineas) {
+                if (codigo.equals(l.codigo()) || (" " + normalizar(l.texto()) + " ").contains(" " + codigo + " ")) {
+                    return l;
+                }
+            }
+        }
+        for (Equivalencia eq : equivalencias) {
+            if (eq.clave() == null || eq.clave().length() < 6) continue;
+            for (OcrLineaDto l : lineas) {
+                String c = clave(l.descripcion());
+                if (c.equals(eq.clave()) || (" " + c + " ").contains(" " + eq.clave() + " ")) {
+                    return l;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * La linea con mas palabras del nombre del producto (al menos la mitad, y
+     * dos si el nombre tiene dos o mas).
+     */
+    static OcrLineaDto lineaPorNombre(List<OcrLineaDto> lineas, ItemBuscado item) {
+        List<String> palabras = palabrasClave(item.nombre());
+        if (palabras.isEmpty()) return null;
+        int minimo = Math.max(palabras.size() >= 2 ? 2 : 1, (palabras.size() + 1) / 2);
+        OcrLineaDto mejor = null;
+        int mejorPuntaje = 0;
+        for (OcrLineaDto l : lineas) {
+            String linea = " " + normalizar(l.texto()) + " ";
+            int puntaje = 0;
+            for (String p : palabras) {
+                // Prefijo de la palabra: "GUANTE" encuentra "GUANTES", "CASCO" encuentra "CASCOS".
+                if (linea.contains(" " + p.substring(0, Math.min(p.length(), 6)))) puntaje++;
+            }
+            if (puntaje >= minimo && puntaje > mejorPuntaje) {
+                mejorPuntaje = puntaje;
+                mejor = l;
+            }
+        }
+        return mejor;
+    }
+
+    /** Compatibilidad: costo unitario por nombre, sin pasar por las lineas. */
+    static BigDecimal costoPorNombre(String texto, ItemBuscado item) {
+        if (texto == null) return null;
+        OcrLineaDto l = lineaPorNombre(lineasConPrecio(texto), item);
+        return l != null ? unitarioDeLinea(l.importes(), item.qty()) : null;
+    }
+
+    private static boolean tieneTexto(String linea) {
+        return linea != null && linea.chars().filter(Character::isLetter).count() >= 3;
+    }
+
+    /** Texto de la linea sin importes ni el numero de item del inicio. */
+    private static String descripcionDe(String linea) {
+        String t = NUMERO_CON_DECIMALES.matcher(linea).replaceAll(" ");
+        t = t.replaceAll("(?i)S/\\.?|US\\$|\\$", " ").replaceFirst("^\\s*\\d{1,3}[.)-]?\\s+", "");
+        t = t.trim().replaceAll("\\s+", " ");
+        return t.length() > 250 ? t.substring(0, 250) : t;
+    }
+
+    /** Codigo del proveedor si la linea (tras el numero de item) empieza con una palabra con letras y digitos. */
+    private static String codigoDe(String linea) {
+        String[] partes = normalizar(linea.trim()).split("\\s+");
+        int i = 0;
+        if (partes.length > 1 && partes[0].matches("\\d{1,3}[.)-]?")) i = 1;
+        if (i >= partes.length) return null;
+        String p = partes[i];
+        boolean letra = p.chars().anyMatch(Character::isLetter);
+        boolean digito = p.chars().anyMatch(Character::isDigit);
+        return letra && digito && CODIGO_PROVEEDOR.matcher(p).matches() ? p : null;
     }
 
     private static List<BigDecimal> importes(String linea) {

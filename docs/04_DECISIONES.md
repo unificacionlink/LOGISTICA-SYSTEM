@@ -5,6 +5,33 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L053 — Equivalencias por proveedor y revision asistida (2026-11-12).**
+  Para los proveedores que igual mandan su propio PDF (sin usar el enlace de
+  DEC-L052) con otros nombres y codigos.
+  - **Revision asistida**: la lectura devuelve las lineas del documento con
+    importes (`CotizacionOcrParser.lineasConPrecio`: con texto, sin totales,
+    IGV ni descuentos; si la tabla esta partida toma los importes de la linea
+    siguiente) y, por producto, de que linea salio el precio y como
+    (`SKU`, `EQUIVALENCIA` o `NOMBRE`). En "Revisar cotizacion" cada producto
+    muestra "En la cotizacion: «...»" y "Cambiar" / "Elegir linea del
+    documento"; elegir propone el precio con la misma regla unitario/total
+    (`unitarioDeLinea`). Un precio escrito a mano sin linea no se aprende.
+  - **Equivalencias** (`proveedor_equivalencia`, Flyway V26): al guardar, cada
+    linea confirmada se recuerda para ese proveedor y producto/variante, con
+    su codigo (si la linea empieza con uno) y su descripcion normalizada
+    (`CotizacionOcrParser.clave`: mayusculas, sin tildes, sin montos ni
+    numeros sueltos). La misma descripcion confirmada para otro producto
+    reemplaza a la anterior y se audita (`CAMBIAR_EQUIVALENCIA`).
+  - **Orden de busqueda** por producto: nuestro SKU, luego lo aprendido de ese
+    proveedor (codigo exacto o descripcion), luego el nombre. El proveedor
+    sale de la columna o del elegido; si no, de su RUC.
+  - Lo que escribio el proveedor queda en `cotizacion_item.supplier_code/
+    supplier_description`; la OC lo muestra como "Ref. proveedor" (pantalla
+    y PDF) para que el proveedor reconozca su producto.
+  - Ficha del proveedor: seccion plegable "Como llama a nuestros productos"
+    para quitar una equivalencia mal aprendida (auditado). Las cotizaciones
+    por enlace ya vienen emparejadas y no generan equivalencias.
+
 - **DEC-L052 — Enlace unico para que el proveedor cotice en linea (2026-11-12).**
   El usuario: los proveedores cotizan con sus propios nombres y codigos, y
   muchos generan la cotizacion desde su sistema, asi que no pueden citar

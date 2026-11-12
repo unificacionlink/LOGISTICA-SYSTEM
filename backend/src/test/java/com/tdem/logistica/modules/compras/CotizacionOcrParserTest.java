@@ -104,4 +104,71 @@ class CotizacionOcrParserTest {
         assertTrue(!costos.containsKey(guantes), "lo que el proveedor no cotiza no se inventa");
         assertEquals("20100000021", datos.rucDetectado());
     }
+
+    // ---------------------------------------------------------------- DEC-L053
+
+    /** Proveedor que llama distinto a nuestros productos: nada en comun con el nombre. */
+    static final String OTROS_NOMBRES =
+            "SEGURIDAD INDUSTRIAL NORTE S.A.C.\n"
+                    + "RUC 20100000041\n"
+                    + "ITEM CODIGO DESCRIPCION CANT P.UNIT TOTAL\n"
+                    + "1 VG-2231 Prot. craneal dielec. azul V-Gard 5 48.00 240.00\n"
+                    + "2 Lente oscuro sombra 11\n"
+                    + "3 12.50 37.50\n"
+                    + "SUB TOTAL 277.50\n"
+                    + "IGV 18% 49.95\n";
+
+    @Test
+    void reconoceLoAprendidoDelProveedorPorCodigoYPorDescripcion() {
+        UUID casco = UUID.randomUUID();
+        UUID lente = UUID.randomUUID();
+        Map<UUID, CotizacionOcrParser.ItemBuscado> items = new java.util.LinkedHashMap<>();
+        items.put(casco, new CotizacionOcrParser.ItemBuscado("EP02003-00", "CASCO AZUL C/SUPRESOR DIELECTRICO",
+                new BigDecimal("5"), List.of(new CotizacionOcrParser.Equivalencia("VG-2231", "OTRA COSA"))));
+        items.put(lente, new CotizacionOcrParser.ItemBuscado("EP01009-00", "LUNA PARA CARETA", new BigDecimal("3"),
+                List.of(new CotizacionOcrParser.Equivalencia(null, CotizacionOcrParser.clave("Lente oscuro sombra 11")))));
+
+        OcrCotizacionDto datos = CotizacionOcrParser.parsearItems(OTROS_NOMBRES, items);
+
+        OcrItemSugeridoDto c = sugerencia(datos, casco);
+        OcrItemSugeridoDto l = sugerencia(datos, lente);
+        assertEquals(CotizacionOcrParser.ORIGEN_EQUIVALENCIA, c.origen(), "por el codigo del proveedor");
+        assertEquals(0, new BigDecimal("48.00").compareTo(c.costoSugerido()));
+        assertEquals(CotizacionOcrParser.ORIGEN_EQUIVALENCIA, l.origen(), "por su descripcion, con la tabla partida");
+        assertEquals(0, new BigDecimal("12.50").compareTo(l.costoSugerido()));
+        assertEquals(3, c.indiceLinea());
+        assertEquals(4, l.indiceLinea());
+    }
+
+    @Test
+    void sinEquivalenciasNiPalabrasEnComunNoAdivina() {
+        UUID casco = UUID.randomUUID();
+        OcrCotizacionDto datos = CotizacionOcrParser.parsearItems(OTROS_NOMBRES, Map.of(casco,
+                new CotizacionOcrParser.ItemBuscado("EP02001-00", "CASCO DE SEGURIDAD BLANCO", new BigDecimal("5"))));
+        assertTrue(datos.itemsSugeridos().isEmpty(), "la revision asistida lo resuelve eligiendo la linea");
+        assertEquals(2, datos.lineas().size(), "las dos lineas con precio, sin subtotal ni IGV");
+        assertEquals("VG-2231", datos.lineas().get(0).codigo());
+        assertEquals("VG-2231 Prot. craneal dielec. azul V-Gard 5", datos.lineas().get(0).descripcion());
+        assertEquals("Lente oscuro sombra", datos.lineas().get(1).descripcion().substring(0, 19));
+    }
+
+    @Test
+    void elSkuTienePrioridadSobreLaEquivalencia() {
+        UUID item = UUID.randomUUID();
+        String texto = "1 SPNGA10 Esponja\n2 Otra cosa VG-2231 9.00 9.00\n20 S/. 559 S/. 11,180.00\n";
+        OcrCotizacionDto datos = CotizacionOcrParser.parsearItems(texto, Map.of(item, new CotizacionOcrParser.ItemBuscado(
+                "SPNGA10", "ESPONJA", new BigDecimal("20"), List.of(new CotizacionOcrParser.Equivalencia("VG-2231", null)))));
+        assertEquals(CotizacionOcrParser.ORIGEN_SKU, sugerencia(datos, item).origen());
+    }
+
+    @Test
+    void unitarioDeLineaYClave() {
+        List<BigDecimal> importes = List.of(new BigDecimal("48.00"), new BigDecimal("240.00"));
+        assertEquals(0, new BigDecimal("48.00").compareTo(CotizacionOcrParser.unitarioDeLinea(importes, new BigDecimal("5"))));
+        assertEquals("PROT CRANEAL DIELEC AZUL V GARD", CotizacionOcrParser.clave("1 Prot. cráneal dielec. azul V-Gard 48.00"));
+    }
+
+    private static OcrItemSugeridoDto sugerencia(OcrCotizacionDto d, UUID id) {
+        return d.itemsSugeridos().stream().filter(s -> s.rfqItemId().equals(id)).findFirst().orElseThrow();
+    }
 }

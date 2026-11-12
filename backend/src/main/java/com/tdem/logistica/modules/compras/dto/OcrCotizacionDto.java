@@ -19,5 +19,7 @@ public record OcrCotizacionDto(
         BigDecimal totalDetectado,
         Integer plazoDetectadoDias,
         List<OcrItemSugeridoDto> itemsSugeridos,
-        String textoDetectado) {
+        String textoDetectado,
+        /** Lineas del documento con importes (DEC-L053), para elegir otra en la revision. */
+        List<OcrLineaDto> lineas) {
 }

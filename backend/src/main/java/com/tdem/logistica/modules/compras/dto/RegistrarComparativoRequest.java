@@ -38,6 +38,9 @@ public record RegistrarComparativoRequest(
             BigDecimal unitCost,
             @DecimalMin(value = "1", message = "La cantidad debe ser al menos 1.") @Digits(integer = 6, fraction = 0, message = "La cantidad debe ser un numero entero de hasta 6 digitos.") BigDecimal qty,
             String offeredBrand,
-            String offeredModel) {
+            String offeredModel,
+            /** Linea del documento del proveedor que Logistica confirmo para este producto (DEC-L053). */
+            @Size(max = 250, message = "La descripcion del proveedor admite hasta 250 caracteres.") String supplierDescription,
+            @Size(max = 60, message = "El codigo del proveedor admite hasta 60 caracteres.") String supplierCode) {
     }
 }

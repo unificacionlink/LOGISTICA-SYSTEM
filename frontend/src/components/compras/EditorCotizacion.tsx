@@ -8,13 +8,15 @@ import type {
   ComparativoFila,
   Moneda,
   OcrComparativo,
+  OcrLinea,
   Proveedor,
 } from "../../api/types";
+import LineaDocumento from "./LineaDocumento";
 import Alert from "../ui/Alert";
 import Button from "../ui/Button";
 import Field, { inputClass } from "../ui/Field";
 import { CONDICIONES, ENTREGAS } from "./condiciones";
-import { cantidad, dinero } from "./formato";
+import { cantidad, dinero, unitarioDeLinea } from "./formato";
 import ProveedorCombobox from "./ProveedorCombobox";
 
 import CampoNumero from "../ui/CampoNumero";
@@ -61,6 +63,10 @@ export default function EditorCotizacion({
   const [precios, setPrecios] = useState<Record<string, string>>(() =>
     Object.fromEntries(filas.map((f) => [f.consolidationId, aTexto(ocr?.precios[f.consolidationId])])),
   );
+  // Linea del documento elegida por producto (DEC-L053): parte de lo que encontro la lectura.
+  const [lineaDe, setLineaDe] = useState<Record<string, number | null>>(() =>
+    Object.fromEntries(filas.map((f) => [f.consolidationId, ocr?.coincidencias?.[f.consolidationId]?.indiceLinea ?? null])),
+  );
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verTexto, setVerTexto] = useState(false);
@@ -101,6 +107,12 @@ export default function EditorCotizacion({
       ? ocr.rucDetectado
       : null;
 
+  function elegirLinea(f: ComparativoFila, l: OcrLinea | null) {
+    setLineaDe((p) => ({ ...p, [f.consolidationId]: l?.indice ?? null }));
+    const u = l ? unitarioDeLinea(l.importes, f.totalQty) : null;
+    setPrecios((p) => ({ ...p, [f.consolidationId]: u != null ? String(u) : "" }));
+  }
+
   async function onGuardar(e: React.FormEvent) {
     e.preventDefault();
     if (!supplierId) {
@@ -109,7 +121,15 @@ export default function EditorCotizacion({
     }
     const items = filas
       .filter((f) => precios[f.consolidationId]?.trim())
-      .map((f) => ({ consolidationId: f.consolidationId, unitCost: Number(precios[f.consolidationId]) }));
+      .map((f) => {
+        const l = ocr?.lineas.find((x) => x.indice === lineaDe[f.consolidationId]);
+        return {
+          consolidationId: f.consolidationId,
+          unitCost: Number(precios[f.consolidationId]),
+          supplierDescription: l?.descripcion,
+          supplierCode: l?.codigo ?? undefined,
+        };
+      });
     if (items.length === 0) {
       setError("Ingresa el precio de al menos un producto.");
       return;
@@ -302,6 +322,18 @@ export default function EditorCotizacion({
                             {f.atributo && <span className="text-slate-400"> · {f.atributo}</span>}
                           </p>
                           <p className="font-mono text-xs text-slate-500">{f.codigo}</p>
+                          {ocr && ocr.lineas?.length > 0 && (
+                            <LineaDocumento
+                              lineas={ocr.lineas}
+                              indice={lineaDe[f.consolidationId] ?? null}
+                              reconocida={
+                                ocr.coincidencias?.[f.consolidationId]?.origen === "EQUIVALENCIA" &&
+                                lineaDe[f.consolidationId] === ocr.coincidencias[f.consolidationId].indiceLinea
+                              }
+                              producto={f.nombreProducto}
+                              onElegir={(l) => elegirLinea(f, l)}
+                            />
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right text-slate-600">
                           {cantidad(f.totalQty)} <span className="text-xs text-slate-400">{f.unidadMedida}</span>

@@ -6,6 +6,7 @@ import Button from "../components/ui/Button";
 import { Card, CardBody } from "../components/ui/Card";
 import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
+import EquivalenciasProveedor from "../components/proveedores/EquivalenciasProveedor";
 import { Skeleton } from "../components/ui/Skeleton";
 
 export default function ProveedorForm() {
@@ -191,6 +192,7 @@ export default function ProveedorForm() {
           </CardBody>
         </Card>
       )}
+      {editando && id && !cargando && !errorCarga && <EquivalenciasProveedor supplierId={id} />}
     </div>
   );
 }

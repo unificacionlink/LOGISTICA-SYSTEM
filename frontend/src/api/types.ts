@@ -482,6 +482,8 @@ export interface OrdenItem {
   qtyOrdered: number;
   unitCost: number;
   lineTotal: number;
+  /** Como llama el proveedor a este producto en su cotizacion (DEC-L053). */
+  referenciaProveedor: string | null;
 }
 
 export interface OrdenDetalle {
@@ -1202,6 +1204,18 @@ export interface OcrComparativo {
   /** consolidationId -> costo unitario leido. */
   precios: Record<string, number>;
   textoDetectado: string;
+  /** consolidationId -> de que linea salio el precio y como se encontro (DEC-L053). */
+  coincidencias: Record<string, { indiceLinea: number | null; origen: "SKU" | "EQUIVALENCIA" | "NOMBRE" }>;
+  /** Lineas del documento con importes, para elegir otra en la revision. */
+  lineas: OcrLinea[];
+}
+
+export interface OcrLinea {
+  indice: number;
+  texto: string;
+  descripcion: string;
+  codigo: string | null;
+  importes: number[];
 }
 
 // ---------------------------------------------------------------------------
@@ -1360,4 +1374,17 @@ export interface EnviarCotizacionPublica {
   expirationDate?: string;
   supplierQuoteNumber?: string;
   precios: { rfqItemId: string; unitCost: number; offeredBrand?: string; offeredModel?: string }[];
+}
+
+/** Como llama un proveedor a uno de nuestros productos (DEC-L053). */
+export interface EquivalenciaProveedor {
+  equivalenceId: string;
+  supplierDescription: string;
+  supplierCode: string | null;
+  skuBase: string;
+  codigoVariante: string | null;
+  nombreProducto: string;
+  atributo: string | null;
+  timesUsed: number;
+  lastUsedAt: string | null;
 }

@@ -63,8 +63,9 @@ public class ComprasController {
     public ApiResponse<OcrComparativoDto> leerCotizacion(
             @RequestParam("ids") List<UUID> ids,
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "supplierId", required = false) UUID supplierId,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        OcrComparativoDto ocr = comparativo.leer(ids, file, principal);
+        OcrComparativoDto ocr = comparativo.leer(ids, file, supplierId, principal);
         return ApiResponse.ok(ocr, ocr.precios().isEmpty()
                 ? "No se reconocieron precios: ingresalos a mano."
                 : ocr.precios().size() + " precio(s) leido(s): revisalos antes de guardar.");

@@ -150,6 +150,9 @@ final class DocumentosPdf {
         int n = 1;
         for (OrdenItemDto i : d.items()) {
             String descripcion = i.nombreProducto() != null ? producto(i.nombreProducto(), i.atributo()) : texto(i.description());
+            if (i.referenciaProveedor() != null && !i.referenciaProveedor().isBlank()) {
+                descripcion += "\nRef. proveedor: " + i.referenciaProveedor();
+            }
             filas.add(List.of(String.valueOf(n++), sku(i.skuBase(), i.codigoVariante()), descripcion,
                     texto(i.unidadMedida()), cantidad(i.qtyOrdered()), monto(i.unitCost()), monto(i.lineTotal())));
         }

@@ -94,7 +94,7 @@ class BandejaTest {
 		UUID prov = jdbc.queryForObject("insert into proveedor (ruc, legal_name) values ('20100000099', 'Prov') returning supplier_id", UUID.class);
 		ComparativoDto c = comparativo.registrar(new RegistrarComparativoRequest(prov, List.of(cons), null, null, null, "PEN",
 				"CONTADO", "AGENCIA", 3, null, null, false,
-				List.of(new RegistrarComparativoRequest.Precio(cons, new BigDecimal("50"), null, null, null))), log);
+				List.of(new RegistrarComparativoRequest.Precio(cons, new BigDecimal("50"), null, null, null, null, null))), log);
 		assertEquals(List.of("ADJUDICAR"), codigos(fila(b, log)));
 		assertEquals(cons.toString(), fila(b, log).acciones().get(0).destino());
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.37.0 — 2026-11-12
+
+Equivalencias por proveedor y revision asistida (DEC-L053).
+
+- **V26**: tabla `proveedor_equivalencia` (unica por proveedor + descripcion
+  normalizada) y `cotizacion_item.supplier_code/supplier_description`.
+- **Parser**: `lineasConPrecio`, `clave`, `unitarioDeLinea`, `ruc`;
+  `ItemBuscado` con equivalencias; cada sugerencia trae `indiceLinea` y
+  `origen` (SKU > EQUIVALENCIA > NOMBRE). `OcrCotizacionDto.lineas`.
+- **Comparativo**: `leer` acepta `supplierId` y busca con lo aprendido;
+  `OcrComparativoDto.coincidencias` y `lineas`. `registrar` guarda la linea
+  confirmada en `cotizacion_item` y hace upsert de la equivalencia (auditado
+  si cambia de producto).
+- **Proveedores**: `GET /api/proveedores/{id}/equivalencias` y `DELETE
+  /api/proveedores/equivalencias/{id}` (`EquivalenciaService`).
+- **OC**: `OrdenItemDto.referenciaProveedor` (una consulta) en pantalla y PDF.
+- **Frontend**: `LineaDocumento` en `EditorCotizacion` (Cambiar / Elegir
+  linea, chip "Reconocido"), `unitarioDeLinea` en `compras/formato.ts`,
+  `EquivalenciasProveedor` plegable en la ficha del proveedor.
+- **Pruebas**: `CotizacionOcrParserTest` (codigo y descripcion aprendidos,
+  tabla partida, prioridad del SKU, clave) y `ComparativoCotizacionesTest`
+  (aprende, reconoce, reemplaza y audita, Ref. proveedor en la OC, quitar).
+
 ## 0.36.0 — 2026-11-12
 
 Enlace del proveedor para cotizar en linea (DEC-L052).

@@ -49,4 +49,11 @@ public class CotizacionItem {
 
     @Column(name = "offered_model")
     private String offeredModel;
+
+    /** Codigo y descripcion que uso el proveedor para esta linea (DEC-L053). */
+    @Column(name = "supplier_code")
+    private String supplierCode;
+
+    @Column(name = "supplier_description")
+    private String supplierDescription;
 }

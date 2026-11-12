@@ -120,6 +120,11 @@ public final class ComprasMapper {
     }
 
     public static OrdenItemDto toDto(OrdenItem i) {
+        return toDto(i, null);
+    }
+
+    /** @param referenciaProveedor descripcion del proveedor en su cotizacion (DEC-L053), o null. */
+    public static OrdenItemDto toDto(OrdenItem i, String referenciaProveedor) {
         // SKU/atributo/variante salen de lo efectivamente cotizado y ordenado
         // (i.getProducto()/i.getVariante()), no del requerimiento_item original:
         // la cotizacion ganadora puede ofrecer una marca/modelo distinto.
@@ -133,7 +138,8 @@ public final class ComprasMapper {
                 i.getUom() != null ? i.getUom().getCode() : null,
                 i.getQtyOrdered(),
                 i.getUnitCost(),
-                i.getLineTotal());
+                i.getLineTotal(),
+                referenciaProveedor);
     }
 
     /** qty = lo que queda por atender en esa ruta (en Caja Chica, descontado lo ya comprado). */

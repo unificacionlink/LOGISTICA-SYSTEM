@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,7 @@ public class ComprasService {
     private final Auditoria auditoria;
     private final OrigenCompras origen;
     private final CajaChicaService cajaChicaService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public ComprasService(
             RequerimientoRepository requerimientoRepository,
@@ -83,7 +85,9 @@ public class ComprasService {
             OcrExtractor ocrExtractor,
             Auditoria auditoria,
             OrigenCompras origen,
-            CajaChicaService cajaChicaService) {
+            CajaChicaService cajaChicaService,
+            org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
         this.necesidadRepository = necesidadRepository;
@@ -400,8 +404,20 @@ public class ComprasService {
         exigirLogisticaOAdmin(principal);
         OrdenAbastecimiento orden = ordenAbastecimientoRepository.findDetalleById(orderId)
                 .orElseThrow(() -> ApiException.notFound("Orden de compra no encontrada."));
+        // Como llamo el proveedor a cada linea en la cotizacion de esta OC (DEC-L053), en una consulta.
+        Map<UUID, String> referencias = new HashMap<>();
+        jdbc.query("""
+                select distinct on (oi.order_item_id) oi.order_item_id, ci.supplier_description
+                  from orden_item oi
+                  join orden_abastecimiento o on o.order_id = oi.order_id
+                  join rfq_item ri on ri.consolidation_id = oi.consolidation_id
+                  join cotizacion_item ci on ci.rfq_item_id = ri.rfq_item_id and ci.quotation_id = o.quotation_id
+                 where oi.order_id = ? and ci.supplier_description is not null""",
+                rs -> {
+                    referencias.put(rs.getObject(1, UUID.class), rs.getString(2));
+                }, orderId);
         List<OrdenItemDto> items = ordenItemRepository.findByOrden(orderId).stream()
-                .map(ComprasMapper::toDto)
+                .map(i -> ComprasMapper.toDto(i, referencias.get(i.getOrderItemId())))
                 .toList();
         return new OrdenDetalleDto(ComprasMapper.toDto(orden, origen.deOrden(orderId)), items,
                 orden.getProveedor().getRuc(), orden.getEmpresa().getCode());

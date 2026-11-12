@@ -5,6 +5,10 @@ import com.tdem.logistica.modules.aprobaciones.AprobacionService;
 import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
 import com.tdem.logistica.modules.compras.AbastecimientoService;
 import com.tdem.logistica.modules.compras.ComparativoService;
+import com.tdem.logistica.modules.compras.ComprasService;
+import com.tdem.logistica.modules.compras.CotizacionOcrParser;
+import com.tdem.logistica.modules.proveedores.EquivalenciaService;
+import com.tdem.logistica.modules.proveedores.dto.EquivalenciaDto;
 import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
@@ -61,6 +65,8 @@ class ComparativoCotizacionesTest {
 	@Autowired private AbastecimientoService abastecimiento;
 	@Autowired private ComparativoService comparativo;
 	@Autowired private RequerimientoService requerimientos;
+	@Autowired private ComprasService compras;
+	@Autowired private EquivalenciaService equivalencias;
 	@MockitoBean private OcrExtractor ocr;
 
 	@DynamicPropertySource
@@ -103,7 +109,7 @@ class ComparativoCotizacionesTest {
 
 		// --- Lectura: proveedor por RUC y precio unitario por nombre de producto ---
 		when(ocr.extraerTexto(any(), anyString())).thenReturn(COTIZACION);
-		OcrComparativoDto leida = comparativo.leer(ids, archivo(), logistica);
+		OcrComparativoDto leida = comparativo.leer(ids, archivo(), null, logistica);
 		assertEquals(s3, leida.supplierId());
 		assertEquals(0, new BigDecimal("85.50").compareTo(leida.precios().get(cx)));
 		assertEquals(0, new BigDecimal("32.00").compareTo(leida.precios().get(cy)));
@@ -150,6 +156,92 @@ class ComparativoCotizacionesTest {
 		assertThrows(ApiException.class, () -> comparativo.obtener(ids, solicitante));
 	}
 
+	/**
+	 * DEC-L053: el proveedor llama distinto a nuestros productos. La primera vez
+	 * Logistica elige la linea; se guarda como equivalencia y la siguiente lectura
+	 * de ese proveedor la reconoce sola. La OC muestra su referencia.
+	 */
+	@Test
+	void aprendeComoLlamaElProveedorACadaProducto() {
+		UsuarioPrincipal logistica = logistica();
+		UUID s = proveedor("20100000051");
+		Map<String, Integer> pedido = new LinkedHashMap<>();
+		pedido.put("AC01004-00", 6);
+		pedido.put("AC01005-00", 2);
+		aprobar(requerimiento(pedido));
+		UUID ca = consolidado("AC01004-00");
+		UUID cb = consolidado("AC01005-00");
+		List<UUID> ids = List.of(ca, cb);
+		String documento = """
+				DISTRIBUIDORA DEL SUR S.A.C.
+				RUC 20100000051
+				1 ZX-900 Articulo generico modelo zeta 6 15.00 90.00
+				2 Repuesto marca omega gris 2 40.00 80.00
+				TOTAL S/ 170.00
+				""";
+		when(ocr.extraerTexto(any(), anyString())).thenReturn(documento);
+
+		// --- Primera vez: nada en comun con nuestros nombres, no adivina ---
+		OcrComparativoDto primera = comparativo.leer(ids, archivo(), null, logistica);
+		assertEquals(s, primera.supplierId(), "por su RUC");
+		assertTrue(primera.precios().isEmpty());
+		assertEquals(2, primera.lineas().size());
+		OcrLineaDto la = primera.lineas().get(0);
+		OcrLineaDto lb = primera.lineas().get(1);
+		assertEquals("ZX-900", la.codigo());
+
+		// --- Logistica elige la linea de cada producto y guarda ---
+		comparativo.registrar(new RegistrarComparativoRequest(s, ids, null, null, null, "PEN", "CONTADO", "AGENCIA",
+				3, null, null, true, List.of(
+						new RegistrarComparativoRequest.Precio(ca, new BigDecimal("15.00"), null, null, null,
+								la.descripcion(), la.codigo()),
+						new RegistrarComparativoRequest.Precio(cb, new BigDecimal("40.00"), null, null, null,
+								lb.descripcion(), lb.codigo()))), logistica);
+		assertEquals(2, jdbc.queryForObject("select count(*) from proveedor_equivalencia where supplier_id = ?",
+				Integer.class, s));
+		assertEquals("ZX-900", jdbc.queryForObject("""
+				select ci.supplier_code from cotizacion_item ci join cotizacion c on c.quotation_id = ci.quotation_id
+				where c.supplier_id = ? and ci.unit_cost = 15.00""", String.class, s));
+
+		// --- Segunda lectura del mismo proveedor: la reconoce sola ---
+		OcrComparativoDto segunda = comparativo.leer(ids, archivo(), s, logistica);
+		assertEquals(0, new BigDecimal("15.00").compareTo(segunda.precios().get(ca)));
+		assertEquals(0, new BigDecimal("40.00").compareTo(segunda.precios().get(cb)));
+		assertEquals("EQUIVALENCIA", segunda.coincidencias().get(ca).origen());
+		assertEquals(lb.indice(), segunda.coincidencias().get(cb).indiceLinea());
+
+		// --- Reconfirmar una descripcion con otro producto: gana la ultima y se audita ---
+		ComparativoDto c = comparativo.obtener(ids, logistica);
+		UUID vigente = c.proveedores().stream().filter(x -> s.equals(x.supplierId())).findFirst().orElseThrow().quotationId();
+		comparativo.registrar(new RegistrarComparativoRequest(s, ids, null, null, null, "PEN", "CONTADO", "AGENCIA",
+				3, null, vigente, true, List.of(
+						new RegistrarComparativoRequest.Precio(ca, new BigDecimal("15.00"), null, null, null,
+								lb.descripcion(), null))), logistica);
+		assertEquals(producto("AC01004"), jdbc.queryForObject("""
+				select product_id from proveedor_equivalencia where supplier_id = ? and description_key = ?""",
+				UUID.class, s, CotizacionOcrParser.clave(lb.descripcion())));
+		assertEquals(1, jdbc.queryForObject("""
+				select count(*) from log_cambios where entidad = 'PROVEEDOR' and accion = 'CAMBIAR_EQUIVALENCIA'
+				and entidad_id = ?""", Integer.class, s));
+
+		// --- La OC lleva la referencia del proveedor ---
+		c = comparativo.obtener(ids, logistica);
+		ComparativoDto.Columna col = c.proveedores().stream().filter(x -> s.equals(x.supplierId())).findFirst().orElseThrow();
+		comparativo.adjudicar(new AdjudicarComparativoRequest(List.of(ca), List.of(
+				new AdjudicarComparativoRequest.Eleccion(ca, precio(col, ca).quotationItemId()))), logistica);
+		OrdenDto oc = abastecimiento.emitirOrden(col.quotationId(), logistica);
+		OrdenDetalleDto detalle = compras.obtenerOrden(oc.orderId(), logistica);
+		assertEquals(lb.descripcion(), detalle.items().get(0).referenciaProveedor());
+
+		// --- Quitar una equivalencia desde la ficha del proveedor ---
+		List<EquivalenciaDto> suyas = equivalencias.listar(s, logistica);
+		assertEquals(2, suyas.size());
+		equivalencias.quitar(suyas.get(0).equivalenceId(), logistica);
+		assertEquals(1, equivalencias.listar(s, logistica).size());
+		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
+		assertThrows(ApiException.class, () -> equivalencias.listar(s, solicitante));
+	}
+
 	@Test
 	void elListadoDeRequerimientosResumeSusProductos() {
 		Map<String, Integer> pedido = new LinkedHashMap<>();
@@ -167,7 +259,7 @@ class ComparativoCotizacionesTest {
 
 	private ComparativoDto registrar(List<UUID> ids, UUID proveedor, UUID reemplaza, boolean ocr, Map<UUID, String> precios) {
 		List<RegistrarComparativoRequest.Precio> items = precios.entrySet().stream()
-				.map(e -> new RegistrarComparativoRequest.Precio(e.getKey(), new BigDecimal(e.getValue()), null, null, null))
+				.map(e -> new RegistrarComparativoRequest.Precio(e.getKey(), new BigDecimal(e.getValue()), null, null, null, null, null))
 				.toList();
 		return comparativo.registrar(new RegistrarComparativoRequest(proveedor, ids, null, null, null, "PEN",
 				"CONTADO", "AGENCIA", 5, null, reemplaza, ocr, items), logistica());

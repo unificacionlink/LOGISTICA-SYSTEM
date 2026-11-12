@@ -20,3 +20,20 @@ export function etiquetaRequerimientos(codigos: string | null): string {
   if (!codigos) return "Sin requerimiento";
   return codigos.includes(",") ? `Requerimientos ${codigos}` : `Requerimiento ${codigos}`;
 }
+
+/**
+ * Precio unitario de una linea (misma regla que CotizacionOcrParser.unitarioDeLinea):
+ * el importe que multiplicado por la cantidad da otro importe de la linea; si no,
+ * el menor que no sea la propia cantidad.
+ */
+export function unitarioDeLinea(importes: number[], qty: number): number | null {
+  if (importes.length === 0) return null;
+  if (qty > 0 && qty !== 1) {
+    for (const u of importes) {
+      const esperado = u * qty;
+      if (importes.some((t) => t !== u && esperado > 0 && Math.abs(esperado - t) <= esperado * 0.01)) return u;
+    }
+  }
+  const candidatos = importes.filter((m) => m !== qty);
+  return (candidatos.length ? candidatos : importes).reduce((a, b) => Math.min(a, b));
+}

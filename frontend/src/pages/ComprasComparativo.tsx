@@ -239,7 +239,7 @@ export default function ComprasComparativo() {
         ...prev.filter((x) => !(b.reemplaza && x.reemplaza?.supplierId === b.reemplaza.supplierId)),
         b,
       ]);
-      leerCotizacionComparativo(ids, archivo).then((res) => {
+      leerCotizacionComparativo(ids, archivo, b.supplierFijo).then((res) => {
         setBorradores((prev) =>
           prev.map((x) =>
             x.clave === clave

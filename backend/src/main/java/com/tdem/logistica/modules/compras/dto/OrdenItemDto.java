@@ -13,5 +13,7 @@ public record OrdenItemDto(
         String unidadMedida,
         BigDecimal qtyOrdered,
         BigDecimal unitCost,
-        BigDecimal lineTotal) {
+        BigDecimal lineTotal,
+        /** Como llama el proveedor a este producto en su cotizacion (DEC-L053). */
+        String referenciaProveedor) {
 }

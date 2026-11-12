@@ -1,6 +1,6 @@
 import { enCache, invalidar, luegoInvalidar, MINUTO } from "./cache";
 import { http } from "./http";
-import type { Proveedor } from "./types";
+import type { EquivalenciaProveedor, Proveedor } from "./types";
 
 export interface GuardarProveedorInput {
   ruc: string;
@@ -39,4 +39,13 @@ export function crearProveedor(input: GuardarProveedorInput) {
 
 export function actualizarProveedor(id: string, input: GuardarProveedorInput) {
   return luegoInvalidar(http.put<Proveedor>(`/api/proveedores/${id}`, input), "proveedores");
+}
+
+/** Como llama este proveedor a nuestros productos (DEC-L053). */
+export function listarEquivalencias(supplierId: string) {
+  return http.get<EquivalenciaProveedor[]>(`/api/proveedores/${supplierId}/equivalencias`);
+}
+
+export function quitarEquivalencia(equivalenceId: string) {
+  return http.delete<null>(`/api/proveedores/equivalencias/${equivalenceId}`);
 }

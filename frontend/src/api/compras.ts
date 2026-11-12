@@ -27,10 +27,12 @@ export function obtenerComparativo(ids: string[]) {
 }
 
 /** Lectura OCR de una cotizacion: propone proveedor y precios, no guarda nada. Sin capa: cada tarjeta muestra su avance. */
-export function leerCotizacionComparativo(ids: string[], file: File) {
+/** supplierId: el proveedor ya elegido o el de la columna, para usar lo aprendido de el (DEC-L053). */
+export function leerCotizacionComparativo(ids: string[], file: File, supplierId?: string | null) {
   const form = new FormData();
   form.append("ids", ids.join(","));
   form.append("file", file);
+  if (supplierId) form.append("supplierId", supplierId);
   return http.postFormEnLote<OcrComparativo>("/api/compras/comparativo/ocr", form);
 }
 
@@ -46,7 +48,14 @@ export interface RegistrarComparativoInput {
   documentId?: string;
   reemplazaQuotationId?: string;
   leidaPorOcr: boolean;
-  items: { consolidationId: string; unitCost: number; qty?: number }[];
+  items: {
+    consolidationId: string;
+    unitCost: number;
+    qty?: number;
+    /** Linea del documento del proveedor que se confirmo para el producto (DEC-L053). */
+    supplierDescription?: string;
+    supplierCode?: string;
+  }[];
 }
 
 export function registrarEnComparativo(input: RegistrarComparativoInput) {

@@ -159,7 +159,7 @@ public class ComparativoService {
 
     /** Lee el documento y propone proveedor (por RUC) y costo unitario por consolidado; no guarda nada. */
     @Transactional(readOnly = true)
-    public OcrComparativoDto leer(List<UUID> ids, MultipartFile file, UsuarioPrincipal principal) {
+    public OcrComparativoDto leer(List<UUID> ids, MultipartFile file, UUID supplierIdElegido, UsuarioPrincipal principal) {
         exigirLogistica(principal);
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("Selecciona un archivo.");
@@ -176,29 +176,46 @@ public class ComparativoService {
         } catch (IOException e) {
             throw new UncheckedIOException("No se pudo leer el archivo subido.", e);
         }
+        String texto = ocrExtractor.extraerTexto(contenido, contentType);
+
+        // El proveedor (el de la columna o el ya elegido; si no, por su RUC) define que equivalencias usar.
+        UUID supplierId = supplierIdElegido;
+        String ruc = CotizacionOcrParser.ruc(texto);
+        if (supplierId == null && ruc != null) {
+            supplierId = proveedorRepository.findAllByActiveTrueOrderByLegalName().stream()
+                    .filter(p -> ruc.equals(p.getRuc()))
+                    .map(Proveedor::getSupplierId)
+                    .findFirst().orElse(null);
+        }
+        Map<UUID, List<EquivalenciaGuardada>> equivalencias = supplierId != null
+                ? equivalenciasDe(supplierId, cs) : Map.of();
+
         Map<UUID, CotizacionOcrParser.ItemBuscado> buscados = new LinkedHashMap<>();
         for (Consolidacion c : cs) {
             String nombre = c.getProducto().getName()
                     + (c.getVariante() != null && c.getVariante().getAttributeValue() != null
                     ? " " + c.getVariante().getAttributeValue() : "");
+            UUID variante = c.getVariante() != null ? c.getVariante().getVariantId() : null;
+            List<CotizacionOcrParser.Equivalencia> suyas = equivalencias
+                    .getOrDefault(c.getProducto().getProductId(), List.of()).stream()
+                    .filter(e -> e.variantId() == null || e.variantId().equals(variante))
+                    .map(e -> new CotizacionOcrParser.Equivalencia(e.codigo(), e.clave()))
+                    .toList();
             buscados.put(c.getConsolidationId(), new CotizacionOcrParser.ItemBuscado(
                     c.getVariante() != null ? c.getVariante().getInternalVariantCode() : c.getProducto().getSkuBase(),
-                    nombre, c.getTotalQty()));
+                    nombre, c.getTotalQty(), suyas));
         }
-        String texto = ocrExtractor.extraerTexto(contenido, contentType);
         OcrCotizacionDto ocr = CotizacionOcrParser.parsearItems(texto, buscados);
 
-        UUID supplierId = null;
-        if (ocr.rucDetectado() != null) {
-            supplierId = proveedorRepository.findAllByActiveTrueOrderByLegalName().stream()
-                    .filter(p -> ocr.rucDetectado().equals(p.getRuc()))
-                    .map(Proveedor::getSupplierId)
-                    .findFirst().orElse(null);
-        }
         Map<UUID, BigDecimal> precios = new LinkedHashMap<>();
-        ocr.itemsSugeridos().forEach(i -> precios.put(i.rfqItemId(), i.costoSugerido()));
+        Map<UUID, OcrComparativoDto.Coincidencia> coincidencias = new LinkedHashMap<>();
+        ocr.itemsSugeridos().forEach(i -> {
+            precios.put(i.rfqItemId(), i.costoSugerido());
+            coincidencias.put(i.rfqItemId(), new OcrComparativoDto.Coincidencia(i.indiceLinea(), i.origen()));
+        });
         return new OcrComparativoDto(supplierId, ocr.proveedorDetectado(), ocr.rucDetectado(), ocr.fechaDetectada(),
-                ocr.monedaDetectada(), ocr.totalDetectado(), ocr.plazoDetectadoDias(), precios, ocr.textoDetectado());
+                ocr.monedaDetectada(), ocr.totalDetectado(), ocr.plazoDetectadoDias(), precios, ocr.textoDetectado(),
+                coincidencias, ocr.lineas());
     }
 
     // ================================================================ escritura
@@ -300,6 +317,7 @@ public class ComparativoService {
         CotizacionDto cotizacion = compras.registrarCotizacion(rfq.getRfqId(), new RegistrarCotizacionRequest(
                 blanco(req.supplierQuoteNumber()), req.issueDate(), req.expirationDate(), req.currencyCode(),
                 req.paymentCondition(), req.deliveryMode(), req.leadDays(), req.documentId(), items), principal);
+        aprenderEquivalencias(req, cotizacion, lineaPorConsolidado, porId, proveedor, principal);
         if (req.leidaPorOcr()) {
             cotizacionRepository.findById(cotizacion.quotationId()).ifPresent(c -> c.setSource("OCR"));
         }
@@ -407,6 +425,97 @@ public class ComparativoService {
                         + MAX_COTIZACIONES + " cotizaciones: descarta una antes de cargar otra.");
             }
         }
+    }
+
+    // ================================================================ equivalencias (DEC-L053)
+
+    /** Equivalencia ya aprendida de un proveedor, lista para buscar en el documento. */
+    record EquivalenciaGuardada(UUID productId, UUID variantId, String codigo, String clave) {
+    }
+
+    /** Lo aprendido del proveedor para los productos del comparativo, en una consulta. */
+    private Map<UUID, List<EquivalenciaGuardada>> equivalenciasDe(UUID supplierId, List<Consolidacion> cs) {
+        List<UUID> productos = cs.stream().map(c -> c.getProducto().getProductId()).distinct().toList();
+        if (productos.isEmpty()) return Map.of();
+        String marcas = String.join(",", Collections.nCopies(productos.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(supplierId);
+        args.addAll(productos);
+        return jdbc.query("""
+                select product_id, variant_id, supplier_code, description_key
+                  from proveedor_equivalencia
+                 where supplier_id = ? and product_id in (%s)
+                 order by last_used_at desc""".formatted(marcas),
+                (rs, n) -> new EquivalenciaGuardada(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
+                        rs.getString(3), rs.getString(4)), args.toArray())
+                .stream().collect(Collectors.groupingBy(EquivalenciaGuardada::productId));
+    }
+
+    /**
+     * Guarda en cada linea cotizada lo que escribio el proveedor y lo recuerda como
+     * equivalencia (la ultima confirmacion de una misma descripcion gana; si cambia
+     * de producto, se audita).
+     */
+    private void aprenderEquivalencias(RegistrarComparativoRequest req, CotizacionDto cotizacion,
+                                       Map<UUID, RfqItem> lineaPorConsolidado, Map<UUID, Consolidacion> porId,
+                                       Proveedor proveedor, UsuarioPrincipal principal) {
+        Map<UUID, UUID> itemPorLinea = new HashMap<>();
+        cotizacion.items().forEach(i -> itemPorLinea.put(i.rfqItemId(), i.quotationItemId()));
+        List<Object[]> lineas = new ArrayList<>();
+        Map<String, RegistrarComparativoRequest.Precio> porClave = new LinkedHashMap<>();
+        for (RegistrarComparativoRequest.Precio p : req.items()) {
+            String descripcion = blanco(p.supplierDescription());
+            String codigo = blanco(p.supplierCode());
+            if (descripcion == null && codigo == null) continue;
+            UUID quotationItemId = itemPorLinea.get(lineaPorConsolidado.get(p.consolidationId()).getRfqItemId());
+            if (quotationItemId != null) lineas.add(new Object[] {codigo, descripcion, quotationItemId});
+            String clave = CotizacionOcrParser.clave(descripcion);
+            if (descripcion != null && clave.length() >= 3) porClave.put(clave, p);
+        }
+        if (!lineas.isEmpty()) {
+            jdbc.batchUpdate("update cotizacion_item set supplier_code = ?, supplier_description = ? where quotation_item_id = ?",
+                    lineas);
+        }
+        if (porClave.isEmpty()) return;
+
+        String marcas = String.join(",", Collections.nCopies(porClave.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(proveedor.getSupplierId());
+        args.addAll(porClave.keySet());
+        Map<String, UUID[]> anteriores = new HashMap<>();
+        jdbc.query("select description_key, product_id, variant_id from proveedor_equivalencia "
+                        + "where supplier_id = ? and description_key in (" + marcas + ")",
+                rs -> {
+                    anteriores.put(rs.getString(1), new UUID[] {rs.getObject(2, UUID.class), rs.getObject(3, UUID.class)});
+                }, args.toArray());
+
+        List<Object[]> filas = new ArrayList<>();
+        porClave.forEach((clave, p) -> {
+            Consolidacion c = porId.get(p.consolidationId());
+            UUID producto = c.getProducto().getProductId();
+            UUID variante = c.getVariante() != null ? c.getVariante().getVariantId() : null;
+            UUID[] antes = anteriores.get(clave);
+            if (antes != null && (!antes[0].equals(producto) || !Objects.equals(antes[1], variante))) {
+                Map<String, Object> despues = new LinkedHashMap<>();
+                despues.put("descripcion", p.supplierDescription());
+                despues.put("producto", producto.toString());
+                auditoria.registrar("PROVEEDOR", proveedor.getSupplierId(), "CAMBIAR_EQUIVALENCIA",
+                        Map.of("producto", antes[0].toString()), despues, principal.userId());
+            }
+            filas.add(new Object[] {proveedor.getSupplierId(), producto, variante, blanco(p.supplierCode()),
+                    p.supplierDescription().trim(), clave, principal.userId()});
+        });
+        jdbc.batchUpdate("""
+                insert into proveedor_equivalencia (supplier_id, product_id, variant_id, supplier_code,
+                  supplier_description, description_key, created_by)
+                values (?, ?, ?, ?, ?, ?, ?)
+                on conflict (supplier_id, description_key) do update
+                   set product_id = excluded.product_id,
+                       variant_id = excluded.variant_id,
+                       supplier_code = coalesce(excluded.supplier_code, proveedor_equivalencia.supplier_code),
+                       supplier_description = excluded.supplier_description,
+                       times_used = proveedor_equivalencia.times_used + 1,
+                       last_used_at = now()""", filas);
     }
 
     private static List<UUID> ids(List<Consolidacion> cs) {
