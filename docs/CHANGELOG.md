@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.35.0 — 2026-11-12
+
+- **Nuevo requerimiento**: `StockDisponible` recibe `enPedido` y muestra lo
+  que queda (disponible - cantidad en el pedido), en el buscador y en cada
+  linea del pedido; ambar con "Stock 0" si el pedido se lleva todo. Solo
+  visual: la reserva sigue haciendose al aprobar (DEC-L050).
+
 ## 0.34.0 — 2026-11-11
 
 Rendimiento (DEC-L051).

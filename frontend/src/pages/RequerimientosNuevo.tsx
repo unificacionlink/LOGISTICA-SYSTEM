@@ -455,7 +455,7 @@ export default function RequerimientosNuevo() {
                           <div className="min-w-0 flex-1">
                             <span className="block truncate font-mono text-xs text-slate-700">{it.variante.etiqueta}</span>
                             <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <StockDisponible cantidad={it.variante.stockDisponible} />
+                              <StockDisponible cantidad={it.variante.stockDisponible} enPedido={Number(it.qty) || 0} />
                               {it.variante.stockDisponible > 0 && Number(it.qty) > it.variante.stockDisponible && (
                                 <span className="text-xs text-amber-700">
                                   {Number(it.qty) - it.variante.stockDisponible} se comprarán

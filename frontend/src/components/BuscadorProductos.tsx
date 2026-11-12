@@ -212,7 +212,7 @@ export default function BuscadorProductos({
               <li key={v.variantId} className="flex items-center gap-3 px-4 py-2.5">
                 <Miniatura url={v.imagenUrl} titulo={v.nombre} detalle={`${v.codigoVariante} · ${etiquetaFamilia(v.tipoNombre, v.familiaNombre)}`} />
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-600">{v.etiqueta}</span>
-                <StockDisponible cantidad={v.stockDisponible} />
+                <StockDisponible cantidad={v.stockDisponible} enPedido={enCarrito} />
                 {enCarrito > 0 && (
                   <span className="shrink-0 text-xs font-medium text-brand-600">En tu pedido · {enCarrito}</span>
                 )}
@@ -244,11 +244,24 @@ export default function BuscadorProductos({
   );
 }
 
-/** Stock del almacén central que ve quien pide: verde si hay, gris si no. */
-export function StockDisponible({ cantidad }: { cantidad: number }) {
+/**
+ * Stock del almacén central que ve quien pide: verde si hay, gris si no.
+ * Con `enPedido` muestra lo que queda tras lo que ya lleva el pedido (ámbar si
+ * se lo lleva todo); es solo visual: la reserva real se hace al aprobar.
+ */
+export function StockDisponible({ cantidad, enPedido = 0 }: { cantidad: number; enPedido?: number }) {
+  const queda = Math.max(0, cantidad - enPedido);
+  const detalle = enPedido > 0 ? `Disponible ${cantidad.toLocaleString("es-PE")} · en tu pedido ${enPedido.toLocaleString("es-PE")}` : "Disponible en almacén";
+  if (cantidad > 0 && queda === 0) {
+    return (
+      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700" title={`${detalle}: lo que pidas de más se comprará`}>
+        Stock 0
+      </span>
+    );
+  }
   return cantidad > 0 ? (
-    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title="Disponible en almacén">
-      Stock {cantidad.toLocaleString("es-PE")}
+    <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title={detalle}>
+      Stock {queda.toLocaleString("es-PE")}
     </span>
   ) : (
     <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500" title="Sin stock en almacén: se comprará">

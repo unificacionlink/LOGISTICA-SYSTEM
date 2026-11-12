@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.35.0",
+    titulo: "El stock se descuenta mientras armas tu pedido",
+    cambios: [
+      "Al agregar un producto a tu requerimiento, el stock que ves baja según la cantidad que llevas.",
+      "Si tu pedido ya toma todo el stock, se marca en ámbar: lo que pidas de más se comprará.",
+    ],
+  },
+  {
     version: "0.34.0",
     titulo: "Más rápida en cada pantalla",
     cambios: [
