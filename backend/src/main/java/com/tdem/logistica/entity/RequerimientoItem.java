@@ -43,4 +43,8 @@ public class RequerimientoItem {
 
     @Column(name = "observation")
     private String observation;
+
+    /** DEC-L054: unidades sugeridas para la caja chica del proyecto (no apartan stock al aprobar). */
+    @Column(name = "petty_cash_qty", nullable = false)
+    private BigDecimal pettyCashQty = BigDecimal.ZERO;
 }

@@ -158,45 +158,72 @@ class CajaChicaTest {
 				"registrar x2, observar, corregir, regularizar x2");
 	}
 
-	/** Con stock en el almacen: la sugerencia no reserva; Logistica decide si usa el stock. */
+	/**
+	 * DEC-L054 (v0.39.0): de 5 unidades, 2 por caja chica y 3 por la via normal.
+	 * Las 3 salen del stock; las 2 llegan a Necesidades sin apartar stock.
+	 * Logistica divide esa necesidad y da a cada parte su ruta.
+	 */
 	@Test
-	void conStockLogisticaDecideSiUsaElAlmacen() {
+	void unaParteDelProductoPorCajaChicaYElRestoNormal() {
 		UsuarioPrincipal solicitante = principal("solicitante@logistica.test", "SOLICITANTE");
 		UsuarioPrincipal logistica = principal("logistica@logistica.test", "LOGISTICA");
 		UsuarioPrincipal aprobador = principal("aprobador@logistica.test", "APROBADOR");
 		jdbc.update("""
 				insert into movimiento_inventario (company_id, warehouse_id, product_id, variant_id, movement_type,
 				  qty, reference_type, reference_id, created_by)
-				select a.company_id, a.warehouse_id, v.product_id, v.variant_id, 'AJUSTE', 3, 'AJUSTE', gen_random_uuid(), ?
+				select a.company_id, a.warehouse_id, v.product_id, v.variant_id, 'AJUSTE', 4, 'AJUSTE', gen_random_uuid(), ?
 				from almacen a join empresa e on e.company_id = a.company_id and e.code = 'TDEMSRL'
-				cross join producto_variante v where a.code = 'CENTRAL' and v.internal_variant_code = 'AC01003-00'""",
+				cross join producto_variante v where a.code = 'CENTRAL' and v.internal_variant_code in ('AC01003-00', 'AC01004-00')""",
 				logistica.userId());
 
+		ItemRequerimientoRequest guantes = item("AC01003-00", 5);
+		ItemRequerimientoRequest otro = item("AC01004-00", 2);
+		assertThrows(ApiException.class, () -> requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "NORMAL",
+				"CONSUMO", "Guantes para la obra del proyecto", LocalDate.now(LIMA).plusDays(5), List.of(
+						new ItemRequerimientoRequest(guantes.variantId(), guantes.qtyRequested(), null, null, new BigDecimal("6"))),
+				null, null), solicitante), "no mas de lo pedido");
 		RequerimientoDto req = requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "NORMAL", "CONSUMO",
-				"Guantes para la obra del proyecto", LocalDate.now(LIMA).plusDays(5), List.of(item("AC01003-00", 5)),
-				true, null), solicitante);
+				"Guantes para la obra del proyecto", LocalDate.now(LIMA).plusDays(5), List.of(
+						new ItemRequerimientoRequest(guantes.variantId(), guantes.qtyRequested(), null, null, new BigDecimal("2")),
+						otro),
+				null, "Dos los compramos en la obra"), solicitante);
+		assertTrue(req.cajaChicaSugerida());
+		assertEquals(0, new BigDecimal("2").compareTo(requerimientos.obtener(req.id(), solicitante).items().stream()
+				.filter(i -> "AC01003-00".equals(i.codigoVariante())).findFirst().orElseThrow().cantidadCajaChica()));
 		requerimientos.enviar(req.id(), solicitante);
 		aprobaciones.decidir(requerimientos.obtener(req.id(), aprobador).pendingApprovalId(),
 				new DecidirAprobacionRequest("APROBADO", null, null), aprobador);
-		UUID item = itemDe(req.id(), "AC01003-00");
-		assertEquals(0, jdbc.queryForObject("select count(*) from reserva_stock where request_item_id = ?", Integer.class, item),
-				"la sugerencia no aparta stock al aprobar");
+		UUID itemGuantes = itemDe(req.id(), "AC01003-00");
+		assertEquals(0, new BigDecimal("3").compareTo(reservado(itemGuantes)), "la parte normal sale del stock");
+		assertEquals(0, new BigDecimal("2").compareTo(reservado(itemDe(req.id(), "AC01004-00"))), "lo no marcado, como siempre");
 
-		NecesidadDto n = abastecimiento.listarNecesidades(logistica).stream()
-				.filter(x -> x.requestId().equals(req.id())).findFirst().orElseThrow();
-		assertEquals(0, n.qty().compareTo(new BigDecimal("5")));
-		assertEquals(0, n.stockDisponible().compareTo(new BigDecimal("3")));
+		List<NecesidadDto> deEste = abastecimiento.listarNecesidades(logistica).stream()
+				.filter(x -> x.requestId().equals(req.id())).toList();
+		assertEquals(1, deEste.size(), "solo la parte por caja chica llega a Necesidades");
+		NecesidadDto n = deEste.get(0);
+		assertEquals(0, n.qty().compareTo(new BigDecimal("2")));
+		assertEquals("SOLICITANTE", n.suggestedReason());
+		assertEquals("Dos los compramos en la obra", n.notaSolicitante());
+		assertEquals(0, n.stockDisponible().compareTo(BigDecimal.ONE), "4 en stock - 3 reservadas");
 
-		// --- Usar stock: reserva lo que hay y lo que falta sigue por decidir ---
-		abastecimiento.decidirRuta(n.needId(), "STOCK", logistica);
-		assertEquals(0, new BigDecimal("3").compareTo(jdbc.queryForObject(
-				"select sum(qty_reserved) from reserva_stock where request_item_id = ? and status = 'RESERVADA'",
-				BigDecimal.class, item)));
-		Map<String, Object> resto = jdbc.queryForMap("select status, qty from necesidad_compra where need_id = ?", n.needId());
-		assertEquals("PENDIENTE_RUTA", resto.get("status"));
-		assertEquals(0, new BigDecimal("2").compareTo((BigDecimal) resto.get("qty")));
-		ApiException sinStock = assertThrows(ApiException.class, () -> abastecimiento.decidirRuta(n.needId(), "STOCK", logistica));
+		// --- Logistica divide: 1 a caja chica y 1 del almacen ---
+		assertThrows(ApiException.class, () -> abastecimiento.dividir(n.needId(), new BigDecimal("2"), logistica));
+		List<NecesidadDto> partes = abastecimiento.dividir(n.needId(), BigDecimal.ONE, logistica);
+		assertEquals(2, partes.size());
+		assertTrue(partes.stream().allMatch(x -> x.qty().compareTo(BigDecimal.ONE) == 0 && "SOLICITANTE".equals(x.suggestedReason())));
+		abastecimiento.decidirRuta(partes.get(0).needId(), "CAJA_CHICA", logistica);
+		abastecimiento.decidirRuta(partes.get(1).needId(), "STOCK", logistica);
+		assertEquals(0, new BigDecimal("4").compareTo(reservado(itemGuantes)));
+		assertEquals(0, BigDecimal.ONE.compareTo(cajaChica.formulario(req.id(), solicitante).items().get(0).pendiente()));
+		ApiException sinStock = assertThrows(ApiException.class,
+				() -> abastecimiento.decidirRuta(partes.get(0).needId(), "STOCK", logistica));
 		assertTrue(sinStock.getMessage().contains("No hay stock"), sinStock.getMessage());
+	}
+
+	private BigDecimal reservado(UUID requestItemId) {
+		return jdbc.queryForObject("""
+				select coalesce(sum(qty_reserved), 0) from reserva_stock where request_item_id = ? and status = 'RESERVADA'""",
+				BigDecimal.class, requestItemId);
 	}
 
 	@Test

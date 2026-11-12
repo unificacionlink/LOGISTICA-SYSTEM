@@ -30,8 +30,24 @@ public record CrearRequerimientoRequest(
         this(cecoId, priority, purpose, justification, requiredDate, items, null, null);
     }
 
+    private boolean algunoConCajaChica() {
+        return items != null && items.stream().anyMatch(i -> i.cajaChica().signum() > 0);
+    }
+
+    /** Algun producto con unidades por caja chica (o, de un cliente anterior, la casilla general). */
     public boolean sugiereCajaChica() {
-        return Boolean.TRUE.equals(cajaChicaSugerida);
+        return Boolean.TRUE.equals(cajaChicaSugerida) || algunoConCajaChica();
+    }
+
+    /**
+     * Unidades del producto por caja chica: las indicadas; si no se indico
+     * ninguna pero vino la casilla general (cliente anterior), todas.
+     */
+    public java.math.BigDecimal cantidadCajaChica(ItemRequerimientoRequest item) {
+        if (algunoConCajaChica()) {
+            return item.cajaChica();
+        }
+        return Boolean.TRUE.equals(cajaChicaSugerida) ? item.qtyRequested() : java.math.BigDecimal.ZERO;
     }
 
     public String notaCajaChica() {

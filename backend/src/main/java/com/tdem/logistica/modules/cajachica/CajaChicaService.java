@@ -170,9 +170,6 @@ public class CajaChicaService {
      * se lee una vez por requerimiento, no una vez por item.
      */
     public java.util.function.BiFunction<RequerimientoItem, BigDecimal, String> sugeridor(Requerimiento r) {
-        if (r.isPettyCashSuggested()) {
-            return (item, faltante) -> SOLICITANTE;
-        }
         ReglaCajaChicaDto regla;
         try {
             regla = regla(r.getEmpresa().getCompanyId());

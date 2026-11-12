@@ -468,7 +468,7 @@ export default function RequerimientoDetalle() {
           {requerimiento.cajaChicaSugerida && (
             <p className="mt-3 text-sm text-slate-600">
               <span className="rotulo mr-2">Caja chica del proyecto</span>
-              Sugerida{requerimiento.cajaChicaNota ? `: ${requerimiento.cajaChicaNota}` : ""}
+              {requerimiento.cajaChicaNota ?? "Sugerida en los productos indicados"}
               {verCajaChica && cajaChica && cajaChica.compras.length > 0 && (
                 <Link to={`/requerimientos/${id}/caja-chica`} className="ml-2 font-medium text-brand-600 hover:text-brand-700">
                   Ver compras
@@ -504,6 +504,11 @@ export default function RequerimientoDetalle() {
                   <td className="col-flex px-5 py-2.5 text-slate-700" title={String(it.nombreProducto)}>
                     {it.nombreProducto}
                     {it.atributo && <span className="text-slate-400"> · {it.atributo}</span>}
+                    {it.cantidadCajaChica > 0 && (
+                      <span className="ml-2 rounded-full bg-amber-50 px-1.5 py-px text-xs font-medium text-amber-700">
+                        Caja chica: {it.cantidadCajaChica}
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-2.5 text-right tabular-nums text-slate-700">
                     {it.cantidad} <span className="text-slate-400">{it.unidadMedida}</span>

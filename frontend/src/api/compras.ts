@@ -75,6 +75,11 @@ export function listarNecesidades() {
   return http.get<Necesidad[]>("/api/compras/necesidades");
 }
 
+/** DEC-L054: separa unidades de una necesidad para darle otra ruta. */
+export function dividirNecesidad(needId: string, cantidad: number) {
+  return http.post<Necesidad[]>(`/api/compras/necesidades/${needId}/dividir`, { cantidad });
+}
+
 export function decidirRuta(needId: string, ruta: "COMPRA" | "CAJA_CHICA" | "STOCK") {
   return http.post<Necesidad>(`/api/compras/necesidades/${needId}/ruta`, { ruta });
 }

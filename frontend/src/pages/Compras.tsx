@@ -4,6 +4,7 @@ import { ClipboardList, FileQuestion, Layers, ListTodo, Scale, Send, Wallet } fr
 import { listarCajaChica, obtenerReglaCajaChica } from "../api/cajachica";
 import {
   decidirRuta,
+  dividirNecesidad,
   emitirOrden,
   listarConsolidados,
   listarNecesidades,
@@ -26,6 +27,8 @@ import { Card, CardBody } from "../components/ui/Card";
 import { useConfirmar } from "../components/ui/Confirmacion";
 import EmptyState from "../components/ui/EmptyState";
 import MenuAcciones from "../components/ui/MenuAcciones";
+import CampoNumero from "../components/ui/CampoNumero";
+import { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 
@@ -122,6 +125,10 @@ export default function Compras() {
     await ejecutar(n.needId, () => decidirRuta(n.needId, ruta), ["necesidades", "consolidados"]);
   }
 
+  async function onDividir(n: Necesidad, unidades: number) {
+    return ejecutar(n.needId, () => dividirNecesidad(n.needId, unidades), ["necesidades"]);
+  }
+
   async function onPreparar() {
     const ids = Array.from(seleccion);
     const ok = await ejecutar("__preparar__", () => prepararSolicitudes(ids), ["necesidades", "consolidados", "rfqs"]);
@@ -205,7 +212,7 @@ export default function Compras() {
           onRegla={setRegla}
         />
       ) : tab === "necesidades" ? (
-        <TablaNecesidades necesidades={necesidades} procesando={procesando} onRuta={onRuta} />
+        <TablaNecesidades necesidades={necesidades} procesando={procesando} onRuta={onRuta} onDividir={onDividir} />
       ) : tab === "solicitudes" ? (
         <TablaSolicitudes rfqs={rfqs} />
       ) : (
@@ -230,11 +237,18 @@ function TablaNecesidades({
   necesidades,
   procesando,
   onRuta,
+  onDividir,
 }: {
   necesidades: Necesidad[];
   procesando: string | null;
   onRuta: (n: Necesidad, ruta: "COMPRA" | "CAJA_CHICA" | "STOCK") => void;
+  onDividir: (n: Necesidad, unidades: number) => Promise<boolean | undefined>;
 }) {
+  // DEC-L054: separar unidades de una necesidad para darle otra ruta.
+  const [dividiendo, setDividiendo] = useState<string | null>(null);
+  const [unidades, setUnidades] = useState("");
+  const dividir = (n: Necesidad) =>
+    n.qty > 1 ? [{ label: "Dividir…", onClick: () => (setDividiendo(n.needId), setUnidades("")) }] : [];
   if (necesidades.length === 0) {
     return (
       <Card>
@@ -309,13 +323,43 @@ function TablaNecesidades({
                 )}
               </td>
               <td className="whitespace-nowrap px-5 py-3 text-right">
-                {n.status === "CAJA_CHICA" ? (
+                {dividiendo === n.needId ? (
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-xs text-slate-500">Separar</span>
+                    <CampoNumero
+                      decimales={0}
+                      max={n.qty - 1}
+                      value={unidades}
+                      onChange={setUnidades}
+                      autoFocus
+                      aria-label={`Unidades a separar de ${n.codigoVariante ?? n.skuBase}`}
+                      className={`${inputClass} w-16 py-1 text-sm`}
+                    />
+                    <span className="text-xs text-slate-500">de {cantidad(n.qty)}</span>
+                    <Button
+                      size="sm"
+                      loading={procesando === n.needId}
+                      disabled={!(Number(unidades) > 0 && Number(unidades) < n.qty)}
+                      onClick={async () => {
+                        if (await onDividir(n, Number(unidades))) setDividiendo(null);
+                      }}
+                    >
+                      Dividir
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setDividiendo(null)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                ) : n.status === "CAJA_CHICA" ? (
                   <div className="flex items-center justify-end gap-1">
                     <Link to={`/requerimientos/${n.requestId}/caja-chica`} className={linkClass}>
                       Ver compra
                     </Link>
                     <MenuAcciones
-                      acciones={[{ label: "Pasar a compra normal", onClick: () => onRuta(n, "COMPRA"), disabled: procesando === n.needId }]}
+                      acciones={[
+                        { label: "Pasar a compra normal", onClick: () => onRuta(n, "COMPRA"), disabled: procesando === n.needId },
+                        ...dividir(n),
+                      ]}
                     />
                   </div>
                 ) : (
@@ -326,6 +370,7 @@ function TablaNecesidades({
                     <Button size="sm" variant="secondary" disabled={procesando === n.needId} onClick={() => onRuta(n, "COMPRA")}>
                       Compra normal
                     </Button>
+                    {n.qty > 1 && <MenuAcciones acciones={dividir(n)} />}
                   </div>
                 )}
               </td>

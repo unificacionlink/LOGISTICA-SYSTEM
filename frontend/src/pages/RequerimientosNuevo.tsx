@@ -28,6 +28,8 @@ interface ItemCarrito {
   variante: VarianteConStock;
   qty: string;
   observacion: string;
+  /** DEC-L054: unidades por caja chica del proyecto ("" = ninguna). */
+  cajaChica: string;
 }
 
 /** Item que llego sin talla/color (borrador generado desde un presupuesto, DEC-L049). */
@@ -56,8 +58,7 @@ export default function RequerimientosNuevo() {
   const [purpose, setPurpose] = useState("");
   const [requiredDate, setRequiredDate] = useState("");
   const [justification, setJustification] = useState("");
-  // DEC-L054: sugerir comprar el faltante con la caja chica del proyecto.
-  const [cajaChica, setCajaChica] = useState(false);
+  // DEC-L054: nota para Logistica sobre lo marcado para la caja chica del proyecto.
   const [cajaChicaNota, setCajaChicaNota] = useState("");
   const [items, setItems] = useState<ItemCarrito[]>([]);
   const [pendientes, setPendientes] = useState<ItemPendiente[]>([]);
@@ -126,7 +127,6 @@ export default function RequerimientosNuevo() {
           setPurpose(requerimiento.purpose);
           setRequiredDate(requerimiento.requiredDate ?? "");
           setJustification(requerimiento.justification);
-          setCajaChica(requerimiento.cajaChicaSugerida);
           setCajaChicaNota(requerimiento.cajaChicaNota ?? "");
 
           const porCodigoVariante = new Map(conStock.map((v) => [v.codigoVariante, v]));
@@ -136,7 +136,12 @@ export default function RequerimientosNuevo() {
           for (const it of itemsExistentes) {
             const variante = it.codigoVariante ? porCodigoVariante.get(it.codigoVariante) : undefined;
             if (variante) {
-              itemsPrecargados.push({ variante, qty: String(it.cantidad), observacion: it.observacion ?? "" });
+              itemsPrecargados.push({
+                variante,
+                qty: String(it.cantidad),
+                observacion: it.observacion ?? "",
+                cajaChica: it.cantidadCajaChica > 0 ? String(it.cantidadCajaChica) : "",
+              });
             } else if (!it.codigoVariante && conVariantes.has(it.skuBase)) {
               sinVariante.push({
                 key: it.id,
@@ -175,7 +180,7 @@ export default function RequerimientosNuevo() {
     setErrorItems(null);
     setItems((prev) => {
       const idx = prev.findIndex((it) => it.variante.variantId === v.variantId);
-      if (idx === -1) return [...prev, { variante: v, qty: "1", observacion: "" }];
+      if (idx === -1) return [...prev, { variante: v, qty: "1", observacion: "", cajaChica: "" }];
       const copia = [...prev];
       const actual = Number(copia[idx].qty) || 0;
       copia[idx] = { ...copia[idx], qty: String(actual + 1) };
@@ -195,7 +200,7 @@ export default function RequerimientosNuevo() {
     setPendientes((prev) => prev.filter((x) => x.key !== p.key));
     setItems((prev) => {
       const idx = prev.findIndex((it) => it.variante.variantId === v.variantId);
-      if (idx === -1) return [...prev, { variante: v, qty: p.qty, observacion: p.observacion }];
+      if (idx === -1) return [...prev, { variante: v, qty: p.qty, observacion: p.observacion, cajaChica: "" }];
       const copia = [...prev];
       copia[idx] = { ...copia[idx], qty: String((Number(copia[idx].qty) || 0) + (Number(p.qty) || 0)) };
       return copia;
@@ -234,12 +239,13 @@ export default function RequerimientosNuevo() {
         purpose,
         justification,
         requiredDate: requiredDate || undefined,
-        cajaChicaSugerida: cajaChica,
-        cajaChicaNota: cajaChica && cajaChicaNota.trim() ? cajaChicaNota.trim() : undefined,
+        cajaChicaNota:
+          validos.some((it) => Number(it.cajaChica) > 0) && cajaChicaNota.trim() ? cajaChicaNota.trim() : undefined,
         items: validos.map((it) => ({
           variantId: it.variante.variantId,
           qtyRequested: Number(it.qty),
           observation: it.observacion || undefined,
+          cantidadCajaChica: Math.min(Number(it.cajaChica) || 0, Number(it.qty) || 0),
         })),
       };
       const res = editando ? await actualizarRequerimiento(id!, payload) : await crearRequerimiento(payload);
@@ -366,22 +372,17 @@ export default function RequerimientosNuevo() {
                   />
                 </Field>
 
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={cajaChica} onChange={(e) => setCajaChica(e.target.checked)} />
-                    Sugerir comprar lo que falte con la caja chica del proyecto
-                  </label>
-                  {cajaChica && (
+                {items.some((it) => Number(it.cajaChica) > 0) && (
+                  <Field label="Caja chica del proyecto">
                     <input
                       value={cajaChicaNota}
                       maxLength={300}
                       onChange={(e) => setCajaChicaNota(e.target.value)}
                       placeholder="Nota para Logística (opcional)"
-                      aria-label="Nota para Logística sobre la caja chica"
                       className={`${inputClass} w-full`}
                     />
-                  )}
-                </div>
+                  </Field>
+                )}
               </CardBody>
             </Card>
 
@@ -480,11 +481,12 @@ export default function RequerimientosNuevo() {
                             <span className="block truncate font-mono text-xs text-slate-700">{it.variante.etiqueta}</span>
                             <span className="mt-1 flex flex-wrap items-center gap-1.5">
                               <StockDisponible cantidad={it.variante.stockDisponible} enPedido={Number(it.qty) || 0} />
-                              {it.variante.stockDisponible > 0 && Number(it.qty) > it.variante.stockDisponible && (
-                                <span className="text-xs text-amber-700">
-                                  {Number(it.qty) - it.variante.stockDisponible} se comprarán
-                                </span>
-                              )}
+                              {it.variante.stockDisponible > 0 &&
+                                Number(it.qty) - (Number(it.cajaChica) || 0) > it.variante.stockDisponible && (
+                                  <span className="text-xs text-amber-700">
+                                    {Number(it.qty) - (Number(it.cajaChica) || 0) - it.variante.stockDisponible} se comprarán
+                                  </span>
+                                )}
                             </span>
                             {it.variante.plazoAtencionDias != null && (
                               <span className="text-xs text-slate-400">
@@ -518,6 +520,19 @@ export default function RequerimientosNuevo() {
                           className={`${inputClass} flex-1 py-1.5 text-sm`}
                         />
                       </div>
+                      <label className="flex items-center gap-2 self-start text-xs text-slate-600">
+                        Por caja chica del proyecto
+                        <CampoNumero
+                          decimales={0}
+                          max={Number(it.qty) || 0}
+                          value={it.cajaChica}
+                          onChange={(v) => actualizarItem(it.variante.variantId, { cajaChica: v })}
+                          placeholder="0"
+                          aria-label={`Unidades de ${it.variante.codigoVariante} por caja chica`}
+                          className={`${inputClass} w-16 py-1 text-xs`}
+                        />
+                        {Number(it.cajaChica) > 0 && <span className="text-slate-400">de {it.qty || 0}</span>}
+                      </label>
                     </li>
                   ))}
                 </ul>

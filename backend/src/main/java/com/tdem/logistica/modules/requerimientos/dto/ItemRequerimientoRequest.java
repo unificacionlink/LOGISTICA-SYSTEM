@@ -14,5 +14,18 @@ public record ItemRequerimientoRequest(
         @Digits(integer = 6, fraction = 0, message = "La cantidad debe ser un numero entero de hasta 6 digitos.")
         BigDecimal qtyRequested,
         String technicalRequirement,
-        String observation) {
+        String observation,
+        /** DEC-L054: unidades que el solicitante sugiere comprar con la caja chica del proyecto. */
+        @DecimalMin(value = "0", message = "Las unidades por caja chica no pueden ser negativas.")
+        @Digits(integer = 6, fraction = 0, message = "Las unidades por caja chica deben ser un numero entero.")
+        BigDecimal cantidadCajaChica) {
+
+    public ItemRequerimientoRequest(UUID variantId, BigDecimal qtyRequested, String technicalRequirement,
+                                    String observation) {
+        this(variantId, qtyRequested, technicalRequirement, observation, null);
+    }
+
+    public BigDecimal cajaChica() {
+        return cantidadCajaChica == null ? BigDecimal.ZERO : cantidadCajaChica;
+    }
 }

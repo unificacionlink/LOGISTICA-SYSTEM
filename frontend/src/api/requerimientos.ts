@@ -7,6 +7,8 @@ export interface ItemInput {
   qtyRequested: number;
   observation?: string;
   technicalRequirement?: string;
+  /** DEC-L054: unidades que se sugiere comprar con la caja chica del proyecto. */
+  cantidadCajaChica?: number;
 }
 
 export interface CrearRequerimientoInput {
@@ -16,8 +18,7 @@ export interface CrearRequerimientoInput {
   justification: string;
   requiredDate?: string;
   items: ItemInput[];
-  /** DEC-L054: sugerir la caja chica del proyecto para lo que falte. */
-  cajaChicaSugerida?: boolean;
+  /** DEC-L054: nota para Logistica sobre los productos marcados para caja chica. */
   cajaChicaNota?: string;
 }
 

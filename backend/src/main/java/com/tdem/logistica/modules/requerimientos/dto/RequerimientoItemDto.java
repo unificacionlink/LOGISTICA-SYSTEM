@@ -12,5 +12,7 @@ public record RequerimientoItemDto(
         String unidadMedida,
         BigDecimal cantidad,
         String requisitoTecnico,
-        String observacion) {
+        String observacion,
+        /** DEC-L054: unidades sugeridas para la caja chica del proyecto. */
+        BigDecimal cantidadCajaChica) {
 }

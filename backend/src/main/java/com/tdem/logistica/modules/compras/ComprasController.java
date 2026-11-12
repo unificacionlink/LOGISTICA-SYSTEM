@@ -108,6 +108,20 @@ public class ComprasController {
         return ApiResponse.ok(n, mensaje);
     }
 
+    public record DividirNecesidadRequest(@jakarta.validation.constraints.NotNull(message = "Indica cuantas unidades separar.")
+                                          java.math.BigDecimal cantidad) {
+    }
+
+    /** DEC-L054: separa unidades de una necesidad para darle otra ruta. */
+    @PostMapping("/necesidades/{id}/dividir")
+    public ApiResponse<List<NecesidadDto>> dividirNecesidad(
+            @PathVariable UUID id,
+            @Valid @RequestBody DividirNecesidadRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        List<NecesidadDto> partes = abastecimiento.dividir(id, request.cantidad(), principal);
+        return ApiResponse.ok(partes, "Necesidad dividida: elige la ruta de cada parte.");
+    }
+
     @GetMapping("/consolidados")
     public ApiResponse<List<ConsolidadoDto>> consolidados(@AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(abastecimiento.listarConsolidados(principal));

@@ -121,16 +121,17 @@ public class StockService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void reservarDisponible(Requerimiento r) {
-        // DEC-L054: si el solicitante sugiere la caja chica del proyecto no se aparta
-        // stock; Logistica decide en Necesidades si usa el almacen o la caja chica.
-        if (r.isPettyCashSuggested()) {
-            return;
-        }
         Almacen almacen = almacenCentral.bloquear();
         for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
+            // DEC-L054: las unidades que el solicitante sugirio para la caja chica del
+            // proyecto no apartan stock; Logistica decide en Necesidades si usa el almacen.
+            BigDecimal normal = item.getQtyRequested().subtract(item.getPettyCashQty());
+            if (normal.signum() <= 0) {
+                continue;
+            }
             UUID variantId = item.getVariante() != null ? item.getVariante().getVariantId() : null;
             BigDecimal aReservar = saldoDisponible(almacen, item.getProducto().getProductId(), variantId)
-                    .min(item.getQtyRequested());
+                    .min(normal);
             if (aReservar.signum() <= 0) {
                 continue;
             }

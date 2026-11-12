@@ -309,6 +309,17 @@ public class RequerimientoService {
         return url;
     }
 
+    /** DEC-L054: las unidades por caja chica no pueden superar lo pedido. */
+    private static BigDecimal cajaChicaValida(CrearRequerimientoRequest request, ItemRequerimientoRequest itemReq,
+                                              ProductoVariante variante) {
+        BigDecimal cc = request.cantidadCajaChica(itemReq);
+        if (cc.compareTo(itemReq.qtyRequested()) > 0) {
+            throw ApiException.badRequest("Las unidades por caja chica de " + variante.getInternalVariantCode()
+                    + " superan la cantidad pedida.");
+        }
+        return cc;
+    }
+
     @Transactional
     public RequerimientoDto crear(CrearRequerimientoRequest request, UsuarioPrincipal principal) {
         if (!principal.tieneAlgunRol(Roles.SOLICITANTE, Roles.LOGISTICA, Roles.ADMIN)) {
@@ -359,6 +370,7 @@ public class RequerimientoService {
             item.setQtyRequested(itemReq.qtyRequested());
             item.setTechnicalRequirement(itemReq.technicalRequirement());
             item.setObservation(itemReq.observation());
+            item.setPettyCashQty(cajaChicaValida(request, itemReq, variante));
             requerimientoItemRepository.save(item);
         }
 
@@ -426,6 +438,7 @@ public class RequerimientoService {
             item.setQtyRequested(itemReq.qtyRequested());
             item.setTechnicalRequirement(itemReq.technicalRequirement());
             item.setObservation(itemReq.observation());
+            item.setPettyCashQty(cajaChicaValida(request, itemReq, variante));
             requerimientoItemRepository.save(item);
         }
 

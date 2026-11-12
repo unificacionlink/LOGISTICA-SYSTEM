@@ -57,6 +57,8 @@ export interface RequerimientoItem {
   cantidad: number;
   requisitoTecnico: string | null;
   observacion: string | null;
+  /** DEC-L054: unidades sugeridas para la caja chica del proyecto. */
+  cantidadCajaChica: number;
 }
 
 export interface RequerimientoDetalle {

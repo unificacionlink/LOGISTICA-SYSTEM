@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.39.0 — 2026-11-12
+
+Caja chica del proyecto por producto y cantidad (DEC-L054).
+
+- **V28**: `requerimiento_item.petty_cash_qty` (0..qty_requested; los REQ que
+  ya la sugerian para todo quedan con todo por caja chica).
+  `requerimiento.petty_cash_suggested` queda como "algun producto con
+  unidades por caja chica".
+- `ItemRequerimientoRequest.cantidadCajaChica` y
+  `RequerimientoItemDto.cantidadCajaChica`; no puede superar lo pedido.
+- Al aprobar: `StockService.reservarDisponible` aparta solo la parte normal;
+  `generarNecesidades` crea una necesidad PENDIENTE_RUTA `SOLICITANTE` por las
+  unidades de caja chica y la parte normal sigue stock / reglas / consolidado.
+- **Dividir** (`POST /api/compras/necesidades/{id}/dividir`): separa unidades
+  de una necesidad por decidir o en caja chica sin compras en otra con el
+  mismo motivo; auditado (`DIVIDIR`). Lo comprado por caja chica se reparte
+  entre las partes del item al listar.
+- Frontend: "Por caja chica del proyecto [n]" en cada producto del borrador,
+  nota si hay alguno, etiqueta "Caja chica: n" en el detalle y "Dividir…" en
+  Necesidades.
+- Pruebas: `CajaChicaTest.unaParteDelProductoPorCajaChicaYElRestoNormal`;
+  `MigracionesFlywayTest`: 28.
+
 ## 0.38.1 — 2026-11-12
 
 Caja chica sugerida con stock en el almacen (DEC-L054).

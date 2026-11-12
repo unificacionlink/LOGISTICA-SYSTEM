@@ -51,7 +51,8 @@ public final class RequerimientoMapper {
                 i.getUom().getCode(),
                 i.getQtyRequested(),
                 i.getTechnicalRequirement(),
-                i.getObservation());
+                i.getObservation(),
+                i.getPettyCashQty());
     }
 
     public static VarianteCatalogoDto toDto(ProductoVariante v, String imagenUrl) {

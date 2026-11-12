@@ -7,9 +7,13 @@ actualizar esta lista y el CHANGELOG.
 
 - **DEC-L054 — Caja chica del proyecto (2026-11-12).** Reemplaza el "Logistica
   compra y entra al almacen" de DEC-L026: cada proyecto tiene su caja chica.
-  - **Sugerencia**: el solicitante marca en su REQ "Sugerir comprar lo que
-    falte con la caja chica del proyecto" con nota opcional
-    (`requerimiento.petty_cash_suggested/petty_cash_suggestion_note`, V27). Al
+  - **Sugerencia**: el solicitante indica en su borrador, por producto,
+    cuantas unidades van "Por caja chica del proyecto"
+    (`requerimiento_item.petty_cash_qty`, V28, v0.39.0); el resto sigue la via
+    normal (stock y compra). Logistica puede **Dividir** una necesidad para dar
+    a cada parte su ruta. Nota opcional para el REQ
+    (`requerimiento.petty_cash_suggestion_note`; `petty_cash_suggested` = algun
+    producto marcado, V27). Al
     aprobarse, el faltante queda PENDIENTE_RUTA con `suggested_reason =
     SOLICITANTE` (antes que las reglas de bajo monto / mismo dia / falla).
   - **Con stock** (v0.38.1): si el solicitante la sugiere, la aprobacion no

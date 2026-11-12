@@ -124,19 +124,21 @@ public class AbastecimientoService {
         }
         var sugerir = cajaChicaService.sugeridor(r);
         for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
-            BigDecimal faltante = item.getQtyRequested()
+            // DEC-L054: las unidades que el solicitante sugirio para la caja chica del
+            // proyecto van aparte, por decidir; el resto sigue la via normal.
+            BigDecimal cajaChica = item.getPettyCashQty().min(item.getQtyRequested());
+            if (cajaChica.signum() > 0) {
+                NecesidadCompra n = nuevaNecesidad(r, item, cajaChica);
+                n.setSuggestedReason(CajaChicaService.SOLICITANTE);
+                n.setStatus(NecesidadCompra.PENDIENTE_RUTA);
+                necesidadRepository.save(n);
+            }
+            BigDecimal faltante = item.getQtyRequested().subtract(cajaChica)
                     .subtract(cubierto.getOrDefault(item.getRequestItemId(), BigDecimal.ZERO));
             if (faltante.signum() <= 0) {
                 continue;
             }
-            NecesidadCompra n = new NecesidadCompra();
-            n.setNeedId(UUID.randomUUID());
-            n.setRequerimientoItem(item);
-            n.setEmpresa(r.getEmpresa());
-            n.setProducto(item.getProducto());
-            n.setVariante(item.getVariante());
-            n.setUom(item.getUom());
-            n.setQty(faltante);
+            NecesidadCompra n = nuevaNecesidad(r, item, faltante);
             String motivo = sugerir.apply(item, faltante);
             n.setSuggestedReason(motivo);
             if (motivo == null) {
@@ -146,6 +148,18 @@ public class AbastecimientoService {
             }
             necesidadRepository.save(n);
         }
+    }
+
+    private static NecesidadCompra nuevaNecesidad(Requerimiento r, RequerimientoItem item, BigDecimal qty) {
+        NecesidadCompra n = new NecesidadCompra();
+        n.setNeedId(UUID.randomUUID());
+        n.setRequerimientoItem(item);
+        n.setEmpresa(r.getEmpresa());
+        n.setProducto(item.getProducto());
+        n.setVariante(item.getVariante());
+        n.setUom(item.getUom());
+        n.setQty(qty);
+        return n;
     }
 
     /** Suma la necesidad al consolidado ABIERTO de su empresa + SKU + unidad (lo crea si no hay). */
@@ -186,7 +200,8 @@ public class AbastecimientoService {
         exigirLogistica(principal);
         List<NecesidadCompra> needs = necesidadRepository.findByStatusIn(
                 List.of(NecesidadCompra.PENDIENTE_RUTA, NecesidadCompra.CAJA_CHICA));
-        Map<UUID, BigDecimal> comprado = compradoPorCajaChica(needs.stream().map(NecesidadCompra::getNeedId).toList());
+        Map<UUID, BigDecimal> comprado = repartirComprado(needs,
+                compradoPorCajaChica(needs.stream().map(NecesidadCompra::getNeedId).toList()));
         Map<UUID, BigDecimal> disponibles = stockService.disponibles(needs.stream()
                 .filter(n -> n.getVariante() != null).map(n -> n.getVariante().getVariantId()).distinct().toList());
         List<NecesidadDto> out = new ArrayList<>();
@@ -195,6 +210,30 @@ public class AbastecimientoService {
             if (resta.signum() > 0) {
                 out.add(ComprasMapper.toDto(n, resta, n.getVariante() != null
                         ? disponibles.getOrDefault(n.getVariante().getVariantId(), BigDecimal.ZERO) : BigDecimal.ZERO));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Lo comprado por caja chica se registra contra una necesidad del item; si el
+     * item tiene varias en caja chica (dividida, DEC-L054) se reparte en orden.
+     */
+    private static Map<UUID, BigDecimal> repartirComprado(List<NecesidadCompra> needs, Map<UUID, BigDecimal> porNecesidad) {
+        Map<UUID, List<NecesidadCompra>> porItem = new LinkedHashMap<>();
+        for (NecesidadCompra n : needs) {
+            if (NecesidadCompra.CAJA_CHICA.equals(n.getStatus())) {
+                porItem.computeIfAbsent(n.getRequerimientoItem().getRequestItemId(), k -> new ArrayList<>()).add(n);
+            }
+        }
+        Map<UUID, BigDecimal> out = new HashMap<>();
+        for (List<NecesidadCompra> grupo : porItem.values()) {
+            BigDecimal resta = grupo.stream().map(n -> porNecesidad.getOrDefault(n.getNeedId(), BigDecimal.ZERO))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            for (NecesidadCompra n : grupo) {
+                BigDecimal toma = resta.min(n.getQty());
+                out.put(n.getNeedId(), toma);
+                resta = resta.subtract(toma);
             }
         }
         return out;
@@ -276,6 +315,43 @@ public class AbastecimientoService {
             cajaChicaService.avisar(n.getRequerimientoItem().getRequerimiento(), "AUTORIZADA", null);
         }
         return ComprasMapper.toDto(n, n.getQty());
+    }
+
+    /**
+     * DEC-L054: separa {@code cantidad} unidades de una necesidad por decidir (o
+     * en caja chica sin compras) en otra con el mismo motivo, para dar a cada
+     * parte su ruta (por ejemplo 2 a caja chica y 3 a compra normal).
+     */
+    @Transactional
+    public List<NecesidadDto> dividir(UUID needId, BigDecimal cantidad, UsuarioPrincipal principal) {
+        exigirLogistica(principal);
+        NecesidadCompra n = necesidadRepository.bloquear(needId)
+                .orElseThrow(() -> ApiException.notFound("Necesidad no encontrada."));
+        if (!NecesidadCompra.PENDIENTE_RUTA.equals(n.getStatus()) && !NecesidadCompra.CAJA_CHICA.equals(n.getStatus())) {
+            throw ApiException.badRequest("Solo se divide una necesidad por decidir o en caja chica.");
+        }
+        if (compradoPorCajaChica(List.of(needId)).getOrDefault(needId, BigDecimal.ZERO).signum() > 0) {
+            throw ApiException.badRequest("Ya hay compras por caja chica para esta necesidad.");
+        }
+        if (cantidad == null || cantidad.signum() <= 0 || cantidad.compareTo(n.getQty()) >= 0
+                || cantidad.stripTrailingZeros().scale() > 0) {
+            throw ApiException.badRequest("Indica cuantas unidades separar: entre 1 y "
+                    + n.getQty().subtract(BigDecimal.ONE).stripTrailingZeros().toPlainString() + ".");
+        }
+        NecesidadCompra parte = nuevaNecesidad(n.getRequerimientoItem().getRequerimiento(), n.getRequerimientoItem(), cantidad);
+        parte.setEmpresa(n.getEmpresa());
+        parte.setSuggestedReason(n.getSuggestedReason());
+        parte.setStatus(n.getStatus());
+        parte.setRouteDecidedBy(n.getRouteDecidedBy());
+        parte.setRouteDecidedAt(n.getRouteDecidedAt());
+        BigDecimal antes = n.getQty();
+        n.setQty(antes.subtract(cantidad));
+        necesidadRepository.save(n);
+        necesidadRepository.save(parte);
+        auditoria.registrar("NECESIDAD_COMPRA", needId, "DIVIDIR", Map.of("cantidad", antes.toPlainString()),
+                Map.of("queda", n.getQty().toPlainString(), "separada", cantidad.toPlainString(),
+                        "nueva", parte.getNeedId()), principal.userId());
+        return List.of(ComprasMapper.toDto(n, n.getQty()), ComprasMapper.toDto(parte, cantidad));
     }
 
     /**
