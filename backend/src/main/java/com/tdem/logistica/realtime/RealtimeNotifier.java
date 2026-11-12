@@ -43,6 +43,14 @@ public class RealtimeNotifier {
     }
 
     /** Avisa solo al dueno del requerimiento (cualquier pestana suya conectada). */
+    /** DEC-L054: autorizada / observada / regularizada la compra con caja chica del proyecto. */
+    public record AvisoCajaChica(UUID requestId, String requestCode, String evento, String detalle) {
+    }
+
+    public void cajaChica(UUID requesterUserId, AvisoCajaChica aviso) {
+        messagingTemplate.convertAndSendToUser(requesterUserId.toString(), "/queue/caja-chica", aviso);
+    }
+
     public void decisionTomada(UUID requesterUserId, RequerimientoDto dto) {
         messagingTemplate.convertAndSendToUser(requesterUserId.toString(), "/queue/mis-requerimientos", dto);
     }

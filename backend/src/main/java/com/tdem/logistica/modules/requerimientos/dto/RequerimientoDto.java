@@ -21,10 +21,14 @@ public record RequerimientoDto(
         String empresaCode,
         /** Solo en el listado: cantidad de items y nombres de sus productos (para buscar y resumir). */
         Integer itemsCount,
-        String resumenItems) {
+        String resumenItems,
+        /** DEC-L054: el solicitante sugiere la caja chica del proyecto. */
+        boolean cajaChicaSugerida,
+        String cajaChicaNota) {
 
     public RequerimientoDto conResumen(Integer items, String resumen) {
         return new RequerimientoDto(id, code, requesterUserId, cecoId, cecoNombre, requesterNombre, priority, purpose,
-                justification, status, requiredDate, scheduledDeliveryDate, createdAt, empresaCode, items, resumen);
+                justification, status, requiredDate, scheduledDeliveryDate, createdAt, empresaCode, items, resumen,
+                cajaChicaSugerida, cajaChicaNota);
     }
 }

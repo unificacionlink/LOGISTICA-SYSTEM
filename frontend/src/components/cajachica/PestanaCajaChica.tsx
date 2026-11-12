@@ -5,26 +5,20 @@ import { ETIQUETA_MOTIVO, guardarReglaCajaChica, observarCajaChica, regularizarC
 import type { CompraCajaChica, ReglaCajaChica } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import Alert from "../ui/Alert";
-import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 import { Card, CardBody } from "../ui/Card";
 import EmptyState from "../ui/EmptyState";
 import Field, { inputClass } from "../ui/Field";
 
 import CampoNumero from "../ui/CampoNumero";
-function EstadoCompra({ estado }: { estado: CompraCajaChica["estado"] }) {
-  if (estado === "PENDIENTE_REGULARIZACION") return <Badge tone="amarillo">Por regularizar</Badge>;
-  if (estado === "OBSERVADO") return <Badge tone="rojo">Observada</Badge>;
-  if (estado === "REGULARIZADO") return <Badge tone="verde">Regularizada</Badge>;
-  return <Badge tone="gris">Anulada</Badge>;
-}
+import EstadoCompra from "./EstadoCompra";
 
 function fmtDia(iso: string): string {
   const [a, m, d] = iso.split("-");
   return `${d}/${m}/${a}`;
 }
 
-/** Compras por Caja Chica y su regularizacion (DEC-L026). */
+/** Compras con la caja chica de los proyectos y su revision (DEC-L026, DEC-L054). */
 export default function PestanaCajaChica({
   compras,
   regla,
@@ -43,7 +37,7 @@ export default function PestanaCajaChica({
       {regla && <Regla regla={regla} onRegla={onRegla} />}
       <Card className="overflow-hidden">
         {compras.length === 0 ? (
-          <EmptyState icon={Wallet} title="Aún no hay compras por Caja Chica" />
+          <EmptyState icon={Wallet} title="Aún no hay compras con caja chica" />
         ) : (
           <ul className="divide-y divide-slate-100">
             {compras.map((c) => (
@@ -99,7 +93,10 @@ function Compra({
     <li>
       <button type="button" onClick={alternar} aria-expanded={abierta} className="flex w-full flex-wrap items-center gap-3 px-5 py-3 text-left hover:bg-slate-50">
         <span className="font-mono text-xs text-slate-700">{c.codigo}</span>
-        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{c.proveedor}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+          {c.proveedor}
+          {c.destino === "ALMACEN" && <span className="ml-1.5 text-xs text-slate-400">(entró al almacén)</span>}
+        </span>
         <span className="font-mono text-xs text-slate-500">{c.requestCode}</span>
         <span className="tabular-nums text-sm text-slate-800">
           {c.moneda} {c.monto.toFixed(2)}
@@ -153,7 +150,7 @@ function Compra({
           {abierto && modo === "ver" && (
             <div className="flex gap-2">
               <Button size="sm" onClick={() => setModo("regularizar")}>
-                Regularizar
+                Comprobante correcto
               </Button>
               {c.estado === "PENDIENTE_REGULARIZACION" && (
                 <Button
@@ -171,11 +168,14 @@ function Compra({
           )}
           {modo !== "ver" && (
             <div className="flex flex-wrap items-end gap-2">
-              <Field label={modo === "regularizar" ? "Código en el aplicativo de Caja Chica" : "Motivo de la observación"} required={modo === "observar"}>
+              <Field
+                label={modo === "regularizar" ? "Código en el aplicativo de caja chica (opcional)" : "Qué debe corregir"}
+                required={modo === "observar"}
+              >
                 <input autoFocus value={texto} onChange={(e) => setTexto(e.target.value)} className={`${inputClass} w-72`} />
               </Field>
               <Button size="sm" loading={guardando} disabled={modo === "observar" && !texto.trim()} onClick={ejecutar}>
-                {modo === "regularizar" ? "Confirmar" : "Observar"}
+                {modo === "regularizar" ? "Regularizar" : "Observar"}
               </Button>
               <Button size="sm" variant="ghost" disabled={guardando} onClick={() => setModo("ver")}>
                 Cancelar

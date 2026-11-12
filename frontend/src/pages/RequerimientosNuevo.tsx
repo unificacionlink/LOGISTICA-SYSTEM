@@ -56,6 +56,9 @@ export default function RequerimientosNuevo() {
   const [purpose, setPurpose] = useState("");
   const [requiredDate, setRequiredDate] = useState("");
   const [justification, setJustification] = useState("");
+  // DEC-L054: sugerir comprar el faltante con la caja chica del proyecto.
+  const [cajaChica, setCajaChica] = useState(false);
+  const [cajaChicaNota, setCajaChicaNota] = useState("");
   const [items, setItems] = useState<ItemCarrito[]>([]);
   const [pendientes, setPendientes] = useState<ItemPendiente[]>([]);
   // Plazo de atencion (DEC-L035): el mayor de los SKU del pedido, contado desde hoy.
@@ -123,6 +126,8 @@ export default function RequerimientosNuevo() {
           setPurpose(requerimiento.purpose);
           setRequiredDate(requerimiento.requiredDate ?? "");
           setJustification(requerimiento.justification);
+          setCajaChica(requerimiento.cajaChicaSugerida);
+          setCajaChicaNota(requerimiento.cajaChicaNota ?? "");
 
           const porCodigoVariante = new Map(conStock.map((v) => [v.codigoVariante, v]));
           const conVariantes = new Set(catalogoRes.result.variantes.map((v) => v.skuBase));
@@ -229,6 +234,8 @@ export default function RequerimientosNuevo() {
         purpose,
         justification,
         requiredDate: requiredDate || undefined,
+        cajaChicaSugerida: cajaChica,
+        cajaChicaNota: cajaChica && cajaChicaNota.trim() ? cajaChicaNota.trim() : undefined,
         items: validos.map((it) => ({
           variantId: it.variante.variantId,
           qtyRequested: Number(it.qty),
@@ -358,6 +365,23 @@ export default function RequerimientosNuevo() {
                     className={`${inputClass} w-full`}
                   />
                 </Field>
+
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={cajaChica} onChange={(e) => setCajaChica(e.target.checked)} />
+                    Sugerir comprar lo que falte con la caja chica del proyecto
+                  </label>
+                  {cajaChica && (
+                    <input
+                      value={cajaChicaNota}
+                      maxLength={300}
+                      onChange={(e) => setCajaChicaNota(e.target.value)}
+                      placeholder="Nota para Logística (opcional)"
+                      aria-label="Nota para Logística sobre la caja chica"
+                      className={`${inputClass} w-full`}
+                    />
+                  )}
+                </div>
               </CardBody>
             </Card>
 

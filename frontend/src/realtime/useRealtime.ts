@@ -10,10 +10,19 @@ export interface CotizacionPorEnlace {
   proveedor: string;
 }
 
+/** DEC-L054: novedad de la compra con caja chica del proyecto; llega al solicitante. */
+export interface AvisoCajaChica {
+  requestId: string;
+  requestCode: string;
+  evento: "AUTORIZADA" | "OBSERVADA" | "REGULARIZADA";
+  detalle: string | null;
+}
+
 export interface RealtimeContextValue {
   onNuevaAprobacion: (cb: Listener<AprobacionPendiente>) => () => void;
   onMiRequerimientoDecidido: (cb: Listener<Requerimiento>) => () => void;
   onCotizacionPorEnlace: (cb: Listener<CotizacionPorEnlace>) => () => void;
+  onCajaChica: (cb: Listener<AvisoCajaChica>) => () => void;
 }
 
 export const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);

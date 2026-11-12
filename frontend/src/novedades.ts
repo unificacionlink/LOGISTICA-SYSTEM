@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.38.0",
+    titulo: "Caja chica del proyecto",
+    cambios: [
+      "Al crear un requerimiento puedes sugerir comprar lo que falte con la caja chica de tu proyecto.",
+      "Logística decide en Necesidades y te avisa cuando lo autoriza.",
+      "Registras lo que compraste con la foto o el PDF del comprobante; si Logística lo observa, lo corriges ahí mismo.",
+      "Lo comprado se queda en tu proyecto y cuenta como atendido cuando Logística verifica el comprobante.",
+    ],
+  },
+  {
     version: "0.37.1",
     titulo: "Reemplazar una cotización ganadora",
     cambios: [

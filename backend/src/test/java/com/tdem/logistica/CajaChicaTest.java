@@ -1,14 +1,17 @@
 package com.tdem.logistica;
 
 import com.tdem.logistica.common.ApiException;
-import com.tdem.logistica.modules.almacen.DespachoService;
-import com.tdem.logistica.modules.almacen.dto.CrearNotaRequest;
-import com.tdem.logistica.modules.almacen.dto.DespachoItemInput;
-import com.tdem.logistica.modules.almacen.dto.NotaInventarioDetalleDto;
+import com.tdem.logistica.modules.aprobaciones.AprobacionService;
+import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
 import com.tdem.logistica.modules.cajachica.CajaChicaService;
 import com.tdem.logistica.modules.cajachica.dto.*;
 import com.tdem.logistica.modules.compras.AbastecimientoService;
-import com.tdem.logistica.modules.compras.ComprasService;
+import com.tdem.logistica.modules.compras.dto.NecesidadDto;
+import com.tdem.logistica.modules.requerimientos.BandejaService;
+import com.tdem.logistica.modules.requerimientos.RequerimientoService;
+import com.tdem.logistica.modules.requerimientos.dto.CrearRequerimientoRequest;
+import com.tdem.logistica.modules.requerimientos.dto.ItemRequerimientoRequest;
+import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.modules.tracking.TrackingService;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
@@ -31,18 +34,24 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Lote 9 (DEC-L026): Caja Chica como ruta de compra del requerimiento. */
+/**
+ * DEC-L054: la caja chica es del proyecto. El solicitante la sugiere, Logistica
+ * autoriza la ruta, el proyecto compra y el solicitante sube el comprobante; lo
+ * comprado no pasa por el almacen y cuenta como atendido al regularizarse.
+ */
 @SpringBootTest
 @ActiveProfiles("seed-test-data")
 class CajaChicaTest {
 
+	private static final ZoneId LIMA = ZoneId.of("America/Lima");
 	private static EmbeddedPostgres pg;
 
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private CajaChicaService cajaChica;
-	@Autowired private ComprasService comprasService;
 	@Autowired private AbastecimientoService abastecimiento;
-	@Autowired private DespachoService despachoService;
+	@Autowired private RequerimientoService requerimientos;
+	@Autowired private AprobacionService aprobaciones;
+	@Autowired private BandejaService bandeja;
 	@Autowired private TrackingService trackingService;
 
 	@DynamicPropertySource
@@ -62,89 +71,96 @@ class CajaChicaTest {
 	}
 
 	@Test
-	void sugiereRegistraReservaDespachaYRegulariza() {
-		UsuarioPrincipal logistica = new UsuarioPrincipal(usuario("logistica@logistica.test"), List.of("LOGISTICA"));
-		UsuarioPrincipal admin = new UsuarioPrincipal(usuario("admin@logistica.test"), List.of("ADMIN"));
-		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
+	void elProyectoCompraConSuCajaChicaYLogisticaRegulariza() {
+		UsuarioPrincipal solicitante = principal("solicitante@logistica.test", "SOLICITANTE");
+		UsuarioPrincipal logistica = principal("logistica@logistica.test", "LOGISTICA");
+		UsuarioPrincipal aprobador = principal("aprobador@logistica.test", "APROBADOR");
+		UsuarioPrincipal ajeno = principal("pyc@logistica.test", "PYC");
 
-		// REQ urgente para hoy: 5 u. de AC01001 y 3 u. de AC01002, sin stock ni costo historico.
-		UUID req = crearReq("REQ-TEST-CC1", "URGENTE", LocalDate.now(ZoneId.of("America/Lima")));
-		UUID item1 = crearItem(req, "AC01001", "AC01001-00", 5);
-		UUID item2 = crearItem(req, "AC01002", "AC01002-00", 3);
+		// --- El solicitante sugiere comprar con la caja chica del proyecto ---
+		RequerimientoDto req = requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "NORMAL", "CONSUMO",
+				"Pilas y cinta para la obra del proyecto", LocalDate.now(LIMA).plusDays(5),
+				List.of(item("AC01001-00", 5), item("AC01002-00", 3)), true, "Hay una ferreteria al lado de la obra"),
+				solicitante);
+		assertTrue(req.cajaChicaSugerida());
+		requerimientos.enviar(req.id(), solicitante);
+		UUID aprobacion = requerimientos.obtener(req.id(), aprobador).pendingApprovalId();
+		aprobaciones.decidir(aprobacion, new DecidirAprobacionRequest("APROBADO", null, null), aprobador);
+		UUID item1 = itemDe(req.id(), "AC01001-00");
+		UUID item2 = itemDe(req.id(), "AC01002-00");
 
-		// --- Sugerencia ---
-		assertThrows(ApiException.class, () -> cajaChica.evaluar(req, solicitante));
-		EvaluacionCajaChicaDto ev = cajaChica.evaluar(req, logistica);
-		assertEquals(0, ev.regla().umbral().compareTo(new BigDecimal("100")), "umbral referencial PD-05");
-		assertNull(ev.estimado(), "sin costo de referencia no se estima");
-		assertEquals(List.of("MISMO_DIA"), ev.motivos().stream().map(EvaluacionCajaChicaDto.Motivo::codigo).toList());
+		// --- Llega a Necesidades por decidir, con la nota del solicitante ---
+		List<NecesidadDto> necesidades = abastecimiento.listarNecesidades(logistica).stream()
+				.filter(n -> n.requestId().equals(req.id())).toList();
+		assertEquals(2, necesidades.size());
+		assertTrue(necesidades.stream().allMatch(n -> "PENDIENTE_RUTA".equals(n.status())
+				&& "SOLICITANTE".equals(n.suggestedReason())
+				&& "Hay una ferreteria al lado de la obra".equals(n.notaSolicitante())), necesidades.toString());
 
-		// --- Bajo monto no aplica si el total supera el umbral ---
-		ApiException sobreUmbral = assertThrows(ApiException.class, () -> cajaChica.registrar(req,
-				compra("BAJO_MONTO", null, "F001", "100", item1, "5", "30"), logistica));
-		assertTrue(sobreUmbral.getMessage().contains("supera el umbral"), sobreUmbral.getMessage());
+		// --- Sin autorizacion de Logistica no se registra ---
+		assertFalse(cajaChica.formulario(req.id(), solicitante).puedeRegistrar());
+		UUID doc1 = comprobante();
+		assertThrows(ApiException.class, () -> cajaChica.registrar(req.id(), compra(item1, "5", "10", "F001", "123", doc1),
+				solicitante));
 
-		// --- Compra el mismo dia: entra al almacen y queda reservada ---
-		CajaChicaDto c1 = cajaChica.registrar(req, compra("MISMO_DIA", null, "F001", "123", item1, "5", "10"), logistica);
-		assertEquals("CC-1-TDEMSRL", c1.codigo());
-		assertEquals(0, c1.monto().compareTo(new BigDecimal("50")));
+		// --- Logistica autoriza la ruta ---
+		necesidades.forEach(n -> abastecimiento.decidirRuta(n.needId(), "CAJA_CHICA", logistica));
+		FormularioCajaChicaDto f = cajaChica.formulario(req.id(), solicitante);
+		assertTrue(f.puedeRegistrar());
+		assertEquals(2, f.items().size());
+		assertTrue(f.items().stream().allMatch(i -> i.pendiente().compareTo(i.autorizado()) == 0));
+		assertThrows(ApiException.class, () -> cajaChica.formulario(req.id(), ajeno), "solo el dueno o Logistica");
+		assertTrue(bandeja.bandeja("pendientes", null, null, 0, solicitante).filas().stream()
+				.anyMatch(x -> x.id().equals(req.id())
+						&& x.acciones().stream().anyMatch(a -> "REGISTRAR_CAJA_CHICA".equals(a.codigo()) && !a.espera())),
+				"el solicitante tiene que registrar la compra");
+
+		// --- El solicitante registra con su comprobante: no entra al almacen ---
+		assertThrows(ApiException.class, () -> cajaChica.registrar(req.id(),
+				compra(item1, "5", "10", "F001", "123", UUID.randomUUID()), solicitante), "exige el comprobante adjunto");
+		CajaChicaDto c1 = cajaChica.registrar(req.id(), compra(item1, "5", "10", "F001", "123", doc1), solicitante);
+		assertEquals("PROYECTO", c1.destino());
 		assertEquals("PENDIENTE_REGULARIZACION", c1.estado());
-		assertEquals(0, pendiente(req, item1, logistica).signum(), "ya no esta pendiente de compra");
-		assertEquals(0, new BigDecimal("5").compareTo(jdbc.queryForObject(
-				"select sum(qty_reserved) from reserva_stock where request_item_id = ? and origin = 'CAJA_CHICA' and status = 'RESERVADA'",
-				BigDecimal.class, item1)));
-		assertEquals(1, jdbc.queryForObject(
-				"select count(*) from movimiento_inventario where reference_type = 'CAJA_CHICA' and movement_type = 'ENTRADA'", Integer.class));
+		assertEquals("SOLICITANTE", c1.motivo());
+		assertEquals(0, c1.monto().compareTo(new BigDecimal("50")));
+		assertEquals(0, jdbc.queryForObject("select count(*) from movimiento_inventario where reference_type = 'CAJA_CHICA'",
+				Integer.class), "no pasa por el almacen");
+		assertEquals(0, jdbc.queryForObject("select count(*) from reserva_stock where origin = 'CAJA_CHICA'", Integer.class));
+		assertThrows(ApiException.class, () -> cajaChica.registrar(req.id(),
+				compra(item1, "1", "10", "F001", "999", comprobante()), solicitante), "supera lo autorizado");
+		ApiException dup = assertThrows(ApiException.class, () -> cajaChica.registrar(req.id(),
+				compra(item2, "2", "25", "F001", "000123", comprobante()), solicitante));
+		assertTrue(dup.getMessage().contains(c1.codigo()), dup.getMessage());
+		assertEquals("EN_ATENCION", estado(req.id()), "aun no cuenta como atendido");
 
-		// --- Comprobante duplicado (RF-029) y exceso sobre lo pendiente ---
-		ApiException dup = assertThrows(ApiException.class, () -> cajaChica.registrar(req,
-				compra("MISMO_DIA", null, "F001", "000123", item2, "2", "25"), logistica));
-		assertTrue(dup.getMessage().contains("CC-1-TDEMSRL"), dup.getMessage());
-		assertThrows(ApiException.class, () -> cajaChica.registrar(req,
-				compra("MISMO_DIA", null, "F001", "999", item1, "1", "10"), logistica), "item1 ya no tiene pendiente");
+		// --- Observada: el solicitante corrige y vuelve a revision ---
+		cajaChica.observar(c1.id(), "La boleta no se lee", logistica);
+		UUID doc2 = comprobante();
+		assertThrows(ApiException.class, () -> cajaChica.corregir(c1.id(), compra(item1, "5", "9", "F001", "124", doc2), ajeno));
+		CajaChicaDto corregida = cajaChica.corregir(c1.id(), compra(item1, "5", "9", "F001", "124", doc2), solicitante);
+		assertEquals("PENDIENTE_REGULARIZACION", corregida.estado());
+		assertEquals(0, corregida.monto().compareTo(new BigDecimal("45")));
 
-		// --- Excepcion: exige sustento ---
-		assertThrows(ApiException.class, () -> cajaChica.registrar(req,
-				compra("EXCEPCION_AUTORIZADA", null, "B002", "7", item2, "3", "20"), logistica));
-		CajaChicaDto c2 = cajaChica.registrar(req,
-				compra("EXCEPCION_AUTORIZADA", "Autorizo Gerencia por parada de obra", "B002", "7", item2, "3", "20"), logistica);
-		assertEquals("CC-2-TDEMSRL", c2.codigo());
-		assertTrue(abastecimiento.listarNecesidades(logistica).stream().noneMatch(n -> n.requestId().equals(req)),
-				"el REQ sale de las necesidades por atender");
-		assertEquals(2, jdbc.queryForObject("""
-				select count(*) from necesidad_compra n join requerimiento_item ri on ri.request_item_id = n.request_item_id
-				where ri.request_id = ? and n.status = 'CAJA_CHICA'""", Integer.class, req), "la compra confirma la ruta");
+		// --- Logistica verifica: cuenta como atendido ---
+		assertThrows(ApiException.class, () -> cajaChica.regularizar(c1.id(), null, solicitante));
+		cajaChica.regularizar(c1.id(), "MOV-1", logistica);
+		assertEquals("ATENCION_PARCIAL", estado(req.id()));
 
-		// --- Despacho: la NI se valoriza con el costo de la Caja Chica ---
-		NotaInventarioDetalleDto ni = despachoService.crearNotaInventario(req,
-				new CrearNotaRequest(List.of(new DespachoItemInput(item1, new BigDecimal("5"))), 1, null, null), logistica);
-		assertEquals(0, ni.nota().totalValueSnapshot().compareTo(new BigDecimal("50")));
+		CajaChicaDto c2 = cajaChica.registrar(req.id(), compra(item2, "3", "20", "B002", "7", comprobante()), logistica);
+		cajaChica.regularizar(c2.id(), null, logistica);
+		assertEquals("ATENCION_COMPLETA", estado(req.id()));
+		assertFalse(cajaChica.formulario(req.id(), solicitante).puedeRegistrar());
 
-		// --- Tracking ---
-		assertTrue(trackingService.obtener(req, logistica).eventos().stream()
-				.anyMatch(e -> "CC-1-TDEMSRL".equals(e.referencia()) && e.accion().contains("Caja Chica")));
+		assertTrue(trackingService.obtener(req.id(), logistica).eventos().stream()
+				.anyMatch(e -> e.accion().contains("caja chica del proyecto")));
+		assertEquals(6, jdbc.queryForObject("select count(*) from log_cambios where entidad = 'CAJA_CHICA'", Integer.class),
+				"registrar x2, observar, corregir, regularizar x2");
+	}
 
-		// --- Bajo monto con costo historico (el de la Caja Chica anterior: 2 x 10 = 20) ---
-		UUID req2 = crearReq("REQ-TEST-CC2", "NORMAL", LocalDate.now().plusDays(10));
-		UUID item3 = crearItem(req2, "AC01001", "AC01001-00", 2);
-		EvaluacionCajaChicaDto ev2 = cajaChica.evaluar(req2, logistica);
-		assertEquals(0, ev2.estimado().compareTo(new BigDecimal("20")));
-		assertEquals(List.of("BAJO_MONTO"), ev2.motivos().stream().map(EvaluacionCajaChicaDto.Motivo::codigo).toList());
-		assertThrows(ApiException.class, () -> cajaChica.registrar(req2,
-				compra("MISMO_DIA", null, "T1", "1", item3, "2", "10"), logistica), "no es urgente");
-		cajaChica.registrar(req2, compra("BAJO_MONTO", null, "T1", "1", item3, "2", "10"), logistica);
-
-		// --- Regularizacion ---
-		assertEquals(3, cajaChica.listar(logistica).size());
-		assertThrows(ApiException.class, () -> cajaChica.observar(c1.id(), " ", logistica));
-		assertEquals("OBSERVADO", cajaChica.observar(c1.id(), "Falta el voucher", logistica).estado());
-		CajaChicaDto reg = cajaChica.regularizar(c1.id(), "MOV-8891", logistica);
-		assertEquals("REGULARIZADO", reg.estado());
-		assertEquals("MOV-8891", reg.codigoExterno());
-		assertNull(reg.observacion());
-		assertThrows(ApiException.class, () -> cajaChica.regularizar(c1.id(), null, logistica));
-
-		// --- Regla editable solo por ADMIN (RF-026) ---
+	@Test
+	void reglaEditableSoloPorAdmin() {
+		UsuarioPrincipal logistica = principal("logistica@logistica.test", "LOGISTICA");
+		UsuarioPrincipal admin = principal("admin@logistica.test", "ADMIN");
 		GuardarReglaRequest nueva = new GuardarReglaRequest(new BigDecimal("250"), true, true, false, true);
 		assertThrows(ApiException.class, () -> cajaChica.guardarRegla(nueva, logistica));
 		ReglaCajaChicaDto regla = cajaChica.guardarRegla(nueva, admin);
@@ -154,45 +170,43 @@ class CajaChicaTest {
 
 	// ------------------------------------------------------------------
 
-	private static RegistrarCajaChicaRequest compra(String motivo, String detalle, String serie, String numero,
-													UUID requestItemId, String qty, String costo) {
-		return new RegistrarCajaChicaRequest(motivo, detalle, LocalDate.now(ZoneId.of("America/Lima")), "20555666777",
-				"Ferreteria El Perno", "FACTURA", serie, numero, "PEN", null, null,
+	private static RegistrarCajaChicaRequest compra(UUID requestItemId, String qty, String costo, String serie,
+													String numero, UUID documentId) {
+		return new RegistrarCajaChicaRequest(LocalDate.now(LIMA), "20555666777", "Ferreteria El Perno", "FACTURA",
+				serie, numero, "PEN", documentId,
 				List.of(new RegistrarCajaChicaRequest.Item(requestItemId, new BigDecimal(qty), new BigDecimal(costo))));
 	}
 
-	private BigDecimal pendiente(UUID req, UUID item, UsuarioPrincipal p) {
-		return comprasService.obtenerDetalleCompra(req, p).items().stream()
-				.filter(i -> i.requestItemId().equals(item)).findFirst().orElseThrow().cantidadPendiente();
-	}
-
-	private UUID crearReq(String codigo, String prioridad, LocalDate requerida) {
-		UUID empresa = jdbc.queryForObject("select company_id from empresa where code = 'TDEMSRL'", UUID.class);
-		UUID ceco = jdbc.queryForObject("select ceco_id from ceco where company_id = ? and code = 'ADM'", UUID.class, empresa);
+	private UUID comprobante() {
 		return jdbc.queryForObject("""
-				insert into requerimiento (request_code, company_id, ceco_id, requester_user_id, requester_type,
-				  purpose, justification, status, priority, required_date)
-				values (?, ?, ?, ?, 'INTERNO', 'CONSUMO', 'prueba caja chica', 'EN_ATENCION', ?, ?)
-				returning request_id""", UUID.class, codigo, empresa, ceco, usuario("solicitante@logistica.test"),
-				prioridad, requerida);
+				insert into documento (document_type, file_name, file_url) values ('COMPROBANTE_CAJA_CHICA', 'boleta.jpg', 'x')
+				returning document_id""", UUID.class);
 	}
 
-	/** Item sin stock: su faltante queda como necesidad por decidir ruta (DEC-L039). */
-	private UUID crearItem(UUID req, String sku, String variante, int qty) {
-		UUID producto = jdbc.queryForObject("select product_id from producto where sku_base = ?", UUID.class, sku);
-		UUID var = jdbc.queryForObject("select variant_id from producto_variante where internal_variant_code = ?", UUID.class, variante);
-		UUID uom = jdbc.queryForObject("select base_uom_id from producto where product_id = ?", UUID.class, producto);
-		UUID item = jdbc.queryForObject("""
-				insert into requerimiento_item (request_id, product_id, variant_id, uom_id, qty_requested)
-				values (?, ?, ?, ?, ?) returning request_item_id""", UUID.class, req, producto, var, uom, qty);
-		jdbc.update("""
-				insert into necesidad_compra (request_item_id, company_id, product_id, variant_id, uom_id, qty, status)
-				select ?, r.company_id, ?, ?, ?, ?, 'PENDIENTE_RUTA' from requerimiento r where r.request_id = ?""",
-				item, producto, var, uom, qty, req);
-		return item;
+	private ItemRequerimientoRequest item(String variante, int qty) {
+		UUID v = jdbc.queryForObject("select variant_id from producto_variante where internal_variant_code = ?", UUID.class,
+				variante);
+		return new ItemRequerimientoRequest(v, BigDecimal.valueOf(qty), null, null);
 	}
 
-	private UUID usuario(String correo) {
-		return jdbc.queryForObject("select user_id from usuario where corporate_email = ?", UUID.class, correo);
+	private UUID itemDe(UUID req, String variante) {
+		return jdbc.queryForObject("""
+				select ri.request_item_id from requerimiento_item ri join producto_variante v on v.variant_id = ri.variant_id
+				where ri.request_id = ? and v.internal_variant_code = ?""", UUID.class, req, variante);
+	}
+
+	private String estado(UUID req) {
+		return jdbc.queryForObject("select status from requerimiento where request_id = ?", String.class, req);
+	}
+
+	private UUID cecoAdm() {
+		return jdbc.queryForObject("""
+				select c.ceco_id from ceco c join empresa e on e.company_id = c.company_id
+				where e.code = 'TDEMSRL' and c.code = 'ADM'""", UUID.class);
+	}
+
+	private UsuarioPrincipal principal(String correo, String rol) {
+		return new UsuarioPrincipal(jdbc.queryForObject("select user_id from usuario where corporate_email = ?", UUID.class,
+				correo), List.of(rol));
 	}
 }

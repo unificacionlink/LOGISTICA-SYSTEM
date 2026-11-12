@@ -36,7 +36,9 @@ public final class RequerimientoMapper {
                 r.getCreatedAt(),
                 r.getEmpresa() != null ? r.getEmpresa().getCode() : null,
                 null,
-                null);
+                null,
+                r.isPettyCashSuggested(),
+                r.getPettyCashSuggestionNote());
     }
 
     public static RequerimientoItemDto toDto(RequerimientoItem i) {

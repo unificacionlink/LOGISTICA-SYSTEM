@@ -13,7 +13,7 @@ import { Card, CardBody } from "./ui/Card";
  * propio RequerimientoDetalle.tsx ya lo refleja in-place).
  */
 export default function Toast() {
-  const { onMiRequerimientoDecidido, onNuevaAprobacion } = useRealtime();
+  const { onMiRequerimientoDecidido, onNuevaAprobacion, onCajaChica } = useRealtime();
   const { tieneAlgunRol } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,6 +35,21 @@ export default function Toast() {
       setMensaje({ texto, ir: `/requerimientos/${actualizado.id}` });
     });
   }, [onMiRequerimientoDecidido, location.pathname]);
+
+  // DEC-L054: Logistica autorizo, observo o regularizo la compra con caja chica del proyecto.
+  useEffect(() => {
+    return onCajaChica((a) => {
+      const ir = `/requerimientos/${a.requestId}/caja-chica`;
+      if (location.pathname === ir) return;
+      const texto =
+        a.evento === "AUTORIZADA"
+          ? `Logística autorizó comprar con caja chica lo de ${a.requestCode}: registra la compra con su comprobante.`
+          : a.evento === "OBSERVADA"
+            ? `Logística observó la compra con caja chica de ${a.requestCode}: ${a.detalle ?? "revísala"}.`
+            : `Logística verificó el comprobante de caja chica de ${a.requestCode}.`;
+      setMensaje({ texto, ir });
+    });
+  }, [onCajaChica, location.pathname]);
 
   useEffect(() => {
     if (!tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN")) return;

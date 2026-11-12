@@ -260,6 +260,10 @@ public class AbastecimientoService {
         necesidadRepository.save(n);
         auditoria.registrar("NECESIDAD_COMPRA", needId, "DECIDIR_RUTA", Map.of("estado", anterior),
                 Map.of("estado", n.getStatus()), principal.userId());
+        if (NecesidadCompra.CAJA_CHICA.equals(n.getStatus())) {
+            // DEC-L054: el proyecto compra con su caja chica; se le avisa al solicitante.
+            cajaChicaService.avisar(n.getRequerimientoItem().getRequerimiento(), "AUTORIZADA", null);
+        }
         return ComprasMapper.toDto(n, n.getQty());
     }
 

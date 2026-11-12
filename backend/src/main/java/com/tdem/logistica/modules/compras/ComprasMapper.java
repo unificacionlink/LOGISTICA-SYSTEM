@@ -166,7 +166,8 @@ public final class ComprasMapper {
                 c != null ? c.getConsolidationId() : null,
                 c != null ? c.getConsolidationCode() : null,
                 c != null ? c.getStatus() : null,
-                n.getCreatedAt());
+                n.getCreatedAt(),
+                r.isPettyCashSuggested() ? r.getPettyCashSuggestionNote() : null);
     }
 
     public static OrigenDto toOrigen(NecesidadCompra n) {

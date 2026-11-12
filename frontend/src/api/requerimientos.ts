@@ -16,6 +16,9 @@ export interface CrearRequerimientoInput {
   justification: string;
   requiredDate?: string;
   items: ItemInput[];
+  /** DEC-L054: sugerir la caja chica del proyecto para lo que falte. */
+  cajaChicaSugerida?: boolean;
+  cajaChicaNota?: string;
 }
 
 export function listarRequerimientos() {

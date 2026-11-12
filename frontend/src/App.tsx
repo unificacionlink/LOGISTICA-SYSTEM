@@ -66,6 +66,7 @@ export default function App() {
               <Route path="/requerimientos" element={<Requerimientos />} />
               <Route path="/requerimientos/nuevo" element={<RequerimientosNuevo />} />
               <Route path="/requerimientos/:id/editar" element={<RequerimientosNuevo />} />
+              <Route path="/requerimientos/:id/caja-chica" element={<ComprasCajaChica />} />
               <Route path="/requerimientos/:id" element={<RequerimientoDetalle />} />
               <Route path="/aprobaciones" element={<Aprobaciones />} />
               <Route path="/presupuestos" element={<Presupuestos />} />

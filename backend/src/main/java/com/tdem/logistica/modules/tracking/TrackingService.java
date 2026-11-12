@@ -331,15 +331,23 @@ public class TrackingService {
                     q.getCreatedBy().getDisplayName(), q.getRfqCode()));
         }
 
-        // Compras por Caja Chica (DEC-L026): entran directo al almacen, reservadas para el REQ.
+        // Compras por Caja Chica: las anteriores entraron al almacen (DEC-L026); las del
+        // proyecto se quedan alla y cuentan como atendidas al regularizarse (DEC-L054).
         jdbc.query("""
                 select c.created_at, c.petty_cash_code, c.supplier_name, c.currency_code, c.amount, c.regularization_status,
-                  u.display_name
+                  u.display_name, c.destination, c.regularized_at, ur.display_name
                 from caja_chica_ref c join usuario u on u.user_id = c.purchase_user_id
+                left join usuario ur on ur.user_id = c.regularized_by
                 where c.request_id = ? and c.regularization_status <> 'ANULADO'""", rs -> {
+            boolean proyecto = "PROYECTO".equals(rs.getString(8));
+            String monto = " (" + rs.getString(4) + " " + rs.getBigDecimal(5).toPlainString() + ")";
             ev.add(new EventoDto(rs.getTimestamp(1).toInstant(), "Compras",
-                    "Caja Chica en " + rs.getString(3) + " (" + rs.getString(4) + " " + rs.getBigDecimal(5).toPlainString() + ")",
+                    (proyecto ? "Comprado con caja chica del proyecto en " : "Caja Chica en ") + rs.getString(3) + monto,
                     rs.getString(7), rs.getString(2)));
+            if (proyecto && rs.getTimestamp(9) != null) {
+                ev.add(new EventoDto(rs.getTimestamp(9).toInstant(), "Compras",
+                        "Comprobante de caja chica verificado: atendido en el proyecto", rs.getString(10), rs.getString(2)));
+            }
         }, r.getRequestId());
 
         List<OrdenAbastecimiento> ordenes = ordenRepository.findByRequerimiento(r.getRequestId());

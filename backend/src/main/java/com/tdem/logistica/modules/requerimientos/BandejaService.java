@@ -43,8 +43,11 @@ public class BandejaService {
             EstadoRequerimiento.ATENCION_COMPLETA, EstadoRequerimiento.RECHAZADO);
     /** Acciones de compras (incluye las que esperan al proveedor). */
     private static final Set<String> DE_COMPRAS = Set.of(
-            "EMITIR_OC", "ADJUDICAR", "REGISTRAR_CAJA_CHICA", "DECIDIR_RUTA", "PEDIR_COTIZACION",
-            "ESPERA_COTIZACION", "RECIBIR_OC");
+            "EMITIR_OC", "ADJUDICAR", "REGISTRAR_CAJA_CHICA", "REGULARIZAR_CAJA_CHICA", "DECIDIR_RUTA",
+            "PEDIR_COTIZACION", "ESPERA_COTIZACION", "RECIBIR_OC");
+    /** Acciones del solicitante que lo dejan en "Pendientes mios" (DEC-L054). */
+    private static final Set<String> DEL_SOLICITANTE = Set.of(
+            "ENVIAR", "CORREGIR", "REGISTRAR_CAJA_CHICA", "CORREGIR_CAJA_CHICA");
     private static final Map<String, Integer> PESO_PRIORIDAD = Map.of("CRITICA", 0, "URGENTE", 1, "NORMAL", 2);
 
     private static final String SQL = """
@@ -78,6 +81,22 @@ public class BandejaService {
                where rs.status = 'RESERVADA'
                group by rs.request_item_id
             ),
+            ccp as (
+              select cci.request_item_id, sum(cci.quantity) as regularizado
+                from caja_chica_item cci
+                join caja_chica_ref cr on cr.petty_cash_ref_id = cci.petty_cash_ref_id
+                join it on it.request_item_id = cci.request_item_id
+               where cr.destination = 'PROYECTO' and cr.regularization_status = 'REGULARIZADO'
+               group by cci.request_item_id
+            ),
+            cc as (
+              select cr.request_id,
+                     bool_or(cr.regularization_status = 'PENDIENTE_REGULARIZACION') as por_revisar,
+                     bool_or(cr.regularization_status = 'OBSERVADO') as observada
+                from caja_chica_ref cr join base b on b.request_id = cr.request_id
+               where cr.destination = 'PROYECTO'
+               group by cr.request_id
+            ),
             nec as (
               select n.need_id, n.request_item_id, it.request_id, n.status, n.qty, n.consolidation_id, k.status as kstatus,
                      case when n.status = 'CAJA_CHICA' then
@@ -98,7 +117,7 @@ public class BandejaService {
             ),
             por_item as (
               select it.request_id, it.q,
-                     coalesce(s.entregado, 0) as entregado,
+                     coalesce(s.entregado, 0) + coalesce(cp.regularizado, 0) as entregado,
                      coalesce(s.despachado, 0) - coalesce(s.entregado, 0) as camino,
                      coalesce(r.listo, 0) as listo,
                      coalesce((select sum(greatest(nc.qty - nc.recibido, 0)) from nec nc
@@ -106,6 +125,7 @@ public class BandejaService {
                 from it
                 left join sal s on s.request_item_id = it.request_item_id
                 left join res r on r.request_item_id = it.request_item_id
+                left join ccp cp on cp.request_item_id = it.request_item_id
             ),
             avance as (
               select request_id,
@@ -152,13 +172,15 @@ public class BandejaService {
                    coalesce(a.f_listo, 0) as f_listo, coalesce(a.f_compra, 0) as f_compra,
                    coalesce(a.entregados, 0) as entregados,
                    coalesce(x.ruta, false) as ruta, coalesce(x.caja, false) as caja, coalesce(x.emitir, false) as emitir,
-                   x.pedir, x.adjudicar, x.esperando, oc.order_id, env.inventory_note_id
+                   x.pedir, x.adjudicar, x.esperando, oc.order_id, env.inventory_note_id,
+                   coalesce(cc.por_revisar, false) as cc_por_revisar, coalesce(cc.observada, false) as cc_observada
               from base b
               left join items i on i.request_id = b.request_id
               left join avance a on a.request_id = b.request_id
               left join acc x on x.request_id = b.request_id
               left join oc on oc.request_id = b.request_id
               left join env on env.request_id = b.request_id
+              left join cc on cc.request_id = b.request_id
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -261,6 +283,13 @@ public class BandejaService {
         if (propio && EstadoRequerimiento.OBSERVADO.equals(status)) {
             acciones.add(new BandejaDto.Accion("CORREGIR", false, id.toString()));
         }
+        // DEC-L054: el proyecto compra con su caja chica y su solicitante registra el comprobante.
+        if (propio && aprobado && rs.getBoolean("caja")) {
+            acciones.add(new BandejaDto.Accion("REGISTRAR_CAJA_CHICA", false, id.toString()));
+        }
+        if (propio && rs.getBoolean("cc_observada")) {
+            acciones.add(new BandejaDto.Accion("CORREGIR_CAJA_CHICA", false, id.toString()));
+        }
         if (gestor && aprobado) {
             UUID orden = rs.getObject("order_id", UUID.class);
             UUID nota = rs.getObject("inventory_note_id", UUID.class);
@@ -271,8 +300,12 @@ public class BandejaService {
                 acciones.add(new BandejaDto.Accion("EMITIR_OC", false, null));
             }
             agregar(acciones, "ADJUDICAR", false, rs.getString("adjudicar"));
-            if (rs.getBoolean("caja")) {
-                acciones.add(new BandejaDto.Accion("REGISTRAR_CAJA_CHICA", false, id.toString()));
+            if (rs.getBoolean("cc_por_revisar")) {
+                acciones.add(new BandejaDto.Accion("REGULARIZAR_CAJA_CHICA", false, null));
+            }
+            if (rs.getBoolean("caja") && !propio) {
+                // La compra la hace el proyecto: Logistica espera (puede registrarla en su nombre).
+                acciones.add(new BandejaDto.Accion("REGISTRAR_CAJA_CHICA", true, id.toString()));
             }
             if (rs.getBoolean("ruta")) {
                 acciones.add(new BandejaDto.Accion("DECIDIR_RUTA", false, null));
@@ -312,7 +345,8 @@ public class BandejaService {
             }
         } else if (cerrado) {
             vistas.add("cerrados");
-        } else if (EstadoRequerimiento.BORRADOR.equals(status) || EstadoRequerimiento.OBSERVADO.equals(status)) {
+        } else if (EstadoRequerimiento.BORRADOR.equals(status) || EstadoRequerimiento.OBSERVADO.equals(status)
+                || acciones.stream().anyMatch(a -> !a.espera() && DEL_SOLICITANTE.contains(a.codigo()))) {
             vistas.add("pendientes");
         } else {
             vistas.add("proceso");
@@ -389,6 +423,10 @@ public class BandejaService {
                    coalesce((select sum(si.qty) from salida_item si where si.request_item_id = it.request_item_id
                                and exists (select 1 from envio v where v.issue_id = si.issue_id
                                              and v.status in ('RECEPCIONADO','CERRADO'))), 0) as entregado,
+                   coalesce((select sum(cci.quantity) from caja_chica_item cci
+                               join caja_chica_ref cr on cr.petty_cash_ref_id = cci.petty_cash_ref_id
+                              where cci.request_item_id = it.request_item_id and cr.destination = 'PROYECTO'
+                                and cr.regularization_status = 'REGULARIZADO'), 0) as regularizado,
                    coalesce((select sum(rs.qty_reserved) from reserva_stock rs
                               where rs.request_item_id = it.request_item_id and rs.status = 'RESERVADA'), 0) as listo,
                    coalesce((select sum(greatest(n.qty - n.recibido, 0)) from nec n where n.request_item_id = it.request_item_id), 0) as compra,
@@ -408,11 +446,13 @@ public class BandejaService {
         List<AvanceRequerimientoDto.Item> items = jdbc.query(SQL_AVANCE, new MapSqlParameterSource("id", requestId),
                 (rs, n) -> {
                     BigDecimal despachado = rs.getBigDecimal("despachado");
-                    BigDecimal entregado = rs.getBigDecimal("entregado");
+                    BigDecimal regularizado = rs.getBigDecimal("regularizado");
+                    BigDecimal entregado = rs.getBigDecimal("entregado").add(regularizado);
                     return new AvanceRequerimientoDto.Item(
                             rs.getObject("request_item_id", UUID.class), rs.getString("codigo"), rs.getString("name"),
                             rs.getString("attribute_value"), rs.getString("uom"), rs.getBigDecimal("q"), entregado,
-                            despachado.subtract(entregado), rs.getBigDecimal("listo"), rs.getBigDecimal("compra"),
+                            despachado.subtract(entregado.subtract(regularizado)), rs.getBigDecimal("listo"),
+                            rs.getBigDecimal("compra"),
                             rs.getBigDecimal("recibido"),
                             etapa(rs.getString("nec_status"), rs.getString("kstatus"), rs.getObject("order_id", UUID.class)),
                             rs.getInt("ofertas"), rs.getObject("consolidation_id", UUID.class),

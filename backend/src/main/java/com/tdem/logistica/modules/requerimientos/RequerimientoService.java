@@ -344,6 +344,8 @@ public class RequerimientoService {
         r.setJustification(request.justification());
         r.setStatus(EstadoRequerimiento.BORRADOR);
         r.setRequiredDate(request.requiredDate());
+        r.setPettyCashSuggested(request.sugiereCajaChica());
+        r.setPettyCashSuggestionNote(request.notaCajaChica());
         requerimientoRepository.save(r);
 
         for (ItemRequerimientoRequest itemReq : request.items()) {
@@ -404,6 +406,8 @@ public class RequerimientoService {
         r.setPurpose(request.purpose());
         r.setJustification(request.justification());
         r.setRequiredDate(request.requiredDate());
+        r.setPettyCashSuggested(request.sugiereCajaChica());
+        r.setPettyCashSuggestionNote(request.notaCajaChica());
         requerimientoRepository.save(r);
 
         // Reemplazo completo de items: seguro porque solo se edita en BORRADOR u

@@ -79,4 +79,11 @@ public class Requerimiento {
 
     @Column(name = "total_value_net_snapshot", insertable = false, updatable = false)
     private BigDecimal totalValueNetSnapshot;
+
+    /** DEC-L054: el solicitante sugiere comprar el faltante con la caja chica del proyecto. */
+    @Column(name = "petty_cash_suggested", nullable = false)
+    private boolean pettyCashSuggested;
+
+    @Column(name = "petty_cash_suggestion_note")
+    private String pettyCashSuggestionNote;
 }

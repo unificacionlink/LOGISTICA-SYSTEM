@@ -8,18 +8,20 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Compra con la caja chica del proyecto (DEC-L054). El motivo no se elige: sale
+ * de la ruta que autorizo Logistica. El comprobante adjunto es obligatorio.
+ */
 public record RegistrarCajaChicaRequest(
-        @NotBlank(message = "Indica el motivo.") String motivo,
-        String motivoDetalle,
         @NotNull(message = "Indica la fecha de compra.") LocalDate fechaCompra,
-        String proveedorRuc,
-        @NotBlank(message = "Indica el proveedor.") String proveedorNombre,
+        @Size(max = 20, message = "RUC invalido.") String proveedorRuc,
+        @NotBlank(message = "Indica el proveedor.") @Size(max = 200) String proveedorNombre,
         @NotBlank(message = "Indica el tipo de comprobante.") String tipoComprobante,
-        String serie,
-        @NotBlank(message = "Indica el numero del comprobante.") String numero,
+        @Size(max = 20) String serie,
+        @NotBlank(message = "Indica el numero del comprobante.") @Size(max = 40) String numero,
         @NotBlank(message = "Indica la moneda.") String moneda,
+        /** Obligatorio al registrar; al corregir, null conserva el comprobante anterior. */
         UUID documentId,
-        String codigoExterno,
         @NotEmpty(message = "Indica al menos un item.") @Valid List<Item> items) {
 
     public record Item(

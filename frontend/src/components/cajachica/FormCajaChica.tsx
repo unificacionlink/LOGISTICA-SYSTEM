@@ -1,67 +1,77 @@
-import { useMemo, useState } from "react";
-import { Upload, X } from "lucide-react";
-import { ETIQUETA_MOTIVO, registrarCajaChica, subirComprobanteCajaChica } from "../../api/cajachica";
-import type { ComprasDetalle, CompraCajaChica, EvaluacionCajaChica, MotivoCajaChica } from "../../api/types";
+import { useState } from "react";
+import { FileText, Upload, X } from "lucide-react";
+import { corregirCajaChica, registrarCajaChica, subirComprobanteCajaChica } from "../../api/cajachica";
+import type { CompraCajaChica, FormularioCajaChica } from "../../api/types";
 import Alert from "../ui/Alert";
 import Button from "../ui/Button";
 import { Card, CardBody } from "../ui/Card";
 import Field, { inputClass } from "../ui/Field";
-
 import CampoNumero from "../ui/CampoNumero";
-const TIPOS = ["FACTURA", "BOLETA", "TICKET", "RECIBO", "OTRO"];
+
+const TIPOS = ["BOLETA", "FACTURA", "TICKET", "RECIBO", "OTRO"];
+const MONEDA = "PEN";
 
 function hoyLima(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" });
 }
 
+/** "FACTURA F001-123" -> serie y numero. */
+function partesComprobante(c: string): { tipo: string; serie: string; numero: string } {
+  const [tipo, resto = ""] = c.split(" ", 2);
+  const i = resto.lastIndexOf("-");
+  return i > 0 ? { tipo, serie: resto.slice(0, i), numero: resto.slice(i + 1) } : { tipo, serie: "", numero: resto };
+}
+
 /**
- * Registro de una compra por Caja Chica (DEC-L026). Lo comprado ya esta en
- * mano: al guardar entra al almacen reservado para el requerimiento.
+ * Compra con la caja chica del proyecto (DEC-L054). La registra el solicitante
+ * con su comprobante; lo comprado se queda en el proyecto y cuenta como
+ * atendido cuando Logistica lo verifica. Con {@code corrige}, corrige una
+ * compra observada.
  */
 export default function FormCajaChica({
-  detalle,
-  evaluacion,
-  onRegistrada,
+  formulario,
+  corrige,
+  onGuardada,
+  onCancelar,
 }: {
-  detalle: ComprasDetalle;
-  evaluacion: EvaluacionCajaChica;
-  onRegistrada: (c: CompraCajaChica, mensaje: string) => void;
+  formulario: FormularioCajaChica;
+  corrige?: CompraCajaChica;
+  onGuardada: (c: CompraCajaChica, mensaje: string) => void;
+  onCancelar?: () => void;
 }) {
-  const pendientes = detalle.items.filter((it) => it.cantidadPendiente > 0);
-  const regla = evaluacion.regla;
-  // Motivos que la regla permite: los sugeridos, bajo monto (se valida con el total real) y la excepcion.
-  const motivos = useMemo(() => {
-    const m = new Set<MotivoCajaChica>(evaluacion.motivos.map((x) => x.codigo));
-    if (regla.bajoMonto) m.add("BAJO_MONTO");
-    if (regla.excepcion) m.add("EXCEPCION_AUTORIZADA");
-    return Array.from(m);
-  }, [evaluacion, regla]);
+  const previos = new Map((corrige?.items ?? []).map((i) => [i.requestItemId, i]));
+  // Al corregir, lo de esta compra vuelve a estar disponible.
+  const lineas = formulario.items
+    .map((it) => ({ ...it, max: it.pendiente + (previos.get(it.requestItemId)?.cantidad ?? 0) }))
+    .filter((it) => it.max > 0);
+  const inicial = corrige ? partesComprobante(corrige.comprobante) : null;
 
-  const [motivo, setMotivo] = useState<MotivoCajaChica>(evaluacion.motivos[0]?.codigo ?? motivos[0]);
-  const [motivoDetalle, setMotivoDetalle] = useState("");
-  const [fechaCompra, setFechaCompra] = useState(hoyLima());
-  const [ruc, setRuc] = useState("");
-  const [proveedor, setProveedor] = useState("");
-  const [tipo, setTipo] = useState("BOLETA");
-  const [serie, setSerie] = useState("");
-  const [numero, setNumero] = useState("");
-  const [codigoExterno, setCodigoExterno] = useState("");
+  const [fechaCompra, setFechaCompra] = useState(corrige?.fechaCompra ?? hoyLima());
+  const [ruc, setRuc] = useState(corrige?.proveedorRuc ?? "");
+  const [proveedor, setProveedor] = useState(corrige?.proveedor ?? "");
+  const [tipo, setTipo] = useState(inicial?.tipo ?? "BOLETA");
+  const [serie, setSerie] = useState(inicial?.serie ?? "");
+  const [numero, setNumero] = useState(inicial?.numero ?? "");
   const [archivo, setArchivo] = useState<File | null>(null);
   const [filas, setFilas] = useState<Record<string, { qty: string; costo: string }>>(() =>
-    Object.fromEntries(pendientes.map((it) => [it.requestItemId, { qty: String(it.cantidadPendiente), costo: "" }])),
+    Object.fromEntries(
+      lineas.map((it) => {
+        const p = previos.get(it.requestItemId);
+        return [it.requestItemId, { qty: String(p ? p.cantidad : corrige ? 0 : it.max), costo: p ? String(p.costoUnitario) : "" }];
+      }),
+    ),
   );
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
-  const total = pendientes.reduce((acc, it) => {
+  const total = lineas.reduce((acc, it) => {
     const f = filas[it.requestItemId];
     return acc + (Number(f?.qty) || 0) * (Number(f?.costo) || 0);
   }, 0);
-  const sobreUmbral = motivo === "BAJO_MONTO" && total > regla.umbral;
 
   async function onGuardar(e: React.FormEvent) {
     e.preventDefault();
-    const items = pendientes
+    const items = lineas
       .map((it) => ({ it, f: filas[it.requestItemId] }))
       .filter(({ f }) => Number(f?.qty) > 0)
       .map(({ it, f }) => ({ requestItemId: it.requestItemId, qty: Number(f.qty), costoUnitario: Number(f.costo) || 0 }));
@@ -69,33 +79,35 @@ export default function FormCajaChica({
       setError("Indica al menos una cantidad comprada.");
       return;
     }
+    if (!archivo && !corrige) {
+      setError("Adjunta la foto o el PDF del comprobante.");
+      return;
+    }
     setError(null);
     setGuardando(true);
     try {
       let documentId: string | undefined;
       if (archivo) {
-        const subida = await subirComprobanteCajaChica(archivo);
+        const subida = await subirComprobanteCajaChica(formulario.requestId, archivo);
         if (!subida.ok || !subida.result) {
           setError(subida.message);
           return;
         }
         documentId = subida.result.documentId;
       }
-      const res = await registrarCajaChica(detalle.requerimiento.id, {
-        motivo,
-        motivoDetalle: motivoDetalle || undefined,
+      const datos = {
         fechaCompra,
         proveedorRuc: ruc || undefined,
         proveedorNombre: proveedor,
         tipoComprobante: tipo,
         serie: serie || undefined,
         numero,
-        moneda: regla.moneda,
+        moneda: MONEDA,
         documentId,
-        codigoExterno: codigoExterno || undefined,
         items,
-      });
-      if (res.ok && res.result) onRegistrada(res.result, res.message);
+      };
+      const res = corrige ? await corregirCajaChica(corrige.id, datos) : await registrarCajaChica(formulario.requestId, datos);
+      if (res.ok && res.result) onGuardada(res.result, res.message);
       else setError(res.message);
     } finally {
       setGuardando(false);
@@ -113,26 +125,29 @@ export default function FormCajaChica({
             <tr className="border-y border-slate-200 cabecera-tabla">
               <th className="px-4 py-2.5">Producto</th>
               <th className="px-4 py-2.5">Cantidad</th>
-              <th className="px-4 py-2.5">Costo unit. ({regla.moneda})</th>
+              <th className="px-4 py-2.5">Costo unit. (S/)</th>
               <th className="px-4 py-2.5 text-right">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pendientes.map((it) => {
+            {lineas.map((it) => {
               const f = filas[it.requestItemId];
               const linea = (Number(f?.qty) || 0) * (Number(f?.costo) || 0);
               return (
                 <tr key={it.requestItemId}>
                   <td className="col-flex px-4 py-2.5">
-                    <p className="text-sm text-slate-700">{it.nombreProducto}</p>
+                    <p className="text-sm text-slate-700">
+                      {it.producto}
+                      {it.atributo ? ` · ${it.atributo}` : ""}
+                    </p>
                     <p className="font-mono text-xs text-slate-500">
-                      {it.codigoVariante} · pendiente {it.cantidadPendiente} {it.unidadMedida}
+                      {it.sku} · hasta {it.max} {it.unidad}
                     </p>
                   </td>
                   <td className="px-4 py-2.5">
                     <CampoNumero
                       decimales={0}
-                      max={it.cantidadPendiente}
+                      max={it.max}
                       value={f?.qty ?? ""}
                       onChange={(v) => setFilas((p) => ({ ...p, [it.requestItemId]: { ...p[it.requestItemId], qty: v } }))}
                       className={`${inputClass} w-24 py-1.5`}
@@ -140,7 +155,8 @@ export default function FormCajaChica({
                   </td>
                   <td className="px-4 py-2.5">
                     <CampoNumero
-                      decimales={4} maxEnteros={9}
+                      decimales={4}
+                      maxEnteros={9}
                       value={f?.costo ?? ""}
                       onChange={(v) => setFilas((p) => ({ ...p, [it.requestItemId]: { ...p[it.requestItemId], costo: v } }))}
                       className={`${inputClass} w-28 py-1.5`}
@@ -154,11 +170,9 @@ export default function FormCajaChica({
           <tfoot>
             <tr className="border-t border-slate-200">
               <td colSpan={3} className="px-4 py-2.5 text-right text-sm font-medium text-slate-700">
-                Total {regla.moneda}
+                Total S/
               </td>
-              <td className={`px-4 py-2.5 text-right font-semibold tabular-nums ${sobreUmbral ? "text-rose-700" : "text-slate-900"}`}>
-                {total.toFixed(2)}
-              </td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-900">{total.toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
@@ -166,34 +180,11 @@ export default function FormCajaChica({
 
       <Card>
         <CardBody className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
-            <Field label="Motivo" required>
-              <select value={motivo} onChange={(e) => setMotivo(e.target.value as MotivoCajaChica)} className={`${inputClass} w-full`}>
-                {motivos.map((m) => (
-                  <option key={m} value={m}>
-                    {ETIQUETA_MOTIVO[m]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {motivo === "EXCEPCION_AUTORIZADA" ? (
-              <Field label="Quién la autorizó y por qué" required>
-                <input required value={motivoDetalle} onChange={(e) => setMotivoDetalle(e.target.value)} className={`${inputClass} w-full`} />
-              </Field>
-            ) : (
-              <p className="self-end pb-2 text-xs text-slate-500">
-                {motivo === "BAJO_MONTO"
-                  ? `Hasta ${regla.moneda} ${regla.umbral.toFixed(2)}${sobreUmbral ? " — el total lo supera" : ""}`
-                  : evaluacion.motivos.find((m) => m.codigo === motivo)?.detalle}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-[140px_1fr_140px]">
+          <div className="grid gap-4 sm:grid-cols-[140px_1fr_150px]">
             <Field label="RUC">
               <input value={ruc} onChange={(e) => setRuc(e.target.value)} inputMode="numeric" className={`${inputClass} w-full`} />
             </Field>
-            <Field label="Proveedor" required>
+            <Field label="Dónde se compró" required>
               <input required value={proveedor} onChange={(e) => setProveedor(e.target.value)} className={`${inputClass} w-full`} />
             </Field>
             <Field label="Fecha de compra" required>
@@ -229,7 +220,12 @@ export default function FormCajaChica({
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700">
               <Upload className="size-4" />
-              {archivo ? archivo.name : "Adjuntar comprobante"}
+              {archivo ? archivo.name : corrige ? "Cambiar el comprobante" : "Adjuntar foto o PDF del comprobante"}
+              {!corrige && (
+                <span className="text-rose-600" aria-hidden="true">
+                  *
+                </span>
+              )}
               <input
                 type="file"
                 accept="application/pdf,image/jpeg,image/png,image/webp"
@@ -242,24 +238,30 @@ export default function FormCajaChica({
                 <X className="size-4" />
               </button>
             )}
+            {corrige?.documentoUrl && !archivo && (
+              <a
+                href={corrige.documentoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+              >
+                <FileText className="size-3.5" />
+                Ver el anterior
+              </a>
+            )}
           </div>
 
-          <details className="text-sm">
-            <summary className="cursor-pointer list-none text-xs font-medium text-slate-500 hover:text-slate-800">
-              Código en el aplicativo de Caja Chica
-            </summary>
-            <input
-              value={codigoExterno}
-              onChange={(e) => setCodigoExterno(e.target.value)}
-              placeholder="Si ya se registró allá"
-              className={`${inputClass} mt-2 w-60`}
-            />
-          </details>
-
           {error && <Alert tone="danger">{error}</Alert>}
-          <Button type="submit" loading={guardando} disabled={sobreUmbral} className="self-start">
-            Registrar compra
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" loading={guardando}>
+              {corrige ? "Enviar corrección" : "Registrar compra"}
+            </Button>
+            {onCancelar && (
+              <Button type="button" variant="ghost" onClick={onCancelar}>
+                Cancelar
+              </Button>
+            )}
+          </div>
         </CardBody>
       </Card>
     </form>

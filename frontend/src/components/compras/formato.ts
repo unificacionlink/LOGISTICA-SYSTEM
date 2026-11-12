@@ -4,6 +4,7 @@ export const ETIQUETA_SUGERENCIA: Record<NonNullable<Necesidad["suggestedReason"
   BAJO_MONTO: "Bajo monto",
   MISMO_DIA: "Mismo día",
   FALLA_PROVEEDOR: "Falla de proveedor",
+  SOLICITANTE: "Lo sugiere el solicitante",
 };
 
 export function cantidad(n: number): string {

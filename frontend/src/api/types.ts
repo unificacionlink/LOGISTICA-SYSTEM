@@ -41,6 +41,9 @@ export interface Requerimiento {
   itemsCount?: number | null;
   /** Solo en el listado: nombres de los productos pedidos. */
   resumenItems?: string | null;
+  /** DEC-L054: el solicitante sugiere la caja chica del proyecto. */
+  cajaChicaSugerida: boolean;
+  cajaChicaNota: string | null;
 }
 
 export interface RequerimientoItem {
@@ -351,11 +354,13 @@ export interface Necesidad {
   unidadMedida: string;
   qty: number;
   status: EstadoNecesidad;
-  suggestedReason: "BAJO_MONTO" | "MISMO_DIA" | "FALLA_PROVEEDOR" | null;
+  suggestedReason: "BAJO_MONTO" | "MISMO_DIA" | "FALLA_PROVEEDOR" | "SOLICITANTE" | null;
   consolidationId: string | null;
   consolidationCode: string | null;
   consolidationStatus: EstadoConsolidado | null;
   createdAt: string;
+  /** DEC-L054: nota del solicitante al sugerir la caja chica. */
+  notaSolicitante: string | null;
 }
 
 export interface OrigenConsolidado {
@@ -924,7 +929,7 @@ export interface SolicitudProducto {
 
 // ---------- Caja Chica (DEC-L026) ----------
 
-export type MotivoCajaChica = "BAJO_MONTO" | "MISMO_DIA" | "FALLA_PROVEEDOR" | "EXCEPCION_AUTORIZADA";
+export type MotivoCajaChica = "BAJO_MONTO" | "MISMO_DIA" | "FALLA_PROVEEDOR" | "EXCEPCION_AUTORIZADA" | "SOLICITANTE";
 
 export interface ReglaCajaChica {
   id: string;
@@ -964,7 +969,38 @@ export interface CompraCajaChica {
   documentoUrl: string | null;
   registradoPor: string;
   registradoEn: string;
-  items: { sku: string; producto: string; cantidad: number; costoUnitario: number; total: number }[];
+  /** PROYECTO (DEC-L054) o ALMACEN (compras anteriores, entraron al stock). */
+  destino: "PROYECTO" | "ALMACEN";
+  items: {
+    requestItemId: string;
+    sku: string;
+    producto: string;
+    cantidad: number;
+    costoUnitario: number;
+    total: number;
+  }[];
+}
+
+/** Compra con la caja chica del proyecto de un requerimiento (DEC-L054). */
+export interface FormularioCajaChica {
+  requestId: string;
+  requestCode: string;
+  empresaCode: string;
+  cecoNombre: string | null;
+  requestStatus: EstadoRequerimiento;
+  puedeRegistrar: boolean;
+  items: {
+    requestItemId: string;
+    sku: string;
+    producto: string;
+    atributo: string | null;
+    unidad: string;
+    /** Lo que Logistica paso a caja chica. */
+    autorizado: number;
+    /** Lo que falta registrar. */
+    pendiente: number;
+  }[];
+  compras: CompraCajaChica[];
 }
 
 // ---------------------------------------------------------------- Presupuestos (Lote 14, DEC-L036)
@@ -1227,6 +1263,8 @@ export type CodigoAccion =
   | "EMITIR_OC"
   | "ADJUDICAR"
   | "REGISTRAR_CAJA_CHICA"
+  | "CORREGIR_CAJA_CHICA"
+  | "REGULARIZAR_CAJA_CHICA"
   | "DECIDIR_RUTA"
   | "PEDIR_COTIZACION"
   | "ESPERA_COTIZACION"

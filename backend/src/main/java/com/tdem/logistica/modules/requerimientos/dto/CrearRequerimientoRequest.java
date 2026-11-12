@@ -19,5 +19,22 @@ public record CrearRequerimientoRequest(
         LocalDate requiredDate,
         @NotEmpty(message = "Agrega al menos un item.")
         @Valid
-        List<ItemRequerimientoRequest> items) {
+        List<ItemRequerimientoRequest> items,
+        /** DEC-L054: sugerir comprar el faltante con la caja chica del proyecto. */
+        Boolean cajaChicaSugerida,
+        @Size(max = 300, message = "La nota de caja chica admite hasta 300 caracteres.")
+        String cajaChicaNota) {
+
+    public CrearRequerimientoRequest(UUID cecoId, String priority, String purpose, String justification,
+                                     LocalDate requiredDate, List<ItemRequerimientoRequest> items) {
+        this(cecoId, priority, purpose, justification, requiredDate, items, null, null);
+    }
+
+    public boolean sugiereCajaChica() {
+        return Boolean.TRUE.equals(cajaChicaSugerida);
+    }
+
+    public String notaCajaChica() {
+        return sugiereCajaChica() && cajaChicaNota != null && !cajaChicaNota.isBlank() ? cajaChicaNota.trim() : null;
+    }
 }

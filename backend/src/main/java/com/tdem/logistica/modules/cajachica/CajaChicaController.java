@@ -1,10 +1,14 @@
 package com.tdem.logistica.modules.cajachica;
 
 import com.tdem.logistica.common.ApiResponse;
+import com.tdem.logistica.modules.compras.ComprasService;
+import com.tdem.logistica.modules.compras.dto.DocumentoDto;
 import com.tdem.logistica.modules.cajachica.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,9 +26,11 @@ public class CajaChicaController {
     }
 
     private final CajaChicaService service;
+    private final ComprasService comprasService;
 
-    public CajaChicaController(CajaChicaService service) {
+    public CajaChicaController(CajaChicaService service, ComprasService comprasService) {
         this.service = service;
+        this.comprasService = comprasService;
     }
 
     @GetMapping
@@ -48,23 +54,39 @@ public class CajaChicaController {
         return ApiResponse.ok(service.evaluar(id, principal));
     }
 
+    /** Lo autorizado por caja chica y las compras del requerimiento (dueno o Logistica, DEC-L054). */
     @GetMapping("/requerimientos/{id}")
-    public ApiResponse<List<CajaChicaDto>> porRequerimiento(@PathVariable UUID id,
-                                                           @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(service.listarPorRequerimiento(id, principal));
+    public ApiResponse<FormularioCajaChicaDto> formulario(@PathVariable UUID id,
+                                                         @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.formulario(id, principal));
+    }
+
+    @PostMapping(value = "/requerimientos/{id}/comprobante", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<DocumentoDto> subirComprobante(@PathVariable UUID id, @RequestParam("file") MultipartFile file,
+                                                      @AuthenticationPrincipal UsuarioPrincipal principal) {
+        service.exigirAccesoCompra(id, principal);
+        return ApiResponse.ok(comprasService.guardarDocumento(file, "COMPROBANTE_CAJA_CHICA", principal.userId()),
+                "Comprobante adjuntado.");
     }
 
     @PostMapping("/requerimientos/{id}")
     public ApiResponse<CajaChicaDto> registrar(@PathVariable UUID id, @Valid @RequestBody RegistrarCajaChicaRequest request,
                                               @AuthenticationPrincipal UsuarioPrincipal principal) {
         CajaChicaDto c = service.registrar(id, request, principal);
-        return ApiResponse.ok(c, "Compra " + c.codigo() + " registrada: lo comprado ya esta reservado para el despacho.");
+        return ApiResponse.ok(c, "Compra " + c.codigo() + " registrada: Logistica revisara el comprobante.");
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<CajaChicaDto> corregir(@PathVariable UUID id, @Valid @RequestBody RegistrarCajaChicaRequest request,
+                                             @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.corregir(id, request, principal), "Compra corregida: Logistica la revisara de nuevo.");
     }
 
     @PostMapping("/{id}/regularizar")
     public ApiResponse<CajaChicaDto> regularizar(@PathVariable UUID id, @RequestBody RegularizarRequest request,
                                                 @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(service.regularizar(id, request.codigoExterno(), principal), "Compra regularizada.");
+        return ApiResponse.ok(service.regularizar(id, request.codigoExterno(), principal),
+                "Compra regularizada: cuenta como atendida.");
     }
 
     @PostMapping("/{id}/observar")

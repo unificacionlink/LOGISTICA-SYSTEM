@@ -192,7 +192,7 @@ public class ComprasService {
 
     /** Guarda el archivo sin validar rol (lo usa tambien el enlace del proveedor, DEC-L052). */
     @Transactional
-    DocumentoDto guardarDocumento(MultipartFile file, String tipo, UUID userId) {
+    public DocumentoDto guardarDocumento(MultipartFile file, String tipo, UUID userId) {
         if (!"COTIZACION".equals(tipo) && !"COMPROBANTE_CAJA_CHICA".equals(tipo)) {
             throw ApiException.badRequest("Tipo de documento invalido.");
         }

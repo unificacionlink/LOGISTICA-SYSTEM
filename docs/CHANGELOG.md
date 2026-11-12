@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.38.0 — 2026-11-12
+
+Caja chica del proyecto (DEC-L054).
+
+- **V27**: `requerimiento.petty_cash_suggested/petty_cash_suggestion_note`,
+  motivo `SOLICITANTE` en `necesidad_compra.suggested_reason` y
+  `caja_chica_ref.route_reason_code`, `caja_chica_ref.destination`
+  (`PROYECTO`/`ALMACEN`; las existentes quedan `ALMACEN`).
+- **Requerimientos**: `CrearRequerimientoRequest.cajaChicaSugerida/cajaChicaNota`;
+  `RequerimientoDto` los devuelve. `CajaChicaService.sugeridor` da
+  `SOLICITANTE` si el REQ lo sugiere.
+- **Caja chica**: `GET /api/caja-chica/requerimientos/{id}` (formulario:
+  autorizado y pendiente por item + compras), `POST .../comprobante`,
+  `POST .../{id}` (registrar, dueno o Logistica), `PUT /api/caja-chica/{id}`
+  (corregir observada). Sin kardex ni reserva; comprobante obligatorio;
+  auditado. `regularizar` recalcula la atencion (`AtencionCalculator` publico
+  suma lo regularizado del proyecto).
+- **Necesidades**: `NecesidadDto.notaSolicitante`; `decidirRuta` a
+  CAJA_CHICA avisa al solicitante (`RealtimeNotifier.cajaChica`).
+- **Bandeja**: el dueno ve `REGISTRAR_CAJA_CHICA` y `CORREGIR_CAJA_CHICA`
+  (en "Pendientes mios"); Logistica `REGULARIZAR_CAJA_CHICA` y espera la
+  compra del proyecto. Lo regularizado cuenta como entregado.
+- **Tracking**: "Comprado con caja chica del proyecto" y "Comprobante
+  verificado".
+- **Frontend**: casilla de sugerencia en el nuevo REQ, pantalla
+  `/requerimientos/:id/caja-chica` (registrar y corregir), aviso en el
+  detalle del REQ, nota del solicitante en Necesidades, "Comprobante correcto"
+  en Compras > Caja chica, toasts en vivo.
+- **Pruebas**: `CajaChicaTest` reescrito (sugerir, autorizar, registrar sin
+  stock, duplicado, observar, corregir, regularizar parcial y completa,
+  tracking, auditoria). `MigracionesFlywayTest`: 27.
+
 ## 0.37.1 — 2026-11-12
 
 Reemplazar o descartar una cotizacion que ya gano productos.

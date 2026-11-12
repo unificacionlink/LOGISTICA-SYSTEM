@@ -4,8 +4,13 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import { decidirAprobacion } from "../api/aprobaciones";
 import { obtenerDetalleCompra } from "../api/compras";
+import { obtenerFormularioCajaChica } from "../api/cajachica";
 import { enviarRequerimiento, obtenerRequerimiento, programarEntrega } from "../api/requerimientos";
-import type { ComprasDetalle, RequerimientoDetalle as RequerimientoDetalleType } from "../api/types";
+import type {
+  ComprasDetalle,
+  FormularioCajaChica,
+  RequerimientoDetalle as RequerimientoDetalleType,
+} from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useRealtime } from "../realtime/useRealtime";
 import EstadoBadge from "../components/EstadoBadge";
@@ -47,7 +52,7 @@ export default function RequerimientoDetalle() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const { usuario, tieneAlgunRol } = useAuth();
-  const { onMiRequerimientoDecidido } = useRealtime();
+  const { onMiRequerimientoDecidido, onCajaChica } = useRealtime();
   const esGestor = tieneAlgunRol("LOGISTICA", "ADMIN");
   const [actualizadoEnVivo, setActualizadoEnVivo] = useState(false);
 
@@ -216,6 +221,28 @@ export default function RequerimientoDetalle() {
   }, [puedeVerCompras, id]);
   const cargandoCompras = puedeVerCompras && !comprasFallo && comprasDetalle?.requerimiento.id !== id;
 
+  // DEC-L054: el solicitante registra aqui lo que su proyecto compro con caja chica.
+  const [cajaChica, setCajaChica] = useState<FormularioCajaChica | null>(null);
+  const verCajaChica =
+    !!id &&
+    !!usuario &&
+    usuario.id === detalle?.requerimiento.requesterUserId &&
+    (detalle?.requerimiento.status === "EN_ATENCION" || detalle?.requerimiento.status === "ATENCION_PARCIAL");
+  useEffect(() => {
+    if (!verCajaChica || !id) return;
+    let vigente = true;
+    const cargar = () =>
+      obtenerFormularioCajaChica(id).then((res) => {
+        if (vigente && res.ok && res.result) setCajaChica(res.result);
+      });
+    cargar();
+    const quitar = onCajaChica((a) => a.requestId === id && cargar());
+    return () => {
+      vigente = false;
+      quitar();
+    };
+  }, [verCajaChica, id, onCajaChica]);
+
   if (cargando) {
     return (
       <div>
@@ -278,6 +305,21 @@ export default function RequerimientoDetalle() {
           <p className="mt-0.5 text-xs opacity-80">
             {observacion.observadoPor ?? "—"} · {fmtFechaHora(observacion.fecha)}
           </p>
+        </Alert>
+      )}
+
+      {verCajaChica && cajaChica && (cajaChica.puedeRegistrar || cajaChica.compras.some((c) => c.estado === "OBSERVADO")) && (
+        <Alert tone="info" className="mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              {cajaChica.compras.some((c) => c.estado === "OBSERVADO")
+                ? "Logística observó tu compra con caja chica: corrígela."
+                : "Logística autorizó comprar con la caja chica del proyecto: registra la compra con su comprobante."}
+            </span>
+            <Button href={`/requerimientos/${id}/caja-chica`} size="sm">
+              {cajaChica.compras.some((c) => c.estado === "OBSERVADO") ? "Corregir compra" : "Registrar compra"}
+            </Button>
+          </div>
         </Alert>
       )}
 
@@ -423,6 +465,17 @@ export default function RequerimientoDetalle() {
             <div className="rotulo">Justificación</div>
             <div className="mt-1 text-sm text-slate-700">{requerimiento.justification}</div>
           </div>
+          {requerimiento.cajaChicaSugerida && (
+            <p className="mt-3 text-sm text-slate-600">
+              <span className="rotulo mr-2">Caja chica del proyecto</span>
+              Sugerida{requerimiento.cajaChicaNota ? `: ${requerimiento.cajaChicaNota}` : ""}
+              {verCajaChica && cajaChica && cajaChica.compras.length > 0 && (
+                <Link to={`/requerimientos/${id}/caja-chica`} className="ml-2 font-medium text-brand-600 hover:text-brand-700">
+                  Ver compras
+                </Link>
+              )}
+            </p>
+          )}
         </CardBody>
       </Card>
 
@@ -477,8 +530,8 @@ export default function RequerimientoDetalle() {
               <ShoppingCart className="size-4.5 text-slate-500" />
               <h2 className="font-semibold text-slate-900">Compras</h2>
             </div>
-            {comprasDetalle && comprasDetalle.items.some((it) => it.cantidadPendiente > 0) && (
-              <Button href={`/compras/requerimientos/${id}/caja-chica`} size="sm" variant="secondary">
+            {comprasDetalle && comprasDetalle.necesidades.some((n) => n.status === "CAJA_CHICA") && (
+              <Button href={`/requerimientos/${id}/caja-chica`} size="sm" variant="secondary">
                 Caja chica
               </Button>
             )}

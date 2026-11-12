@@ -3,7 +3,13 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL } from "../api/http";
 import type { AprobacionPendiente, Requerimiento } from "../api/types";
-import { RealtimeContext, type CotizacionPorEnlace, type Listener, type RealtimeContextValue } from "./useRealtime";
+import {
+  RealtimeContext,
+  type AvisoCajaChica,
+  type CotizacionPorEnlace,
+  type Listener,
+  type RealtimeContextValue,
+} from "./useRealtime";
 
 const WS_URL = `${API_URL.replace(/^http/, "ws")}/ws`;
 
@@ -25,6 +31,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const busAprobacion = useRef(crearBus<AprobacionPendiente>()).current;
   const busDecision = useRef(crearBus<Requerimiento>()).current;
   const busCotizacion = useRef(crearBus<CotizacionPorEnlace>()).current;
+  const busCajaChica = useRef(crearBus<AvisoCajaChica>()).current;
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
@@ -48,6 +55,9 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         onConnect: () => {
           c.subscribe("/user/queue/mis-requerimientos", (msg) => {
             busDecision.emit(JSON.parse(msg.body) as Requerimiento);
+          });
+          c.subscribe("/user/queue/caja-chica", (msg) => {
+            busCajaChica.emit(JSON.parse(msg.body) as AvisoCajaChica);
           });
           if (esLogistica) {
             c.subscribe("/user/queue/cotizaciones", (msg) => {
@@ -82,6 +92,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     onNuevaAprobacion: busAprobacion.subscribe,
     onMiRequerimientoDecidido: busDecision.subscribe,
     onCotizacionPorEnlace: busCotizacion.subscribe,
+    onCajaChica: busCajaChica.subscribe,
   };
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

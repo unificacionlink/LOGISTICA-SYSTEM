@@ -5,6 +5,34 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L054 — Caja chica del proyecto (2026-11-12).** Reemplaza el "Logistica
+  compra y entra al almacen" de DEC-L026: cada proyecto tiene su caja chica.
+  - **Sugerencia**: el solicitante marca en su REQ "Sugerir comprar lo que
+    falte con la caja chica del proyecto" con nota opcional
+    (`requerimiento.petty_cash_suggested/petty_cash_suggestion_note`, V27). Al
+    aprobarse, el faltante queda PENDIENTE_RUTA con `suggested_reason =
+    SOLICITANTE` (antes que las reglas de bajo monto / mismo dia / falla).
+  - **Autorizacion**: Logistica decide en Necesidades ("Caja chica del
+    proyecto" o "Compra normal"); al pasarla a CAJA_CHICA se avisa al
+    solicitante en vivo (`/user/queue/caja-chica`).
+  - **Compra**: la registra el dueno del REQ (o Logistica en su nombre) en
+    `/requerimientos/:id/caja-chica`, solo sobre lo autorizado, con el
+    comprobante adjunto obligatorio (subida propia en
+    `/api/caja-chica/requerimientos/{id}/comprobante`). El motivo sale de la
+    ruta, no se elige. **No entra al almacen ni se reserva**
+    (`caja_chica_ref.destination = PROYECTO`; las compras anteriores quedan
+    `ALMACEN`).
+  - **Regularizacion**: Logistica verifica el comprobante (REGULARIZADO) u
+    observa con motivo; el solicitante corrige (PUT `/api/caja-chica/{id}`,
+    puede conservar el comprobante) y vuelve a revision. Todo auditado
+    (`CAJA_CHICA`: REGISTRAR, OBSERVAR, CORREGIR, REGULARIZAR).
+  - **Atencion**: lo comprado cuenta como atendido **cuando Logistica
+    regulariza** (`AtencionCalculator` suma lo REGULARIZADO de destino
+    PROYECTO a lo entregado por envio); la bandeja y el avance lo cuentan como
+    entregado y el Tracking muestra la compra y la verificacion.
+  - **El fondo no se controla** en el sistema (sigue en el aplicativo de caja
+    chica); la regla corporativa solo sugiere.
+
 - **DEC-L053 — Equivalencias por proveedor y revision asistida (2026-11-12).**
   Para los proveedores que igual mandan su propio PDF (sin usar el enlace de
   DEC-L052) con otros nombres y codigos.

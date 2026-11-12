@@ -279,19 +279,27 @@ function TablaNecesidades({
               </td>
               <td className="px-5 py-3">
                 {n.status === "CAJA_CHICA" ? (
-                  <Badge tone="amarillo">Caja chica</Badge>
+                  <Badge tone="amarillo">Compra del proyecto</Badge>
                 ) : (
                   <Badge tone="gris">Por decidir</Badge>
                 )}
                 {n.suggestedReason && (
-                  <p className="mt-1 text-xs text-amber-700">Sugerido: {ETIQUETA_SUGERENCIA[n.suggestedReason]}</p>
+                  <p className="mt-1 text-xs text-amber-700">
+                    {n.suggestedReason === "SOLICITANTE" ? "" : "Sugerido: "}
+                    {ETIQUETA_SUGERENCIA[n.suggestedReason]}
+                  </p>
+                )}
+                {n.notaSolicitante && (
+                  <p className="mt-0.5 max-w-56 text-xs text-slate-500" title={n.notaSolicitante}>
+                    «{n.notaSolicitante}»
+                  </p>
                 )}
               </td>
               <td className="whitespace-nowrap px-5 py-3 text-right">
                 {n.status === "CAJA_CHICA" ? (
                   <div className="flex items-center justify-end gap-1">
-                    <Link to={`/compras/requerimientos/${n.requestId}/caja-chica`} className={linkClass}>
-                      Registrar compra
+                    <Link to={`/requerimientos/${n.requestId}/caja-chica`} className={linkClass}>
+                      Ver compra
                     </Link>
                     <MenuAcciones
                       acciones={[{ label: "Pasar a compra normal", onClick: () => onRuta(n, "COMPRA"), disabled: procesando === n.needId }]}
@@ -300,7 +308,7 @@ function TablaNecesidades({
                 ) : (
                   <div className="flex justify-end gap-2">
                     <Button size="sm" loading={procesando === n.needId} onClick={() => onRuta(n, "CAJA_CHICA")}>
-                      Caja chica
+                      Caja chica del proyecto
                     </Button>
                     <Button size="sm" variant="secondary" disabled={procesando === n.needId} onClick={() => onRuta(n, "COMPRA")}>
                       Compra normal

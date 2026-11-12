@@ -26,8 +26,11 @@ public record CajaChicaDto(
         String documentoUrl,
         String registradoPor,
         Instant registradoEn,
+        /** PROYECTO (DEC-L054) o ALMACEN (compras anteriores, entraron al stock). */
+        String destino,
         List<Item> items) {
 
-    public record Item(String sku, String producto, BigDecimal cantidad, BigDecimal costoUnitario, BigDecimal total) {
+    public record Item(UUID requestItemId, String sku, String producto, BigDecimal cantidad, BigDecimal costoUnitario,
+                       BigDecimal total) {
     }
 }

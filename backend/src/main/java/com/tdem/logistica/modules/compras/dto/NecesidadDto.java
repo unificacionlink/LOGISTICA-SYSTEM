@@ -25,5 +25,7 @@ public record NecesidadDto(
         UUID consolidationId,
         String consolidationCode,
         String consolidationStatus,
-        Instant createdAt) {
+        Instant createdAt,
+        /** DEC-L054: nota del solicitante al sugerir la caja chica del proyecto. */
+        String notaSolicitante) {
 }
