@@ -326,8 +326,8 @@ export default function ComprasRfqDetalle() {
         <Card className="mb-6">
           <CardBody className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 text-sm">
-              <p className="font-medium text-slate-900">{detalle.proveedorContacto ?? rfq.proveedorNombre}</p>
-              <p className="text-xs text-slate-500">
+              <p className="truncate font-medium text-slate-900">{detalle.proveedorContacto ?? rfq.proveedorNombre}</p>
+              <p className="truncate text-xs text-slate-500">
                 {[detalle.proveedorEmail, detalle.proveedorTelefono].filter(Boolean).join(" · ") || "Sin datos de contacto"}
               </p>
             </div>
@@ -585,8 +585,8 @@ export default function ComprasRfqDetalle() {
                     {items.map((it) => (
                       <tr key={it.rfqItemId}>
                         <td className="col-flex px-4 py-2.5">
-                          <p className="text-sm text-slate-700">{it.nombreProducto}</p>
-                          <p className="font-mono text-xs text-slate-500">
+                          <p className="truncate text-sm text-slate-700" title={it.nombreProducto}>{it.nombreProducto}</p>
+                          <p className="truncate font-mono text-xs text-slate-500">
                             {it.codigoVariante} · {it.qty} {it.unidadMedida}
                           </p>
                         </td>

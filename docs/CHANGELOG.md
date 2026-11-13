@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.41.3 — 2026-11-13
+
+Una sola línea en Solicitudes de cotización (DEC-L057).
+
+- Lista de Solicitudes: el código de la RFQ y la empresa van en la misma línea (antes, uno debajo del otro).
+- `PageHeader`: el subtítulo va en una línea y se recorta con "…" (con `title`), en vez de partirse al llegar a 65 caracteres; en la RFQ que cotiza varios requerimientos ya no baja de línea.
+- Detalle de la RFQ: el contacto del proveedor y el producto al registrar la cotización se recortan con "…".
+
 ## 0.41.2 — 2026-11-13
 
 - Detalle de la RFQ: se quita "Abrir correo" (borrador `mailto:` armado en la pantalla) y su texto `mensajeSolicitud`. La solicitud se hace llegar al proveedor con el PDF con QR y el enlace para cotizar en línea (DEC-L052); queda "Confirmar envío" con el canal Correo / Otro para registrarla como enviada.

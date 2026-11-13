@@ -650,8 +650,8 @@ function TablaSolicitudes({ rfqs }: { rfqs: Rfq[] }) {
           {rfqs.map((r) => (
             <tr key={r.rfqId} className="hover:bg-slate-50">
               <td className="whitespace-nowrap px-5 py-3">
-                <p className="font-mono text-xs text-slate-700">{r.rfqCode}</p>
-                <p className="text-xs text-slate-400">{r.empresaCode}</p>
+                <span className="font-mono text-xs text-slate-700">{r.rfqCode}</span>
+                <span className="ml-2 text-xs text-slate-400">{r.empresaCode}</span>
               </td>
               <td className="col-flex px-5 py-3 text-slate-600" title={r.proveedorNombre}>
                 {r.proveedorNombre}

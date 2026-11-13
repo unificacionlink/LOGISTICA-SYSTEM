@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.41.3",
+    titulo: "Solicitudes de cotización más ordenadas",
+    cambios: [
+      "En la lista de solicitudes, el código y la empresa van en una sola línea.",
+      "Los títulos de cada pantalla ya no se parten en dos líneas: si son largos se recortan y se leen completos al pasar el mouse.",
+    ],
+  },
+  {
     version: "0.41.2",
     titulo: "Solicitudes de cotización por QR y enlace",
     cambios: [
