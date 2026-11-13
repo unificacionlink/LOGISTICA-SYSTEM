@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.43.0 — 2026-11-13
+
+Compras · Consolidados en dos columnas, con el detalle de la fila al pasar el mouse (DEC-L058).
+
+- Nuevo `components/ui/FilaConDetalle`: fila de tabla cuya tarjeta de detalle sale junto al cursor desde cualquier parte de la fila (sin clics, con tope de renglones, se cierra al salir o hacer scroll). Reemplaza a `DetalleAlPasar` (v0.42.0, por celda), que se elimina.
+- "Listos para orden de compra" (izquierda, 2/5) y "Consolidados" (derecha, 3/5) lado a lado desde `lg`; en pantallas angostas uno debajo del otro. "Listos para orden de compra" se muestra siempre, con estado vacío.
+- Listos para OC: Proveedor (con empresa y n.° de productos) · Total · Emitir OC.
+- Consolidados: Producto (enlace a su ficha, con código) · Total · Cotizado · Estado. Origen, ofertas, adjudicación y proveedores pasan a la tarjeta; se quitan las columnas Origen y Proveedores y el enlace "Ver".
+
 ## 0.42.0 — 2026-11-13
 
 Compras · Consolidados más ordenado (DEC-L058).

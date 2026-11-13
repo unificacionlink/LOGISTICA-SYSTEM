@@ -5,16 +5,22 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
-- **DEC-L058 — Detalle al pasar el mouse en tablas (2026-11-13, v0.42.0).**
+- **DEC-L058 — Detalle de la fila al pasar el mouse (2026-11-13, v0.42.0, v0.43.0).**
   Las tablas muestran solo lo esencial en una línea; el detalle secundario
-  (orígenes de un consolidado, ofertas, adjudicación, proveedores, líneas de
-  una cotización) sale en una tarjeta flotante al pasar el mouse, con el foco
-  del teclado o con un toque (`components/ui/DetalleAlPasar`, sobre
-  `Flotante`). El texto con detalle va subrayado con puntos.
-  - Primer uso: pestaña Consolidados de Compras, ahora en dos bloques:
-    "Listos para orden de compra" (proveedor, empresa, n.° de productos,
-    total, Emitir OC) y "Consolidados" (producto, origen, total, cotizado,
-    estado). Sale la columna Proveedores: va en el detalle de "Cotizado".
+  sale en una tarjeta junto al cursor al dejar el mouse en cualquier parte de
+  la fila (`components/ui/FilaConDetalle`, reemplaza al `<tr>`). La tarjeta
+  no recibe clics (no tapa controles ni la fila siguiente), por eso no tiene
+  scroll: sus listas llevan tope y "+N más". Se cierra al salir de la fila o
+  al hacer scroll. En celulares no hay mouse: todo dato de la tarjeta debe
+  estar también en la pantalla de la fila.
+  - v0.42.0 lo probó por celda (`DetalleAlPasar`); el usuario lo pidió para
+    toda la fila y se retiró.
+  - Primer uso: Compras › Consolidados en dos columnas (lg): "Listos para
+    orden de compra" (proveedor con empresa y n.° de productos, total,
+    Emitir OC; detalle: cotización, condición de pago y líneas) y
+    "Consolidados" (producto con código y enlace a su ficha, total, cotizado,
+    estado; detalle: origen por CECO/REQ, ofertas, adjudicación y proveedores
+    habilitados). Salen las columnas Origen y Proveedores y el enlace "Ver".
 
 - **DEC-L057 — Una sola línea en todas las pantallas (2026-11-13, v0.41.1).**
   A pedido del usuario, ningún control parte su texto en dos líneas.

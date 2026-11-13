@@ -28,7 +28,7 @@ import { useConfirmar } from "../components/ui/Confirmacion";
 import EmptyState from "../components/ui/EmptyState";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import CampoNumero from "../components/ui/CampoNumero";
-import DetalleAlPasar from "../components/ui/DetalleAlPasar";
+import FilaConDetalle from "../components/ui/FilaConDetalle";
 import { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
@@ -218,8 +218,8 @@ export default function Compras() {
       ) : tab === "solicitudes" ? (
         <TablaSolicitudes rfqs={rfqs} />
       ) : (
-        <div className="flex flex-col gap-6">
-          {porEmitir.length > 0 && <ListosParaOc porEmitir={porEmitir} procesando={procesando} onEmitir={onEmitir} />}
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <ListosParaOc porEmitir={porEmitir} procesando={procesando} onEmitir={onEmitir} />
           <TablaConsolidados
             consolidados={consolidados}
             seleccion={seleccion}
@@ -397,57 +397,66 @@ function ListosParaOc({
 }) {
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center gap-2 px-5 py-3">
+      <div className="flex min-h-[3.25rem] items-center gap-2 px-5 py-3">
         <h2 className="text-sm font-semibold text-slate-900">Listos para orden de compra</h2>
-        <Badge tone="verde">{porEmitir.length}</Badge>
+        {porEmitir.length > 0 && <Badge tone="verde">{porEmitir.length}</Badge>}
       </div>
-      <table className="tabla">
-        <thead>
-          <tr className={`${cabecera} border-t`}>
-            <th className={th}>Proveedor</th>
-            <th className={th}>Empresa</th>
-            <th className={th}>Productos</th>
-            <th className={`${th} text-right`}>Total</th>
-            <th className={th} />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {porEmitir.map((p) => (
-            <tr key={p.quotationId}>
-              <td className="col-flex px-5 py-2.5 font-medium text-slate-900" title={p.proveedorNombre}>
-                {p.proveedorNombre}
-              </td>
-              <td className="px-5 py-2.5 text-xs text-slate-500">{p.empresaCode}</td>
-              <td className="px-5 py-2.5 text-slate-600">
-                <DetalleAlPasar detalle={<DetalleCotizacion p={p} />}>
-                  {p.lineas.length} {p.lineas.length === 1 ? "producto" : "productos"}
-                </DetalleAlPasar>
-              </td>
-              <td className="px-5 py-2.5 text-right font-medium text-slate-800">{dinero(p.total, p.currencyCode)}</td>
-              <td className="px-5 py-2.5 text-right">
-                <Button size="sm" loading={procesando === p.quotationId} onClick={() => onEmitir(p)}>
-                  Emitir OC
-                </Button>
-              </td>
+      {porEmitir.length === 0 ? (
+        <div className="border-t border-slate-200">
+          <EmptyState icon={ClipboardList} title="Nada pendiente de emitir" />
+        </div>
+      ) : (
+        <table className="tabla">
+          <thead>
+            <tr className={`${cabecera} border-t`}>
+              <th className={th}>Proveedor</th>
+              <th className={`${th} text-right`}>Total</th>
+              <th className={th} />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {porEmitir.map((p) => (
+              <FilaConDetalle key={p.quotationId} detalle={<DetalleCotizacion p={p} />} className="hover:bg-slate-50">
+                <td className="col-flex px-5 py-2.5" title={p.proveedorNombre}>
+                  <span className="font-medium text-slate-900">{p.proveedorNombre}</span>
+                  <span className="ml-2 text-xs text-slate-400">
+                    {p.empresaCode} · {p.lineas.length} {p.lineas.length === 1 ? "producto" : "productos"}
+                  </span>
+                </td>
+                <td className="px-5 py-2.5 text-right font-medium text-slate-800">{dinero(p.total, p.currencyCode)}</td>
+                <td className="py-2.5 pr-5 text-right">
+                  <Button size="sm" loading={procesando === p.quotationId} onClick={() => onEmitir(p)}>
+                    Emitir OC
+                  </Button>
+                </td>
+              </FilaConDetalle>
+            ))}
+          </tbody>
+        </table>
+      )}
     </Card>
   );
 }
 
+/** Tope de renglones en la tarjeta de detalle (no tiene scroll: no recibe el mouse). */
+const MAX_DETALLE = 8;
+
 function DetalleCotizacion({ p }: { p: PorEmitir }) {
+  const lineas = p.lineas.slice(0, MAX_DETALLE);
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-slate-500">
-        {p.supplierQuoteNumber ? `Cotización N° ${p.supplierQuoteNumber}` : "Cotización sin número"}
-        {p.paymentCondition ? ` · ${p.paymentCondition}` : ""}
-      </p>
-      <ul className="flex flex-col gap-1.5">
-        {p.lineas.map((l) => (
+      <div>
+        <p className="font-medium text-slate-900">{p.proveedorNombre}</p>
+        <p className="text-slate-500">
+          {p.empresaCode}
+          {p.supplierQuoteNumber ? ` · Cotización N° ${p.supplierQuoteNumber}` : ""}
+          {p.paymentCondition ? ` · ${p.paymentCondition}` : ""}
+        </p>
+      </div>
+      <ul className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+        {lineas.map((l) => (
           <li key={l.consolidationId} className="flex items-baseline justify-between gap-4">
-            <span className="min-w-0 truncate text-slate-700" title={l.nombreProducto}>
+            <span className="min-w-0 truncate text-slate-700">
               {l.nombreProducto}
               <span className="ml-1.5 font-mono text-slate-400">{l.codigoVariante ?? l.skuBase}</span>
             </span>
@@ -456,6 +465,7 @@ function DetalleCotizacion({ p }: { p: PorEmitir }) {
             </span>
           </li>
         ))}
+        {p.lineas.length > lineas.length && <li className="text-slate-400">+{p.lineas.length - lineas.length} más</li>}
       </ul>
     </div>
   );
@@ -490,13 +500,6 @@ function TablaConsolidados({
   // Comparar y pedir cotizacion es por empresa (cada una compra con su RFQ): se trabaja una a la vez.
   const empresaActiva = empresas.some((e) => e.code === empresa) ? empresa : (empresas[0]?.code ?? "");
 
-  if (consolidados.length === 0) {
-    return (
-      <Card>
-        <EmptyState icon={Layers} title="No hay faltantes consolidados" />
-      </Card>
-    );
-  }
   const visibles = consolidados.filter((c) => !empresaActiva || c.empresaCode === empresaActiva);
   const seleccionables = visibles.filter((c) => COMPARABLES.has(c.status));
   const elegidos = seleccionables.filter((c) => seleccion.has(c.consolidationId));
@@ -517,165 +520,169 @@ function TablaConsolidados({
 
   return (
     <Card className="overflow-hidden">
-      <div data-tutorial="compras-acciones" className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+      <div data-tutorial="compras-acciones" className="flex min-h-[3.25rem] flex-wrap items-center justify-between gap-3 px-5 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Consolidados</h2>
           {elegidos.length > 0 && <span className="text-sm text-slate-500">· {elegidos.length} seleccionado(s)</span>}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<Send className="size-3.5" />}
-            disabled={!soloAbiertos}
-            loading={preparando}
-            onClick={onPreparar}
-            title="Crea una solicitud por cada proveedor habilitado"
-          >
-            Pedir cotización
-          </Button>
-          <Button
-            size="sm"
-            icon={<Scale className="size-3.5" />}
-            disabled={elegidos.length === 0}
-            onClick={() => navigate(`/compras/comparativo?ids=${elegidos.map((c) => c.consolidationId).join(",")}`)}
-          >
-            Comparar cotizaciones
-          </Button>
-        </div>
-      </div>
-      {empresas.length > 1 && (
-        <div role="tablist" aria-label="Empresa" className="flex gap-1 overflow-x-auto border-t border-slate-200 px-3 pt-2">
-          {empresas.map((e) => (
-            <button
-              key={e.code}
-              type="button"
-              role="tab"
-              aria-selected={empresaActiva === e.code}
-              onClick={() => cambiarEmpresa(e.code)}
-              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                empresaActiva === e.code
-                  ? "border-brand-600 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+        {consolidados.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Send className="size-3.5" />}
+              disabled={!soloAbiertos}
+              loading={preparando}
+              onClick={onPreparar}
+              title="Crea una solicitud por cada proveedor habilitado"
             >
-              <span className={`size-2 rounded-full ${e.marca}`} aria-hidden="true" />
-              {e.label}
-              <span className="font-mono text-xs tabular-nums text-slate-400">{e.n}</span>
-            </button>
-          ))}
+              Pedir cotización
+            </Button>
+            <Button
+              size="sm"
+              icon={<Scale className="size-3.5" />}
+              disabled={elegidos.length === 0}
+              onClick={() => navigate(`/compras/comparativo?ids=${elegidos.map((c) => c.consolidationId).join(",")}`)}
+            >
+              Comparar cotizaciones
+            </Button>
+          </div>
+        )}
+      </div>
+      {consolidados.length === 0 ? (
+        <div className="border-t border-slate-200">
+          <EmptyState icon={Layers} title="No hay faltantes consolidados" />
         </div>
-      )}
-      <table className="tabla">
-        <thead>
-          <tr className={`${cabecera} border-t`}>
-            <th className="w-10 px-5 py-3">
-              <input
-                type="checkbox"
-                aria-label="Seleccionar todos"
-                checked={todos}
-                disabled={seleccionables.length === 0}
-                onChange={() => onSeleccion(todos ? new Set() : new Set(seleccionables.map((c) => c.consolidationId)))}
-              />
-            </th>
-            <th className={th}>Producto</th>
-            <th className={th}>Origen</th>
-            <th className={th}>Total</th>
-            <th className={th}>Cotizado</th>
-            <th className={th}>Estado</th>
-            <th className={th} />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {visibles.map((c) => {
-            const abierto = COMPARABLES.has(c.status);
-            const codigo = c.codigoVariante ?? c.skuBase;
-            const requerimientos = new Set(c.origenes.map((o) => o.requestId)).size;
-            return (
-              <tr key={c.consolidationId}>
-                <td className="px-5 py-2.5">
-                  {abierto && (
-                    <input
-                      type="checkbox"
-                      aria-label={`Seleccionar ${codigo}`}
-                      checked={seleccion.has(c.consolidationId)}
-                      onChange={() => alternar(c.consolidationId)}
-                    />
-                  )}
-                </td>
-                <td className="col-flex px-5 py-2.5 text-slate-700" title={`${c.nombreProducto} · ${codigo}`}>
-                  {c.nombreProducto}
-                  <span className="ml-2 font-mono text-xs text-slate-400">{codigo}</span>
-                </td>
-                <td className="px-5 py-2.5 text-xs text-slate-600">
-                  <DetalleAlPasar detalle={<OrigenesConsolidado origenes={c.origenes} max={Infinity} />}>
-                    {c.origenes.length === 1
-                      ? c.origenes[0].cecoCode
-                      : `${requerimientos} ${requerimientos === 1 ? "requerimiento" : "requerimientos"}`}
-                  </DetalleAlPasar>
-                </td>
-                <td className="px-5 py-2.5 font-medium text-slate-800">
-                  {cantidad(c.totalQty)} {c.unidadMedida}
-                </td>
-                <td className="px-5 py-2.5 text-xs">
-                  <DetalleAlPasar detalle={<DetalleCotizado c={c} />}>
-                    {c.cantidadCotizada != null ? (
-                      <span className={`font-medium ${c.cantidadCotizada >= c.totalQty ? "text-emerald-700" : "text-amber-700"}`}>
-                        {cantidad(c.cantidadCotizada)} {c.unidadMedida}
-                      </span>
-                    ) : c.proveedores.length === 0 ? (
-                      <span className="text-rose-600">Sin proveedor</span>
-                    ) : (
-                      <span className="text-slate-400">Sin ofertas</span>
-                    )}
-                  </DetalleAlPasar>
-                </td>
-                <td className="px-5 py-2.5">
-                  <ConsolidadoEstadoBadge estado={c.status} />
-                </td>
-                <td className="px-5 py-2.5 text-right">
-                  <Link to={`/compras/consolidados/${c.consolidationId}`} className={linkClass}>
-                    Ver
-                  </Link>
-                </td>
+      ) : (
+        <>
+          {empresas.length > 1 && (
+            <div role="tablist" aria-label="Empresa" className="flex gap-1 overflow-x-auto border-t border-slate-200 px-3 pt-2">
+              {empresas.map((e) => (
+                <button
+                  key={e.code}
+                  type="button"
+                  role="tab"
+                  aria-selected={empresaActiva === e.code}
+                  onClick={() => cambiarEmpresa(e.code)}
+                  className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                    empresaActiva === e.code
+                      ? "border-brand-600 text-slate-900"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <span className={`size-2 rounded-full ${e.marca}`} aria-hidden="true" />
+                  {e.label}
+                  <span className="font-mono text-xs tabular-nums text-slate-400">{e.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <table className="tabla">
+            <thead>
+              <tr className={`${cabecera} border-t`}>
+                <th className="w-10 py-3 pl-5 pr-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Seleccionar todos"
+                    checked={todos}
+                    disabled={seleccionables.length === 0}
+                    onChange={() => onSeleccion(todos ? new Set() : new Set(seleccionables.map((c) => c.consolidationId)))}
+                  />
+                </th>
+                <th className="py-3 pr-5">Producto</th>
+                <th className={`${th} text-right`}>Total</th>
+                <th className={`${th} text-right`}>Cotizado</th>
+                <th className={th}>Estado</th>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {visibles.map((c) => {
+                const abierto = COMPARABLES.has(c.status);
+                const codigo = c.codigoVariante ?? c.skuBase;
+                return (
+                  <FilaConDetalle key={c.consolidationId} detalle={<DetalleConsolidado c={c} />} className="hover:bg-slate-50">
+                    <td className="py-2.5 pl-5 pr-2">
+                      {abierto && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar ${codigo}`}
+                          checked={seleccion.has(c.consolidationId)}
+                          onChange={() => alternar(c.consolidationId)}
+                        />
+                      )}
+                    </td>
+                    <td className="col-flex py-2.5 pr-5">
+                      <Link
+                        to={`/compras/consolidados/${c.consolidationId}`}
+                        className="text-slate-800 hover:text-brand-700 hover:underline"
+                      >
+                        {c.nombreProducto}
+                      </Link>
+                      <span className="ml-2 font-mono text-xs text-slate-400">{codigo}</span>
+                    </td>
+                    <td className="px-5 py-2.5 text-right font-medium text-slate-800">
+                      {cantidad(c.totalQty)} {c.unidadMedida}
+                    </td>
+                    <td className="px-5 py-2.5 text-right text-xs">
+                      {c.cantidadCotizada != null ? (
+                        <span className={`font-medium ${c.cantidadCotizada >= c.totalQty ? "text-emerald-700" : "text-amber-700"}`}>
+                          {cantidad(c.cantidadCotizada)} {c.unidadMedida}
+                        </span>
+                      ) : c.proveedores.length === 0 ? (
+                        <span className="text-rose-600">Sin proveedor</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <ConsolidadoEstadoBadge estado={c.status} />
+                    </td>
+                  </FilaConDetalle>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
     </Card>
   );
 }
 
-function DetalleCotizado({ c }: { c: Consolidado }) {
+function DetalleConsolidado({ c }: { c: Consolidado }) {
   return (
-    <div className="flex flex-col gap-2">
-      <p>
-        <span className="text-slate-500">Ofertas: </span>
-        <span className="font-medium text-slate-800">{c.cotizaciones}</span>
-      </p>
-      {c.adjudicado && (
-        <p>
-          <span className="text-slate-500">Adjudicado a </span>
-          <span className="font-medium text-slate-800">{c.adjudicado.proveedorNombre}</span>
-          <span className="text-slate-500">
-            {" · "}
-            {cantidad(c.adjudicado.qty)} {c.unidadMedida} · {dinero(c.adjudicado.lineTotal, c.adjudicado.currencyCode)}
-          </span>
-        </p>
-      )}
+    <div className="flex flex-col gap-2.5">
       <div>
+        <p className="whitespace-normal font-medium text-slate-900">{c.nombreProducto}</p>
+        <p className="font-mono text-slate-400">
+          {c.codigoVariante ?? c.skuBase} · {c.consolidationCode} · {c.empresaCode}
+        </p>
+      </div>
+      <div className="border-t border-slate-100 pt-2">
+        <p className="mb-1 text-slate-500">Origen</p>
+        <OrigenesConsolidado origenes={c.origenes} max={MAX_DETALLE} />
+      </div>
+      <div className="border-t border-slate-100 pt-2">
+        <p className="text-slate-500">
+          {c.cotizaciones} {c.cotizaciones === 1 ? "oferta" : "ofertas"}
+          {c.cantidadCotizada != null && ` · cubren ${cantidad(c.cantidadCotizada)} de ${cantidad(c.totalQty)} ${c.unidadMedida}`}
+        </p>
+        {c.adjudicado && (
+          <p className="mt-0.5">
+            <span className="text-slate-500">Adjudicado a </span>
+            <span className="font-medium text-slate-800">{c.adjudicado.proveedorNombre}</span>
+            <span className="text-slate-500">{` · ${dinero(c.adjudicado.lineTotal, c.adjudicado.currencyCode)}`}</span>
+          </p>
+        )}
+      </div>
+      <div className="border-t border-slate-100 pt-2">
         <p className="text-slate-500">Proveedores habilitados</p>
         {c.proveedores.length === 0 ? (
           <p className="text-rose-600">Ninguno: habilítalo en el producto para pedirle cotización.</p>
         ) : (
-          <ul className="mt-0.5 flex flex-col gap-0.5 text-slate-700">
-            {c.proveedores.map((p) => (
-              <li key={p} className="truncate">
-                {p}
-              </li>
-            ))}
-          </ul>
+          <p className="whitespace-normal text-slate-700">
+            {c.proveedores.slice(0, MAX_DETALLE).join(", ")}
+            {c.proveedores.length > MAX_DETALLE && ` y ${c.proveedores.length - MAX_DETALLE} más`}
+          </p>
         )}
       </div>
     </div>

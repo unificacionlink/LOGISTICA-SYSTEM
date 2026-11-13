@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.43.0",
+    titulo: "Consolidados en dos columnas",
+    cambios: [
+      "«Listos para orden de compra» y «Consolidados» se ven lado a lado.",
+      "Deja el mouse sobre cualquier fila para ver su detalle: de qué requerimientos viene, ofertas, adjudicación y proveedores.",
+      "Toca el nombre del producto para abrir el consolidado.",
+    ],
+  },
+  {
     version: "0.42.0",
     titulo: "Consolidados más ordenado",
     cambios: [
