@@ -1370,8 +1370,11 @@ export interface CotizacionPublicaLinea {
   producto: string;
   atributo: string | null;
   unidad: string;
+  /** Nombre de la unidad (Millar, Caja...); null si aun no esta definida. */
+  unidadNombre: string | null;
   cantidad: number;
   especificacion: string | null;
+  imagenUrl: string | null;
 }
 
 export interface CotizacionPublicaPrecio {

@@ -26,6 +26,10 @@ public record CotizacionPublicaDto(
         List<MonedaDto> monedas,
         Enviada enviada) {
 
+    /**
+     * Una linea a cotizar. {@code unidadNombre} es null si la unidad del
+     * producto aun no esta definida (ND); {@code imagenUrl}, su foto principal.
+     */
     public record Linea(
             UUID rfqItemId,
             int numero,
@@ -33,8 +37,10 @@ public record CotizacionPublicaDto(
             String producto,
             String atributo,
             String unidad,
+            String unidadNombre,
             BigDecimal cantidad,
-            String especificacion) {
+            String especificacion,
+            String imagenUrl) {
     }
 
     /** Su ultimo envio, para que pueda corregirlo mientras el enlace siga vigente. */

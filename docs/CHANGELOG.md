@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.40.0 — 2026-11-13
+
+Enlace del proveedor: unidad, foto y pantalla ordenada (DEC-L052).
+
+- `CotizacionPublicaDto.Linea` trae `unidadNombre` (null si la unidad es
+  `ND`) e `imagenUrl` (foto principal del producto, una sola consulta:
+  `ProductoImagenRepository.findPrincipalesActivasDeProductos`).
+- `CotizarProveedor`: encabezado de documento (proveedor, emision, responder
+  hasta, lugar de entrega), condiciones primero, tabla de productos con N°,
+  foto (`Miniatura grande`), cantidad con su unidad ("10 millares"), precio
+  "por millar, sin IGV", subtotal y total; "Unidad por definir" en ambar si
+  es `ND`. Enter pasa al siguiente precio. En el celular cada producto se
+  apila.
+- Pruebas: `EnlaceCotizacionTest` verifica el nombre de la unidad y que `ND`
+  no se muestre como unidad.
+
 ## 0.39.0 — 2026-11-12
 
 Caja chica del proyecto por producto y cantidad (DEC-L054).

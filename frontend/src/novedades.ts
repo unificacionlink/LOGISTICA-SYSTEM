@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.40.0",
+    titulo: "El proveedor cotiza con foto y unidad de cada producto",
+    cambios: [
+      "En el enlace del proveedor cada producto muestra su foto, la cantidad con su unidad (por ejemplo «10 millares») y el precio que se pide («por millar, sin IGV»).",
+      "La página se ordena como una cotización: datos de la solicitud, condiciones de la oferta, tabla de productos con subtotales y total.",
+      "Con Enter el proveedor pasa al precio del siguiente producto.",
+      "Si un producto aún no tiene su unidad definida en el catálogo, el proveedor lo ve como «Unidad por definir».",
+    ],
+  },
+  {
     version: "0.39.0",
     titulo: "Elige cuánto de cada producto va por caja chica",
     cambios: [

@@ -17,6 +17,7 @@ import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.CotizacionItemRepository;
 import com.tdem.logistica.repository.CotizacionRepository;
 import com.tdem.logistica.repository.MonedaRepository;
+import com.tdem.logistica.repository.ProductoImagenRepository;
 import com.tdem.logistica.repository.RfqEnlaceRepository;
 import com.tdem.logistica.repository.RfqItemRepository;
 import com.tdem.logistica.repository.RfqRepository;
@@ -55,6 +56,8 @@ public class EnlaceCotizacionService {
 
     static final Duration VIGENCIA = Duration.ofDays(30);
     static final String SOURCE_ENLACE = "ENLACE";
+    /** Unidad aun no definida en el catalogo (seed V1). */
+    private static final String UOM_NO_DEFINIDA = "ND";
     private static final String NO_DISPONIBLE =
             "El enlace no es válido o ya venció. Pide uno nuevo a quien te envió la solicitud.";
     private static final Set<String> CONDICIONES = Set.of("CONTADO", "ANTICIPO", "CREDITO_30");
@@ -67,6 +70,7 @@ public class EnlaceCotizacionService {
     private final CotizacionRepository cotizacionRepository;
     private final CotizacionItemRepository cotizacionItemRepository;
     private final MonedaRepository monedaRepository;
+    private final ProductoImagenRepository productoImagenRepository;
     private final ComprasService compras;
     private final Auditoria auditoria;
     private final RealtimeNotifier notifier;
@@ -75,7 +79,9 @@ public class EnlaceCotizacionService {
     public EnlaceCotizacionService(RfqEnlaceRepository enlaceRepository, RfqRepository rfqRepository,
                                    RfqItemRepository rfqItemRepository, CotizacionRepository cotizacionRepository,
                                    CotizacionItemRepository cotizacionItemRepository,
-                                   MonedaRepository monedaRepository, ComprasService compras, Auditoria auditoria,
+                                   MonedaRepository monedaRepository,
+                                   ProductoImagenRepository productoImagenRepository,
+                                   ComprasService compras, Auditoria auditoria,
                                    RealtimeNotifier notifier,
                                    @Value("${app.public-url:}") String urlPublica,
                                    @Value("${app.cors.allowed-origins}") String origenes) {
@@ -85,6 +91,7 @@ public class EnlaceCotizacionService {
         this.cotizacionRepository = cotizacionRepository;
         this.cotizacionItemRepository = cotizacionItemRepository;
         this.monedaRepository = monedaRepository;
+        this.productoImagenRepository = productoImagenRepository;
         this.compras = compras;
         this.auditoria = auditoria;
         this.notifier = notifier;
@@ -225,14 +232,23 @@ public class EnlaceCotizacionService {
                 .sorted(Comparator.comparing((RfqItem i) -> i.getProducto().getSkuBase())
                         .thenComparing(i -> i.getVariante() != null ? i.getVariante().getInternalVariantCode() : ""))
                 .toList();
+        // La foto guia al proveedor; el bucket ya es publico (DEC-L015).
+        Map<UUID, String> fotos = items.isEmpty() ? Map.of() : productoImagenRepository
+                .findPrincipalesActivasDeProductos(items.stream().map(i -> i.getProducto().getProductId()).toList())
+                .stream()
+                .collect(Collectors.toMap(pi -> pi.getProducto().getProductId(),
+                        pi -> pi.getDocumento().getFileUrl(), (a, b) -> a));
         List<CotizacionPublicaDto.Linea> lineas = new java.util.ArrayList<>();
         int n = 1;
         for (RfqItem i : items) {
+            String uom = i.getUom().getCode();
             lineas.add(new CotizacionPublicaDto.Linea(i.getRfqItemId(), n++,
                     i.getVariante() != null ? i.getVariante().getInternalVariantCode() : i.getProducto().getSkuBase(),
                     i.getProducto().getName(),
                     i.getVariante() != null ? i.getVariante().getAttributeValue() : null,
-                    i.getUom().getCode(), i.getQty(), i.getTechnicalSpecification()));
+                    uom, UOM_NO_DEFINIDA.equals(uom) ? null : i.getUom().getName(),
+                    i.getQty(), i.getTechnicalSpecification(),
+                    fotos.get(i.getProducto().getProductId())));
         }
         Cotizacion enviada = enviadaPorEnlace(rfq.getRfqId());
         CotizacionPublicaDto.Enviada env = null;

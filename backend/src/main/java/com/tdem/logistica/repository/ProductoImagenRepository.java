@@ -4,6 +4,7 @@ import com.tdem.logistica.entity.ProductoImagen;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +13,11 @@ public interface ProductoImagenRepository extends JpaRepository<ProductoImagen, 
     @Query("select pi from ProductoImagen pi join fetch pi.documento " +
             "where pi.variantId is null and pi.primary = true and pi.active = true")
     List<ProductoImagen> findPrincipalesActivas();
+
+    /** Fotos principales de varios productos en una sola consulta. */
+    @Query("select pi from ProductoImagen pi join fetch pi.documento where pi.producto.productId in :productIds " +
+            "and pi.variantId is null and pi.primary = true and pi.active = true")
+    List<ProductoImagen> findPrincipalesActivasDeProductos(Collection<UUID> productIds);
 
     @Query("select pi from ProductoImagen pi where pi.producto.productId = :productId " +
             "and pi.variantId is null and pi.primary = true and pi.active = true")

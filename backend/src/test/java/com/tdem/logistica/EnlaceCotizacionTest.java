@@ -132,6 +132,16 @@ class EnlaceCotizacionTest {
 		assertFalse(expuesto.toLowerCase().contains("costo"), "no muestra costos");
 		assertNotNull(jdbc.queryForObject("select opened_at from rfq_enlace where rfq_id = ?", java.sql.Timestamp.class, rfq.rfqId()));
 
+		// --- Cada linea dice su unidad por nombre; ND queda sin nombre ("por definir") ---
+		jdbc.update("""
+				update rfq_item set uom_id = (select uom_id from unidad_medida where code = 'MILLAR')
+				where rfq_item_id = ?""", linea(vista, "AC01003-00"));
+		CotizacionPublicaDto conUnidad = enlaces.obtener(token);
+		assertEquals("Millar", conUnidad.lineas().stream().filter(l -> l.sku().equals("AC01003-00"))
+				.findFirst().orElseThrow().unidadNombre());
+		conUnidad.lineas().stream().filter(l -> "ND".equals(l.unidad()))
+				.forEach(l -> assertNull(l.unidadNombre(), "una unidad no definida no se muestra como tal"));
+
 		// --- Envia: entra al comparativo como ENLACE y la RFQ queda respondida ---
 		UUID lx = linea(vista, "AC01003-00");
 		UUID ly = linea(vista, "AC01008-00");

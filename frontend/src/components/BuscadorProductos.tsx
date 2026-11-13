@@ -16,16 +16,21 @@ export function Miniatura({
   url,
   titulo,
   detalle,
+  grande = false,
 }: {
   url: string | null;
   titulo?: string;
   detalle?: string;
+  /** 56px en vez de 40px (pagina del proveedor). */
+  grande?: boolean;
 }) {
   const [ampliada, setAmpliada] = useState(false);
+  const lado = grande ? 56 : 40;
+  const caja = grande ? "size-14" : "size-10";
 
   if (!url) {
     return (
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50">
+      <div className={`flex ${caja} shrink-0 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50`}>
         <ImageOff className="size-4 text-slate-300" />
       </div>
     );
@@ -38,16 +43,16 @@ export function Miniatura({
         title="Ver foto"
         className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
-        {/* Miniatura de 40px: se pide de 80x80 (WebP) y solo al acercarse a la vista. */}
+        {/* Se pide al doble de su lado (WebP) y solo al acercarse a la vista. */}
         <img
-          src={urlImagen(url, 80, 80)}
+          src={urlImagen(url, lado * 2, lado * 2)}
           onError={respaldoOriginal(url)}
           alt={titulo ?? ""}
-          width={40}
-          height={40}
+          width={lado}
+          height={lado}
           loading="lazy"
           decoding="async"
-          className="size-10 cursor-zoom-in rounded-md border border-slate-200 object-cover transition hover:opacity-80"
+          className={`${caja} cursor-zoom-in rounded-md border border-slate-200 object-cover transition hover:opacity-80`}
         />
       </button>
       {ampliada && (
