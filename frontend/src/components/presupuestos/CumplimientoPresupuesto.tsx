@@ -84,7 +84,7 @@ export default function CumplimientoPresupuesto({ presupuestoId }: { presupuesto
           <div className="rotulo">Resumen por familia · PEN neto</div>
         </CardBody>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="tabla">
             <thead>
               <tr className="border-y border-slate-200 cabecera-tabla">
                 <th className="px-4 py-2.5">Familia</th>
@@ -116,7 +116,7 @@ export default function CumplimientoPresupuesto({ presupuestoId }: { presupuesto
           <div className="rotulo">Detalle por SKU</div>
         </CardBody>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="tabla">
             <thead>
               <tr className="border-y border-slate-200 cabecera-tabla">
                 <th className="px-4 py-2.5">SKU</th>

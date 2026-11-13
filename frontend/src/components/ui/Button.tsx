@@ -6,7 +6,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium " +
+  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium " +
   "transition-[background-color,border-color,color,transform] duration-200 ease-(--ease-suave) " +
   "active:scale-[0.98] " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 " +

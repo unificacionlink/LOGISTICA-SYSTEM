@@ -514,7 +514,7 @@ function TablaConsolidados({
             disabled={!soloAbiertos}
             loading={preparando}
             onClick={onPreparar}
-            title="Crea una solicitud por cada proveedor habilitado para enviarla por correo o WhatsApp"
+            title="Crea una solicitud por cada proveedor habilitado"
           >
             Pedir cotización
           </Button>

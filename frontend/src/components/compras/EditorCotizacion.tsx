@@ -317,7 +317,7 @@ export default function EditorCotizacion({
                     return (
                       <tr key={f.consolidationId}>
                         <td className="max-w-0 px-3 py-2">
-                          <p className="line-clamp-2 text-slate-800" title={f.nombreProducto}>
+                          <p className="truncate text-slate-800" title={f.nombreProducto}>
                             {f.nombreProducto}
                             {f.atributo && <span className="text-slate-400"> · {f.atributo}</span>}
                           </p>

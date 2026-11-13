@@ -128,7 +128,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/compras?tab=solicitudes",
         ancla: "compras-tab-solicitudes",
         titulo: "Solicitudes de cotización",
-        texto: "Abre una para enviarla por correo o WhatsApp, generar el enlace para que el proveedor cotice en línea o registrar su cotización.",
+        texto: "Abre una para descargar su PDF y hacérsela llegar al proveedor, generar el enlace para que cotice en línea o registrar su cotización.",
       },
       {
         ruta: "/compras?tab=solicitudes",

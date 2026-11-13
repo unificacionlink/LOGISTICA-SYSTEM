@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L056 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L057 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -100,6 +100,7 @@ Reglas clave:
 - Idioma: código de dominio, UI, comentarios y docs en español (sin tildes en identificadores/código; la UI sí lleva tildes). Columnas de BD en inglés snake_case según el diccionario de datos.
 - El usuario prefiere pantallas sin textos de ayuda largos (sin subtítulos/párrafos explicativos).
 - **Skeletons para toda carga de datos**: cada pantalla, tarjeta o sección que espera datos muestra esqueletos (`components/ui/Skeleton`) con la forma del contenido final, nunca un "Cargando..." ni una capa que tape la pantalla. La capa bloqueante (`CapaCarga`) es solo para guardar; lecturas y descargas usan la barra fina superior.
+- **Una sola línea** (DEC-L057): botones, enlaces con ícono, pestañas, menús y encabezados no se parten (regla global en `globals.css`); toda tabla usa `.tabla` con su columna principal `.col-flex` (se recorta con "…" y lleva `title`). Un texto que sí deba partirse declara `whitespace-normal`.
 - **Medidas en `rem`** (clases de Tailwind o `[..rem]`), nunca `text-[13px]`: en computadora la app corre al 85% (DEC-L056) y los `px` fijos no escalan. `px` solo para bordes, sombras y blur.
 - **Campos numéricos con `components/ui/CampoNumero`**, nunca `input type="number"`: cantidades enteras (todas las unidades son contables), montos con decimales y tope de dígitos; el DTO lo valida con `@Digits`.
 - **Menús y listas desplegables con `components/ui/Flotante`** (portal a `body`, `position: fixed`, se voltea hacia arriba si no cabe), nunca un `absolute` dentro de la página: las Card y tablas tienen `overflow` y lo recortan. Si se cierra con un `mousedown` en `document`, revisar también el `panelRef`.

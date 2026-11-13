@@ -192,6 +192,16 @@
     @apply whitespace-nowrap;
   }
 
+  /* Una sola linea en todas las pantallas (DEC-L057): botones y enlaces con
+     icono, pestanas, opciones de menu y encabezados de tabla no se parten en
+     dos lineas. Los datos largos se recortan con "..." (.col-flex, truncate). */
+  .inline-flex:has(> svg),
+  [role="tab"],
+  [role="menuitem"],
+  .cabecera-tabla th {
+    white-space: nowrap;
+  }
+
   .tabla .col-flex {
     @apply w-full max-w-0 truncate;
   }

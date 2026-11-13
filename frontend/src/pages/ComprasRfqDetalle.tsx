@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronDown, FileText, Mail, MessageCircle, Plus, ScanText, Upload, X } from "lucide-react";
+import { ChevronDown, FileText, Mail, Plus, ScanText, Upload, X } from "lucide-react";
 import {
   cerrarRfq,
   confirmarEnvioRfq,
@@ -30,7 +30,7 @@ import { useConfirmar } from "../components/ui/Confirmacion";
 import { cantidad } from "../components/compras/formato";
 
 import CampoNumero from "../components/ui/CampoNumero";
-/** Texto de la solicitud para correo o WhatsApp (no constituye orden de compra). */
+/** Texto de la solicitud para el borrador de correo (no constituye orden de compra). */
 function mensajeSolicitud(d: RfqDetalle, urlEnlace: string | null): string {
   const lineas = d.items.map(
     (it) =>
@@ -48,12 +48,6 @@ function mensajeSolicitud(d: RfqDetalle, urlEnlace: string | null): string {
   ].join("\n");
 }
 
-function telefonoWhatsapp(tel: string | null): string | null {
-  const digitos = (tel ?? "").replace(/\D/g, "");
-  if (digitos.length === 9) return `51${digitos}`;
-  return digitos.length >= 10 && digitos.length <= 15 ? digitos : null;
-}
-
 interface FilaCotizacion {
   unitCost: string;
   offeredBrand: string;
@@ -63,7 +57,8 @@ interface FilaCotizacion {
 export default function ComprasRfqDetalle() {
   const confirmar = useConfirmar();
   const { id } = useParams<{ id: string }>();
-  const [canal, setCanal] = useState<"CORREO" | "WHATSAPP" | "OTRO">("CORREO");
+  // WhatsApp no va en esta version: se registra como Correo u Otro.
+  const [canal, setCanal] = useState<"CORREO" | "OTRO">("CORREO");
 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -306,7 +301,6 @@ export default function ComprasRfqDetalle() {
   const porEnviar = rfq.status === "BORRADOR";
   const mostrarForm = !rfqCerrada && !porEnviar && (formAbierto ?? cotizaciones.length === 0);
   const mensaje = mensajeSolicitud(detalle, enlace?.url ?? null);
-  const whatsapp = telefonoWhatsapp(detalle.proveedorTelefono);
   const consolidados = Array.from(
     new Map(items.filter((it) => it.consolidationId).map((it) => [it.consolidationId!, it])).values(),
   );
@@ -367,18 +361,6 @@ export default function ComprasRfqDetalle() {
                     Abrir correo
                   </a>
                 )}
-                {whatsapp && (
-                  <a
-                    href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(mensaje)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-brand-600 hover:text-brand-700"
-                    onClick={() => setCanal("WHATSAPP")}
-                  >
-                    <MessageCircle className="size-3.5" />
-                    Abrir WhatsApp
-                  </a>
-                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -389,7 +371,6 @@ export default function ComprasRfqDetalle() {
                 className={`${inputClass} py-1.5`}
               >
                 <option value="CORREO">Correo</option>
-                <option value="WHATSAPP">WhatsApp</option>
                 <option value="OTRO">Otro</option>
               </select>
               <Button size="sm" loading={procesandoId === "__enviar__"} onClick={onConfirmarEnvio}>

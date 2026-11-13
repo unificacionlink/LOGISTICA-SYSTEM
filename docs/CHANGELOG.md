@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.41.1 — 2026-11-13
+
+Una sola línea en todas las pantallas (DEC-L057).
+
+- `globals.css`: `white-space: nowrap` en `.inline-flex:has(> svg)`, `[role="tab"]`, `[role="menuitem"]` y `.cabecera-tabla th`.
+- `Button`: `whitespace-nowrap` y `shrink-0`.
+- `.tabla` en Cumplimiento (2 tablas), Detalle de presupuesto y Comparativo.
+- `EditorCotizacion`: el nombre del producto en una línea con "…" (antes `line-clamp-2`).
+- El sistema no envía mensajes: el tutorial, la ayuda de "Pedir cotización" y Novedades 0.25.0 ya no dicen "enviada por correo o WhatsApp".
+- WhatsApp no va en esta versión: el detalle de la RFQ quita "Abrir WhatsApp" y el canal WhatsApp (queda "Abrir correo", que abre un borrador en el correo del usuario, y los canales Correo / Otro). El backend sigue aceptando `WHATSAPP` para lo ya registrado.
+
 ## 0.41.0 — 2026-11-13
 
 Recorrido guiado para usuarios nuevos (DEC-L055).

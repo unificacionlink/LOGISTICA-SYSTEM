@@ -430,7 +430,7 @@ export default function PresupuestoDetalle() {
           <p className="px-5 pb-5 text-sm text-slate-500">Todavía no hay partidas.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="tabla">
               <thead>
                 <tr className="border-y border-slate-200 cabecera-tabla">
                   <th className="px-4 py-2.5">SKU</th>

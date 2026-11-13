@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.41.1",
+    titulo: "Textos en una sola línea",
+    cambios: [
+      "Botones, pestañas, menús y encabezados de tabla ya no se parten en dos líneas.",
+      "Los nombres largos en las tablas se recortan con «…»; pasa el mouse para ver el texto completo.",
+      "Las solicitudes de cotización se hacen llegar al proveedor con su PDF o su enlace; la opción de WhatsApp se retiró por ahora.",
+    ],
+  },
+  {
     version: "0.41.0",
     titulo: "Tutorial para empezar y pedidos en un solo paso",
     cambios: [
@@ -245,7 +254,7 @@ export const NOVEDADES: VersionApp[] = [
       "Al aprobar un requerimiento, lo que falta de cada producto se suma solo a un consolidado del mismo producto, junto con lo que piden otros requerimientos y CECOs.",
       "Cada consolidado muestra de qué CECO y requerimiento viene cada parte, para no confundir a quién va lo comprado.",
       "Si conviene comprar por Caja Chica (urgente para hoy o bajo monto), el faltante espera en Necesidades a que Logística elija la ruta.",
-      "Una sola solicitud de cotización por proveedor con varios productos, enviada por correo o WhatsApp desde la pantalla.",
+      "Una sola solicitud de cotización por proveedor con varios productos, con su PDF lista para hacérsela llegar.",
       "Comparativo de ofertas por producto: cada producto puede adjudicarse a un proveedor distinto y la orden de compra junta lo adjudicado a cada proveedor.",
       "Al recibir la mercadería se reparte entre los requerimientos de origen, primero los críticos y urgentes.",
       "En el Catálogo, cada producto puede tener varios proveedores habilitados.",

@@ -599,7 +599,7 @@ export default function ComprasComparativo() {
               </p>
             )}
             <div className="overflow-x-auto border-t border-slate-200">
-              <table className="w-full min-w-[40rem] text-left text-sm tabular-nums">
+              <table className="tabla min-w-[40rem]">
                 <thead>
                   <tr className="cabecera-tabla border-b border-slate-200">
                     <th className="px-4 py-2.5">Producto</th>

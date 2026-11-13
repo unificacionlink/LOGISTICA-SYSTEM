@@ -5,6 +5,20 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L057 — Una sola línea en todas las pantallas (2026-11-13, v0.41.1).**
+  A pedido del usuario, ningún control parte su texto en dos líneas.
+  - Regla global en `globals.css`: `white-space: nowrap` para botones y
+    enlaces con ícono (`.inline-flex:has(> svg)`), pestañas
+    (`[role="tab"]`), opciones de menú (`[role="menuitem"]`) y encabezados
+    de tabla (`.cabecera-tabla th`); `Button` lleva `whitespace-nowrap`.
+  - Toda tabla usa `.tabla` (celdas en una línea; la columna de texto
+    principal con `.col-flex` se recorta con "…" y muestra el texto completo
+    en `title`). Se sumaron Cumplimiento, Detalle de presupuesto y
+    Comparativo; en el editor de cotización el producto pasa de 2 líneas a 1.
+  - No se aplica a todo `button`: hay filas y tarjetas enteras que son
+    botones con varias líneas. Un texto que sí deba partirse declara
+    `whitespace-normal` (gana sobre la regla por estar en la capa de utilidades).
+
 - **DEC-L056 — Densidad 85% en computadora (2026-11-13, v0.41.0).** A pedido
   del usuario, la app se ve como el navegador al 85% para que quepa más
   información: `html { font-size: 85% }` desde 64rem (≥1024 px) en
