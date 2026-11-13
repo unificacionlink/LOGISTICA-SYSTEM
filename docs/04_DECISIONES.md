@@ -5,6 +5,17 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L058 — Detalle al pasar el mouse en tablas (2026-11-13, v0.42.0).**
+  Las tablas muestran solo lo esencial en una línea; el detalle secundario
+  (orígenes de un consolidado, ofertas, adjudicación, proveedores, líneas de
+  una cotización) sale en una tarjeta flotante al pasar el mouse, con el foco
+  del teclado o con un toque (`components/ui/DetalleAlPasar`, sobre
+  `Flotante`). El texto con detalle va subrayado con puntos.
+  - Primer uso: pestaña Consolidados de Compras, ahora en dos bloques:
+    "Listos para orden de compra" (proveedor, empresa, n.° de productos,
+    total, Emitir OC) y "Consolidados" (producto, origen, total, cotizado,
+    estado). Sale la columna Proveedores: va en el detalle de "Cotizado".
+
 - **DEC-L057 — Una sola línea en todas las pantallas (2026-11-13, v0.41.1).**
   A pedido del usuario, ningún control parte su texto en dos líneas.
   - Regla global en `globals.css`: `white-space: nowrap` para botones y

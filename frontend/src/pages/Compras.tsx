@@ -23,11 +23,12 @@ import RfqEstadoBadge from "../components/RfqEstadoBadge";
 import Alert from "../components/ui/Alert";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
-import { Card, CardBody } from "../components/ui/Card";
+import { Card } from "../components/ui/Card";
 import { useConfirmar } from "../components/ui/Confirmacion";
 import EmptyState from "../components/ui/EmptyState";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import CampoNumero from "../components/ui/CampoNumero";
+import DetalleAlPasar from "../components/ui/DetalleAlPasar";
 import { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
@@ -395,32 +396,68 @@ function ListosParaOc({
   onEmitir: (p: PorEmitir) => void;
 }) {
   return (
-    <Card>
-      <CardBody className="flex flex-col gap-3">
-        <div className="rotulo">Listos para orden de compra</div>
-        {porEmitir.map((p) => (
-          <div
-            key={p.quotationId}
-            className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="min-w-0">
-              <p className="font-medium text-slate-900">{p.proveedorNombre}</p>
-              <p className="text-xs text-slate-500">
-                {p.empresaCode}
-                {p.supplierQuoteNumber ? ` · Cotización N° ${p.supplierQuoteNumber}` : ""} ·{" "}
-                {p.lineas.map((l) => `${l.codigoVariante ?? l.skuBase} × ${cantidad(l.qty)}`).join(", ")}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <span className="text-sm font-medium text-slate-800">{dinero(p.total, p.currencyCode)}</span>
-              <Button size="sm" loading={procesando === p.quotationId} onClick={() => onEmitir(p)}>
-                Emitir OC
-              </Button>
-            </div>
-          </div>
-        ))}
-      </CardBody>
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-3">
+        <h2 className="text-sm font-semibold text-slate-900">Listos para orden de compra</h2>
+        <Badge tone="verde">{porEmitir.length}</Badge>
+      </div>
+      <table className="tabla">
+        <thead>
+          <tr className={`${cabecera} border-t`}>
+            <th className={th}>Proveedor</th>
+            <th className={th}>Empresa</th>
+            <th className={th}>Productos</th>
+            <th className={`${th} text-right`}>Total</th>
+            <th className={th} />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {porEmitir.map((p) => (
+            <tr key={p.quotationId}>
+              <td className="col-flex px-5 py-2.5 font-medium text-slate-900" title={p.proveedorNombre}>
+                {p.proveedorNombre}
+              </td>
+              <td className="px-5 py-2.5 text-xs text-slate-500">{p.empresaCode}</td>
+              <td className="px-5 py-2.5 text-slate-600">
+                <DetalleAlPasar detalle={<DetalleCotizacion p={p} />}>
+                  {p.lineas.length} {p.lineas.length === 1 ? "producto" : "productos"}
+                </DetalleAlPasar>
+              </td>
+              <td className="px-5 py-2.5 text-right font-medium text-slate-800">{dinero(p.total, p.currencyCode)}</td>
+              <td className="px-5 py-2.5 text-right">
+                <Button size="sm" loading={procesando === p.quotationId} onClick={() => onEmitir(p)}>
+                  Emitir OC
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Card>
+  );
+}
+
+function DetalleCotizacion({ p }: { p: PorEmitir }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-slate-500">
+        {p.supplierQuoteNumber ? `Cotización N° ${p.supplierQuoteNumber}` : "Cotización sin número"}
+        {p.paymentCondition ? ` · ${p.paymentCondition}` : ""}
+      </p>
+      <ul className="flex flex-col gap-1.5">
+        {p.lineas.map((l) => (
+          <li key={l.consolidationId} className="flex items-baseline justify-between gap-4">
+            <span className="min-w-0 truncate text-slate-700" title={l.nombreProducto}>
+              {l.nombreProducto}
+              <span className="ml-1.5 font-mono text-slate-400">{l.codigoVariante ?? l.skuBase}</span>
+            </span>
+            <span className="shrink-0 tabular-nums text-slate-600">
+              {cantidad(l.qty)} {l.unidadMedida} · {dinero(l.lineTotal, p.currencyCode)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -480,32 +517,11 @@ function TablaConsolidados({
 
   return (
     <Card className="overflow-hidden">
-      {empresas.length > 1 && (
-        <div role="tablist" aria-label="Empresa" className="flex gap-1 overflow-x-auto border-b border-slate-200 px-3 pt-2">
-          {empresas.map((e) => (
-            <button
-              key={e.code}
-              type="button"
-              role="tab"
-              aria-selected={empresaActiva === e.code}
-              onClick={() => cambiarEmpresa(e.code)}
-              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                empresaActiva === e.code
-                  ? "border-brand-600 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <span className={`size-2 rounded-full ${e.marca}`} aria-hidden="true" />
-              {e.label}
-              <span className="font-mono text-xs tabular-nums text-slate-400">{e.n}</span>
-            </button>
-          ))}
-        </div>
-      )}
       <div data-tutorial="compras-acciones" className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-        <span className="text-sm text-slate-500">
-          {elegidos.length > 0 ? `${elegidos.length} seleccionado(s)` : "Selecciona los productos a cotizar"}
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-900">Consolidados</h2>
+          {elegidos.length > 0 && <span className="text-sm text-slate-500">· {elegidos.length} seleccionado(s)</span>}
+        </div>
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -528,6 +544,28 @@ function TablaConsolidados({
           </Button>
         </div>
       </div>
+      {empresas.length > 1 && (
+        <div role="tablist" aria-label="Empresa" className="flex gap-1 overflow-x-auto border-t border-slate-200 px-3 pt-2">
+          {empresas.map((e) => (
+            <button
+              key={e.code}
+              type="button"
+              role="tab"
+              aria-selected={empresaActiva === e.code}
+              onClick={() => cambiarEmpresa(e.code)}
+              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                empresaActiva === e.code
+                  ? "border-brand-600 text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <span className={`size-2 rounded-full ${e.marca}`} aria-hidden="true" />
+              {e.label}
+              <span className="font-mono text-xs tabular-nums text-slate-400">{e.n}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <table className="tabla">
         <thead>
           <tr className={`${cabecera} border-t`}>
@@ -541,10 +579,9 @@ function TablaConsolidados({
               />
             </th>
             <th className={th}>Producto</th>
-            <th className={th}>Origen (CECO · REQ)</th>
+            <th className={th}>Origen</th>
             <th className={th}>Total</th>
             <th className={th}>Cotizado</th>
-            <th className={`${th} col-sec`}>Proveedores</th>
             <th className={th}>Estado</th>
             <th className={th} />
           </tr>
@@ -552,64 +589,51 @@ function TablaConsolidados({
         <tbody className="divide-y divide-slate-100">
           {visibles.map((c) => {
             const abierto = COMPARABLES.has(c.status);
+            const codigo = c.codigoVariante ?? c.skuBase;
+            const requerimientos = new Set(c.origenes.map((o) => o.requestId)).size;
             return (
-              <tr key={c.consolidationId} className="align-top hover:bg-slate-50">
-                <td className="px-5 py-3">
+              <tr key={c.consolidationId}>
+                <td className="px-5 py-2.5">
                   {abierto && (
                     <input
                       type="checkbox"
-                      aria-label={`Seleccionar ${c.codigoVariante ?? c.skuBase}`}
+                      aria-label={`Seleccionar ${codigo}`}
                       checked={seleccion.has(c.consolidationId)}
                       onChange={() => alternar(c.consolidationId)}
                     />
                   )}
                 </td>
-                <td className="col-flex px-5 py-3" title={c.nombreProducto}>
-                  <p className="text-sm text-slate-700">{c.nombreProducto}</p>
-                  <p className="font-mono text-xs text-slate-500">
-                    {c.codigoVariante ?? c.skuBase}
-                  </p>
+                <td className="col-flex px-5 py-2.5 text-slate-700" title={`${c.nombreProducto} · ${codigo}`}>
+                  {c.nombreProducto}
+                  <span className="ml-2 font-mono text-xs text-slate-400">{codigo}</span>
                 </td>
-                <td className="px-5 py-3">
-                  <OrigenesConsolidado origenes={c.origenes} />
+                <td className="px-5 py-2.5 text-xs text-slate-600">
+                  <DetalleAlPasar detalle={<OrigenesConsolidado origenes={c.origenes} max={Infinity} />}>
+                    {c.origenes.length === 1
+                      ? c.origenes[0].cecoCode
+                      : `${requerimientos} ${requerimientos === 1 ? "requerimiento" : "requerimientos"}`}
+                  </DetalleAlPasar>
                 </td>
-                <td className="whitespace-nowrap px-5 py-3 font-medium text-slate-800">
+                <td className="px-5 py-2.5 font-medium text-slate-800">
                   {cantidad(c.totalQty)} {c.unidadMedida}
                 </td>
-                <td className="whitespace-nowrap px-5 py-3">
-                  {c.cantidadCotizada == null ? (
-                    <span className="text-slate-400">—</span>
-                  ) : (
-                    <>
-                      <p
-                        className={`font-medium ${
-                          c.cantidadCotizada >= c.totalQty ? "text-emerald-700" : "text-amber-700"
-                        }`}
-                      >
+                <td className="px-5 py-2.5 text-xs">
+                  <DetalleAlPasar detalle={<DetalleCotizado c={c} />}>
+                    {c.cantidadCotizada != null ? (
+                      <span className={`font-medium ${c.cantidadCotizada >= c.totalQty ? "text-emerald-700" : "text-amber-700"}`}>
                         {cantidad(c.cantidadCotizada)} {c.unidadMedida}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {c.cotizaciones} {c.cotizaciones === 1 ? "oferta" : "ofertas"}
-                      </p>
-                    </>
-                  )}
+                      </span>
+                    ) : c.proveedores.length === 0 ? (
+                      <span className="text-rose-600">Sin proveedor</span>
+                    ) : (
+                      <span className="text-slate-400">Sin ofertas</span>
+                    )}
+                  </DetalleAlPasar>
                 </td>
-                <td className="col-sec px-5 py-3 text-xs" title={c.proveedores.join(", ")}>
-                  {c.proveedores.length === 0 ? (
-                    <span className="text-rose-600">Sin proveedor</span>
-                  ) : (
-                    <span className="text-slate-600">{c.proveedores.length} habilitado(s)</span>
-                  )}
-                </td>
-                <td className="px-5 py-3">
+                <td className="px-5 py-2.5">
                   <ConsolidadoEstadoBadge estado={c.status} />
-                  {c.adjudicado && (
-                    <p className="mt-1 max-w-40 truncate text-xs text-slate-500" title={c.adjudicado.proveedorNombre}>
-                      {c.adjudicado.proveedorNombre}
-                    </p>
-                  )}
                 </td>
-                <td className="whitespace-nowrap px-5 py-3 text-right">
+                <td className="px-5 py-2.5 text-right">
                   <Link to={`/compras/consolidados/${c.consolidationId}`} className={linkClass}>
                     Ver
                   </Link>
@@ -620,6 +644,41 @@ function TablaConsolidados({
         </tbody>
       </table>
     </Card>
+  );
+}
+
+function DetalleCotizado({ c }: { c: Consolidado }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p>
+        <span className="text-slate-500">Ofertas: </span>
+        <span className="font-medium text-slate-800">{c.cotizaciones}</span>
+      </p>
+      {c.adjudicado && (
+        <p>
+          <span className="text-slate-500">Adjudicado a </span>
+          <span className="font-medium text-slate-800">{c.adjudicado.proveedorNombre}</span>
+          <span className="text-slate-500">
+            {" · "}
+            {cantidad(c.adjudicado.qty)} {c.unidadMedida} · {dinero(c.adjudicado.lineTotal, c.adjudicado.currencyCode)}
+          </span>
+        </p>
+      )}
+      <div>
+        <p className="text-slate-500">Proveedores habilitados</p>
+        {c.proveedores.length === 0 ? (
+          <p className="text-rose-600">Ninguno: habilítalo en el producto para pedirle cotización.</p>
+        ) : (
+          <ul className="mt-0.5 flex flex-col gap-0.5 text-slate-700">
+            {c.proveedores.map((p) => (
+              <li key={p} className="truncate">
+                {p}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 

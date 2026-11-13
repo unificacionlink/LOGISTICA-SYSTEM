@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.42.0 — 2026-11-13
+
+Compras · Consolidados más ordenado (DEC-L058).
+
+- Nuevo `components/ui/DetalleAlPasar`: resumen en la celda y tarjeta flotante con el detalle (mouse, foco o toque).
+- "Listos para orden de compra" pasa a tabla: proveedor, empresa, productos (detalle: N° de cotización, condición de pago y cada línea con cantidad e importe), total y "Emitir OC".
+- "Consolidados" con título propio y acciones arriba, luego las pestañas de empresa. Filas en una línea: producto con su código al lado; origen como CECO o "N requerimientos" (detalle: cada CECO, REQ y cantidad); cotizado (detalle: ofertas, adjudicación y proveedores habilitados). Se quita la columna Proveedores y las sublíneas de "ofertas" y proveedor adjudicado.
+
 ## 0.41.3 — 2026-11-13
 
 Una sola línea en Solicitudes de cotización (DEC-L057).
