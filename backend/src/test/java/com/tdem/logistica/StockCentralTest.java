@@ -169,11 +169,16 @@ class StockCentralTest {
 				join empresa e on e.company_id = a.company_id where r.request_item_id = ?""", String.class, item));
 		assertEquals(0, new BigDecimal("3").compareTo(saldo(variante, logistica).disponible()));
 
-		// Quien pide ve el disponible del almacen central al armar su requerimiento: 8 - 5 reservados.
-		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
-		var stock = requerimientos.stockDisponible(solicitante);
+		// Logistica ve el disponible del almacen central: 8 - 5 reservados.
+		var stock = requerimientos.stockDisponible(logistica);
 		assertEquals(0, new BigDecimal("3").compareTo(stock.get(variante)));
 		assertTrue(stock.values().stream().allMatch(q -> q.signum() > 0));
+
+		// Quien pide solo sabe que hay stock, no cuanto (DEC-L059).
+		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
+		var soloEstado = requerimientos.stockDisponible(solicitante);
+		assertEquals(stock.keySet(), soloEstado.keySet());
+		assertTrue(soloEstado.values().stream().allMatch(q -> q.compareTo(BigDecimal.ONE) == 0));
 	}
 
 	// ------------------------------------------------------------------

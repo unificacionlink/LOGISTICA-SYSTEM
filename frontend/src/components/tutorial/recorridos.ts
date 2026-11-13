@@ -68,7 +68,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/requerimientos/nuevo",
         ancla: "req-buscador",
         titulo: "Agrega productos",
-        texto: "Búscalos por nombre o código y tócalos para sumarlos. Verás cuánto hay en el almacén; lo que falte se compra.",
+        texto: "Búscalos por nombre o código y tócalos para sumarlos. Verás si hay stock en el almacén; lo que falte se compra.",
       },
       {
         ruta: "/requerimientos/nuevo",

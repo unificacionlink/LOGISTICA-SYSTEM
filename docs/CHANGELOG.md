@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.44.0 — 2026-11-13
+
+El solicitante ya no ve cuánto stock hay, solo si hay (DEC-L059). Y la solicitud de alta de producto vuelve a guardarse.
+
+- Corrección: "¿No encuentras el producto? Solicita su alta" era un `<form>` dentro del `<form>` del requerimiento; "Enviar a Logística" también disparaba el envío del requerimiento (se abría "Confirmar requerimiento" o salía "Agrega al menos un producto…") y la solicitud nunca llegaba a Catálogo › Solicitudes de alta (en producción no había ninguna). Ahora es un grupo sin `<form>`, con botón propio, Enter que envía solo la solicitud y validación a mano; `SelectorFamilia`/`SelectorUnidad` aceptan `requerido={false}` para no bloquear con su `required` nativo el envío del requerimiento.
+- `GET /api/requerimientos/stock-disponible`: la cantidad solo para LOGISTICA/ADMIN; el resto recibe `1` = con stock. `StockCentralTest` cubre ambos casos.
+- `StockDisponible` (buscador y "Tu pedido"): "Con stock" / "Sin stock" para quien no es Logística; se oculta "N se comprarán".
+- `ConfirmarRequerimiento`: prop `conCantidades`; sin ella, indicadores Productos / Con stock / Caja chica y cada línea con "Con stock" / "Sin stock".
+- Tutorial del solicitante: "Verás si hay stock en el almacén".
+
 ## 0.43.0 — 2026-11-13
 
 Compras · Consolidados en dos columnas, con el detalle de la fila al pasar el mouse (DEC-L058).

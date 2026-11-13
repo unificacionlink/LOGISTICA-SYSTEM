@@ -200,13 +200,16 @@ public class RequerimientoService {
      * Disponible del almacen central (DEC-L045/L050) por variante, solo las que
      * tienen stock: quien pide ve que hay antes de pedir. Va aparte del catalogo
      * para que el catalogo se pueda guardar en la pestana y el stock llegue fresco.
+     * Solo LOGISTICA/ADMIN reciben la cantidad; el resto, 1 = "con stock"
+     * (DEC-L059): el saldo del almacen no se expone a quien pide.
      */
     public Map<UUID, BigDecimal> stockDisponible(UsuarioPrincipal principal) {
         exigirLecturaCatalogo(principal);
+        boolean conCantidad = principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN);
         Map<UUID, BigDecimal> out = new java.util.HashMap<>();
         stockService.disponiblesCentral().forEach((variante, q) -> {
             if (q.signum() > 0) {
-                out.put(variante, q);
+                out.put(variante, conCantidad ? q : BigDecimal.ONE);
             }
         });
         return out;

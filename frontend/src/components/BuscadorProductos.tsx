@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ImageOff, Loader2, Plus, Search, Upload, X } from "lucide-react";
 import { subirImagenProducto } from "../api/requerimientos";
 import type { Familia, VarianteConStock } from "../api/types";
+import { useVerCantidadStock } from "./stock/verCantidad";
 import FiltroFamilia from "./FiltroFamilia";
 import { coincideFamilia, etiquetaFamilia } from "./familia";
 import { inputClass } from "./ui/Field";
@@ -255,6 +256,18 @@ export default function BuscadorProductos({
  * se lo lleva todo); es solo visual: la reserva real se hace al aprobar.
  */
 export function StockDisponible({ cantidad, enPedido = 0 }: { cantidad: number; enPedido?: number }) {
+  const conCantidad = useVerCantidadStock();
+  if (!conCantidad) {
+    return cantidad > 0 ? (
+      <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title="Hay stock en almacén">
+        Con stock
+      </span>
+    ) : (
+      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500" title="Sin stock en almacén: se comprará">
+        Sin stock
+      </span>
+    );
+  }
   const queda = Math.max(0, cantidad - enPedido);
   const detalle = enPedido > 0 ? `Disponible ${cantidad.toLocaleString("es-PE")} · en tu pedido ${enPedido.toLocaleString("es-PE")}` : "Disponible en almacén";
   if (cantidad > 0 && queda === 0) {

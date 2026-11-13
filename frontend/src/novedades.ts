@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.44.0",
+    titulo: "Stock al pedir: con stock o sin stock",
+    cambios: [
+      "Al armar un requerimiento, cada producto indica si tiene stock en el almacén o si se comprará, sin mostrar cantidades.",
+      "Se corrigió «¿No encuentras el producto? Solicita su alta»: la solicitud ahora sí llega a Logística, en Catálogo de productos › Solicitudes de alta.",
+    ],
+  },
+  {
     version: "0.43.0",
     titulo: "Consolidados en dos columnas",
     cambios: [

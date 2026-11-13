@@ -13,6 +13,10 @@ import { ETIQUETA_ATRIBUTO, unidadPorDefecto } from "./atributos";
 /**
  * RF-004: "¿No encuentras el producto?" bajo el buscador del requerimiento.
  * Plegado por defecto (ley de Hick); la clasificacion se pide solo al abrirlo.
+ *
+ * Va DENTRO del <form> del requerimiento: por eso no es un <form> (anidado, su
+ * envio tambien disparaba el del requerimiento y la solicitud no se guardaba),
+ * no usa `required` nativo (bloquearia el envio del requerimiento) y valida a mano.
  */
 export default function SolicitarProducto() {
   const [abierto, setAbierto] = useState(false);
@@ -102,8 +106,21 @@ function Formulario({
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  async function onEnviar(e: React.FormEvent) {
-    e.preventDefault();
+  function faltante(): string | null {
+    if (nombre.trim().length < 3) return "Describe el producto (al menos 3 letras).";
+    if (!familyId) return "Selecciona la familia.";
+    if (!uomId) return "Selecciona la unidad.";
+    if (!justificacion.trim()) return "Indica para qué se necesita.";
+    return null;
+  }
+
+  async function onEnviar() {
+    if (enviando) return;
+    const falta = faltante();
+    if (falta) {
+      setError(falta);
+      return;
+    }
     setEnviando(true);
     setError(null);
     try {
@@ -123,7 +140,18 @@ function Formulario({
   }
 
   return (
-    <form onSubmit={onEnviar} className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-2">
+    <div
+      role="group"
+      aria-label="Solicitar alta de producto"
+      // Enter en un campo envia esta solicitud, no el requerimiento que la contiene.
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+          e.preventDefault();
+          void onEnviar();
+        }
+      }}
+      className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-2"
+    >
       <div className="flex items-center justify-between sm:col-span-2">
         <span className="text-sm font-medium text-slate-900">Solicitar alta de producto</span>
         <button type="button" onClick={cerrar} title="Cerrar" className="text-slate-400 hover:text-slate-700">
@@ -132,8 +160,7 @@ function Formulario({
       </div>
       <Field label="Producto" required className="sm:col-span-2">
         <input
-          required
-          minLength={3}
+          aria-required
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           placeholder="Nombre y características principales"
@@ -141,10 +168,10 @@ function Formulario({
         />
       </Field>
       <Field label="Familia › Subfamilia" required>
-        <SelectorFamilia clasificacion={clasificacion} value={familyId} onChange={setFamilyId} />
+        <SelectorFamilia clasificacion={clasificacion} value={familyId} onChange={setFamilyId} requerido={false} />
       </Field>
       <Field label="Unidad" required>
-        <SelectorUnidad clasificacion={clasificacion} value={uomId} onChange={setUomId} />
+        <SelectorUnidad clasificacion={clasificacion} value={uomId} onChange={setUomId} requerido={false} />
       </Field>
       <Field label="Talla / color (opcional)">
         <div className="flex gap-2">
@@ -164,14 +191,14 @@ function Formulario({
         </div>
       </Field>
       <Field label="¿Para qué se necesita?" required>
-        <input required value={justificacion} onChange={(e) => setJustificacion(e.target.value)} className={`${inputClass} w-full`} />
+        <input aria-required value={justificacion} onChange={(e) => setJustificacion(e.target.value)} className={`${inputClass} w-full`} />
       </Field>
       {error && <Alert tone="danger" className="sm:col-span-2">{error}</Alert>}
       <div className="sm:col-span-2">
-        <Button type="submit" size="sm" loading={enviando}>
+        <Button size="sm" loading={enviando} onClick={() => void onEnviar()}>
           Enviar a Logística
         </Button>
       </div>
-    </form>
+    </div>
   );
 }

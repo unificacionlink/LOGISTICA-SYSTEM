@@ -7,14 +7,17 @@ export function SelectorFamilia({
   value,
   onChange,
   id,
+  requerido = true,
 }: {
   clasificacion: Clasificacion;
   value: string;
   onChange: (familyId: string) => void;
   id?: string;
+  /** false si va dentro de otro formulario (su validacion nativa lo bloquearia). */
+  requerido?: boolean;
 }) {
   return (
-    <select id={id} required value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} w-full`}>
+    <select id={id} required={requerido} aria-required value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} w-full`}>
       <option value="" disabled>
         Selecciona…
       </option>
@@ -37,13 +40,16 @@ export function SelectorUnidad({
   clasificacion,
   value,
   onChange,
+  requerido = true,
 }: {
   clasificacion: Clasificacion;
   value: string;
   onChange: (uomId: string) => void;
+  /** false si va dentro de otro formulario (su validacion nativa lo bloquearia). */
+  requerido?: boolean;
 }) {
   return (
-    <select required value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} w-full`}>
+    <select required={requerido} aria-required value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} w-full`}>
       <option value="" disabled>
         Selecciona…
       </option>

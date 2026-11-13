@@ -13,6 +13,7 @@ import type { Ceco, Familia, VarianteConStock } from "../api/types";
 import { etiquetaFamilia } from "../components/familia";
 import { useAuth } from "../auth/AuthContext";
 import BuscadorProductos, { Miniatura, StockDisponible } from "../components/BuscadorProductos";
+import { useVerCantidadStock } from "../components/stock/verCantidad";
 import SolicitarProducto from "../components/maestro/SolicitarProducto";
 import Alert from "../components/ui/Alert";
 import Badge from "../components/ui/Badge";
@@ -49,6 +50,7 @@ export default function RequerimientosNuevo() {
   const navigate = useNavigate();
   const { tieneAlgunRol } = useAuth();
   const puedeEditarImagenes = tieneAlgunRol("LOGISTICA", "ADMIN");
+  const verCantidadStock = useVerCantidadStock();
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [variantes, setVariantes] = useState<VarianteConStock[]>([]);
@@ -324,6 +326,7 @@ export default function RequerimientosNuevo() {
         delAlmacen,
         aComprar: normal - delAlmacen,
         cajaChica,
+        conStock: it.variante.stockDisponible > 0,
       };
     });
 
@@ -549,7 +552,8 @@ export default function RequerimientosNuevo() {
                             <span className="block truncate font-mono text-xs text-slate-700">{it.variante.etiqueta}</span>
                             <span className="mt-1 flex flex-wrap items-center gap-1.5">
                               <StockDisponible cantidad={it.variante.stockDisponible} enPedido={Number(it.qty) || 0} />
-                              {it.variante.stockDisponible > 0 &&
+                              {verCantidadStock &&
+                                it.variante.stockDisponible > 0 &&
                                 Number(it.qty) - (Number(it.cajaChica) || 0) > it.variante.stockDisponible && (
                                   <span className="text-xs text-amber-700">
                                     {Number(it.qty) - (Number(it.cajaChica) || 0) - it.variante.stockDisponible} se comprarán
@@ -628,6 +632,7 @@ export default function RequerimientosNuevo() {
           fechaRequerida={requiredDate}
           atencionEstimada={atencionEstimada}
           lineas={lineasConfirmacion}
+          conCantidades={verCantidadStock}
           procesando={enviando}
           guardado={!!guardadoId}
           excepcion={excepcion}

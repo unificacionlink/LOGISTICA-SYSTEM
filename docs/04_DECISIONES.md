@@ -5,6 +5,17 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L059 — Quien pide ve "con stock" o "sin stock", no la cantidad (2026-11-13, v0.44.0).**
+  A pedido del usuario, el saldo del almacén solo lo ven LOGISTICA y ADMIN.
+  - `RequerimientoService.stockDisponible`: a LOGISTICA/ADMIN le devuelve la
+    cantidad disponible; al resto, `1` por cada variante con stock (las sin
+    stock siguen sin venir). La cantidad no sale del servidor.
+  - Frontend (`components/stock/verCantidad`): el buscador y "Tu pedido" muestran
+    "Con stock" / "Sin stock"; no se muestra "N se comprarán". La confirmación
+    del requerimiento cambia "Del almacén / Por comprar" (unidades) por
+    "Con stock" (n.° de productos) y, en cada línea, "Con stock" / "Sin stock".
+  - La reserva al aprobar no cambia: sigue tomando el disponible real.
+
 - **DEC-L058 — Detalle de la fila al pasar el mouse (2026-11-13, v0.42.0, v0.43.0).**
   Las tablas muestran solo lo esencial en una línea; el detalle secundario
   sale en una tarjeta junto al cursor al dejar el mouse en cualquier parte de

@@ -17,6 +17,8 @@ export interface LineaConfirmacion {
   delAlmacen: number;
   aComprar: number;
   cajaChica: number;
+  /** Hay stock en almacen (lo unico que ve quien no es Logistica, DEC-L059). */
+  conStock: boolean;
 }
 
 const PRIORIDAD: Record<string, { label: string; clase: string }> = {
@@ -53,6 +55,7 @@ export default function ConfirmarRequerimiento({
   fechaRequerida,
   atencionEstimada,
   lineas,
+  conCantidades,
   procesando,
   guardado,
   excepcion,
@@ -69,6 +72,8 @@ export default function ConfirmarRequerimiento({
   fechaRequerida: string;
   atencionEstimada: string | null;
   lineas: LineaConfirmacion[];
+  /** Logistica/Admin: reparto almacen / compra en unidades. El resto solo ve con o sin stock. */
+  conCantidades: boolean;
   procesando: boolean;
   /** Ya quedo guardado como borrador (falta solo enviarlo). */
   guardado: boolean;
@@ -105,6 +110,7 @@ export default function ConfirmarRequerimiento({
   const delAlmacen = lineas.reduce((s, l) => s + l.delAlmacen, 0);
   const aComprar = lineas.reduce((s, l) => s + l.aComprar, 0);
   const cajaChica = lineas.reduce((s, l) => s + l.cajaChica, 0);
+  const conStock = lineas.filter((l) => l.conStock).length;
   const faltaJustificacion = !!excepcion && !justificacion.trim();
 
   function aceptar(e: React.FormEvent) {
@@ -163,12 +169,20 @@ export default function ConfirmarRequerimiento({
               {fechaRequerida && <span className="text-slate-500">· Para el {fecha(fechaRequerida)}</span>}
               {atencionEstimada && <span className="text-slate-500">· Atención estimada {atencionEstimada}</span>}
             </div>
-            <dl className={`mt-3 grid gap-3 border-t border-slate-200 pt-3 ${cajaChica > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
-              <Indicador etiqueta="Productos" valor={n(lineas.length)} detalle={`${n(unidades)} unidades`} />
-              <Indicador etiqueta="Del almacén" valor={n(delAlmacen)} detalle="unidades" tono="text-emerald-700" />
-              <Indicador etiqueta="Por comprar" valor={n(aComprar)} detalle="unidades" tono={aComprar > 0 ? "text-amber-700" : undefined} />
-              {cajaChica > 0 && <Indicador etiqueta="Caja chica" valor={n(cajaChica)} detalle="unidades" />}
-            </dl>
+            {conCantidades ? (
+              <dl className={`mt-3 grid gap-3 border-t border-slate-200 pt-3 ${cajaChica > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+                <Indicador etiqueta="Productos" valor={n(lineas.length)} detalle={`${n(unidades)} unidades`} />
+                <Indicador etiqueta="Del almacén" valor={n(delAlmacen)} detalle="unidades" tono="text-emerald-700" />
+                <Indicador etiqueta="Por comprar" valor={n(aComprar)} detalle="unidades" tono={aComprar > 0 ? "text-amber-700" : undefined} />
+                {cajaChica > 0 && <Indicador etiqueta="Caja chica" valor={n(cajaChica)} detalle="unidades" />}
+              </dl>
+            ) : (
+              <dl className={`mt-3 grid gap-3 border-t border-slate-200 pt-3 ${cajaChica > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+                <Indicador etiqueta="Productos" valor={n(lineas.length)} detalle={`${n(unidades)} unidades`} />
+                <Indicador etiqueta="Con stock" valor={n(conStock)} detalle={conStock === 1 ? "producto" : "productos"} tono="text-emerald-700" />
+                {cajaChica > 0 && <Indicador etiqueta="Caja chica" valor={n(cajaChica)} detalle="unidades" />}
+              </dl>
+            )}
           </div>
 
           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
@@ -180,8 +194,16 @@ export default function ConfirmarRequerimiento({
                     {l.nombre}
                   </p>
                   <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs">
-                    {l.delAlmacen > 0 && <span className="text-emerald-700">Almacén {n(l.delAlmacen)}</span>}
-                    {l.aComprar > 0 && <span className="text-amber-700">Se compran {n(l.aComprar)}</span>}
+                    {conCantidades ? (
+                      <>
+                        {l.delAlmacen > 0 && <span className="text-emerald-700">Almacén {n(l.delAlmacen)}</span>}
+                        {l.aComprar > 0 && <span className="text-amber-700">Se compran {n(l.aComprar)}</span>}
+                      </>
+                    ) : l.conStock ? (
+                      <span className="text-emerald-700">Con stock</span>
+                    ) : (
+                      <span className="text-slate-500">Sin stock</span>
+                    )}
                     {l.cajaChica > 0 && <span className="text-slate-600">Caja chica {n(l.cajaChica)}</span>}
                   </div>
                 </div>
