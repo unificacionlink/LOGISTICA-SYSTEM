@@ -413,7 +413,7 @@ export default function CatalogoProductos() {
                             )}
                           </p>
                         </div>
-                        <div className="flex w-full items-center justify-end gap-2 pl-[52px] sm:w-auto sm:shrink-0 sm:pl-0">
+                        <div className="flex w-full items-center justify-end gap-2 pl-[3.25rem] sm:w-auto sm:shrink-0 sm:pl-0">
                           {puedeVerPrecios && (
                             <span
                               className={`mr-auto shrink-0 tabular-nums sm:mr-1 sm:text-right ${

@@ -65,7 +65,7 @@ function Tile({
     <div className="flex flex-col rounded-lg border border-slate-200 bg-white px-4 py-4">
       <span className="rotulo">{rotulo}</span>
       <span className="mt-2.5 flex items-baseline gap-1.5">
-        <span className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-slate-950">{valor}</span>
+        <span className="text-[1.75rem] font-semibold leading-none tracking-[-0.02em] text-slate-950">{valor}</span>
         {unidad && <span className="text-sm text-slate-500">{unidad}</span>}
       </span>
       {children}
@@ -78,7 +78,7 @@ function Panel({ titulo, nota, children }: { titulo: string; nota?: string; chil
   return (
     <section className="rounded-lg border border-slate-200 bg-white">
       <header className="border-b border-slate-200 px-5 py-3.5">
-        <h2 className="text-[15px] font-semibold text-slate-900">{titulo}</h2>
+        <h2 className="text-[0.9375rem] font-semibold text-slate-900">{titulo}</h2>
         {nota && <p className="mt-0.5 text-xs text-slate-500">{nota}</p>}
       </header>
       <div className="p-5">{children}</div>
@@ -147,7 +147,7 @@ function ColumnasSemanales({ semanas }: { semanas: DashboardData["semanas"] }) {
       <div className="relative">
         {/* Grilla: linea del maximo y linea base, hairlines solidas. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-slate-100">
-          <span className="absolute -top-2.5 right-0 bg-white pl-1 text-[10px] tabular-nums text-slate-400">{max}</span>
+          <span className="absolute -top-2.5 right-0 bg-white pl-1 text-[0.625rem] tabular-nums text-slate-400">{max}</span>
         </div>
         <div
           className="flex h-44 items-end gap-0.5 border-b border-slate-200"
@@ -176,7 +176,7 @@ function ColumnasSemanales({ semanas }: { semanas: DashboardData["semanas"] }) {
         </div>
         <div className="mt-1.5 flex gap-0.5">
           {semanas.map((s, i) => (
-            <span key={s.semana} className="flex-1 text-center text-[10px] tabular-nums text-slate-400">
+            <span key={s.semana} className="flex-1 text-center text-[0.625rem] tabular-nums text-slate-400">
               {i % paso === 0 ? fmtSemana(s.semana) : ""}
             </span>
           ))}
@@ -250,12 +250,12 @@ function TablaComparativos({ filas }: { filas: DashboardData["comparativos"] }) 
           <tr key={`${c.codigo}-${c.fecha}`}>
             <td className="px-1 py-2.5">
               <span className="block font-mono text-xs text-slate-800">{c.codigo}</span>
-              <span className="text-[11px] text-slate-400">{c.cotizaciones} cotizaciones</span>
+              <span className="text-[0.6875rem] text-slate-400">{c.cotizaciones} cotizaciones</span>
             </td>
             <td className="col-flex px-2 py-2.5 text-slate-700" title={c.proveedor}>{c.proveedor}</td>
             <td className="px-2 py-2.5 text-right text-slate-600">
               {fmtMonto(c.moneda, c.elegido)}
-              <span className="block text-[11px] text-slate-400">vs {fmtMonto(c.moneda, c.mayor)}</span>
+              <span className="block text-[0.6875rem] text-slate-400">vs {fmtMonto(c.moneda, c.mayor)}</span>
             </td>
             <td className="px-1 py-2.5 text-right font-medium text-slate-900">{fmtMonto(c.moneda, c.ahorro)}</td>
           </tr>
@@ -309,7 +309,7 @@ export default function Dashboard() {
               role="radio"
               aria-checked={dias === p.dias}
               onClick={() => setDias(p.dias)}
-              className={`rounded px-3 py-1.5 text-[13px] transition-colors ${
+              className={`rounded px-3 py-1.5 text-[0.8125rem] transition-colors ${
                 dias === p.dias ? "bg-brand-700 font-medium text-white" : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -321,7 +321,7 @@ export default function Dashboard() {
           aria-label="Empresa"
           value={empresa ?? ""}
           onChange={(e) => setEmpresa(e.target.value || null)}
-          className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-800 hover:border-slate-300 focus:border-slate-500 focus:outline-none"
+          className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[0.8125rem] text-slate-800 hover:border-slate-300 focus:border-slate-500 focus:outline-none"
         >
           <option value="">Todas las empresas</option>
           {EMPRESAS.map((e) => (

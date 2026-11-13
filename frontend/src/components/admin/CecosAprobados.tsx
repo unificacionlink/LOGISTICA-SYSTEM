@@ -80,7 +80,7 @@ export default function CecosAprobados({
                   otro ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"
                 }`}
               >
-                <span className="font-mono text-[10px] text-slate-500">{c ? etiquetaEmpresa(c.empresaCode) : "—"}</span>
+                <span className="font-mono text-[0.625rem] text-slate-500">{c ? etiquetaEmpresa(c.empresaCode) : "—"}</span>
                 <span>
                   {c ? `${c.code} · ${c.nombre}` : "CECO eliminado"}
                   {otro && <span className="text-amber-700"> (se le quita a {otro})</span>}
@@ -129,13 +129,13 @@ export default function CecosAprobados({
                         }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                       >
-                        <span className="w-14 shrink-0 font-mono text-[10px] text-slate-500">
+                        <span className="w-14 shrink-0 font-mono text-[0.625rem] text-slate-500">
                           {etiquetaEmpresa(c.empresaCode)}
                         </span>
                         <span className="min-w-0 flex-1 truncate">
                           {c.code} · {c.nombre}
                         </span>
-                        {otro && <span className="shrink-0 text-[11px] text-amber-700">Hoy: {otro}</span>}
+                        {otro && <span className="shrink-0 text-[0.6875rem] text-amber-700">Hoy: {otro}</span>}
                       </button>
                     </li>
                   );

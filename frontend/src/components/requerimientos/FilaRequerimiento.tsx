@@ -79,7 +79,7 @@ export default memo(function FilaRequerimiento({
       >
         <div className="col-span-2 min-w-0 md:col-span-1">
           <p className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[13.5px] font-medium text-slate-900" title={f.resumenItems ?? ""}>
+            <span className="truncate text-[0.8438rem] font-medium text-slate-900" title={f.resumenItems ?? ""}>
               {principal}
             </span>
             {extra && <span className="shrink-0 text-xs text-slate-400">{extra}</span>}
@@ -93,7 +93,7 @@ export default memo(function FilaRequerimiento({
                 <span className="text-slate-300">·</span>
               </span>
             )}
-            <span className="shrink-0 font-mono text-[11px] text-slate-400">{f.code}</span>
+            <span className="shrink-0 font-mono text-[0.6875rem] text-slate-400">{f.code}</span>
             <span className="text-slate-300">·</span>
             <span className="truncate" title={`${f.cecoCode ?? ""} ${f.cecoNombre ?? ""}`}>
               {f.cecoNombre ?? "—"}
@@ -105,13 +105,13 @@ export default memo(function FilaRequerimiento({
           <BarraAvance avance={f.avance} />
           <TextoAvance f={f} />
         </div>
-        <div className="flex items-center gap-2 text-[13px] md:flex-col md:items-start md:gap-0 md:leading-tight">
+        <div className="flex items-center gap-2 text-[0.8125rem] md:flex-col md:items-start md:gap-0 md:leading-tight">
           {f.requiredDate ? (
             <span className="tabular-nums text-slate-700">{fmtDia(f.requiredDate)}</span>
           ) : (
             <span className="text-slate-400">Sin fecha</span>
           )}
-          {venc && <span className={`text-[11px] font-medium ${venc.tono}`}>{venc.texto}</span>}
+          {venc && <span className={`text-[0.6875rem] font-medium ${venc.tono}`}>{venc.texto}</span>}
         </div>
         <div className="text-right">
           <EstadoBadge estado={f.status} />
@@ -136,7 +136,7 @@ export default memo(function FilaRequerimiento({
             </Link>
           ))}
         {otras.length > 0 && (
-          <span className="text-[11px] text-slate-400" title={otras.map(etiquetaAccion).join(" · ")}>
+          <span className="text-[0.6875rem] text-slate-400" title={otras.map(etiquetaAccion).join(" · ")}>
             +{otras.length}
           </span>
         )}

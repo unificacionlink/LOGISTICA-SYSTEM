@@ -4,6 +4,7 @@ import { ShoppingCart, Trash2 } from "lucide-react";
 import {
   actualizarRequerimiento,
   crearRequerimiento,
+  enviarRequerimiento,
   obtenerCatalogoFormulario,
   obtenerStockDisponible,
   obtenerRequerimiento,
@@ -24,6 +25,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
 import CampoNumero from "../components/ui/CampoNumero";
+import ConfirmarRequerimiento, { type LineaConfirmacion } from "../components/requerimientos/ConfirmarRequerimiento";
 interface ItemCarrito {
   variante: VarianteConStock;
   qty: string;
@@ -78,6 +80,11 @@ export default function RequerimientosNuevo() {
   const [errorItems, setErrorItems] = useState<string | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // Ventana de confirmacion: guardar y enviar a aprobacion en un solo paso.
+  const [confirmando, setConfirmando] = useState(false);
+  const [guardadoId, setGuardadoId] = useState<string | null>(null);
+  const [excepcion, setExcepcion] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<string | null>(null);
 
   useEffect(() => {
     // El catalogo puede venir de la cache de la pestana; el stock siempre fresco.
@@ -231,33 +238,94 @@ export default function RequerimientosNuevo() {
     }
     setErrorItems(null);
     setErrorEnvio(null);
+    setErrorModal(null);
+    setExcepcion(null);
+    setConfirmando(true);
+  }
+
+  function datosDelPedido() {
+    const validos = items.filter((it) => Number(it.qty) > 0);
+    return {
+      cecoId,
+      priority,
+      purpose,
+      justification,
+      requiredDate: requiredDate || undefined,
+      cajaChicaNota:
+        validos.some((it) => Number(it.cajaChica) > 0) && cajaChicaNota.trim() ? cajaChicaNota.trim() : undefined,
+      items: validos.map((it) => ({
+        variantId: it.variante.variantId,
+        qtyRequested: Number(it.qty),
+        observation: it.observacion || undefined,
+        cantidadCajaChica: Math.min(Number(it.cajaChica) || 0, Number(it.qty) || 0),
+      })),
+    };
+  }
+
+  /** Guarda (una sola vez) y, si se pide, envia a aprobacion; la excepcion presupuestal se resuelve en la ventana. */
+  async function confirmar(enviarAhora: boolean, justificacionPresupuestal?: string) {
+    setErrorModal(null);
     setEnviando(true);
     try {
-      const payload = {
-        cecoId,
-        priority,
-        purpose,
-        justification,
-        requiredDate: requiredDate || undefined,
-        cajaChicaNota:
-          validos.some((it) => Number(it.cajaChica) > 0) && cajaChicaNota.trim() ? cajaChicaNota.trim() : undefined,
-        items: validos.map((it) => ({
-          variantId: it.variante.variantId,
-          qtyRequested: Number(it.qty),
-          observation: it.observacion || undefined,
-          cantidadCajaChica: Math.min(Number(it.cajaChica) || 0, Number(it.qty) || 0),
-        })),
-      };
-      const res = editando ? await actualizarRequerimiento(id!, payload) : await crearRequerimiento(payload);
-      if (!res.ok || !res.result) {
-        setErrorEnvio(res.message);
+      let reqId = guardadoId;
+      let mensaje = "";
+      if (!reqId) {
+        const res = editando ? await actualizarRequerimiento(id!, datosDelPedido()) : await crearRequerimiento(datosDelPedido());
+        if (!res.ok || !res.result) {
+          setErrorModal(res.message);
+          return;
+        }
+        reqId = res.result.id;
+        mensaje = res.message;
+        setGuardadoId(reqId);
+      }
+      if (!enviarAhora) {
+        navigate(`/requerimientos/${reqId}?msg=${encodeURIComponent(mensaje || "Tu requerimiento quedó en borrador.")}`);
         return;
       }
-      navigate(`/requerimientos/${res.result.id}?msg=${encodeURIComponent(res.message)}`);
+      const env = await enviarRequerimiento(reqId, justificacionPresupuestal);
+      if (!env.ok && env.code === "EXCEPCION_PRESUPUESTAL") {
+        setExcepcion(env.message);
+        return;
+      }
+      if (!env.ok) {
+        setErrorModal(`${env.message} Tu requerimiento quedó guardado en borrador.`);
+        return;
+      }
+      navigate(`/requerimientos/${reqId}?msg=${encodeURIComponent(env.message)}`);
     } finally {
       setEnviando(false);
     }
   }
+
+  function cerrarConfirmacion() {
+    // Ya guardado: seguir editando aqui crearia otro; se sigue desde su detalle.
+    if (guardadoId) {
+      navigate(`/requerimientos/${guardadoId}?msg=${encodeURIComponent("Tu requerimiento quedó en borrador.")}`);
+      return;
+    }
+    setConfirmando(false);
+  }
+
+  const cecoElegido = cecos.find((c) => c.cecoId === cecoId);
+  const lineasConfirmacion: LineaConfirmacion[] = items
+    .filter((it) => Number(it.qty) > 0)
+    .map((it) => {
+      const cantidad = Number(it.qty);
+      const cajaChica = Math.min(Number(it.cajaChica) || 0, cantidad);
+      const normal = cantidad - cajaChica;
+      const delAlmacen = Math.min(Math.max(0, it.variante.stockDisponible), normal);
+      return {
+        key: it.variante.variantId,
+        nombre: it.variante.nombre,
+        detalle: `${it.variante.codigoVariante} · ${etiquetaFamilia(it.variante.tipoNombre, it.variante.familiaNombre)}`,
+        imagenUrl: it.variante.imagenUrl,
+        cantidad,
+        delAlmacen,
+        aComprar: normal - delAlmacen,
+        cajaChica,
+      };
+    });
 
   return (
     <div>
@@ -266,7 +334,7 @@ export default function RequerimientosNuevo() {
         subtitle={
           editando
             ? undefined
-            : "Busca y agrega productos a tu pedido. Quedará en BORRADOR hasta que lo envíes a aprobación."
+            : "Busca y agrega productos a tu pedido."
         }
         backTo={editando ? `/requerimientos/${id}` : "/requerimientos"}
         backLabel={editando ? "Requerimiento" : "Requerimientos"}
@@ -291,7 +359,7 @@ export default function RequerimientosNuevo() {
           <div className="flex flex-col gap-6">
             <Card>
               <CardBody className="flex flex-col gap-5">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div data-tutorial="req-datos" className="grid gap-4 sm:grid-cols-2">
                   <Field label="Centro de costo (CECO)" required>
                     <select
                       required
@@ -386,7 +454,7 @@ export default function RequerimientosNuevo() {
               </CardBody>
             </Card>
 
-            <Card>
+            <Card data-tutorial="req-buscador">
               <CardHeader>
                 <h2 className="font-semibold text-slate-900">Agregar productos</h2>
                 <p className="mt-0.5 text-sm text-slate-500">Búscalos por SKU o nombre y añádelos a tu pedido.</p>
@@ -406,7 +474,7 @@ export default function RequerimientosNuevo() {
           </div>
 
           <aside className="lg:sticky lg:top-6">
-            <Card className="overflow-hidden">
+            <Card data-tutorial="req-pedido" className="overflow-hidden">
               <CardHeader className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="size-4.5 text-slate-500" />
@@ -467,7 +535,7 @@ export default function RequerimientosNuevo() {
                   title="Aún no agregas productos"
                 />
               ) : (
-                <ul className="max-h-[420px] divide-y divide-slate-100 overflow-y-auto">
+                <ul className="max-h-[26.25rem] divide-y divide-slate-100 overflow-y-auto">
                   {items.map((it) => (
                     <li key={it.variante.variantId} className="flex flex-col gap-2 p-4">
                       <div className="flex items-start justify-between gap-2">
@@ -541,13 +609,32 @@ export default function RequerimientosNuevo() {
               <div className="flex flex-col gap-3 border-t border-slate-100 p-4">
                 {errorItems && <Alert tone="danger">{errorItems}</Alert>}
                 {errorEnvio && <Alert tone="danger">{errorEnvio}</Alert>}
-                <Button type="submit" loading={enviando} disabled={items.length + pendientes.length === 0} className="w-full">
-                  {enviando ? "Guardando…" : editando ? "Guardar cambios" : "Solicitar"}
+                <Button data-tutorial="req-enviar" type="submit" disabled={items.length + pendientes.length === 0} className="w-full">
+                  {editando ? "Revisar y enviar" : "Solicitar"}
                 </Button>
               </div>
             </Card>
           </aside>
         </form>
+      )}
+      {confirmando && (
+        <ConfirmarRequerimiento
+          editando={editando}
+          empresaCode={cecoElegido?.empresaCode ?? null}
+          cecoCodigo={cecoElegido?.code ?? ""}
+          cecoNombre={cecoElegido?.name ?? ""}
+          prioridad={priority}
+          proposito={purpose}
+          fechaRequerida={requiredDate}
+          atencionEstimada={atencionEstimada}
+          lineas={lineasConfirmacion}
+          procesando={enviando}
+          guardado={!!guardadoId}
+          excepcion={excepcion}
+          error={errorModal}
+          onCancelar={cerrarConfirmacion}
+          onConfirmar={(enviarAhora, justificacion) => void confirmar(enviarAhora, justificacion)}
+        />
       )}
     </div>
   );

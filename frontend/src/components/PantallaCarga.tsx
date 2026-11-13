@@ -8,7 +8,7 @@ export default function PantallaCarga({ texto = "Cargando" }: { texto?: string }
         </span>
         <span className="leading-tight">
           <span className="block text-sm font-semibold tracking-[-0.01em] text-slate-900">Logística</span>
-          <span className="block text-[11px] text-slate-500">TDEM · ERP corporativo</span>
+          <span className="block text-[0.6875rem] text-slate-500">TDEM · ERP corporativo</span>
         </span>
       </div>
       <div className="h-[3px] w-44 overflow-hidden rounded-full bg-slate-200">

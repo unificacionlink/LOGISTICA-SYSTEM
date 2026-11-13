@@ -73,7 +73,7 @@ export default function CecosUsuario({
                 key={id}
                 className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 py-0.5 pl-2 pr-1 text-xs text-slate-700"
               >
-                <span className="font-mono text-[10px] text-slate-500">{c ? etiquetaEmpresa(c.empresaCode) : "—"}</span>
+                <span className="font-mono text-[0.625rem] text-slate-500">{c ? etiquetaEmpresa(c.empresaCode) : "—"}</span>
                 <span>
                   {c ? `${c.code} · ${c.nombre}` : "CECO eliminado"}
                   {c && !c.activo && <span className="text-slate-400"> (inactivo)</span>}
@@ -120,7 +120,7 @@ export default function CecosUsuario({
                       }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                     >
-                      <span className="w-14 shrink-0 font-mono text-[10px] text-slate-500">
+                      <span className="w-14 shrink-0 font-mono text-[0.625rem] text-slate-500">
                         {etiquetaEmpresa(c.empresaCode)}
                       </span>
                       <span className="truncate">

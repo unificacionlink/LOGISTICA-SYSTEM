@@ -391,7 +391,7 @@ export default function EditorCotizacion({
                   {verTexto ? "Ocultar texto leído" : "Ver texto leído"}
                 </button>
                 {verTexto && (
-                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-[11px] text-slate-600">
+                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-[0.6875rem] text-slate-600">
                     {ocr.textoDetectado}
                   </pre>
                 )}

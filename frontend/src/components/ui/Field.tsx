@@ -25,7 +25,7 @@ export default function Field({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
-        <label className="text-[13px] font-medium text-slate-700">
+        <label className="text-[0.8125rem] font-medium text-slate-700">
           {label} {required && <span className="text-rose-600" aria-hidden="true">*</span>}
         </label>
       )}

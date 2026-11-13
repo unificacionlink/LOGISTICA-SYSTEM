@@ -5,6 +5,39 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L056 — Densidad 85% en computadora (2026-11-13, v0.41.0).** A pedido
+  del usuario, la app se ve como el navegador al 85% para que quepa más
+  información: `html { font-size: 85% }` desde 64rem (≥1024 px) en
+  `globals.css`. En el celular queda al 100% (legibilidad). Todo mide en
+  `rem`: las clases con `px` fijos de texto y espaciado pasaron a `rem`
+  (`text-[13px]` → `text-[0.8125rem]`) y el riel del menú lateral usa `rem`
+  (`clip-path: inset(0 11rem 0 0)`). **Regla**: medidas nuevas en `rem`
+  (clases de Tailwind o `[..rem]`); `px` solo para bordes, sombras y blur.
+
+- **DEC-L055 — Recorrido guiado para usuarios nuevos (2026-11-13, v0.41.0).**
+  - **Formato**: recorrido sobre las pantallas reales; oscurece todo menos el
+    elemento del paso y explica en un globo (Paso n de N, Atrás / Siguiente,
+    Esc para salir). Solo explica: la capa bloquea los clics y no crea datos.
+  - **Componente propio, sin librería** (`components/tutorial/`): los pasos
+    son datos en `recorridos.ts`; cada paso lleva a una ruta (con `?tab=` /
+    `?vista=`) y resalta el elemento con `data-tutorial="<ancla>"`. Sigue al
+    ancla cuadro a cuadro (aparece tras los esqueletos, el menú lateral se
+    despliega con `.sidebar[data-recorrido]`); si no aparece en 2,5 s o no se
+    ve (menú lateral en el celular), el globo va centrado. No reusa
+    `Flotante` porque este solo se reubica con scroll/resize.
+  - **Recorridos**: `solicitante` (todos) y `logistica` (LOGISTICA/ADMIN).
+    PYC/Gerencia y Aprobador quedan para después.
+  - **Cuándo**: se ofrece en el primer ingreso (después del cambio de
+    contraseña) con una tarjeta "¿Te mostramos cómo usar el sistema?";
+    LOGISTICA/ADMIN reciben el suyo y el resto el de pedir. Se repite con
+    "Ver tutorial" en el menú o desde la búsqueda rápida (Ctrl+K).
+  - **Persistencia por usuario en el servidor** (`usuario_tutorial`, V29:
+    COMPLETADO u OMITIDO), así no reaparece en otro equipo. Va en
+    `UsuarioDto.tutorialesVistos`; se marca con `PUT
+    /api/auth/tutoriales/{codigo}` (solo el propio usuario, código
+    `^[a-z-]{1,40}$`). SQL directo con `JdbcTemplate` (tabla de dos claves,
+    sin entidad). No se audita: no es una acción crítica.
+
 - **DEC-L054 — Caja chica del proyecto (2026-11-12).** Reemplaza el "Logistica
   compra y entra al almacen" de DEC-L026: cada proyecto tiene su caja chica.
   - **Sugerencia**: el solicitante indica en su borrador, por producto,

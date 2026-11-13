@@ -93,7 +93,7 @@ function Producto({ i, esGestor }: { i: AvanceItem; esGestor: boolean }) {
             {i.nombreProducto}
             {i.atributo && <span className="text-slate-400"> · {i.atributo}</span>}
           </p>
-          <p className="font-mono text-[11px] text-slate-400">{i.codigo}</p>
+          <p className="font-mono text-[0.6875rem] text-slate-400">{i.codigo}</p>
         </div>
         <span className="shrink-0 text-sm tabular-nums text-slate-700">
           {cant(i.solicitado)} <span className="text-xs text-slate-400">{i.unidadMedida}</span>
@@ -299,7 +299,7 @@ export default function PanelRequerimiento({
                   <span className={`size-1.5 rounded-full ${empresa?.marca ?? "bg-slate-400"}`} aria-hidden="true" />
                   {empresa?.label ?? r?.empresaCode ?? fila?.empresaCode}
                 </span>
-                <span className="font-mono text-[11px] text-slate-400">{r?.code ?? fila?.code}</span>
+                <span className="font-mono text-[0.6875rem] text-slate-400">{r?.code ?? fila?.code}</span>
               </p>
               <h2 id="panel-req-titulo" className="mt-1 text-base font-semibold text-slate-900">
                 {tituloPanel || <Skeleton className="h-5 w-64" />}
@@ -390,7 +390,7 @@ export default function PanelRequerimiento({
           <Seccion
             titulo={avance ? `Productos (${avance.length})` : "Productos"}
             extra={
-              <span className="hidden items-center gap-2.5 text-[11px] text-slate-400 sm:flex">
+              <span className="hidden items-center gap-2.5 text-[0.6875rem] text-slate-400 sm:flex">
                 {TRAMOS.map((t) => (
                   <span key={t.clave} className="flex items-center gap-1">
                     <span className={`size-2 rounded-sm ${t.color}`} aria-hidden="true" />
@@ -537,7 +537,7 @@ export default function PanelRequerimiento({
                   <li key={k} className="relative text-sm">
                     <span
                       aria-hidden="true"
-                      className="absolute -left-[21px] top-1.5 size-2 rounded-full border-2 border-white bg-slate-400"
+                      className="absolute -left-[1.3125rem] top-1.5 size-2 rounded-full border-2 border-white bg-slate-400"
                     />
                     <p className="text-slate-800">
                       {ev.accion}

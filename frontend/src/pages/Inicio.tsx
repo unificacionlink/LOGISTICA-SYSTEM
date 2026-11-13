@@ -68,7 +68,7 @@ export default function Inicio() {
         <p className="rotulo">
           {new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" })}
         </p>
-        <h1 className="mt-3 font-serif text-[36px] font-medium leading-[1.05] tracking-[-0.03em] text-slate-950 sm:text-[44px]">
+        <h1 className="mt-3 font-serif text-[2.25rem] font-medium leading-[1.05] tracking-[-0.03em] text-slate-950 sm:text-[2.75rem]">
           {saludo()}
           {nombre ? `, ${nombre}` : ""}.
         </h1>
@@ -90,7 +90,7 @@ export default function Inicio() {
                   className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-4 py-5 transition-colors sm:grid-cols-[3rem_14rem_1fr_auto]"
                 >
                   <span className="font-mono text-xs text-slate-400">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="text-[17px] font-medium tracking-[-0.01em] text-slate-900 transition-transform duration-300 ease-(--ease-suave) group-hover:translate-x-1">
+                  <span className="text-[1.0625rem] font-medium tracking-[-0.01em] text-slate-900 transition-transform duration-300 ease-(--ease-suave) group-hover:translate-x-1">
                     {m.titulo}
                   </span>
                   <span className="col-start-2 mt-1 text-sm text-slate-500 sm:col-start-auto sm:mt-0">{m.descripcion}</span>

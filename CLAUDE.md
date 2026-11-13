@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L054 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L056 y pendientes de negocio PD-01..PD-08. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
@@ -80,7 +80,7 @@ Reglas clave:
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V29__descripcion.sql` (existen V1..V28).
+- Siguiente migración: `V30__descripcion.sql` (existen V1..V29).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.
@@ -92,6 +92,7 @@ Reglas clave:
 - `auth/AuthContext.tsx` — sesión y `tieneAlgunRol`. `components/ProtectedLayout` llama `GET /api/auth/me` y redirige a `/login`; contiene el sidebar colapsable.
 - `pages/` — una por pantalla; `components/` — badges de estado, buscador de productos, dashboard, tracking, escena animada del login; `components/ui/` — primitivas (Button, Card, Field, Alert, etc.).
 - `realtime/` — cliente STOMP.
+- `components/tutorial/` — recorrido guiado para usuarios nuevos (DEC-L055): los pasos están en `recorridos.ts` y apuntan a elementos marcados con `data-tutorial="<ancla>"`. Si cambias o quitas un elemento con ancla, revisa su paso; para un paso nuevo, marca el elemento y suma la entrada.
 - Estilos: tokens en `styles/globals.css` (paleta azul corporativa, DEC-L021); fuentes Geist / Newsreader. Respetar `prefers-reduced-motion` (excepto la escena del login).
 
 ## Convenciones
@@ -99,6 +100,7 @@ Reglas clave:
 - Idioma: código de dominio, UI, comentarios y docs en español (sin tildes en identificadores/código; la UI sí lleva tildes). Columnas de BD en inglés snake_case según el diccionario de datos.
 - El usuario prefiere pantallas sin textos de ayuda largos (sin subtítulos/párrafos explicativos).
 - **Skeletons para toda carga de datos**: cada pantalla, tarjeta o sección que espera datos muestra esqueletos (`components/ui/Skeleton`) con la forma del contenido final, nunca un "Cargando..." ni una capa que tape la pantalla. La capa bloqueante (`CapaCarga`) es solo para guardar; lecturas y descargas usan la barra fina superior.
+- **Medidas en `rem`** (clases de Tailwind o `[..rem]`), nunca `text-[13px]`: en computadora la app corre al 85% (DEC-L056) y los `px` fijos no escalan. `px` solo para bordes, sombras y blur.
 - **Campos numéricos con `components/ui/CampoNumero`**, nunca `input type="number"`: cantidades enteras (todas las unidades son contables), montos con decimales y tope de dígitos; el DTO lo valida con `@Digits`.
 - **Menús y listas desplegables con `components/ui/Flotante`** (portal a `body`, `position: fixed`, se voltea hacia arriba si no cabe), nunca un `absolute` dentro de la página: las Card y tablas tienen `overflow` y lo recortan. Si se cierra con un `mousedown` en `document`, revisar también el `panelRef`.
 - **Acciones sensibles se confirman** con `useConfirmar()` (`components/ui/Confirmacion.tsx`), nunca `window.confirm`; las irreversibles piden motivo y el backend lo exige y lo audita con `Auditoria`.

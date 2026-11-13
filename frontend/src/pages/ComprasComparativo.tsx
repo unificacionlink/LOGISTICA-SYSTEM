@@ -688,7 +688,7 @@ export default function ComprasComparativo() {
                           )}
                         </p>
                         {c.precios.length < comparativo.filas.length && (
-                          <p className="text-[11px] text-slate-400">
+                          <p className="text-[0.6875rem] text-slate-400">
                             {c.precios.length} de {comparativo.filas.length} productos
                           </p>
                         )}

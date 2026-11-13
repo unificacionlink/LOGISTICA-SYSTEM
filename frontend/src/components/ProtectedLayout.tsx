@@ -1,6 +1,6 @@
-import { Suspense, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
-import { KeyRound, LogOut, Menu, Search, X } from "lucide-react";
+import { GraduationCap, KeyRound, LogOut, Menu, Search, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import CambiarPassword from "../pages/CambiarPassword";
 import { precargarPagina } from "../paginas";
@@ -10,9 +10,13 @@ import { abrirBusquedaRapida, NAV_GRUPOS } from "./navegacion";
 import PieVersion from "./Novedades";
 import PantallaCarga from "./PantallaCarga";
 import Toast from "./Toast";
+import { iniciarRecorrido, recorridoInicial } from "./tutorial/recorridos";
 
 // Los textos del menu siempre estan; en escritorio los oculta/revela el recorte del sidebar.
 const ETIQUETA = "sidebar-texto whitespace-nowrap";
+
+// Diferido: no entra en la carga inicial (DEC-L051); escucha al recorrido apenas baja.
+const RecorridoGuiado = lazy(() => import("./tutorial/RecorridoGuiado"));
 
 function iniciales(nombre: string): string {
   const partes = nombre.trim().split(/\s+/);
@@ -71,7 +75,7 @@ export default function ProtectedLayout() {
             </span>
             <span className={`leading-tight ${ETIQUETA}`}>
               <span className="block text-sm font-semibold tracking-[-0.01em] text-slate-900">Logística</span>
-              <span className="block text-[11px] text-slate-500">TDEM · ERP corporativo</span>
+              <span className="block text-[0.6875rem] text-slate-500">TDEM · ERP corporativo</span>
             </span>
           </Link>
           <button
@@ -87,16 +91,17 @@ export default function ProtectedLayout() {
         <button
           type="button"
           title="Buscar (Ctrl+K)"
+          data-tutorial="menu-buscar"
           onClick={() => {
             setMenuAbierto(false);
             abrirBusquedaRapida();
           }}
-          className="-mt-2 flex h-9 shrink-0 items-center gap-3 rounded-md border border-transparent px-[11px] text-[13.5px] text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          className="-mt-2 flex h-9 shrink-0 items-center gap-3 rounded-md border border-transparent px-[0.6875rem] text-[0.8438rem] text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
         >
           <Search className="size-4.5 shrink-0" strokeWidth={2.1} />
           <span className={`flex flex-1 items-center justify-between ${ETIQUETA}`}>
             Buscar
-            <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono text-[10px] text-slate-400">Ctrl K</kbd>
+            <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono text-[0.625rem] text-slate-400">Ctrl K</kbd>
           </span>
         </button>
 
@@ -109,15 +114,15 @@ export default function ProtectedLayout() {
               className="flex flex-col gap-1"
             >
               {g.titulo && (
-                <div className="relative flex h-5 items-center px-[11px]">
+                <div className="relative flex h-5 items-center px-[0.6875rem]">
                   <span
                     id={`nav-${g.id}`}
-                    className={`text-[10.5px] font-medium uppercase tracking-[0.08em] text-slate-400 ${ETIQUETA}`}
+                    className={`text-[0.6562rem] font-medium uppercase tracking-[0.08em] text-slate-400 ${ETIQUETA}`}
                   >
                     {g.titulo}
                   </span>
                   {/* Riel plegado: el titulo no se ve; una linea fina marca la seccion. */}
-                  <span aria-hidden="true" className="sidebar-separador absolute left-[10px] top-1/2 hidden h-px w-5 bg-slate-300" />
+                  <span aria-hidden="true" className="sidebar-separador absolute left-[0.625rem] top-1/2 hidden h-px w-5 bg-slate-300" />
                 </div>
               )}
               {g.items.map(({ to, label, icon: Icon }) => (
@@ -125,11 +130,12 @@ export default function ProtectedLayout() {
                   key={to}
                   to={to}
                   title={label}
+                  data-tutorial={`menu${to}`}
                   onClick={() => setMenuAbierto(false)}
                   onPointerEnter={() => precargarPagina(to)}
                   onFocus={() => precargarPagina(to)}
                   className={({ isActive }) =>
-                    `flex h-9 items-center gap-3 rounded-md border px-[11px] text-[13.5px] transition-colors duration-150 ${
+                    `flex h-9 items-center gap-3 rounded-md border px-[0.6875rem] text-[0.8438rem] transition-colors duration-150 ${
                       isActive
                         ? "border-slate-200 bg-white font-medium text-slate-900 shadow-boton [&>svg]:text-brand-600"
                         : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -146,21 +152,34 @@ export default function ProtectedLayout() {
 
         <div className="flex flex-col gap-1 border-t border-slate-200 pt-4">
           <div className="flex h-10 items-center gap-3 px-1.5" title={usuario.nombre}>
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[11px] font-semibold text-slate-700">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[0.6875rem] font-semibold text-slate-700">
               {iniciales(usuario.nombre)}
             </span>
             <span className={`min-w-0 leading-tight ${ETIQUETA}`}>
-              <span className="block truncate text-[13px] font-medium text-slate-900">{usuario.nombre}</span>
-              <span className="block truncate font-mono text-[10.5px] uppercase tracking-[0.04em] text-slate-500">
+              <span className="block truncate text-[0.8125rem] font-medium text-slate-900">{usuario.nombre}</span>
+              <span className="block truncate font-mono text-[0.6562rem] uppercase tracking-[0.04em] text-slate-500">
                 {usuario.roles.join(" · ") || "sin rol"}
               </span>
             </span>
           </div>
+          <button
+            type="button"
+            title="Ver tutorial"
+            data-tutorial="menu-ayuda"
+            onClick={() => {
+              setMenuAbierto(false);
+              iniciarRecorrido(recorridoInicial(tieneAlgunRol).id);
+            }}
+            className="flex h-9 items-center gap-3 rounded-md px-[0.6875rem] text-[0.8125rem] text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+          >
+            <GraduationCap className="size-4.5 shrink-0" strokeWidth={2.1} />
+            <span className={ETIQUETA}>Ver tutorial</span>
+          </button>
           <NavLink
             to="/cambiar-password"
             title="Cambiar contraseña"
             onClick={() => setMenuAbierto(false)}
-            className="flex h-9 items-center gap-3 rounded-md px-[11px] text-[13px] text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            className="flex h-9 items-center gap-3 rounded-md px-[0.6875rem] text-[0.8125rem] text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
           >
             <KeyRound className="size-4.5 shrink-0" strokeWidth={2.1} />
             <span className={ETIQUETA}>Cambiar contraseña</span>
@@ -168,7 +187,7 @@ export default function ProtectedLayout() {
           <button
             type="button"
             title="Cerrar sesión"
-            className="flex h-9 items-center gap-3 rounded-md px-[11px] text-[13px] text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            className="flex h-9 items-center gap-3 rounded-md px-[0.6875rem] text-[0.8125rem] text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
             onClick={() => cerrarSesion()}
           >
             <LogOut className="size-4.5 shrink-0" strokeWidth={2.1} />
@@ -213,6 +232,9 @@ export default function ProtectedLayout() {
       </div>
 
       <BusquedaRapida />
+      <Suspense fallback={null}>
+        <RecorridoGuiado />
+      </Suspense>
       <Toast />
     </div>
   );

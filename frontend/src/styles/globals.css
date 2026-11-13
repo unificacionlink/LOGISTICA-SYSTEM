@@ -88,6 +88,14 @@
     @apply border-slate-200;
   }
 
+  /* Densidad: en computadora la app se ve como el navegador al 85% (todo lo
+     que mide en rem escala junto). En el celular queda al 100% para leer bien. */
+  @media (min-width: 64rem) {
+    html {
+      font-size: 85%;
+    }
+  }
+
   body {
     @apply bg-slate-100 text-slate-800 antialiased;
     font-feature-settings: "ss01", "cv11";
@@ -302,7 +310,7 @@
  */
 @media (min-width: 64rem) {
   .sidebar {
-    clip-path: inset(0 176px 0 0);
+    clip-path: inset(0 11rem 0 0); /* deja ver solo el riel de 4rem (w-60 = 15rem) */
     transition: clip-path 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.06s;
   }
 
@@ -313,7 +321,8 @@
   }
 
   body:has(.sidebar:hover) .contenido-app,
-  body:has(.sidebar:focus-within) .contenido-app {
+  body:has(.sidebar:focus-within) .contenido-app,
+  body:has(.sidebar[data-recorrido]) .contenido-app {
     padding-left: 15rem;
     transition: padding-left 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.12s;
   }
@@ -326,7 +335,8 @@
   }
 
   .sidebar:hover .sidebar-texto,
-  .sidebar:focus-within .sidebar-texto {
+  .sidebar:focus-within .sidebar-texto,
+  .sidebar[data-recorrido] .sidebar-texto {
     opacity: 1;
     transition: opacity 0.3s ease 0.16s;
   }
@@ -336,7 +346,7 @@
     content: "";
     position: absolute;
     inset-block: 0;
-    left: 63px;
+    left: calc(4rem - 1px);
     width: 1px;
     background: var(--color-slate-200);
     transition: opacity 0.2s ease 0.1s;
@@ -350,19 +360,22 @@
   }
 
   .sidebar:hover .sidebar-separador,
-  .sidebar:focus-within .sidebar-separador {
+  .sidebar:focus-within .sidebar-separador,
+  .sidebar[data-recorrido] .sidebar-separador {
     opacity: 0;
     transition: opacity 0.12s ease;
   }
 
   .sidebar:hover::after,
-  .sidebar:focus-within::after {
+  .sidebar:focus-within::after,
+  .sidebar[data-recorrido]::after {
     opacity: 0;
     transition-delay: 0s;
   }
 
   .sidebar:hover,
-  .sidebar:focus-within {
+  .sidebar:focus-within,
+  .sidebar[data-recorrido] {
     clip-path: inset(0 0 0 0);
     transition: clip-path 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.12s;
   }

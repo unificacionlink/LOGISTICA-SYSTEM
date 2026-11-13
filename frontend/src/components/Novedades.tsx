@@ -47,7 +47,7 @@ export default function PieVersion() {
           onClick={abrir}
           onPointerEnter={() => void cargarVentana()}
           onFocus={() => void cargarVentana()}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-slate-400 transition-colors hover:bg-slate-200/50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[0.6875rem] text-slate-400 transition-colors hover:bg-slate-200/50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
         >
           {nueva && <span aria-hidden="true" className="size-1.5 rounded-full bg-brand-600" />}
           <span className="font-mono">v{VERSION_ACTUAL}</span>

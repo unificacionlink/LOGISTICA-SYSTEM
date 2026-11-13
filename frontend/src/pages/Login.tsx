@@ -57,7 +57,7 @@ export default function Login() {
       <div className="flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-9">
-            <h1 className="text-[26px] font-semibold tracking-[0.06em] text-brand-900">ERP LOGÍSTICO</h1>
+            <h1 className="text-[1.625rem] font-semibold tracking-[0.06em] text-brand-900">ERP LOGÍSTICO</h1>
             <p className="mt-1.5 text-xs font-medium tracking-[0.18em] text-slate-500">TDEM · GOYDEL · METRIN</p>
           </div>
 

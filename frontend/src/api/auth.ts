@@ -22,3 +22,8 @@ export function me() {
 export function cambiarPassword(actual: string, nueva: string) {
   return http.post<Usuario>("/api/auth/cambiar-password", { actual, nueva });
 }
+
+/** Fin de un recorrido guiado (DEC-L055): lo recuerda el servidor por usuario. */
+export function marcarTutorial(codigo: string, estado: "COMPLETADO" | "OMITIDO") {
+  return http.put<Usuario>(`/api/auth/tutoriales/${encodeURIComponent(codigo)}`, { estado });
+}

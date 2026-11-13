@@ -298,7 +298,7 @@ export default function CargaMasivaFotos({
                     style={{ width: `${Math.round((hechas / procesables) * 100)}%` }}
                   />
                 </div>
-                <p className="mt-1 text-right font-mono text-[11px] tabular-nums text-slate-400">
+                <p className="mt-1 text-right font-mono text-[0.6875rem] tabular-nums text-slate-400">
                   {hechas} / {procesables}
                 </p>
               </div>

@@ -19,6 +19,8 @@ export interface Usuario {
   empresaCode: string | null;
   roles: string[];
   debeCambiarPassword: boolean;
+  /** Recorridos guiados ya vistos o saltados (DEC-L055). */
+  tutorialesVistos: string[];
 }
 
 export interface Requerimiento {

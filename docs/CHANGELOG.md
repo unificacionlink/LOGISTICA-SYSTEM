@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.41.0 — 2026-11-13
+
+Recorrido guiado para usuarios nuevos (DEC-L055).
+
+- **V29**: tabla `usuario_tutorial` (usuario + recorrido, COMPLETADO u
+  OMITIDO).
+- **Auth**: `UsuarioDto.tutorialesVistos`; `PUT /api/auth/tutoriales/{codigo}`
+  (`TutorialRequest`, `AuthService.marcarTutorial`, upsert del propio
+  usuario).
+- **Frontend**: `components/tutorial/recorridos.ts` (recorridos `solicitante`
+  y `logistica`, `iniciarRecorrido`) y `RecorridoGuiado.tsx` (capa con foco,
+  globo, teclado, tarjeta de bienvenida en el primer ingreso). Anclas
+  `data-tutorial` en el menú, Requerimientos, Nuevo requerimiento, Compras y
+  Almacén. "Ver tutorial" en el pie del menú y "Tutorial · …" en la búsqueda
+  rápida. `.sidebar[data-recorrido]` despliega el menú durante un paso.
+- **Pruebas**: `TutorialUsuarioTest`; `MigracionesFlywayTest`: 29.
+- **Confirmar requerimiento**: "Solicitar" (o "Revisar y enviar" al editar)
+  abre `ConfirmarRequerimiento`: resumen (empresa, CECO, prioridad,
+  propósito, fechas), indicadores de productos / del almacén / por comprar /
+  caja chica (estimados con el stock libre) y la lista de productos; la
+  casilla "Enviar a aprobación ahora" (marcada) guarda y envía en un paso
+  (`crear`/`actualizar` + `enviar`). La excepción presupuestal (DEC-L038) se
+  justifica en la misma ventana; si ya quedó guardado, cerrar lleva a su
+  detalle (no se crea otro).
+- **Densidad 85% en computadora (DEC-L056)**: `html { font-size: 85% }` desde
+  64rem; 59 clases con `px` fijos (texto, padding, posiciones del menú) pasan
+  a `rem`; riel del menú lateral en `rem`.
+
 ## 0.40.0 — 2026-11-13
 
 Enlace del proveedor: unidad, foto y pantalla ordenada (DEC-L052).

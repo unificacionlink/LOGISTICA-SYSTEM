@@ -5,12 +5,14 @@ import com.tdem.logistica.entity.Usuario;
 import com.tdem.logistica.repository.UsuarioRepository;
 import com.tdem.logistica.repository.UsuarioRolRepository;
 import com.tdem.logistica.security.JwtService;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @Transactional(readOnly = true)
@@ -20,16 +22,21 @@ public class AuthService {
     private final UsuarioRolRepository usuarioRolRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final JdbcTemplate jdbc;
+
+    private static final Pattern CODIGO_TUTORIAL = Pattern.compile("^[a-z-]{1,40}$");
 
     public AuthService(
             UsuarioRepository usuarioRepository,
             UsuarioRolRepository usuarioRolRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            JdbcTemplate jdbc) {
         this.usuarioRepository = usuarioRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.jdbc = jdbc;
     }
 
     public record LoginResult(String token, UsuarioDto usuario, int expirationSeconds) {
@@ -65,7 +72,30 @@ public class AuthService {
                 usuario.getEmpresa() != null ? usuario.getEmpresa().getCompanyId() : null,
                 usuario.getEmpresa() != null ? usuario.getEmpresa().getCode() : null,
                 roles,
-                usuario.isMustChangePassword());
+                usuario.isMustChangePassword(),
+                tutorialesVistos(usuario.getUserId()));
+    }
+
+    private List<String> tutorialesVistos(UUID userId) {
+        return jdbc.queryForList(
+                "select tutorial_code from usuario_tutorial where user_id = ? order by tutorial_code",
+                String.class, userId);
+    }
+
+    /**
+     * Marca un recorrido guiado como visto o saltado por el propio usuario
+     * (DEC-L055); repetirlo desde Ayuda solo actualiza la fecha.
+     */
+    @Transactional
+    public UsuarioDto marcarTutorial(UUID userId, String codigo, String estado) {
+        if (codigo == null || !CODIGO_TUTORIAL.matcher(codigo).matches()) {
+            throw ApiException.badRequest("Recorrido no valido.");
+        }
+        jdbc.update("""
+                insert into usuario_tutorial (user_id, tutorial_code, status) values (?, ?, ?)
+                on conflict (user_id, tutorial_code)
+                do update set status = excluded.status, updated_at = now()""", userId, codigo, estado);
+        return me(userId);
     }
 
     /**

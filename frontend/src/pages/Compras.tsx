@@ -172,7 +172,7 @@ export default function Compras() {
       <PageHeader
         title="Compras"
         actions={
-          <Button href="/compras/ordenes" variant="secondary" icon={<ClipboardList className="size-4" />}>
+          <Button data-tutorial="compras-ordenes" href="/compras/ordenes" variant="secondary" icon={<ClipboardList className="size-4" />}>
             Órdenes emitidas
           </Button>
         }
@@ -184,6 +184,7 @@ export default function Compras() {
             key={id}
             type="button"
             role="tab"
+            data-tutorial={`compras-tab-${id}`}
             aria-selected={tab === id}
             onClick={() => irA(id)}
             className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
@@ -501,7 +502,7 @@ function TablaConsolidados({
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+      <div data-tutorial="compras-acciones" className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
         <span className="text-sm text-slate-500">
           {elegidos.length > 0 ? `${elegidos.length} seleccionado(s)` : "Selecciona los productos a cotizar"}
         </span>

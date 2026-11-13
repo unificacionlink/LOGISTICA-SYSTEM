@@ -13,6 +13,18 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.41.0",
+    titulo: "Tutorial para empezar y pedidos en un solo paso",
+    cambios: [
+      "Al tocar «Solicitar» ves el resumen de tu pedido: cuánto sale del almacén, cuánto se compra y cuánto va por caja chica, y lo envías a aprobación desde ahí mismo.",
+      "Si el pedido sale del presupuesto, escribes la justificación en esa misma ventana.",
+      "La primera vez que entras, el sistema te ofrece un recorrido de 2 minutos que te muestra dónde tocar en cada paso.",
+      "Quien pide aprende a crear un requerimiento y seguirlo; Logística, el camino de la compra al despacho.",
+      "Puedes volver a verlo cuando quieras con «Ver tutorial» en el menú o buscando «tutorial» con Ctrl+K.",
+      "En la computadora, todas las pantallas se ven más compactas para que quepa más información.",
+    ],
+  },
+  {
     version: "0.40.0",
     titulo: "El proveedor cotiza con foto y unidad de cada producto",
     cambios: [

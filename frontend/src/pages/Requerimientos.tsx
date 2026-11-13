@@ -178,7 +178,7 @@ export default function Requerimientos() {
       <PageHeader
         title="Requerimientos"
         actions={
-          <Button href="/requerimientos/nuevo" icon={<Plus className="size-4" />}>
+          <Button data-tutorial="req-nuevo" href="/requerimientos/nuevo" icon={<Plus className="size-4" />}>
             Nuevo requerimiento
           </Button>
         }
@@ -241,7 +241,7 @@ export default function Requerimientos() {
         </label>
       </div>
 
-      <div role="tablist" aria-label="Vista" className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div role="tablist" aria-label="Vista" data-tutorial="req-vistas" className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200">
         {vistasBase.map((v) => (
           <button
             key={v.id}

@@ -7,6 +7,7 @@ import {
   FileQuestion,
   FileSpreadsheet,
   FileText,
+  GraduationCap,
   KeyRound,
   ListTodo,
   PackageCheck,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { EVENTO_BUSQUEDA, GESTION, NAV_GRUPOS } from "./navegacion";
+import { iniciarRecorrido, recorridosPara } from "./tutorial/recorridos";
 
 interface Opcion {
   id: string;
@@ -26,6 +28,8 @@ interface Opcion {
   icon: LucideIcon;
   /** Palabras extra para encontrarla (sin tildes). */
   claves?: string;
+  /** En vez de navegar (p. ej. abrir un recorrido guiado). */
+  accion?: () => void;
 }
 
 /** Atajos a pestanas y acciones frecuentes, ademas de las pantallas del menu. */
@@ -87,7 +91,16 @@ export default function BusquedaRapida() {
         .map((i) => ({ id: i.to, label: i.label, grupo: "Pantallas", to: i.to, icon: i.icon, claves: g.titulo ?? "" })),
     );
     const atajos = ATAJOS.filter((a) => !a.roles || tieneAlgunRol(...a.roles)).map((a) => ({ ...a, id: a.to }));
-    return [...pantallas, ...atajos];
+    const tutoriales = recorridosPara(tieneAlgunRol).map((r) => ({
+      id: `tutorial-${r.id}`,
+      label: `Tutorial · ${r.titulo}`,
+      grupo: "Ayuda",
+      to: "",
+      icon: GraduationCap,
+      claves: "ayuda tutorial recorrido guia como usar",
+      accion: () => iniciarRecorrido(r.id),
+    }));
+    return [...pantallas, ...atajos, ...tutoriales];
   }, [tieneAlgunRol]);
 
   const resultados = useMemo(() => {
@@ -109,7 +122,8 @@ export default function BusquedaRapida() {
   function ir(o: Opcion | undefined) {
     if (!o) return;
     setAbierto(false);
-    navigate(o.to);
+    if (o.accion) o.accion();
+    else navigate(o.to);
   }
 
   function onTecla(e: React.KeyboardEvent) {
@@ -154,7 +168,7 @@ export default function BusquedaRapida() {
             placeholder="Ir a una pantalla o acción…"
             className="h-12 w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
-          <kbd className="shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+          <kbd className="shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[0.625rem] text-slate-500">
             Esc
           </kbd>
         </div>

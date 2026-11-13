@@ -10,5 +10,7 @@ public record UsuarioDto(
         UUID companyId,
         String empresaCode,
         List<String> roles,
-        boolean debeCambiarPassword) {
+        boolean debeCambiarPassword,
+        /** Recorridos guiados ya vistos o saltados (DEC-L055). */
+        List<String> tutorialesVistos) {
 }

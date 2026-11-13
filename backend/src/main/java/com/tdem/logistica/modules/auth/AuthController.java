@@ -59,6 +59,14 @@ public class AuthController {
                 "Contrasena actualizada.");
     }
 
+    /** El propio usuario termina o salta un recorrido guiado (DEC-L055). */
+    @PutMapping("/tutoriales/{codigo}")
+    public ApiResponse<UsuarioDto> marcarTutorial(@PathVariable String codigo,
+                                                  @Valid @RequestBody TutorialRequest request,
+                                                  @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(authService.marcarTutorial(principal.userId(), codigo, request.estado()));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UsuarioDto>> me(@AuthenticationPrincipal UsuarioPrincipal principal) {
         UsuarioDto dto = authService.me(principal.userId());
