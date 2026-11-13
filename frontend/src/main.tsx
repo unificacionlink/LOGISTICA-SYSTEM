@@ -3,11 +3,17 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./styles/globals.css";
 import App from "./App.tsx";
+import PantallaError from "./components/PantallaError";
+import { instalarReporteDeErrores } from "./registro/reporteErrores";
+
+instalarReporteDeErrores();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <PantallaError>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </PantallaError>
   </StrictMode>,
 );

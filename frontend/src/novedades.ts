@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.45.0",
+    titulo: "Registro de la plataforma",
+    cambios: [
+      "Administración tiene una nueva pestaña «Registro»: quién hizo qué y cuándo, los ingresos al sistema, los cambios importantes, los errores y los movimientos de inventario.",
+      "Si una pantalla falla, ahora muestra un aviso para recargar en vez de quedar en blanco, y el error queda registrado.",
+    ],
+  },
+  {
     version: "0.44.0",
     titulo: "Stock al pedir: con stock o sin stock",
     cambios: [

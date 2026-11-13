@@ -5,6 +5,38 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L060 — Registro de la plataforma para el administrador (2026-11-13, v0.45.0).**
+  Administración › Registro (solo ADMIN) reúne en una pantalla operaciones,
+  ingresos, cambios críticos, errores y movimientos de inventario.
+  - `V30`: `registro_actividad` (metadata de cada POST/PUT/PATCH/DELETE bajo
+    `/api` y de cada ingreso: usuario, ruta, módulo, entidad de la ruta,
+    código HTTP, duración, IP, navegador y un `detail` sin secretos: correo
+    intentado al ingresar o motivo del rechazo) y `registro_error` (errores
+    inesperados del servidor y de la pantalla, con su detalle técnico). Nunca
+    se guarda el cuerpo de la petición ni la contraseña. Las lecturas (GET) no
+    se anotan.
+  - `modules/registro/RegistroActividadFilter` corre después de Spring Security
+    (orden por defecto) para tener el usuario; el ingreso lo marca
+    `AuthController` con atributos de la petición. `GlobalExceptionHandler`
+    manda los 5xx y conflictos a `registro_error` y deja el motivo de los
+    rechazos (`ApiException`, validación) en la actividad.
+  - `RegistroPlataforma` encola en memoria y escribe por lotes cada 3 s
+    (`app.registro.intervalo-ms`), fuera de la petición y de su transacción: la
+    BD está lejos y registrar nunca debe frenar ni tumbar una operación. Si la
+    cola pasa de 5000 se descarta. Purga diaria: 180 días de actividad y 90 de
+    errores (`app.registro.dias-actividad`, `app.registro.dias-errores`).
+  - Errores de la pantalla: `registro/reporteErrores` (errores y promesas sin
+    atrapar) y `components/PantallaError` (si una pantalla falla al dibujarse,
+    aviso con "Recargar" en vez de quedar en blanco) los envían a
+    `POST /api/registro/errores` (con sesión, tope de 20 por minuto por
+    usuario; en el navegador una vez por minuto por mensaje y 15 por pestaña).
+  - Cambios = `log_cambios` (RF-064, antes/después) y Movimientos = kardex
+    (`movimiento_inventario`): ya existían; ahora se consultan aquí.
+  - Vistas paginadas de 50 ("una de más" para saber si hay otra página, sin
+    `count`), con periodo (máx. 1 año, días de Lima), búsqueda y un filtro por
+    vista; el detalle completo se abre al tocar la fila. Indicadores de las
+    últimas 24 h (operaciones, rechazadas, ingresos fallidos, errores).
+
 - **DEC-L059 — Quien pide ve "con stock" o "sin stock", no la cantidad (2026-11-13, v0.44.0).**
   A pedido del usuario, el saldo del almacén solo lo ven LOGISTICA y ADMIN.
   - `RequerimientoService.stockDisponible`: a LOGISTICA/ADMIN le devuelve la

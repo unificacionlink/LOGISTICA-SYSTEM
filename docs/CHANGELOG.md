@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.45.0 — 2026-11-13
+
+Registro de la plataforma para el administrador (DEC-L060).
+
+- `V30__registro_plataforma.sql`: `registro_actividad`, `registro_error` e índices por fecha (también en `log_cambios` y `movimiento_inventario`).
+- Backend `modules/registro`: `RegistroPlataforma` (cola y escritura por lotes, purga diaria), `RegistroActividadFilter` (POST/PUT/PATCH/DELETE bajo `/api`), `RegistroService` y `RegistroController` (`/api/admin/registro/{resumen,actividad,errores,cambios,movimientos}` solo ADMIN; `POST /api/registro/errores` para la pantalla).
+- `GlobalExceptionHandler` registra errores del servidor y el motivo de los rechazos; `AuthController` marca el ingreso (correo intentado, nunca la clave); `LimiteSolicitudes.ip` pasa a público para reutilizarlo.
+- Frontend: pestaña Administración › Registro (`components/admin/PestanaRegistro`) con Operaciones, Ingresos, Cambios, Errores y Movimientos, indicadores de 24 h, periodo, búsqueda, filtro por usuario desde el detalle y "Cargar más".
+- `registro/reporteErrores` y `components/PantallaError` (envuelve la app en `main.tsx`): los errores de la pantalla se reportan y una pantalla que falla muestra "Recargar" en vez de quedar en blanco.
+- `RegistroPlataformaTest` (ingreso fallido y correcto, operación, error de pantalla, solo ADMIN) y `MigracionesFlywayTest` a 30 migraciones.
+
 ## 0.44.0 — 2026-11-13
 
 El solicitante ya no ve cuánto stock hay, solo si hay (DEC-L059). Y la solicitud de alta de producto vuelve a guardarse.

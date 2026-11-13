@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Building2, Contact, Copy, RefreshCw, Search, UserPlus, Users } from "lucide-react";
+import { Building2, Contact, Copy, RefreshCw, ScrollText, Search, UserPlus, Users } from "lucide-react";
 import {
   asignarRoles,
   cambiarActivo,
@@ -23,17 +23,19 @@ import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 import { useConfirmar } from "../components/ui/Confirmacion";
 import PestanaPadron from "../components/admin/PestanaPadron";
+import PestanaRegistro from "../components/admin/PestanaRegistro";
 import { ETIQUETA_ROL } from "../components/admin/roles";
 import CecosUsuario from "../components/admin/CecosUsuario";
 import CecosAprobados from "../components/admin/CecosAprobados";
 
-type Pestana = "usuarios" | "personal" | "cecos" | "rrhh";
+type Pestana = "usuarios" | "personal" | "cecos" | "rrhh" | "registro";
 
 const PESTANAS: { id: Pestana; label: string; icon: typeof Users }[] = [
   { id: "usuarios", label: "Usuarios", icon: Users },
   { id: "personal", label: "Personal", icon: Contact },
   { id: "cecos", label: "CECOs", icon: Building2 },
   { id: "rrhh", label: "RR.HH.", icon: RefreshCw },
+  { id: "registro", label: "Registro", icon: ScrollText },
 ];
 
 const thClass = "px-5 py-3";
@@ -110,7 +112,10 @@ export default function Administracion() {
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
       {exito && <Alert tone="good" className="mb-4">{exito}</Alert>}
 
-      {!datos ? (
+      {tab === "registro" ? (
+        // DEC-L060: no depende de los datos de usuarios; carga lo suyo.
+        <PestanaRegistro />
+      ) : !datos ? (
         !error && (
           <Card className="overflow-hidden">
             <SkeletonTable cols={5} />

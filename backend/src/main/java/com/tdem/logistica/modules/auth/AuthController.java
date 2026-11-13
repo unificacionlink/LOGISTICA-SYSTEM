@@ -1,5 +1,7 @@
 package com.tdem.logistica.modules.auth;
 
+import com.tdem.logistica.modules.registro.RegistroPlataforma;
+import jakarta.servlet.http.HttpServletRequest;
 import com.tdem.logistica.common.ApiResponse;
 import com.tdem.logistica.security.JwtAuthFilter;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -24,8 +26,12 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UsuarioDto>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<UsuarioDto>> login(@Valid @RequestBody LoginRequest request,
+                                                         HttpServletRequest http) {
+        // DEC-L060: el ingreso (correcto o no) queda en el registro con el correo intentado, nunca la clave.
+        http.setAttribute(RegistroPlataforma.ATR_DETALLE, request.correo() == null ? null : request.correo().trim().toLowerCase());
         AuthService.LoginResult resultado = authService.login(request.correo(), request.password());
+        http.setAttribute(RegistroPlataforma.ATR_USUARIO, resultado.usuario().id());
         ResponseCookie cookie = ResponseCookie.from(JwtAuthFilter.COOKIE_NAME, resultado.token())
                 .httpOnly(true)
                 .secure(cookieSecure)

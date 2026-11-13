@@ -61,7 +61,7 @@ public class LimiteSolicitudes extends OncePerRequestFilter {
      * El proxy de Render agrega al final de X-Forwarded-For la IP que vio; lo
      * anterior lo puede escribir el propio cliente, asi que se toma el ultimo.
      */
-    private static String ip(HttpServletRequest request) {
+    public static String ip(HttpServletRequest request) {
         String reenviada = request.getHeader("X-Forwarded-For");
         if (reenviada != null && !reenviada.isBlank()) {
             String[] partes = reenviada.split(",");
