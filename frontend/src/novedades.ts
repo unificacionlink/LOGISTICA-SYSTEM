@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.41.2",
+    titulo: "Solicitudes de cotización por QR y enlace",
+    cambios: [
+      "La solicitud se hace llegar al proveedor con su PDF con código QR o con el enlace para cotizar en línea.",
+      "Se retiró el atajo «Abrir correo» del detalle de la solicitud.",
+    ],
+  },
+  {
     version: "0.41.1",
     titulo: "Textos en una sola línea",
     cambios: [

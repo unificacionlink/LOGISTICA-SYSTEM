@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronDown, FileText, Mail, Plus, ScanText, Upload, X } from "lucide-react";
+import { ChevronDown, FileText, Plus, ScanText, Upload, X } from "lucide-react";
 import {
   cerrarRfq,
   confirmarEnvioRfq,
@@ -27,27 +27,8 @@ import BotonDescarga from "../components/BotonDescarga";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import { descargarPdfRfq } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
-import { cantidad } from "../components/compras/formato";
 
 import CampoNumero from "../components/ui/CampoNumero";
-/** Texto de la solicitud para el borrador de correo (no constituye orden de compra). */
-function mensajeSolicitud(d: RfqDetalle, urlEnlace: string | null): string {
-  const lineas = d.items.map(
-    (it) =>
-      `- ${it.codigoVariante ?? it.skuBase} | ${it.nombreProducto}${it.atributo ? ` (${it.atributo})` : ""} | ${cantidad(it.qty)} ${it.unidadMedida}` +
-      (it.technicalSpecification ? `\n  Especificación: ${it.technicalSpecification}` : ""),
-  );
-  return [
-    `Solicitud de cotización ${d.rfq.rfqCode} — ${d.empresaCode}`,
-    "",
-    ...lineas,
-    "",
-    ...(urlEnlace ? ["Puede cotizar en línea, sobre estas mismas líneas, aquí:", urlEnlace, ""] : []),
-    "Indicar precio unitario por producto, moneda, condición de pago, plazo y lugar de entrega, y vigencia de la oferta.",
-    "Esta solicitud no constituye una orden de compra.",
-  ].join("\n");
-}
-
 interface FilaCotizacion {
   unitCost: string;
   offeredBrand: string;
@@ -300,7 +281,6 @@ export default function ComprasRfqDetalle() {
   const rfqCerrada = rfq.status === "CERRADA";
   const porEnviar = rfq.status === "BORRADOR";
   const mostrarForm = !rfqCerrada && !porEnviar && (formAbierto ?? cotizaciones.length === 0);
-  const mensaje = mensajeSolicitud(detalle, enlace?.url ?? null);
   const consolidados = Array.from(
     new Map(items.filter((it) => it.consolidationId).map((it) => [it.consolidationId!, it])).values(),
   );
@@ -350,18 +330,6 @@ export default function ComprasRfqDetalle() {
               <p className="text-xs text-slate-500">
                 {[detalle.proveedorEmail, detalle.proveedorTelefono].filter(Boolean).join(" · ") || "Sin datos de contacto"}
               </p>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs font-medium">
-                {detalle.proveedorEmail && (
-                  <a
-                    href={`mailto:${detalle.proveedorEmail}?subject=${encodeURIComponent(`Solicitud de cotización ${rfq.rfqCode}`)}&body=${encodeURIComponent(mensaje)}`}
-                    className="inline-flex items-center gap-1 text-brand-600 hover:text-brand-700"
-                    onClick={() => setCanal("CORREO")}
-                  >
-                    <Mail className="size-3.5" />
-                    Abrir correo
-                  </a>
-                )}
-              </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <select

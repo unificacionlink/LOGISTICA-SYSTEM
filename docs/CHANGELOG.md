@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.41.2 — 2026-11-13
+
+- Detalle de la RFQ: se quita "Abrir correo" (borrador `mailto:` armado en la pantalla) y su texto `mensajeSolicitud`. La solicitud se hace llegar al proveedor con el PDF con QR y el enlace para cotizar en línea (DEC-L052); queda "Confirmar envío" con el canal Correo / Otro para registrarla como enviada.
+
 ## 0.41.1 — 2026-11-13
 
 Una sola línea en todas las pantallas (DEC-L057).
