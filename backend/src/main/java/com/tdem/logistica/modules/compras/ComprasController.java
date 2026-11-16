@@ -21,9 +21,12 @@ public class ComprasController {
     private final AbastecimientoService abastecimiento;
     private final ComparativoService comparativo;
     private final EnlaceCotizacionService enlaces;
+    private final OrdenCompraService ordenes;
 
     public ComprasController(ComprasService service, AbastecimientoService abastecimiento,
-                             ComparativoService comparativo, EnlaceCotizacionService enlaces) {
+                             ComparativoService comparativo, EnlaceCotizacionService enlaces,
+                             OrdenCompraService ordenes) {
+        this.ordenes = ordenes;
         this.service = service;
         this.abastecimiento = abastecimiento;
         this.comparativo = comparativo;
@@ -168,7 +171,7 @@ public class ComprasController {
     public ApiResponse<OrdenDto> emitirOrden(
             @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
         OrdenDto orden = abastecimiento.emitirOrden(id, principal);
-        return ApiResponse.ok(orden, "Orden de compra " + orden.orderCode() + " emitida.");
+        return ApiResponse.ok(orden, "Orden de compra " + orden.orderCode() + " emitida: queda por aprobar.");
     }
 
     @PostMapping("/rfq/{id}/enviar")
@@ -256,6 +259,41 @@ public class ComprasController {
     @GetMapping("/ordenes")
     public ApiResponse<List<OrdenDto>> ordenes(@AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.listarOrdenes(principal));
+    }
+
+    // ---------------------------------------------------------------- Aprobacion, pago y liberacion (DEC-L061)
+
+    @GetMapping("/ordenes/por-aprobar")
+    public ApiResponse<List<OrdenDto>> ordenesPorAprobar(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(ordenes.listarPorAprobar(principal));
+    }
+
+    @PostMapping("/ordenes/{id}/decision")
+    public ApiResponse<OrdenDto> decidirOrden(
+            @PathVariable UUID id,
+            @Valid @RequestBody DecidirOrdenRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        OrdenDto orden = ordenes.decidir(id, request, principal);
+        return ApiResponse.ok(orden, "ANULADA".equals(orden.status())
+                ? "Orden de compra " + orden.orderCode() + " rechazada."
+                : "Orden de compra " + orden.orderCode() + " aprobada.");
+    }
+
+    @PostMapping("/ordenes/{id}/pago")
+    public ApiResponse<OrdenDto> registrarPago(
+            @PathVariable UUID id,
+            @Valid @RequestBody RegistrarPagoRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(ordenes.registrarPago(id, request, principal), "Pago registrado.");
+    }
+
+    @PostMapping("/ordenes/{id}/liberar")
+    public ApiResponse<OrdenDto> liberarOrden(
+            @PathVariable UUID id,
+            @Valid @RequestBody(required = false) LiberarOrdenRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        OrdenDto orden = ordenes.liberar(id, request, principal);
+        return ApiResponse.ok(orden, "Orden de compra " + orden.orderCode() + " liberada para recepción.");
     }
 
     @GetMapping("/ordenes/{id}")

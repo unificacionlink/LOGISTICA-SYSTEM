@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.46.0 — 2026-11-16
+
+Lote 17: orden de compra con aprobación, pago y liberación (DEC-L061).
+
+- `V31__oc_aprobacion_pago_liberacion.sql`: estado `POR_APROBAR` (default), `approved_at/by`, `payment_status` (PENDIENTE/ANTICIPO/PAGADO) con `payment_proof_document_id`, `paid_at/by`, `released_at/by`, `release_note`; checks de constancia y de liberar solo lo aprobado; documento `CONSTANCIA_PAGO`; las OC existentes quedan aprobadas y liberadas.
+- `AbastecimientoService.emitirOrden` deja la OC por aprobar con su `aprobacion` (`COMPRA`) y avisa por `/topic/ordenes-compra`.
+- Nuevo `OrdenCompraService` y endpoints `GET /api/compras/ordenes/por-aprobar`, `POST /api/compras/ordenes/{id}/decision`, `/pago` y `/liberar`. Deciden GERENCIA/LOGISTICA (ADMIN de respaldo), nunca quien emitió; rechazar anula y devuelve los consolidados a cotización (`ComprasService.anularInterna`). Anular se bloquea con pago o anticipo registrado.
+- `FlujoOrden`: recepción manual y carga masiva solo de OC liberadas; `OrdenDto` trae aprobación, pago, liberación, emisor y `bloqueoRecepcion`.
+- `AprobacionService.decidir` rechaza aprobaciones que no son de requerimiento. GERENCIA puede leer el detalle y el PDF de una OC (el PDF muestra el pago).
+- Bandeja: acciones `APROBAR_OC` y `LIBERAR_OC`; dashboard cuenta las OC por aprobar como en curso; tracking con aprobación, rechazo, pago y liberación.
+- Frontend: `components/compras/CicloOrden` en el detalle de la OC (franja Aprobación · Pago · Liberación y una acción principal por paso; pago con constancia; anular pasa al menú "⋯"); columna Pago y "Por liberar" en Órdenes de compra; sección "Órdenes de compra" en Aprobaciones (ahora también para Logística); Almacén › Recibir y Recepción muestran el motivo de bloqueo; aviso en vivo de OC nueva.
+- `OrdenCompraAprobacionTest` (flujo completo y rechazo); `MigracionLote16Test` cubre V31 sobre OC previas y `MigracionesFlywayTest` pasa a 31 migraciones; `BandejaTest` y `ConsolidacionComprasTest` aprueban y liberan antes de recibir.
+
 ## 0.45.0 — 2026-11-13
 
 Registro de la plataforma para el administrador (DEC-L060).

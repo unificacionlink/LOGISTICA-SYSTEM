@@ -116,7 +116,16 @@ public final class ComprasMapper {
                 o.getMoneda().getCurrencyCode(),
                 o.getTotal(),
                 o.getStatus(),
-                o.getCreatedAt());
+                o.getCreatedAt(),
+                o.getCreatedBy().getUserId(),
+                o.getCreatedBy().getDisplayName(),
+                o.getApprovedAt(),
+                o.getPaymentStatus(),
+                o.getConstanciaPago() != null ? o.getConstanciaPago().getFileUrl() : null,
+                o.getPaidAt(),
+                o.getReleasedAt(),
+                o.getReleaseNote(),
+                FlujoOrden.bloqueoRecepcion(o));
     }
 
     public static OrdenItemDto toDto(OrdenItem i) {

@@ -273,8 +273,8 @@ class DocumentosYCargaMasivaTest {
 				values (?, ?, ?, ?, 10, 5, 50)""", cotizacion, rfqItem, producto, variante);
 		UUID orden = jdbc.queryForObject("""
 				insert into orden_abastecimiento (order_code, company_id, supplier_id, quotation_id, payment_condition,
-				  delivery_mode, currency_code, subtotal, total, status, created_by)
-				values ('OC-TEST-DOC', ?, ?, ?, 'CONTADO', 'ALMACEN_CLIENTE', 'PEN', 50, 50, 'EMITIDA', ?)
+				  delivery_mode, currency_code, subtotal, total, status, created_by, approved_at, released_at)
+				values ('OC-TEST-DOC', ?, ?, ?, 'CONTADO', 'ALMACEN_CLIENTE', 'PEN', 50, 50, 'EMITIDA', ?, now(), now())
 				returning order_id""", UUID.class, empresa, proveedor, cotizacion, logisticaId);
 		UUID ordenItem = jdbc.queryForObject("""
 				insert into orden_item (order_id, request_item_id, product_id, variant_id, description, uom_id,

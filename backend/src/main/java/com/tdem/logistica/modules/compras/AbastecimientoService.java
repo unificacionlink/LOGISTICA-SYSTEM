@@ -1,6 +1,7 @@
 package com.tdem.logistica.modules.compras;
 
 import com.tdem.logistica.common.ApiException;
+import com.tdem.logistica.common.AppConstants;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.common.Auditoria;
 import com.tdem.logistica.entity.*;
@@ -70,6 +71,7 @@ public class AbastecimientoService {
     private final StockService stockService;
     private final OrigenCompras origen;
     private final Auditoria auditoria;
+    private final OrdenCompraService ordenCompra;
 
     public AbastecimientoService(JdbcTemplate jdbc, NamedParameterJdbcTemplate named,
                                  NecesidadCompraRepository necesidadRepository,
@@ -81,7 +83,8 @@ public class AbastecimientoService {
                                  OrdenAbastecimientoRepository ordenRepository, OrdenItemRepository ordenItemRepository,
                                  ProveedorRepository proveedorRepository, ProductoRepository productoRepository,
                                  UsuarioRepository usuarioRepository, CajaChicaService cajaChicaService, StockService stockService,
-                                 OrigenCompras origen, Auditoria auditoria) {
+                                 OrigenCompras origen, Auditoria auditoria, OrdenCompraService ordenCompra) {
+        this.ordenCompra = ordenCompra;
         this.jdbc = jdbc;
         this.named = named;
         this.necesidadRepository = necesidadRepository;
@@ -724,7 +727,8 @@ public class AbastecimientoService {
         orden.setDeliveryLocation(rfq.getDeliveryLocation());
         orden.setMoneda(cot.getMoneda());
         orden.setTaxAmount(BigDecimal.ZERO);
-        orden.setStatus("EMITIDA");
+        // DEC-L061: nace por aprobar; Gerencia o Logistica la aprueba antes de enviarla al proveedor.
+        orden.setStatus(AppConstants.EstadoOrden.POR_APROBAR);
         orden.setCreatedBy(usuario);
         BigDecimal subtotal = BigDecimal.ZERO;
         List<OrdenItem> items = new ArrayList<>();
@@ -767,7 +771,9 @@ public class AbastecimientoService {
         auditoria.registrar("ORDEN_ABASTECIMIENTO", orden.getOrderId(), "EMITIR", null,
                 Map.of("orden", orden.getOrderCode(), "cotizacion", quotationId, "consolidados", ids.size()),
                 principal.userId());
-        return ComprasMapper.toDto(orden, origen.deOrden(orden.getOrderId()));
+        com.tdem.logistica.modules.compras.dto.OrdenDto dto = ComprasMapper.toDto(orden, origen.deOrden(orden.getOrderId()));
+        ordenCompra.abrirAprobacion(orden, dto);
+        return dto;
     }
 
     /** RFQ cuyas lineas ya estan todas ordenadas o anuladas: no esperan mas respuestas. */

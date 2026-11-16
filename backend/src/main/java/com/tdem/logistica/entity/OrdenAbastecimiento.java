@@ -81,4 +81,36 @@ public class OrdenAbastecimiento {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
+
+    // ---- Lote 17 (DEC-L061): aprobacion, pago y liberacion
+
+    @Column(name = "approved_at")
+    private Instant approvedAt;
+
+    @Column(name = "approved_by")
+    private UUID approvedBy;
+
+    /** PENDIENTE, ANTICIPO o PAGADO: control, no frena la recepcion. */
+    @Column(name = "payment_status", nullable = false)
+    private String paymentStatus = "PENDIENTE";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_proof_document_id")
+    private Documento constanciaPago;
+
+    @Column(name = "paid_at")
+    private Instant paidAt;
+
+    @Column(name = "paid_by")
+    private UUID paidBy;
+
+    /** Lista para recibir en el almacen. */
+    @Column(name = "released_at")
+    private Instant releasedAt;
+
+    @Column(name = "released_by")
+    private UUID releasedBy;
+
+    @Column(name = "release_note")
+    private String releaseNote;
 }

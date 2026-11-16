@@ -309,8 +309,8 @@ class AlmacenFlujoTest {
 				+ "where consolidation_id = ?", ganadora, consolidado);
 		UUID orden = jdbc.queryForObject("""
 				insert into orden_abastecimiento (order_code, company_id, supplier_id, quotation_id, payment_condition,
-				  delivery_mode, currency_code, subtotal, total, status, created_by)
-				values ('OC-TEST-ALM', ?, ?, ?, 'CONTADO', 'ALMACEN_CLIENTE', 'PEN', 50, 50, 'EMITIDA', ?)
+				  delivery_mode, currency_code, subtotal, total, status, created_by, approved_at, released_at)
+				values ('OC-TEST-ALM', ?, ?, ?, 'CONTADO', 'ALMACEN_CLIENTE', 'PEN', 50, 50, 'EMITIDA', ?, now(), now())
 				returning order_id""", UUID.class, empresa, proveedor, cotizacion, logisticaId);
 		// Segunda oferta, mas cara y no elegida (S/ 70): el dashboard mide el ahorro del comparativo.
 		UUID proveedor2 = jdbc.queryForObject("""

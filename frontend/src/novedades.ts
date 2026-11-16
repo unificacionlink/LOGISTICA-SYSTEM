@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.46.0",
+    titulo: "Órdenes de compra con aprobación",
+    cambios: [
+      "Cada orden de compra nueva queda «por aprobar»: la aprueba Gerencia u otra persona de Logística, nunca quien la emitió. Si se rechaza, sus productos vuelven a cotización.",
+      "Las órdenes por aprobar aparecen en Aprobaciones y llega un aviso al momento.",
+      "En el detalle de la orden se ve su aprobación, su pago y su liberación. El pago (anticipo o pagado) se registra con su constancia.",
+      "El almacén recibe una orden solo después de que Logística la libera; si todavía no se puede, la pantalla dice por qué.",
+    ],
+  },
+  {
     version: "0.45.0",
     titulo: "Registro de la plataforma",
     cambios: [

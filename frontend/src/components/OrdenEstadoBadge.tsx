@@ -2,6 +2,7 @@ import type { EstadoOrden } from "../api/types";
 import Badge, { type BadgeTone } from "./ui/Badge";
 
 const TONO: Record<EstadoOrden, BadgeTone> = {
+  POR_APROBAR: "amarillo",
   EMITIDA: "azul",
   EN_ATENCION: "azul",
   RECEPCION_PARCIAL: "amarillo",
@@ -12,6 +13,7 @@ const TONO: Record<EstadoOrden, BadgeTone> = {
 };
 
 const ETIQUETA: Record<EstadoOrden, string> = {
+  POR_APROBAR: "Por aprobar",
   EMITIDA: "Emitida",
   EN_ATENCION: "En atención",
   RECEPCION_PARCIAL: "Recepción parcial",

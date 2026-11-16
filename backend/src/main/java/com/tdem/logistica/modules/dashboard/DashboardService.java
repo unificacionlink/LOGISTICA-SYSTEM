@@ -117,7 +117,7 @@ public class DashboardService {
                      join necesidad_compra n on n.consolidation_id = oi.consolidation_id and n.status <> 'ANULADA'
                      join requerimiento_item ri on ri.request_item_id = n.request_item_id
                      join reqs on reqs.request_id = ri.request_id
-                    where o.status in ('EMITIDA','EN_ATENCION','RECEPCION_PARCIAL'))),
+                    where o.status in ('POR_APROBAR','EMITIDA','EN_ATENCION','RECEPCION_PARCIAL'))),
                 json_build_object('codigo', 'POR_DESPACHAR', 'cantidad',
                   (select count(distinct ri.request_id)
                      from reserva_stock rs

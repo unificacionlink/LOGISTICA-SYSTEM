@@ -2,7 +2,7 @@ import type { Client } from "@stomp/stompjs";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_URL } from "../api/http";
-import type { AprobacionPendiente, Requerimiento } from "../api/types";
+import type { AprobacionPendiente, Orden, Requerimiento } from "../api/types";
 import {
   RealtimeContext,
   type AvisoCajaChica,
@@ -32,6 +32,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const busDecision = useRef(crearBus<Requerimiento>()).current;
   const busCotizacion = useRef(crearBus<CotizacionPorEnlace>()).current;
   const busCajaChica = useRef(crearBus<AvisoCajaChica>()).current;
+  const busOrden = useRef(crearBus<Orden>()).current;
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
     const esAprobador = tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN");
     const esLogistica = tieneAlgunRol("LOGISTICA", "ADMIN");
+    const decideOrdenes = tieneAlgunRol("GERENCIA", "LOGISTICA", "ADMIN");
     let cancelado = false;
     let client: Client | null = null;
 
@@ -62,6 +64,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           if (esLogistica) {
             c.subscribe("/user/queue/cotizaciones", (msg) => {
               busCotizacion.emit(JSON.parse(msg.body) as CotizacionPorEnlace);
+            });
+          }
+          if (decideOrdenes) {
+            c.subscribe("/topic/ordenes-compra", (msg) => {
+              busOrden.emit(JSON.parse(msg.body) as Orden);
             });
           }
           if (esAprobador) {
@@ -93,6 +100,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     onMiRequerimientoDecidido: busDecision.subscribe,
     onCotizacionPorEnlace: busCotizacion.subscribe,
     onCajaChica: busCajaChica.subscribe,
+    onOrdenDeCompra: busOrden.subscribe,
   };
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

@@ -3,6 +3,7 @@ package com.tdem.logistica.modules.almacen;
 import com.tdem.logistica.modules.compras.OrigenCompras;
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.entity.OrdenAbastecimiento;
+import com.tdem.logistica.modules.compras.FlujoOrden;
 import com.tdem.logistica.entity.OrdenItem;
 import com.tdem.logistica.modules.almacen.dto.CargaMasivaDto;
 import com.tdem.logistica.modules.almacen.dto.CargaMasivaFilaDto;
@@ -96,7 +97,7 @@ public class CargaMasivaService {
 
     public byte[] plantilla(UsuarioPrincipal principal) {
         RecepcionService.exigirLogisticaOAdmin(principal);
-        List<OrdenItem> items = ordenItemRepository.findPorRecibir(RecepcionService.ESTADOS_POR_RECIBIR);
+        List<OrdenItem> items = ordenItemRepository.findPorRecibir(FlujoOrden.ESTADOS_RECIBIBLES);
         Map<UUID, BigDecimal> recibido = recibidoPorItem(items);
         Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deOrdenes(
                 items.stream().map(i -> i.getOrden().getOrderId()).collect(java.util.stream.Collectors.toSet()));
@@ -258,7 +259,7 @@ public class CargaMasivaService {
             for (Row row : conCantidad) {
                 uuid(lector.texto(row, COL_ID)).ifPresent(ids::add);
             }
-            Map<UUID, OrdenItem> items = ordenItemRepository.findPorRecibir(RecepcionService.ESTADOS_POR_RECIBIR).stream()
+            Map<UUID, OrdenItem> items = ordenItemRepository.findPorRecibir(FlujoOrden.ESTADOS_RECIBIBLES).stream()
                     .filter(i -> ids.contains(i.getOrderItemId()))
                     .collect(Collectors.toMap(OrdenItem::getOrderItemId, Function.identity()));
             Map<UUID, BigDecimal> recibido = recibidoPorItem(items.values());

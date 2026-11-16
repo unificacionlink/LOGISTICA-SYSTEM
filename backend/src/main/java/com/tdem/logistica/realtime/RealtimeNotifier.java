@@ -1,6 +1,7 @@
 package com.tdem.logistica.realtime;
 
 import com.tdem.logistica.modules.aprobaciones.dto.AprobacionPendienteDto;
+import com.tdem.logistica.modules.compras.dto.OrdenDto;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -49,6 +50,14 @@ public class RealtimeNotifier {
 
     public void cajaChica(UUID requesterUserId, AvisoCajaChica aviso) {
         messagingTemplate.convertAndSendToUser(requesterUserId.toString(), "/queue/caja-chica", aviso);
+    }
+
+    /**
+     * OC emitida, aprobada o rechazada (DEC-L061): a Gerencia, Logistica y Admin
+     * conectados (autorizado en el SUBSCRIBE, ver StompChannelInterceptor).
+     */
+    public void ordenDeCompra(OrdenDto dto) {
+        messagingTemplate.convertAndSend("/topic/ordenes-compra", dto);
     }
 
     public void decisionTomada(UUID requesterUserId, RequerimientoDto dto) {

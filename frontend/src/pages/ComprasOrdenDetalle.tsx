@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
 import { etiquetaRequerimientos } from "../components/compras/formato";
 import { useParams } from "react-router-dom";
-import { PackageOpen } from "lucide-react";
 import { anularOrden, obtenerOrden } from "../api/compras";
 import type { OrdenDetalle } from "../api/types";
 import OrdenEstadoBadge from "../components/OrdenEstadoBadge";
 import Alert from "../components/ui/Alert";
-import Button from "../components/ui/Button";
 import { Card, CardBody } from "../components/ui/Card";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 import BotonDescarga from "../components/BotonDescarga";
 import { descargarPdfOrden } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
+import MenuAcciones from "../components/ui/MenuAcciones";
+import CicloOrden from "../components/compras/CicloOrden";
+import { useAuth } from "../auth/AuthContext";
 
 export default function ComprasOrdenDetalle() {
   const confirmar = useConfirmar();
+  const { tieneAlgunRol } = useAuth();
   const { id } = useParams<{ id: string }>();
 
   const [cargando, setCargando] = useState(true);
@@ -74,8 +76,11 @@ export default function ComprasOrdenDetalle() {
   if (!detalle) return null;
 
   const { orden, items } = detalle;
-  // Con recepciones en almacen la OC ya no se puede anular (el backend lo rechaza).
-  const puedeAnular = orden.status === "EMITIDA" || orden.status === "EN_ATENCION";
+  // Con recepciones o con pago registrado la OC ya no se anula (el backend lo rechaza, DEC-L061).
+  const puedeAnular =
+    tieneAlgunRol("LOGISTICA", "ADMIN") &&
+    (orden.status === "EMITIDA" || orden.status === "EN_ATENCION") &&
+    orden.paymentStatus === "PENDIENTE";
 
   return (
     <div>
@@ -88,11 +93,23 @@ export default function ComprasOrdenDetalle() {
           <>
             <BotonDescarga descargar={() => descargarPdfOrden(orden.orderId, orden.orderCode)} />
             <OrdenEstadoBadge estado={orden.status} />
+            {puedeAnular && (
+              <MenuAcciones acciones={[{ label: anulando ? "Anulando…" : "Anular orden", onClick: onAnular, peligro: true, disabled: anulando }]} />
+            )}
           </>
         }
       />
 
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
+
+      <CicloOrden
+        orden={orden}
+        onCambio={(o) => {
+          setError(null);
+          setDetalle({ ...detalle, orden: o });
+        }}
+        onError={setError}
+      />
 
       <Card className="mb-4">
         <CardBody>
@@ -158,18 +175,6 @@ export default function ComprasOrdenDetalle() {
         </div>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
-        {orden.status !== "ANULADA" && (
-          <Button href={`/almacen/ordenes/${orden.orderId}/recepcion`} icon={<PackageOpen className="size-4" />}>
-            {orden.status === "RECEPCION_COMPLETA" ? "Ver recepciones" : "Registrar recepción"}
-          </Button>
-        )}
-        {puedeAnular && (
-          <Button variant="secondary" loading={anulando} onClick={onAnular}>
-            {anulando ? "Anulando…" : "Anular orden"}
-          </Button>
-        )}
-      </div>
     </div>
   );
 }

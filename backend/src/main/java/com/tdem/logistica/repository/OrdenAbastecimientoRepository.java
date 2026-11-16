@@ -14,17 +14,17 @@ import java.util.UUID;
 public interface OrdenAbastecimientoRepository extends JpaRepository<OrdenAbastecimiento, UUID> {
 
     @Query("select o from OrdenAbastecimiento o join fetch o.proveedor join fetch o.moneda " +
-            "join fetch o.cotizacion c join fetch o.empresa " +
+            "join fetch o.cotizacion c join fetch o.empresa join fetch o.createdBy left join fetch o.constanciaPago " +
             "order by o.createdAt desc")
     List<OrdenAbastecimiento> findAllConDetalle();
 
     @Query("select o from OrdenAbastecimiento o join fetch o.proveedor join fetch o.moneda " +
-            "join fetch o.cotizacion c join fetch o.empresa " +
+            "join fetch o.cotizacion c join fetch o.empresa join fetch o.createdBy left join fetch o.constanciaPago " +
             "where o.orderId = :orderId")
     Optional<OrdenAbastecimiento> findDetalleById(UUID orderId);
 
     @Query("select o from OrdenAbastecimiento o join fetch o.proveedor join fetch o.moneda " +
-            "join fetch o.cotizacion c join fetch o.empresa " +
+            "join fetch o.cotizacion c join fetch o.empresa join fetch o.createdBy left join fetch o.constanciaPago " +
             "where o.status in :statuses order by o.createdAt")
     List<OrdenAbastecimiento> findByStatusInConDetalle(@Param("statuses") List<String> statuses);
 

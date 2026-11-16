@@ -142,6 +142,7 @@ final class DocumentosPdf {
                 Campo.de("Estado", etiqueta(o.status())),
                 Campo.de("Moneda", o.currencyCode()),
                 Campo.de("Condición de pago", etiqueta(o.paymentCondition())),
+                Campo.de("Pago", etiqueta(o.paymentStatus())),
                 Campo.de("Modalidad de entrega", etiqueta(o.deliveryMode())),
                 Campo.de("Lugar de entrega", o.deliveryLocation())));
 

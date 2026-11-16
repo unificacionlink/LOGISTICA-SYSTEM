@@ -15,9 +15,12 @@ public interface OrdenItemRepository extends JpaRepository<OrdenItem, UUID> {
             "left join fetch i.uom left join fetch i.consolidacion where i.orden.orderId = :orderId")
     List<OrdenItem> findByOrden(UUID orderId);
 
-    /** RF-031: items de todas las OC que aun admiten recepcion (plantilla y validacion de la carga masiva). */
+    /**
+     * RF-031: items de todas las OC que aun admiten recepcion (plantilla y validacion de la carga masiva).
+     * Solo OC liberadas (DEC-L061).
+     */
     @Query("select i from OrdenItem i join fetch i.orden o join fetch o.proveedor join fetch o.empresa " +
             "left join fetch i.producto left join fetch i.variante left join fetch i.uom " +
-            "where o.status in :statuses order by o.createdAt, i.orderItemId")
+            "where o.status in :statuses and o.releasedAt is not null order by o.createdAt, i.orderItemId")
     List<OrdenItem> findPorRecibir(@Param("statuses") List<String> statuses);
 }

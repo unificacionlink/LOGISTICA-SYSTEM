@@ -11,6 +11,9 @@ import com.tdem.logistica.modules.cajachica.dto.EvaluacionCajaChicaDto;
 import com.tdem.logistica.modules.compras.AbastecimientoService;
 import com.tdem.logistica.modules.compras.ComprasService;
 import com.tdem.logistica.modules.compras.dto.*;
+import com.tdem.logistica.modules.compras.OrdenCompraService;
+import com.tdem.logistica.modules.compras.dto.DecidirOrdenRequest;
+import com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
@@ -52,6 +55,7 @@ class ConsolidacionComprasTest {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private AprobacionService aprobacionService;
 	@Autowired private AbastecimientoService abastecimiento;
+	@Autowired private OrdenCompraService ordenCompra;
 	@Autowired private ComprasService compras;
 	@Autowired private RecepcionService recepcion;
 	@Autowired private CajaChicaService cajaChica;
@@ -190,7 +194,8 @@ class ConsolidacionComprasTest {
 		assertEquals(1, jdbc.queryForObject("select count(*) from proveedor_producto where supplier_id = ? and product_id = ?",
 				Integer.class, s2, producto("AC01001")));
 
-		// --- Recepcion: primero el urgente (B: 4), luego A ---
+		// --- Recepcion: primero el urgente (B: 4), luego A (la OC aprobada y liberada, DEC-L061) ---
+		aprobarYLiberar(oc2.orderId());
 		UUID linea = jdbc.queryForObject("select order_item_id from orden_item where order_id = ?", UUID.class, oc2.orderId());
 		recibir(oc2.orderId(), linea, "5");
 		assertEquals(0, reservadoPorRecepcion(b.items.get("AC01001-00")).compareTo(new BigDecimal("4")));
@@ -269,6 +274,12 @@ class ConsolidacionComprasTest {
 
 	private UsuarioPrincipal logistica() {
 		return new UsuarioPrincipal(usuario("logistica@logistica.test"), List.of("LOGISTICA"));
+	}
+
+	private void aprobarYLiberar(UUID orderId) {
+		ordenCompra.decidir(orderId, new DecidirOrdenRequest("APROBADO", null),
+				new UsuarioPrincipal(usuario("gerencia@logistica.test"), List.of("GERENCIA")));
+		ordenCompra.liberar(orderId, new LiberarOrdenRequest(null), logistica());
 	}
 
 	private void aprobar(Req req) {

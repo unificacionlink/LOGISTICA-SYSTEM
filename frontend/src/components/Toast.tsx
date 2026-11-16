@@ -13,8 +13,8 @@ import { Card, CardBody } from "./ui/Card";
  * propio RequerimientoDetalle.tsx ya lo refleja in-place).
  */
 export default function Toast() {
-  const { onMiRequerimientoDecidido, onNuevaAprobacion, onCajaChica } = useRealtime();
-  const { tieneAlgunRol } = useAuth();
+  const { onMiRequerimientoDecidido, onNuevaAprobacion, onCajaChica, onOrdenDeCompra } = useRealtime();
+  const { usuario, tieneAlgunRol } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mensaje, setMensaje] = useState<{ texto: string; ir: string } | null>(null);
@@ -59,6 +59,17 @@ export default function Toast() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onNuevaAprobacion, location.pathname]);
+
+  useEffect(() => {
+    if (!tieneAlgunRol("GERENCIA", "LOGISTICA", "ADMIN")) return;
+    return onOrdenDeCompra((o) => {
+      // DEC-L061: solo la OC recien emitida por otro; quien la emitio no la decide.
+      const ir = `/compras/ordenes/${o.orderId}`;
+      if (o.status !== "POR_APROBAR" || o.createdById === usuario?.id || location.pathname === ir) return;
+      setMensaje({ texto: `Nueva orden de compra por aprobar: ${o.orderCode}.`, ir });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onOrdenDeCompra, location.pathname, usuario?.id]);
 
   useEffect(() => {
     if (!mensaje) return;

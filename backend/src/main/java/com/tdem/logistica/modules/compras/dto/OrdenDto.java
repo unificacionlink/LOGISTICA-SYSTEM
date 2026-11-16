@@ -5,6 +5,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * Orden de compra. Desde el Lote 17 (DEC-L061) trae su aprobacion, su pago y
+ * su liberacion; {@code bloqueoRecepcion} dice por que el almacen todavia no
+ * puede recibirla (null si puede o si ya no aplica).
+ */
 public record OrdenDto(
         UUID orderId,
         String orderCode,
@@ -19,5 +24,14 @@ public record OrdenDto(
         String currencyCode,
         BigDecimal total,
         String status,
-        Instant createdAt) {
+        Instant createdAt,
+        UUID createdById,
+        String createdByName,
+        Instant approvedAt,
+        String paymentStatus,
+        String paymentProofUrl,
+        Instant paidAt,
+        Instant releasedAt,
+        String releaseNote,
+        String bloqueoRecepcion) {
 }

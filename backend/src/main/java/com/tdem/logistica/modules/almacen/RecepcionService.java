@@ -5,6 +5,7 @@ import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.almacen.dto.*;
 import com.tdem.logistica.modules.compras.ComprasMapper;
+import com.tdem.logistica.modules.compras.FlujoOrden;
 import com.tdem.logistica.modules.compras.OrigenCompras;
 import com.tdem.logistica.modules.compras.dto.OrdenDto;
 import com.tdem.logistica.repository.*;
@@ -28,7 +29,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class RecepcionService {
 
-    static final List<String> ESTADOS_POR_RECIBIR = List.of("EMITIDA", "EN_ATENCION", "RECEPCION_PARCIAL");
+    /** Lo que ve la pantalla: tambien las OC por aprobar, con su motivo de bloqueo (DEC-L061). */
+    static final List<String> ESTADOS_POR_RECIBIR = List.of("POR_APROBAR", "EMITIDA", "EN_ATENCION", "RECEPCION_PARCIAL");
     static final Set<String> CONDICIONES = Set.of("CONFORME", "OBSERVADO");
     private static final Set<String> TIPOS_INCIDENCIA = Set.of("FALTANTE", "DANO", "PRODUCTO_ERRADO", "OTRO");
     private static final Set<String> ACCIONES_PROVEEDOR = Set.of("REPONER", "CAMBIO", "NOTA_CREDITO");
@@ -134,7 +136,11 @@ public class RecepcionService {
         // Lock de la OC: numeracion de la recepcion y control del pendiente sin carreras.
         OrdenAbastecimiento orden = ordenRepository.bloquear(orderId)
                 .orElseThrow(() -> ApiException.notFound("Orden de compra no encontrada."));
-        if (!ESTADOS_POR_RECIBIR.contains(orden.getStatus())) {
+        String bloqueo = FlujoOrden.bloqueoRecepcion(orden);
+        if (bloqueo != null) {
+            throw ApiException.badRequest(bloqueo);
+        }
+        if (!FlujoOrden.recibible(orden)) {
             throw ApiException.badRequest("Esta orden no admite recepciones (estado " + orden.getStatus() + ").");
         }
         Usuario usuario = usuarioRepository.findById(principal.userId())

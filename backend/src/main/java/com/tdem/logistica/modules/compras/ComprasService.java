@@ -2,6 +2,7 @@ package com.tdem.logistica.modules.compras;
 
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.Auditoria;
+import com.tdem.logistica.common.AppConstants.EstadoPagoOrden;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.cajachica.CajaChicaService;
@@ -44,6 +45,12 @@ public class ComprasService {
             "image/jpeg", ".jpg",
             "image/png", ".png",
             "image/webp", ".webp");
+
+    /** Tipos de documento que se suben desde compras y su carpeta en el storage. */
+    private static final Map<String, String> CARPETA_POR_TIPO = Map.of(
+            "COTIZACION", "cotizaciones/",
+            "COMPROBANTE_CAJA_CHICA", "caja-chica/",
+            "CONSTANCIA_PAGO", "pagos/");
 
     private final RequerimientoRepository requerimientoRepository;
     private final RequerimientoItemRepository requerimientoItemRepository;
@@ -183,7 +190,7 @@ public class ComprasService {
         return subirDocumento(file, "COTIZACION", principal);
     }
 
-    /** Cotizacion o comprobante de Caja Chica (DEC-L026): mismo storage, distinto tipo y carpeta. */
+    /** Cotizacion, comprobante de Caja Chica (DEC-L026) o constancia de pago de OC (DEC-L061): mismo storage, distinto tipo y carpeta. */
     @Transactional
     public DocumentoDto subirDocumento(MultipartFile file, String tipo, UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
@@ -193,7 +200,7 @@ public class ComprasService {
     /** Guarda el archivo sin validar rol (lo usa tambien el enlace del proveedor, DEC-L052). */
     @Transactional
     public DocumentoDto guardarDocumento(MultipartFile file, String tipo, UUID userId) {
-        if (!"COTIZACION".equals(tipo) && !"COMPROBANTE_CAJA_CHICA".equals(tipo)) {
+        if (!CARPETA_POR_TIPO.containsKey(tipo)) {
             throw ApiException.badRequest("Tipo de documento invalido.");
         }
         if (file.isEmpty()) {
@@ -206,7 +213,7 @@ public class ComprasService {
         }
 
         String nombreOriginal = file.getOriginalFilename();
-        String path = ("COTIZACION".equals(tipo) ? "cotizaciones/" : "caja-chica/") + UUID.randomUUID() + extension;
+        String path = CARPETA_POR_TIPO.get(tipo) + UUID.randomUUID() + extension;
         byte[] contenido;
         try {
             contenido = file.getBytes();
@@ -426,7 +433,10 @@ public class ComprasService {
     }
 
     public OrdenDetalleDto obtenerOrden(UUID orderId, UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
+        // Gerencia la lee para decidirla (DEC-L061); el resto de compras sigue siendo de Logistica.
+        if (!OrdenCompraService.esDecisorDeOrden(principal)) {
+            throw ApiException.forbidden("No tienes permiso para gestionar compras.");
+        }
         OrdenAbastecimiento orden = ordenAbastecimientoRepository.findDetalleById(orderId)
                 .orElseThrow(() -> ApiException.notFound("Orden de compra no encontrada."));
         // Como llamo el proveedor a cada linea en la cotizacion de esta OC (DEC-L053), en una consulta.
@@ -454,11 +464,26 @@ public class ComprasService {
         String motivoLimpio = exigirMotivo(motivo, "anular la orden");
         OrdenAbastecimiento orden = ordenAbastecimientoRepository.findDetalleById(orderId)
                 .orElseThrow(() -> ApiException.notFound("Orden de compra no encontrada."));
+        anularInterna(orden, motivoLimpio, "ANULAR", principal.userId());
+        return ComprasMapper.toDto(orden, origen.deOrden(orderId));
+    }
+
+    /**
+     * Anula la OC y devuelve sus consolidados a cotizacion. La usa tambien el
+     * rechazo de la aprobacion (DEC-L061), que audita con su propia accion.
+     */
+    @Transactional
+    void anularInterna(OrdenAbastecimiento orden, String motivoLimpio, String accion, UUID userId) {
+        UUID orderId = orden.getOrderId();
         if ("ANULADA".equals(orden.getStatus())) {
             throw ApiException.badRequest("Esta orden ya esta anulada.");
         }
         if (recepcionRepository.existsByOrden_OrderId(orderId)) {
             throw ApiException.badRequest("No se puede anular: la orden ya tiene recepciones en almacen.");
+        }
+        // DEC-L061 (V38.7 setOrderDocumentState): con dinero entregado al proveedor no se anula.
+        if (!EstadoPagoOrden.PENDIENTE.equals(orden.getPaymentStatus())) {
+            throw ApiException.badRequest("No se puede anular: la orden ya tiene un pago o anticipo registrado.");
         }
         String anterior = orden.getStatus();
         orden.setStatus("ANULADA");
@@ -483,13 +508,12 @@ public class ComprasService {
         if ("SELECCIONADA".equals(cot.getStatus())) {
             cot.setStatus("RECIBIDA");
         }
-        auditoria.registrar("ORDEN_ABASTECIMIENTO", orderId, "ANULAR", Map.of("estado", anterior),
-                Map.of("estado", "ANULADA", "motivo", motivoLimpio), principal.userId());
-        return ComprasMapper.toDto(orden, origen.deOrden(orderId));
+        auditoria.registrar("ORDEN_ABASTECIMIENTO", orderId, accion, Map.of("estado", anterior),
+                Map.of("estado", "ANULADA", "motivo", motivoLimpio), userId);
     }
 
     /** RF-064: las operaciones irreversibles exigen motivo. */
-    private static String exigirMotivo(String motivo, String accion) {
+    static String exigirMotivo(String motivo, String accion) {
         if (motivo == null || motivo.isBlank()) {
             throw ApiException.badRequest("Indica el motivo para " + accion + ".");
         }

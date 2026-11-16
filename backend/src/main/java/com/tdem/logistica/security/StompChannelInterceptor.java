@@ -20,19 +20,25 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             String destination = accessor.getDestination();
-            if ("/topic/aprobaciones".equals(destination) && !tieneRolAprobador(accessor)) {
+            if ("/topic/aprobaciones".equals(destination) && !tieneRol(accessor, APROBADORES)) {
+                throw new SecurityException("No tienes permiso para suscribirte a " + destination);
+            }
+            if ("/topic/ordenes-compra".equals(destination) && !tieneRol(accessor, DECISORES_OC)) {
                 throw new SecurityException("No tienes permiso para suscribirte a " + destination);
             }
         }
         return message;
     }
 
+    private static final List<String> APROBADORES = List.of(Roles.APROBADOR, Roles.GERENCIA, Roles.ADMIN);
+    /** Mismo chequeo que OrdenCompraService.esDecisorDeOrden (DEC-L061). */
+    private static final List<String> DECISORES_OC = List.of(Roles.GERENCIA, Roles.LOGISTICA, Roles.ADMIN);
+
     @SuppressWarnings("unchecked")
-    private boolean tieneRolAprobador(StompHeaderAccessor accessor) {
+    private boolean tieneRol(StompHeaderAccessor accessor, List<String> permitidos) {
         Map<String, Object> attrs = accessor.getSessionAttributes();
         if (attrs == null) return false;
         List<String> roles = (List<String>) attrs.get(WebSocketAuthHandshakeInterceptor.ATTR_ROLES);
-        return roles != null && (roles.contains(Roles.APROBADOR) || roles.contains(Roles.GERENCIA)
-                || roles.contains(Roles.ADMIN));
+        return roles != null && roles.stream().anyMatch(permitidos::contains);
     }
 }

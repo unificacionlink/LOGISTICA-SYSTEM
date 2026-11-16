@@ -10,6 +10,8 @@ import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 
+const PAGO: Record<Orden["paymentStatus"], string> = { PENDIENTE: "Pendiente", ANTICIPO: "Anticipo", PAGADO: "Pagado" };
+
 function fmtFecha(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-PE");
@@ -37,7 +39,7 @@ export default function ComprasOrdenes() {
 
       <Card className="overflow-hidden">
         {cargando ? (
-          <SkeletonTable cols={6} />
+          <SkeletonTable cols={7} />
         ) : ordenes.length === 0 ? (
           <EmptyState icon={PackageCheck} title="Todavía no se emitió ninguna orden de compra" />
         ) : (
@@ -50,6 +52,7 @@ export default function ComprasOrdenes() {
                   <th className="px-5 py-3">Proveedor</th>
                   <th className="px-5 py-3">Total</th>
                   <th className="px-5 py-3">Estado</th>
+                  <th className="col-sec px-5 py-3">Pago</th>
                   <th className="col-sec px-5 py-3">Emitida</th>
                 </tr>
               </thead>
@@ -71,7 +74,11 @@ export default function ComprasOrdenes() {
                     </td>
                     <td className="px-5 py-3">
                       <OrdenEstadoBadge estado={o.status} />
+                      {o.status === "EMITIDA" && !o.releasedAt && (
+                        <span className="ml-2 text-xs text-amber-700">Por liberar</span>
+                      )}
                     </td>
+                    <td className="col-sec px-5 py-3 text-xs text-slate-500">{PAGO[o.paymentStatus]}</td>
                     <td className="col-sec px-5 py-3 text-xs text-slate-400">{fmtFecha(o.issueDate)}</td>
                   </tr>
                 ))}

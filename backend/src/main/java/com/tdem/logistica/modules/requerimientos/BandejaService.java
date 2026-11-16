@@ -44,7 +44,7 @@ public class BandejaService {
     /** Acciones de compras (incluye las que esperan al proveedor). */
     private static final Set<String> DE_COMPRAS = Set.of(
             "EMITIR_OC", "ADJUDICAR", "REGISTRAR_CAJA_CHICA", "REGULARIZAR_CAJA_CHICA", "DECIDIR_RUTA",
-            "PEDIR_COTIZACION", "ESPERA_COTIZACION", "RECIBIR_OC");
+            "PEDIR_COTIZACION", "ESPERA_COTIZACION", "APROBAR_OC", "LIBERAR_OC", "RECIBIR_OC");
     /** Acciones del solicitante que lo dejan en "Pendientes mios" (DEC-L054). */
     private static final Set<String> DEL_SOLICITANTE = Set.of(
             "ENVIAR", "CORREGIR", "REGISTRAR_CAJA_CHICA", "CORREGIR_CAJA_CHICA");
@@ -154,12 +154,13 @@ public class BandejaService {
                 from nec group by request_id
             ),
             oc as (
-              select distinct on (nc.request_id) nc.request_id, o.order_id
+              select distinct on (nc.request_id) nc.request_id, o.order_id, o.status as oc_status,
+                     o.released_at is not null as oc_liberada
                 from nec nc
                 join orden_item oi on oi.consolidation_id = nc.consolidation_id
                 join orden_abastecimiento o on o.order_id = oi.order_id
-               where o.status in ('EMITIDA','EN_ATENCION','RECEPCION_PARCIAL')
-               order by nc.request_id, o.created_at
+               where o.status in ('POR_APROBAR','EMITIDA','EN_ATENCION','RECEPCION_PARCIAL')
+               order by nc.request_id, (o.status = 'POR_APROBAR' or o.released_at is null) desc, o.created_at
             ),
             env as (
               select distinct on (v.request_id) v.request_id, v.inventory_note_id
@@ -172,7 +173,8 @@ public class BandejaService {
                    coalesce(a.f_listo, 0) as f_listo, coalesce(a.f_compra, 0) as f_compra,
                    coalesce(a.entregados, 0) as entregados,
                    coalesce(x.ruta, false) as ruta, coalesce(x.caja, false) as caja, coalesce(x.emitir, false) as emitir,
-                   x.pedir, x.adjudicar, x.esperando, oc.order_id, env.inventory_note_id,
+                   x.pedir, x.adjudicar, x.esperando, oc.order_id, oc.oc_status, coalesce(oc.oc_liberada, false) as oc_liberada,
+                   env.inventory_note_id,
                    coalesce(cc.por_revisar, false) as cc_por_revisar, coalesce(cc.observada, false) as cc_observada
               from base b
               left join items i on i.request_id = b.request_id
@@ -313,7 +315,14 @@ public class BandejaService {
             agregar(acciones, "PEDIR_COTIZACION", false, rs.getString("pedir"));
             agregar(acciones, "ESPERA_COTIZACION", true, rs.getString("esperando"));
             if (orden != null) {
-                acciones.add(new BandejaDto.Accion("RECIBIR_OC", true, orden.toString()));
+                // DEC-L061: la OC espera su aprobacion, luego Logistica la libera y recien el almacen recibe.
+                if ("POR_APROBAR".equals(rs.getString("oc_status"))) {
+                    acciones.add(new BandejaDto.Accion("APROBAR_OC", true, orden.toString()));
+                } else if (!rs.getBoolean("oc_liberada")) {
+                    acciones.add(new BandejaDto.Accion("LIBERAR_OC", false, orden.toString()));
+                } else {
+                    acciones.add(new BandejaDto.Accion("RECIBIR_OC", true, orden.toString()));
+                }
             }
             if (nota != null) {
                 acciones.add(new BandejaDto.Accion("CONFIRMAR_ENTREGA", true, nota.toString()));

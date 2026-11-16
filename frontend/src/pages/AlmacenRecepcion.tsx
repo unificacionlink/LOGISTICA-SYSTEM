@@ -184,7 +184,8 @@ export default function AlmacenRecepcion() {
   if (!datos) return null;
 
   const { orden, items, recepciones, incidencias } = datos;
-  const recibible = ESTADOS_RECIBIBLES.includes(orden.status) && items.some((i) => i.qtyPending > 0);
+  const recibible =
+    ESTADOS_RECIBIBLES.includes(orden.status) && !orden.bloqueoRecepcion && items.some((i) => i.qtyPending > 0);
 
   return (
     <div>
@@ -200,6 +201,7 @@ export default function AlmacenRecepcion() {
         actions={<OrdenEstadoBadge estado={orden.status} />}
       />
 
+      {orden.bloqueoRecepcion && <Alert tone="info" className="mb-4">{orden.bloqueoRecepcion}</Alert>}
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
       {exito && <Alert tone="good" className="mb-4">{exito}</Alert>}
 

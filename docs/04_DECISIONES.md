@@ -5,6 +5,42 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L061 — OC con aprobación, pago y liberación (2026-11-16, v0.46.0, Lote 17).**
+  Adapta de la V38.7 `approveBuy` (aprobar la compra), `cvCoordinate` (estado
+  de pago con constancia) y `caRelease` (liberar para recepción).
+  - La OC nace `POR_APROBAR` (`V31`: nuevo estado y default) con una fila en
+    `aprobacion` (`entity_type = 'COMPRA'`). Deciden GERENCIA y LOGISTICA, con
+    ADMIN de respaldo; **nadie decide la OC que emitió**. GERENCIA decide
+    cualquier OC (una OC junta varios CECOs, no se acota por CECO). Aprobar la
+    pasa a `EMITIDA` (`approved_at/by`); rechazar exige motivo y la anula con
+    la misma lógica que "Anular" (`ComprasService.anularInterna`): sus
+    consolidados vuelven a cotización. Auditoría `APROBAR` / `RECHAZAR`.
+  - **PD-04 resuelto así**: todas las OC pasan por aprobación, sin rangos por
+    monto; `regla_aprobacion` sigue vacía.
+  - Pago (`payment_status`: PENDIENTE → ANTICIPO → PAGADO, con documento
+    `CONSTANCIA_PAGO` obligatorio desde ANTICIPO; no vuelve a PENDIENTE):
+    lo registra LOGISTICA/ADMIN, solo con la OC aprobada. **Es un dato de
+    control y nunca frena la recepción** (a diferencia de la V38.7); con pago
+    o anticipo registrado la OC no se anula. Auditoría `PAGO`.
+  - Liberación (`released_at/by`, `release_note` opcional): LOGISTICA/ADMIN,
+    solo una OC `EMITIDA` (aprobada). Reemplaza el cierre administrativo de la
+    V38.7 por un paso simple: el almacén es uno (DEC-L045) y el CECO ya viene
+    en cada REQ. Auditoría `LIBERAR`.
+  - Recepción manual y carga masiva solo sobre OC liberadas (`FlujoOrden`).
+    `OrdenDto.bloqueoRecepcion` dice por qué no se puede recibir ("Falta
+    aprobar…" / "Falta liberar…"); Almacén › Recibir lista también las OC por
+    aprobar con ese motivo.
+  - `V31` deja las OC existentes aprobadas y liberadas en su fecha de emisión,
+    para no frenar recepciones en curso.
+  - Bandeja (DEC-L048): nuevas acciones `APROBAR_OC` (espera) y `LIBERAR_OC`
+    (Logística actúa) antes de `RECIBIR_OC`. Tracking muestra aprobación,
+    rechazo, pago y liberación desde `log_cambios`. En tiempo real,
+    `/topic/ordenes-compra` (GERENCIA, LOGISTICA, ADMIN) avisa la OC nueva.
+  - GERENCIA puede leer el detalle y el PDF de una OC para decidirla; el resto
+    de Compras sigue siendo de LOGISTICA/ADMIN. Aprobaciones muestra
+    "Órdenes de compra" a GERENCIA, LOGISTICA y ADMIN (el APROBADOR de CECO
+    sigue viendo solo requerimientos).
+
 - **DEC-L060 — Registro de la plataforma para el administrador (2026-11-13, v0.45.0).**
   Administración › Registro (solo ADMIN) reúne en una pantalla operaciones,
   ingresos, cambios críticos, errores y movimientos de inventario.
@@ -1238,6 +1274,8 @@ actualizar esta lista y el CHANGELOG.
     directo LOGISTICA/ADMIN sin un paso de aprobacion monetaria adicional
     (`regla_aprobacion` sigue sin filas) — mismo criterio pragmatico que
     DEC-L009 para Aprobaciones.
+    *Reemplazado por DEC-L061*: desde el Lote 17 toda OC se aprueba, sin
+    rangos por monto.
   - **"Cantidad pendiente de comprar" por item** (solicitado - reservado -
     en RFQ activa - ya ordenado) se calcula en Java en `ComprasService`,
     nunca una columna — mismo patron que `StockService.saldoDisponible`
@@ -1495,6 +1533,8 @@ hardcodeadas), a validar antes de marchar en produccion:
 - PD-02 — Umbral/obligatoriedad de guia de remision.
 - PD-03 — Porcentaje de penalidad y cuando aplica.
 - PD-04 — Rangos de aprobacion monetaria y excepciones por tipo de compra/proveedor.
+  **Resuelto en DEC-L061**: todas las OC se aprueban (Gerencia o Logística),
+  sin rangos por monto.
 - PD-05 — Umbral de alerta/aprobacion de Caja Chica (no usar el historico de
   S/ 4,900 como regla general).
 - PD-06 — Familias/productos de alta rotacion habilitados para orden

@@ -229,6 +229,7 @@ export interface Moneda {
 export type EstadoRfq = "BORRADOR" | "ENVIADA" | "RESPONDIDA" | "CERRADA";
 export type EstadoCotizacion = "RECIBIDA" | "VALIDADA" | "DESCARTADA" | "SELECCIONADA";
 export type EstadoOrden =
+  | "POR_APROBAR"
   | "EMITIDA"
   | "EN_ATENCION"
   | "RECEPCION_PARCIAL"
@@ -480,7 +481,21 @@ export interface Orden {
   total: number;
   status: EstadoOrden;
   createdAt: string;
+  createdById: string;
+  createdByName: string;
+  approvedAt: string | null;
+  /** Control del pago (DEC-L061): no frena la recepcion. */
+  paymentStatus: EstadoPagoOrden;
+  paymentProofUrl: string | null;
+  paidAt: string | null;
+  /** Lista para recibir en el almacen. */
+  releasedAt: string | null;
+  releaseNote: string | null;
+  /** Por que el almacen todavia no puede recibirla; null si puede o ya no aplica. */
+  bloqueoRecepcion: string | null;
 }
+
+export type EstadoPagoOrden = "PENDIENTE" | "ANTICIPO" | "PAGADO";
 
 export interface OrdenItem {
   orderItemId: string;
@@ -1274,6 +1289,8 @@ export type CodigoAccion =
   | "DECIDIR_RUTA"
   | "PEDIR_COTIZACION"
   | "ESPERA_COTIZACION"
+  | "APROBAR_OC"
+  | "LIBERAR_OC"
   | "RECIBIR_OC"
   | "CONFIRMAR_ENTREGA"
   | "APROBACION"

@@ -100,6 +100,10 @@ public class AprobacionService {
 
         Aprobacion aprobacion = aprobacionRepository.findById(approvalId)
                 .orElseThrow(() -> ApiException.notFound("Aprobacion no encontrada."));
+        // Las OC se deciden en OrdenCompraService (DEC-L061).
+        if (!EntidadAprobacion.REQUERIMIENTO.equals(aprobacion.getEntityType())) {
+            throw ApiException.notFound("Aprobacion no encontrada.");
+        }
         if (!EstadoAprobacion.PENDIENTE.equals(aprobacion.getStatus())) {
             throw ApiException.badRequest("Esta aprobacion ya fue decidida.");
         }

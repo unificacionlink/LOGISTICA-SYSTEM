@@ -134,7 +134,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/compras?tab=solicitudes",
         ancla: "compras-ordenes",
         titulo: "Órdenes de compra",
-        texto: "Las órdenes que emites desde el comparativo quedan aquí, con su PDF.",
+        texto: "Las órdenes que emites quedan aquí, con su PDF. Otra persona la aprueba, la liberas y recién ahí el almacén la recibe.",
       },
       {
         ruta: "/almacen?tab=recibir",

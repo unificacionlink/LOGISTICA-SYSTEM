@@ -13,8 +13,8 @@ const MODULOS = [
   {
     to: "/aprobaciones",
     titulo: "Aprobaciones",
-    descripcion: "Revisa los requerimientos enviados y decide sobre cada uno.",
-    roles: ["APROBADOR", "GERENCIA", "ADMIN"],
+    descripcion: "Revisa los requerimientos y órdenes de compra por aprobar.",
+    roles: ["APROBADOR", "GERENCIA", "LOGISTICA", "ADMIN"],
   },
   {
     to: "/compras",

@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { AprobacionPendiente, Requerimiento } from "../api/types";
+import type { AprobacionPendiente, Orden, Requerimiento } from "../api/types";
 
 export type Listener<T> = (payload: T) => void;
 
@@ -23,6 +23,8 @@ export interface RealtimeContextValue {
   onMiRequerimientoDecidido: (cb: Listener<Requerimiento>) => () => void;
   onCotizacionPorEnlace: (cb: Listener<CotizacionPorEnlace>) => () => void;
   onCajaChica: (cb: Listener<AvisoCajaChica>) => () => void;
+  /** OC emitida, aprobada o rechazada (DEC-L061); a Gerencia, Logística y Admin. */
+  onOrdenDeCompra: (cb: Listener<Orden>) => () => void;
 }
 
 export const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);

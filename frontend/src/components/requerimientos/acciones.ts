@@ -14,6 +14,8 @@ const DEF: Record<CodigoAccion, { label: string; ruta: (destino: string, reqId: 
   DECIDIR_RUTA: { label: "Decidir ruta", ruta: () => "/compras?tab=necesidades" },
   PEDIR_COTIZACION: { label: "Cotizar", ruta: (d) => `/compras/comparativo?ids=${d}` },
   ESPERA_COTIZACION: { label: "Esperando cotización", ruta: (d) => `/compras/comparativo?ids=${d}` },
+  APROBAR_OC: { label: "OC por aprobar", ruta: (d) => `/compras/ordenes/${d}` },
+  LIBERAR_OC: { label: "Liberar OC", ruta: (d) => `/compras/ordenes/${d}` },
   RECIBIR_OC: { label: "OC por recibir", ruta: (d) => `/almacen/ordenes/${d}/recepcion` },
   CONFIRMAR_ENTREGA: { label: "En tránsito", ruta: (d) => `/almacen/notas/${d}` },
   APROBACION: { label: "En aprobación", ruta: (_d, id) => `/requerimientos/${id}` },
@@ -38,6 +40,8 @@ const DE_COMPRAS: CodigoAccion[] = [
   "DECIDIR_RUTA",
   "PEDIR_COTIZACION",
   "ESPERA_COTIZACION",
+  "APROBAR_OC",
+  "LIBERAR_OC",
   "RECIBIR_OC",
 ];
 

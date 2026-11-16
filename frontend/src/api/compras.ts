@@ -204,6 +204,31 @@ export function obtenerOrden(orderId: string) {
   return http.get<OrdenDetalle>(`/api/compras/ordenes/${orderId}`);
 }
 
+// ---------------------------------------------------------------- Aprobacion, pago y liberacion (DEC-L061)
+
+export function listarOrdenesPorAprobar() {
+  return http.get<Orden[]>("/api/compras/ordenes/por-aprobar");
+}
+
+export function decidirOrden(orderId: string, decision: "APROBADO" | "RECHAZADO", motivo?: string) {
+  return http.post<Orden>(`/api/compras/ordenes/${orderId}/decision`, { decision, motivo });
+}
+
+export function subirConstanciaPago(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("tipo", "CONSTANCIA_PAGO");
+  return http.postForm<DocumentoSubido>("/api/compras/documentos", form);
+}
+
+export function registrarPagoOrden(orderId: string, estado: "ANTICIPO" | "PAGADO", documentId: string) {
+  return http.post<Orden>(`/api/compras/ordenes/${orderId}/pago`, { estado, documentId });
+}
+
+export function liberarOrden(orderId: string, nota?: string) {
+  return http.post<Orden>(`/api/compras/ordenes/${orderId}/liberar`, { nota: nota || null });
+}
+
 export function anularOrden(orderId: string, motivo: string) {
   return http.post<Orden>(`/api/compras/ordenes/${orderId}/anular`, { motivo });
 }

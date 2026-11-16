@@ -389,7 +389,7 @@ public class TrackingService {
         return ev;
     }
 
-    /** Programacion de entrega (RF-068) y motivo de anulacion de OC (RF-064), desde log_cambios. */
+    /** Programacion de entrega (RF-068), anulacion (RF-064) y aprobacion/pago/liberacion de OC (DEC-L061), desde log_cambios. */
     private void eventosAuditados(Requerimiento r, List<OrdenAbastecimiento> ordenes, List<EventoDto> ev) {
         Map<UUID, String> codigoOrden = ordenes.stream()
                 .collect(Collectors.toMap(OrdenAbastecimiento::getOrderId, OrdenAbastecimiento::getOrderCode));
@@ -399,10 +399,11 @@ public class TrackingService {
         String marcadores = String.join(",", Collections.nCopies(ids.size(), "?"));
         jdbc.query("""
                 select l.created_at, l.entidad, l.entidad_id, l.accion, l.despues ->> 'fecha', l.despues ->> 'motivo',
-                  u.display_name
+                  u.display_name, l.despues ->> 'pago', l.despues ->> 'nota'
                 from log_cambios l left join usuario u on u.user_id = l.usuario_id
                 where (l.entidad = 'REQUERIMIENTO' and l.accion = 'PROGRAMAR_ENTREGA'
-                    or l.entidad = 'ORDEN_ABASTECIMIENTO' and l.accion = 'ANULAR')
+                    or l.entidad = 'ORDEN_ABASTECIMIENTO'
+                       and l.accion in ('ANULAR','APROBAR','RECHAZAR','PAGO','LIBERAR'))
                   and l.entidad_id in (""" + marcadores + ")", rs -> {
             Instant fecha = rs.getTimestamp(1).toInstant();
             String usuario = rs.getString(7);
@@ -410,10 +411,17 @@ public class TrackingService {
                 LocalDate programada = LocalDate.parse(rs.getString(5));
                 ev.add(new EventoDto(fecha, "Entrega", "Entrega programada para el " + programada.format(DD_MM_YYYY),
                         usuario, null));
-            } else {
-                ev.add(new EventoDto(fecha, "Compras", "OC anulada: " + rs.getString(6), usuario,
-                        codigoOrden.get(rs.getObject(3, UUID.class))));
+                return;
             }
+            String nota = rs.getString(9);
+            String accion = switch (rs.getString(4)) {
+                case "APROBAR" -> "OC aprobada";
+                case "RECHAZAR" -> "OC rechazada: " + rs.getString(6);
+                case "PAGO" -> "ANTICIPO".equals(rs.getString(8)) ? "Anticipo de la OC registrado" : "OC pagada";
+                case "LIBERAR" -> "OC liberada para recepción" + (nota != null ? ": " + nota : "");
+                default -> "OC anulada: " + rs.getString(6);
+            };
+            ev.add(new EventoDto(fecha, "Compras", accion, usuario, codigoOrden.get(rs.getObject(3, UUID.class))));
         }, ids.toArray());
     }
 

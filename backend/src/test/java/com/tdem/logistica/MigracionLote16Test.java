@@ -19,7 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 /**
  * V20 (DEC-L039) sobre datos previos al Lote 16: cada linea de RFQ de un solo
  * REQ pasa a ser un consolidado con su necesidad, las OC quedan enlazadas y el
- * faltante que no estaba en ninguna RFQ queda por decidir ruta.
+ * faltante que no estaba en ninguna RFQ queda por decidir ruta. Tambien V31
+ * (DEC-L061) sobre esas OC previas.
  */
 class MigracionLote16Test {
 
@@ -96,6 +97,24 @@ class MigracionLote16Test {
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from information_schema.tables where table_schema = 'logistica' and table_name = '_v20_legado'""",
                 Integer.class));
+    }
+
+    /** V31 (DEC-L061): las OC previas al Lote 17 quedan aprobadas y liberadas, sin pago registrado. */
+    @Test
+    void v31DejaLasOcExistentesAprobadasYLiberadas() {
+        Map<String, Object> oc = jdbc.queryForMap("""
+                select status, payment_status, approved_at = created_at as aprobada, released_at = created_at as liberada,
+                       approved_by = created_by as por_su_emisor
+                  from orden_abastecimiento where order_code = 'OC-LEGADO'""");
+        assertEquals("EMITIDA", oc.get("status"));
+        assertEquals("PENDIENTE", oc.get("payment_status"));
+        assertEquals(Boolean.TRUE, oc.get("aprobada"));
+        assertEquals(Boolean.TRUE, oc.get("liberada"));
+        assertEquals(Boolean.TRUE, oc.get("por_su_emisor"));
+        assertEquals("'POR_APROBAR'::character varying", jdbc.queryForObject("""
+                select column_default from information_schema.columns
+                 where table_schema = 'logistica' and table_name = 'orden_abastecimiento' and column_name = 'status'""",
+                String.class));
     }
 
     // ------------------------------------------------------------------
