@@ -24,13 +24,18 @@ public class AlmacenController {
     private final DespachoService despachoService;
     private final CargaMasivaService cargaMasivaService;
     private final PreparacionNotaService preparacionService;
+    private final RecepcionDestinoService destinoService;
+    private final DiferenciasDestinoService diferenciasService;
 
     public AlmacenController(RecepcionService recepcionService, DespachoService despachoService,
-                             CargaMasivaService cargaMasivaService, PreparacionNotaService preparacionService) {
+                             CargaMasivaService cargaMasivaService, PreparacionNotaService preparacionService,
+                             RecepcionDestinoService destinoService, DiferenciasDestinoService diferenciasService) {
         this.recepcionService = recepcionService;
         this.despachoService = despachoService;
         this.cargaMasivaService = cargaMasivaService;
         this.preparacionService = preparacionService;
+        this.destinoService = destinoService;
+        this.diferenciasService = diferenciasService;
     }
 
     // ---------- Carga masiva de ingresos (RF-031) ----------
@@ -124,13 +129,13 @@ public class AlmacenController {
         return ApiResponse.ok(preparacionService.confirmarPicking(id, principal), "Picking confirmado.");
     }
 
-    @PostMapping(value = "/notas/{id}/embalaje", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping("/notas/{id}/embalaje")
     public ApiResponse<NotaInventarioDetalleDto> embalar(
             @PathVariable UUID id,
-            @RequestParam("bultos") Integer bultos,
-            @RequestParam("file") MultipartFile file,
+            @Valid @RequestBody EmbalarRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(preparacionService.embalar(id, bultos, file, principal), "Embalaje registrado.");
+        return ApiResponse.ok(preparacionService.embalar(id, request.bultos(), request.evidencia(), principal),
+                "Embalaje registrado.");
     }
 
     // ---------- Envio ----------
@@ -152,12 +157,36 @@ public class AlmacenController {
         return ApiResponse.ok(despachoService.adjuntarDocumento(id, tipo, file, principal), "Documento adjuntado.");
     }
 
-    @PostMapping("/envios/{id}/confirmar-recepcion")
-    public ApiResponse<NotaInventarioDetalleDto> confirmarRecepcion(
+    // ---------- Recepcion en destino y diferencias (ALM-03) ----------
+
+    @PostMapping(value = "/envios/{id}/recepcion", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<NotaInventarioDetalleDto> recibirEnDestino(
             @PathVariable UUID id,
-            @RequestBody(required = false) ConfirmarRecepcionRequest request,
+            @Valid @RequestPart("datos") RecepcionDestinoRequest datos,
+            @RequestPart(value = "file", required = false) MultipartFile notaFirmada,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ApiResponse.ok(despachoService.confirmarRecepcion(id, request, principal),
-                "Recepcion en destino confirmada.");
+        return ApiResponse.ok(destinoService.registrar(id, datos, notaFirmada, principal), "Recepcion registrada.");
+    }
+
+    @PostMapping("/envios/{id}/resolucion")
+    public ApiResponse<NotaInventarioDetalleDto> resolverObservado(
+            @PathVariable UUID id,
+            @Valid @RequestBody ResolverObservadoRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(destinoService.resolver(id, request, principal), "Resolucion registrada.");
+    }
+
+    @GetMapping("/diferencias")
+    public ApiResponse<DestinoDtos.DiferenciasDto> diferencias(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(diferenciasService.listar(principal));
+    }
+
+    @PostMapping("/devoluciones/{id}/recibir")
+    public ApiResponse<DestinoDtos.DiferenciasDto> recibirDevolucion(
+            @PathVariable UUID id,
+            @Valid @RequestBody EvidenciaRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        destinoService.recibirDevolucion(id, request, principal);
+        return ApiResponse.ok(diferenciasService.listar(principal), "Retorno recibido en cuarentena.");
     }
 }

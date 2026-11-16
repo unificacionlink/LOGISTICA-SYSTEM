@@ -3,6 +3,7 @@ package com.tdem.logistica;
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.modules.almacen.DespachoService;
 import com.tdem.logistica.modules.almacen.PreparacionNotaService;
+import com.tdem.logistica.modules.almacen.RecepcionDestinoService;
 import com.tdem.logistica.modules.almacen.RecepcionService;
 import com.tdem.logistica.modules.almacen.dto.*;
 import com.tdem.logistica.modules.compras.ComprasService;
@@ -13,18 +14,15 @@ import com.tdem.logistica.modules.tracking.dto.EventoDto;
 import com.tdem.logistica.modules.tracking.dto.HitoDto;
 import com.tdem.logistica.modules.tracking.dto.TrackingDto;
 import com.tdem.logistica.security.UsuarioPrincipal;
-import com.tdem.logistica.storage.StorageClient;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -34,8 +32,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 /**
  * Lote 6 de punta a punta contra Postgres real (BdRrhhSimulada) con los
@@ -57,7 +53,7 @@ class AlmacenFlujoTest {
 	@Autowired private RecepcionService recepcionService;
 	@Autowired private DespachoService despachoService;
 	@Autowired private PreparacionNotaService preparacionService;
-	@MockitoBean private StorageClient storage;
+	@Autowired private RecepcionDestinoService destinoService;
 	@Autowired private ComprasService comprasService;
 	@Autowired private TrackingService trackingService;
 	@Autowired private DashboardService dashboardService;
@@ -135,14 +131,13 @@ class AlmacenFlujoTest {
 		assertEquals("EN_ATENCION", estadoRequerimiento(f), "despachar no es entregar (RF-079)");
 
 		// --- Preparacion de la NI 1 (ALM-02): picking -> embalaje -> envio ---
-		when(storage.subir(any(), any(), any())).thenReturn("https://storage.test/embalaje.jpg");
 		UUID nota1 = ni1.nota().inventoryNoteId();
 		RegistrarEnvioRequest agencia = new RegistrarEnvioRequest("AGENCIA", "Shalom", "SH-001", null, null, "PEN",
 				new BigDecimal("50"), new BigDecimal("9"), LocalDate.now(), LocalDate.now().plusDays(2));
 		ApiException sinPreparar = assertThrows(ApiException.class,
 				() -> despachoService.registrarEnvio(nota1, agencia, logistica));
 		assertTrue(sinPreparar.getMessage().contains("picking"), sinPreparar.getMessage());
-		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2, foto(), logistica),
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2, FOTO, logistica),
 				"no se embala sin picking");
 		assertThrows(ApiException.class, () -> preparacionService.confirmarPicking(nota1, solicitante),
 				"solo LOGISTICA/ADMIN prepara");
@@ -154,19 +149,18 @@ class AlmacenFlujoTest {
 				"el picking se confirma una vez");
 		assertThrows(ApiException.class, () -> despachoService.registrarEnvio(nota1, agencia, logistica),
 				"el envio exige el embalaje");
-		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 0, foto(), logistica),
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 0, FOTO, logistica),
 				"bultos > 0");
-		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2,
-				new MockMultipartFile("file", "x.svg", "image/svg+xml", new byte[] {1}), logistica),
-				"solo PDF o imagen");
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2, "javascript:alert(1)", logistica),
+				"la evidencia es un enlace http(s) (V38.7)");
 		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2, null, logistica),
 				"la evidencia es obligatoria");
 
-		preparacionService.embalar(nota1, 3, foto(), logistica);
-		NotaInventarioDetalleDto embalada = preparacionService.embalar(nota1, 2, foto(), logistica);
+		preparacionService.embalar(nota1, 3, FOTO, logistica);
+		NotaInventarioDetalleDto embalada = preparacionService.embalar(nota1, 2, FOTO, logistica);
 		assertNotNull(embalada.nota().packedAt());
 		assertEquals(2, embalada.nota().packageCount(), "el embalaje se corrige antes del envio");
-		assertEquals("EVIDENCIA_EMBALAJE", embalada.evidenciaEmbalaje().documentType());
+		assertEquals(FOTO, embalada.nota().packingEvidenceUrl());
 		assertEquals(2, jdbc.queryForObject(
 				"select count(*) from log_cambios where entidad = 'NOTA_INVENTARIO' and entidad_id = ? and accion = 'EMBALAJE'",
 				Integer.class, nota1));
@@ -176,15 +170,15 @@ class AlmacenFlujoTest {
 				agencia, logistica);
 		assertEquals("DESPACHADA", enviada1.nota().status());
 		assertEquals(2, enviada1.nota().envio().packageCount(), "el envio toma los bultos del embalaje");
-		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 4, foto(), logistica),
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 4, FOTO, logistica),
 				"una NI enviada ya no se re-embala");
 		assertEquals(0, enviada1.nota().envio().shippingCostTotal().compareTo(new BigDecimal("59")));
 		UUID envio1 = enviada1.nota().envio().shipmentId();
 
-		assertThrows(ApiException.class, () -> despachoService.confirmarRecepcion(envio1, null, solicitante),
-				"solo LOGISTICA/ADMIN confirma (DEC-L017)");
+		assertThrows(ApiException.class, () -> recibirTodo(envio1, ni1, solicitante),
+				"el solicitante no confirma la recepcion en destino");
 
-		despachoService.confirmarRecepcion(envio1, new ConfirmarRecepcionRequest("Conforme"), logistica);
+		recibirTodo(envio1, ni1, logistica);
 		assertEquals("ATENCION_PARCIAL", estadoRequerimiento(f));
 
 		// --- Tracking a mitad de camino (RF-083): 9/12 entregadas ---
@@ -200,16 +194,16 @@ class AlmacenFlujoTest {
 
 		// --- Envio + confirmacion de la NI 2 -> atencion completa ---
 		preparacionService.confirmarPicking(ni2.nota().inventoryNoteId(), logistica);
-		preparacionService.embalar(ni2.nota().inventoryNoteId(), 1, foto(), logistica);
+		preparacionService.embalar(ni2.nota().inventoryNoteId(), 1, FOTO, logistica);
 		UUID envio2 = despachoService.registrarEnvio(ni2.nota().inventoryNoteId(),
 				new RegistrarEnvioRequest("RECOJO", null, null, null, null, null, null, null, null, null),
 				logistica).nota().envio().shipmentId();
-		NotaInventarioDetalleDto recibida2 = despachoService.confirmarRecepcion(envio2, null, logistica);
+		NotaInventarioDetalleDto recibida2 = recibirTodo(envio2, ni2, logistica);
 		assertEquals("RECEPCIONADA", recibida2.nota().status());
 		assertEquals("ATENCION_COMPLETA", estadoRequerimiento(f));
 
-		// --- Confirmar dos veces el mismo envio no esta permitido ---
-		assertThrows(ApiException.class, () -> despachoService.confirmarRecepcion(envio2, null, logistica));
+		// --- Recibir otra vez un envio ya recepcionado no esta permitido ---
+		assertThrows(ApiException.class, () -> recibirTodo(envio2, ni2, logistica));
 
 		// --- Tracking final (RF-039/081/083) ---
 		TrackingDto t = trackingService.obtener(f.requestId, solicitante);
@@ -386,8 +380,14 @@ class AlmacenFlujoTest {
 		return new Fixture(req, item, orden, ordenItem, producto, variante);
 	}
 
-	private static MockMultipartFile foto() {
-		return new MockMultipartFile("file", "embalaje.jpg", "image/jpeg", new byte[] {1, 2, 3});
+	private static final String FOTO = "https://drive.test/embalaje.jpg";
+
+	/** Recepcion en destino conforme de todo lo enviado, con el enlace de la conformidad firmada. */
+	private NotaInventarioDetalleDto recibirTodo(UUID shipmentId, NotaInventarioDetalleDto ni, UsuarioPrincipal quien) {
+		List<RecepcionDestinoRequest.Linea> lineas = ni.items().stream()
+				.map(i -> new RecepcionDestinoRequest.Linea(i.issueItemId(), i.qty())).toList();
+		return destinoService.registrar(shipmentId, new RecepcionDestinoRequest(UUID.randomUUID(), lineas, "CONFORME",
+				null, "https://drive.test/conformidad.pdf"), null, quien);
 	}
 
 }

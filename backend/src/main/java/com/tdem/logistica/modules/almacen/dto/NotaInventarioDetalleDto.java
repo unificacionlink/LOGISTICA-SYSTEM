@@ -6,5 +6,7 @@ public record NotaInventarioDetalleDto(
         NotaInventarioDto nota,
         List<NotaItemDto> items,
         List<DocumentoAdjuntoDto> documentos,
-        DocumentoAdjuntoDto evidenciaEmbalaje) {
+        DocumentoAdjuntoDto evidenciaEmbalaje,
+        List<DestinoDtos.RecepcionDto> recepciones,
+        List<DestinoDtos.ResolucionDto> resoluciones) {
 }

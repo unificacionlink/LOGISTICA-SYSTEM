@@ -21,5 +21,6 @@ public record EnvioDto(
         String status,
         Instant receivedAt,
         String receivedByName,
-        String deliveryObservation) {
+        String deliveryObservation,
+        String conformityStatus) {
 }

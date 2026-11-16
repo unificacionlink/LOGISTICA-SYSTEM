@@ -1,8 +1,10 @@
 import { http } from "./http";
 import type {
+  AccionObservado,
   AccionProveedor,
   CargaMasiva,
   CondicionRecepcion,
+  DiferenciasAlmacen,
   DespachoRequerimiento,
   DocumentoAdjunto,
   EstadoBien,
@@ -10,6 +12,7 @@ import type {
   Incidencia,
   ModalidadEntrega,
   NotaInventario,
+  ResultadoRecepcion,
   NotaInventarioDetalle,
   Orden,
   RecepcionOrden,
@@ -92,11 +95,9 @@ export function confirmarPickingNota(noteId: string) {
   return http.post<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}/picking`, {});
 }
 
-export function embalarNota(noteId: string, bultos: number, evidencia: File) {
-  const form = new FormData();
-  form.append("bultos", String(bultos));
-  form.append("file", evidencia);
-  return http.postForm<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}/embalaje`, form);
+/** Bultos y enlace de la evidencia del embalaje (V38.7). */
+export function embalarNota(noteId: string, bultos: number, evidencia: string) {
+  return http.post<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}/embalaje`, { bultos, evidencia });
 }
 
 // ---------- Envio ----------
@@ -125,8 +126,37 @@ export function adjuntarDocumentoEnvio(shipmentId: string, tipo: TipoAdjuntoEnvi
   return http.postForm<DocumentoAdjunto>(`/api/almacen/envios/${shipmentId}/documentos`, form);
 }
 
-export function confirmarRecepcionEnvio(shipmentId: string, observacion?: string) {
-  return http.post<NotaInventarioDetalle>(`/api/almacen/envios/${shipmentId}/confirmar-recepcion`, { observacion });
+// ---------- Recepcion en destino y diferencias (ALM-03) ----------
+
+export interface RecepcionDestinoInput {
+  clientToken: string;
+  items: { issueItemId: string; qty: number }[];
+  resultado: ResultadoRecepcion;
+  observacion?: string;
+  enlaceConformidad?: string;
+}
+
+/** La nota firmada va como archivo; si no hay archivo, el enlace de la conformidad firmada. */
+export function recibirEnDestino(shipmentId: string, datos: RecepcionDestinoInput, notaFirmada: File | null) {
+  const form = new FormData();
+  form.append("datos", new Blob([JSON.stringify(datos)], { type: "application/json" }));
+  if (notaFirmada) form.append("file", notaFirmada);
+  return http.postForm<NotaInventarioDetalle>(`/api/almacen/envios/${shipmentId}/recepcion`, form);
+}
+
+export function resolverObservado(
+  shipmentId: string,
+  input: { issueItemId: string; qty: number; accion: AccionObservado; evidencia: string },
+) {
+  return http.post<NotaInventarioDetalle>(`/api/almacen/envios/${shipmentId}/resolucion`, input);
+}
+
+export function listarDiferencias() {
+  return http.get<DiferenciasAlmacen>("/api/almacen/diferencias");
+}
+
+export function recibirDevolucion(resolutionId: string, evidencia: string) {
+  return http.post<DiferenciasAlmacen>(`/api/almacen/devoluciones/${resolutionId}/recibir`, { evidencia });
 }
 
 // ---------- Carga masiva de ingresos (RF-031) ----------

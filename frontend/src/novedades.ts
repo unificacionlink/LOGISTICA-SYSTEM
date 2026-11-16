@@ -13,6 +13,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.48.0",
+    titulo: "Recepción en destino con diferencias",
+    cambios: [
+      "Al recibir una nota de inventario en destino se indica cuánto llegó de cada producto y si llegó conforme o no conforme, con la nota firmada o el enlace de la conformidad.",
+      "Se puede recibir por partes. El requerimiento cuenta como atendido solo lo que llegó conforme.",
+      "Lo que llega observado se subsana o se devuelve al almacén central, donde queda en cuarentena.",
+      "Nueva pestaña Almacén › Diferencias con lo observado y los retornos; Stock muestra lo que está en cuarentena.",
+      "La evidencia del embalaje ahora es un enlace.",
+    ],
+  },
+  {
     version: "0.47.0",
     titulo: "Picking y embalaje antes del envío",
     cambios: [

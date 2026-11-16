@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.48.0 — 2026-11-16
+
+Lote 18b: recepción en destino con diferencias (DEC-L063, ALM-03 de la V38.7).
+
+- `V33__recepcion_destino_diferencias.sql`: `salida_item.dest_received/accepted/observed/returned_qty` (check recibido = aceptado + observado + devuelto); envío `RECEPCION_PARCIAL`/`RECEPCIONADO_OBSERVADO` y `conformity_status`; NI `RECEPCION_PARCIAL`; tablas `recepcion_destino(_item)` y `resolucion_destino`; `nota_inventario.packing_evidence_url`. Lo recepcionado antes queda aceptado y conforme.
+- Nuevos `RecepcionDestinoService` y `DiferenciasDestinoService`; endpoints `POST /api/almacen/envios/{id}/recepcion` (multipart: `datos` + NI firmada opcional), `POST /api/almacen/envios/{id}/resolucion`, `GET /api/almacen/diferencias` y `POST /api/almacen/devoluciones/{id}/recibir`. Se quita `POST /envios/{id}/confirmar-recepcion`.
+- Operan LOGISTICA, GERENCIA (en su ámbito) y ADMIN; `DespachoService.obtenerNota` abre a GERENCIA y trae recepciones, resoluciones y lo aceptado/observado/devuelto por producto.
+- Lo entregado pasa a ser lo aceptado en destino en `AtencionCalculator`, Bandeja, Tracking, Dashboard y cumplimiento de presupuesto; la Bandeja y el Dashboard cuentan `RECEPCION_PARCIAL` como pendiente de recibir.
+- Embalaje con enlace de evidencia (`POST /notas/{id}/embalaje` en JSON `{bultos, evidencia}`).
+- Stock: columna Cuarentena (devuelto desde destino, no disponible).
+- Frontend: `components/almacen/RecepcionDestinoPanel` en el detalle de la NI (cantidades por producto, resultado, nota firmada o enlace, observado por resolver con subsanar o devolver, historial); pestaña Almacén › Diferencias (`components/almacen/DiferenciasAlmacen`); embalaje con enlace.
+- `RecepcionDestinoTest` (parcial, no conforme, ámbito de GERENCIA, token, subsanar, devolver, cuarentena); `AlmacenFlujoTest` recibe con la API nueva; `MigracionLote16Test` cubre V33; `MigracionesFlywayTest` pasa a 33 migraciones.
+
 ## 0.47.0 — 2026-11-16
 
 Lote 18a: picking y embalaje antes del envío (DEC-L062, ALM-02 de la V38.7).

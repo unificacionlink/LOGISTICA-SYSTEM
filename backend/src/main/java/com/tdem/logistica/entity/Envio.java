@@ -91,6 +91,10 @@ public class Envio {
     @Column(name = "delivery_observation")
     private String deliveryObservation;
 
+    /** CONFORME / NO_CONFORME segun lo recibido en destino (ALM-03). */
+    @Column(name = "conformity_status")
+    private String conformityStatus;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private Usuario createdBy;

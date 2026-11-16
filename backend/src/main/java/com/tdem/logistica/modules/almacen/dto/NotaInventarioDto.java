@@ -27,5 +27,6 @@ public record NotaInventarioDto(
         String cecoCodigo,
         String solicitante,
         Instant pickedAt,
-        Instant packedAt) {
+        Instant packedAt,
+        String packingEvidenceUrl) {
 }

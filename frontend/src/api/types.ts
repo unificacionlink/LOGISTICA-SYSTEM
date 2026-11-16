@@ -160,6 +160,8 @@ export interface SaldoStock {
   disponible: number;
   minimo: number | null;
   ultimoMovimiento: string | null;
+  /** Devuelto desde destino, recibido en cuarentena (no disponible). */
+  enCuarentena: number;
 }
 
 export interface MovimientoKardex {
@@ -551,8 +553,15 @@ export type CondicionRecepcion = "CONFORME" | "OBSERVADO";
 export type TipoIncidencia = "FALTANTE" | "DANO" | "PRODUCTO_ERRADO" | "OTRO";
 export type AccionProveedor = "REPONER" | "CAMBIO" | "NOTA_CREDITO";
 export type EstadoIncidencia = "ABIERTA" | "EN_GESTION" | "CERRADA";
-export type EstadoNota = "BORRADOR" | "EMITIDA" | "DESPACHADA" | "RECEPCIONADA" | "ANULADA";
-export type EstadoEnvio = "PENDIENTE" | "EN_TRANSITO" | "RECEPCIONADO" | "OBSERVADO" | "CERRADO";
+export type EstadoNota = "BORRADOR" | "EMITIDA" | "DESPACHADA" | "RECEPCION_PARCIAL" | "RECEPCIONADA" | "ANULADA";
+export type EstadoEnvio =
+  | "PENDIENTE"
+  | "EN_TRANSITO"
+  | "RECEPCION_PARCIAL"
+  | "RECEPCIONADO"
+  | "RECEPCIONADO_OBSERVADO"
+  | "OBSERVADO"
+  | "CERRADO";
 export type EstadoBien = "NUEVO" | "USADO" | "REACONDICIONADO" | "OTRO";
 export type ModalidadEntrega = "AGENCIA" | "PROVEEDOR_ENTREGA" | "RECOJO" | "TERRESTRE_NORMAL" | "COURIER" | "PROPIO";
 export type TipoAdjuntoEnvio = "GUIA" | "TICKET_ENVIO" | "CONFORMIDAD_ENTREGA";
@@ -641,6 +650,7 @@ export interface Envio {
   receivedAt: string | null;
   receivedByName: string | null;
   deliveryObservation: string | null;
+  conformityStatus: "CONFORME" | "NO_CONFORME" | null;
 }
 
 export interface NotaInventario {
@@ -667,6 +677,7 @@ export interface NotaInventario {
   /** Preparacion antes del envio (ALM-02): picking y embalaje. */
   pickedAt: string | null;
   packedAt: string | null;
+  packingEvidenceUrl: string | null;
 }
 
 export interface NotaItem {
@@ -676,6 +687,12 @@ export interface NotaItem {
   codigoVariante: string | null;
   qty: number;
   purchaseCostReference: number | null;
+  /** Recepcion en destino (ALM-03): recibido = aceptado + observado + devuelto. */
+  issueItemId: string;
+  destRecibido: number;
+  destAceptado: number;
+  destObservado: number;
+  destDevuelto: number;
 }
 
 export interface DocumentoAdjunto {
@@ -691,6 +708,68 @@ export interface NotaInventarioDetalle {
   items: NotaItem[];
   documentos: DocumentoAdjunto[];
   evidenciaEmbalaje: Omit<DocumentoAdjunto, "documentType"> | null;
+  recepciones: RecepcionDestino[];
+  resoluciones: ResolucionDestino[];
+}
+
+export type ResultadoRecepcion = "CONFORME" | "NO_CONFORME";
+export type AccionObservado = "SUBSANAR" | "DEVOLVER";
+
+export interface RecepcionDestino {
+  destinationReceiptId: string;
+  numero: number;
+  fecha: string;
+  recibidoPor: string;
+  resultado: ResultadoRecepcion;
+  observacion: string | null;
+  enlaceConformidad: string | null;
+  documentoUrl: string | null;
+  documentoNombre: string | null;
+  items: { sku: string; nombreProducto: string; qty: number }[];
+}
+
+export interface ResolucionDestino {
+  resolutionId: string;
+  sku: string;
+  nombreProducto: string;
+  qty: number;
+  accion: AccionObservado;
+  evidencia: string;
+  estado: "RESUELTA" | "EN_TRANSITO" | "RECIBIDA_OBSERVADA";
+  fecha: string;
+  registradoPor: string;
+  recibidaEn: string | null;
+  recibidaPor: string | null;
+  evidenciaRetorno: string | null;
+}
+
+export interface DiferenciasAlmacen {
+  observados: {
+    shipmentId: string;
+    inventoryNoteId: string;
+    notaCodigo: string;
+    requestCode: string;
+    empresaCode: string;
+    issueItemId: string;
+    sku: string;
+    nombreProducto: string;
+    observado: number;
+  }[];
+  devoluciones: {
+    resolutionId: string;
+    inventoryNoteId: string;
+    notaCodigo: string;
+    requestCode: string;
+    empresaCode: string;
+    sku: string;
+    nombreProducto: string;
+    qty: number;
+    estado: "EN_TRANSITO" | "RECIBIDA_OBSERVADA";
+    evidencia: string;
+    fecha: string;
+    recibidaEn: string | null;
+    evidenciaRetorno: string | null;
+  }[];
 }
 
 export interface DespachoRequerimiento {

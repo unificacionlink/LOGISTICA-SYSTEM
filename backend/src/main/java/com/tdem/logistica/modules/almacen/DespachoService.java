@@ -6,7 +6,6 @@ import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.almacen.dto.*;
 import com.tdem.logistica.modules.requerimientos.RequerimientoMapper;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
-import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import org.springframework.stereotype.Service;
@@ -54,8 +53,10 @@ public class DespachoService {
     private final DocumentoRelacionRepository documentoRelacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final ArchivosAlmacen archivos;
-    private final AtencionCalculator atencionCalculator;
-    private final RealtimeNotifier realtimeNotifier;
+    private final RecepcionDestinoRepository recepcionDestinoRepository;
+    private final RecepcionDestinoItemRepository recepcionDestinoItemRepository;
+    private final ResolucionDestinoRepository resolucionDestinoRepository;
+    private final com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService;
 
     public DespachoService(RequerimientoRepository requerimientoRepository,
                            RequerimientoItemRepository requerimientoItemRepository,
@@ -72,8 +73,10 @@ public class DespachoService {
                            DocumentoRelacionRepository documentoRelacionRepository,
                            UsuarioRepository usuarioRepository,
                            ArchivosAlmacen archivos,
-                           AtencionCalculator atencionCalculator,
-                           RealtimeNotifier realtimeNotifier) {
+                           RecepcionDestinoRepository recepcionDestinoRepository,
+                           RecepcionDestinoItemRepository recepcionDestinoItemRepository,
+                           ResolucionDestinoRepository resolucionDestinoRepository,
+                           com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService) {
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
         this.reservaRepository = reservaRepository;
@@ -89,8 +92,10 @@ public class DespachoService {
         this.documentoRelacionRepository = documentoRelacionRepository;
         this.usuarioRepository = usuarioRepository;
         this.archivos = archivos;
-        this.atencionCalculator = atencionCalculator;
-        this.realtimeNotifier = realtimeNotifier;
+        this.recepcionDestinoRepository = recepcionDestinoRepository;
+        this.recepcionDestinoItemRepository = recepcionDestinoItemRepository;
+        this.resolucionDestinoRepository = resolucionDestinoRepository;
+        this.requerimientoService = requerimientoService;
     }
 
     // ------------------------------------------------------------------
@@ -147,10 +152,17 @@ public class DespachoService {
         return notasDto(notaRepository.findAllConDetalle());
     }
 
+    /** LOGISTICA/ADMIN; GERENCIA tambien, en lo que puede ver, para recibir en destino (ALM-03). */
     public NotaInventarioDetalleDto obtenerNota(UUID noteId, UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
+        if (!RecepcionDestinoService.esOperadorDestino(principal)) {
+            exigirLogisticaOAdmin(principal);
+        }
         NotaInventario nota = notaRepository.findDetalleById(noteId)
                 .orElseThrow(() -> ApiException.notFound("Nota de inventario no encontrada."));
+        if (!principal.tieneAlgunRol(com.tdem.logistica.common.AppConstants.Roles.LOGISTICA,
+                com.tdem.logistica.common.AppConstants.Roles.ADMIN)) {
+            requerimientoService.exigirAcceso(nota.getRequerimiento(), principal);
+        }
         Envio envio = envioRepository.findByNota(noteId).orElse(null);
         List<NotaItemDto> items = salidaItemRepository.findBySalida(nota.getSalida().getIssueId()).stream()
                 .map(AlmacenMapper::toDto)
@@ -161,7 +173,23 @@ public class DespachoService {
                         .toList();
         DocumentoAdjuntoDto evidencia = nota.getPackingDocumentId() == null ? null
                 : documentoRepository.findById(nota.getPackingDocumentId()).map(AlmacenMapper::toDto).orElse(null);
-        return new NotaInventarioDetalleDto(AlmacenMapper.toDto(nota, envio), items, documentos, evidencia);
+        List<DestinoDtos.RecepcionDto> recepciones = envio == null ? List.of() : recepciones(envio.getShipmentId());
+        List<DestinoDtos.ResolucionDto> resoluciones = envio == null ? List.of()
+                : resolucionDestinoRepository.findByEnvio(envio.getShipmentId()).stream().map(AlmacenMapper::toDto).toList();
+        return new NotaInventarioDetalleDto(AlmacenMapper.toDto(nota, envio), items, documentos, evidencia,
+                recepciones, resoluciones);
+    }
+
+    private List<DestinoDtos.RecepcionDto> recepciones(UUID shipmentId) {
+        Map<UUID, List<DestinoDtos.LineaDto>> lineas = new HashMap<>();
+        for (RecepcionDestinoItem i : recepcionDestinoItemRepository.findByEnvio(shipmentId)) {
+            lineas.computeIfAbsent(i.getRecepcion().getDestinationReceiptId(), k -> new ArrayList<>())
+                    .add(new DestinoDtos.LineaDto(AlmacenMapper.sku(i.getSalidaItem()),
+                            i.getSalidaItem().getProducto().getName(), i.getQty()));
+        }
+        return recepcionDestinoRepository.findByEnvio(shipmentId).stream()
+                .map(r -> AlmacenMapper.toDto(r, lineas.getOrDefault(r.getDestinationReceiptId(), List.of())))
+                .toList();
     }
 
     private List<NotaInventarioDto> notasDto(List<NotaInventario> notas) {
@@ -440,42 +468,6 @@ public class DespachoService {
         documentoRelacionRepository.save(rel);
 
         return AlmacenMapper.toDto(documento);
-    }
-
-    /** RF-078: recepcion en DESTINO (no la de compra). Solo LOGISTICA/ADMIN (DEC-L017). */
-    @Transactional
-    public NotaInventarioDetalleDto confirmarRecepcion(UUID shipmentId, ConfirmarRecepcionRequest request,
-                                                      UsuarioPrincipal principal) {
-        exigirLogisticaOAdmin(principal);
-        Envio envio = envioRepository.findDetalleById(shipmentId)
-                .orElseThrow(() -> ApiException.notFound("Envio no encontrado."));
-        if (!"EN_TRANSITO".equals(envio.getStatus()) && !"OBSERVADO".equals(envio.getStatus())) {
-            throw ApiException.badRequest("Este envio ya fue recepcionado o no esta en transito.");
-        }
-        Usuario usuario = usuarioRepository.findById(principal.userId())
-                .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
-        envio.setStatus("RECEPCIONADO");
-        envio.setReceivedAt(Instant.now());
-        envio.setReceivedBy(usuario);
-        envio.setDeliveryObservation(request != null ? blankToNull(request.observacion()) : null);
-        envioRepository.save(envio);
-
-        NotaInventario nota = envio.getNotaInventario();
-        nota.setStatus("RECEPCIONADA");
-        notaRepository.save(nota);
-        envio.getSalida().setStatus("CERRADA");
-        salidaRepository.save(envio.getSalida());
-
-        Requerimiento r = nota.getRequerimiento();
-        String nuevoEstado = atencionCalculator.calcular(r);
-        if (!nuevoEstado.equals(r.getStatus())) {
-            r.setStatus(nuevoEstado);
-            requerimientoRepository.save(r);
-            if (r.getRequester() != null) {
-                realtimeNotifier.decisionTomada(r.getRequester().getUserId(), RequerimientoMapper.toDto(r));
-            }
-        }
-        return obtenerNota(nota.getInventoryNoteId(), principal);
     }
 
     // ------------------------------------------------------------------

@@ -35,10 +35,15 @@ public class StockService {
                   from movimiento_inventario where warehouse_id = ? group by variant_id),
             res as (
                 select variant_id, sum(qty_reserved) q
-                  from reserva_stock where warehouse_id = ? and status = 'RESERVADA' group by variant_id)
+                  from reserva_stock where warehouse_id = ? and status = 'RESERVADA' group by variant_id),
+            cua as (
+                -- Devuelto desde destino y recibido en cuarentena (ALM-03): no es disponible.
+                select si.variant_id, sum(r.qty) q
+                  from resolucion_destino r join salida_item si on si.issue_item_id = r.issue_item_id
+                 where r.status = 'RECIBIDA_OBSERVADA' group by si.variant_id)
             select v.variant_id, p.product_id, p.sku_base, p.name, v.attribute_value, v.internal_variant_code,
                    t.product_type_id, t.name, f.family_id, f.name, u.code,
-                   coalesce(fis.q, 0), coalesce(res.q, 0), sm.min_qty, fis.ult
+                   coalesce(fis.q, 0), coalesce(res.q, 0), sm.min_qty, fis.ult, coalesce(cua.q, 0)
               from producto_variante v
               join producto p on p.product_id = v.product_id
               join familia_producto f on f.family_id = p.family_id
@@ -46,8 +51,10 @@ public class StockService {
               join unidad_medida u on u.uom_id = p.base_uom_id
               left join fis on fis.variant_id = v.variant_id
               left join res on res.variant_id = v.variant_id
+              left join cua on cua.variant_id = v.variant_id
               left join stock_minimo sm on sm.warehouse_id = ? and sm.variant_id = v.variant_id
-             where ((v.active and p.active) or coalesce(fis.q, 0) <> 0 or coalesce(res.q, 0) <> 0)
+             where ((v.active and p.active) or coalesce(fis.q, 0) <> 0 or coalesce(res.q, 0) <> 0
+                    or coalesce(cua.q, 0) <> 0)
             """;
 
     private static final RowMapper<SaldoStockDto> SALDO = (rs, n) -> {
@@ -57,7 +64,8 @@ public class StockService {
         return new SaldoStockDto(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
                 rs.getString(4), rs.getString(5), rs.getString(6), rs.getObject(7, UUID.class), rs.getString(8),
                 rs.getObject(9, UUID.class), rs.getString(10), rs.getString(11), fisico, reservado,
-                fisico.subtract(reservado), rs.getBigDecimal(14), ult != null ? ult.toInstant() : null);
+                fisico.subtract(reservado), rs.getBigDecimal(14), ult != null ? ult.toInstant() : null,
+                rs.getBigDecimal(16));
     };
 
     private final RequerimientoItemRepository requerimientoItemRepository;

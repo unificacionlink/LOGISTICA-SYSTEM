@@ -11,6 +11,7 @@ const NOTA: Record<EstadoNota, [BadgeTone, string]> = {
   BORRADOR: ["gris", "Borrador"],
   EMITIDA: ["azul", "Emitida"],
   DESPACHADA: ["amarillo", "Despachada"],
+  RECEPCION_PARCIAL: ["amarillo", "Recepción parcial"],
   RECEPCIONADA: ["verde", "Recepcionada"],
   ANULADA: ["rojo", "Anulada"],
 };
@@ -18,7 +19,9 @@ const NOTA: Record<EstadoNota, [BadgeTone, string]> = {
 const ENVIO: Record<EstadoEnvio, [BadgeTone, string]> = {
   PENDIENTE: ["gris", "Pendiente"],
   EN_TRANSITO: ["amarillo", "En tránsito"],
+  RECEPCION_PARCIAL: ["amarillo", "Recepción parcial"],
   RECEPCIONADO: ["verde", "Recepcionado"],
+  RECEPCIONADO_OBSERVADO: ["rojo", "Recepcionado con observación"],
   OBSERVADO: ["rojo", "Observado"],
   CERRADO: ["verde", "Cerrado"],
 };

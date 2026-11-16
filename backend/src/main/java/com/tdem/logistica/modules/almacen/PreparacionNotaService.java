@@ -2,14 +2,12 @@ package com.tdem.logistica.modules.almacen;
 
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.Auditoria;
-import com.tdem.logistica.entity.Documento;
 import com.tdem.logistica.entity.NotaInventario;
 import com.tdem.logistica.modules.almacen.dto.NotaInventarioDetalleDto;
 import com.tdem.logistica.repository.NotaInventarioRepository;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -21,7 +19,8 @@ import static com.tdem.logistica.modules.almacen.RecepcionService.exigirLogistic
 /**
  * Preparacion de la Nota de Inventario antes del envio (Lote 18, ALM-02 de la
  * V38.7, DEC-L062): picking confirmado y embalaje con bultos y evidencia. Son
- * fechas sobre la NI, que sigue EMITIDA hasta que se registra el envio.
+ * fechas sobre la NI, que sigue EMITIDA hasta que se registra el envio. La
+ * evidencia del embalaje es un enlace, como en la V38.7 (DEC-L063).
  */
 @Service
 public class PreparacionNotaService {
@@ -30,14 +29,12 @@ public class PreparacionNotaService {
     private static final int MAX_BULTOS = 9999;
 
     private final NotaInventarioRepository notaRepository;
-    private final ArchivosAlmacen archivos;
     private final DespachoService despachoService;
     private final Auditoria auditoria;
 
-    public PreparacionNotaService(NotaInventarioRepository notaRepository, ArchivosAlmacen archivos,
+    public PreparacionNotaService(NotaInventarioRepository notaRepository,
                                   DespachoService despachoService, Auditoria auditoria) {
         this.notaRepository = notaRepository;
-        this.archivos = archivos;
         this.despachoService = despachoService;
         this.auditoria = auditoria;
     }
@@ -56,9 +53,9 @@ public class PreparacionNotaService {
         return despachoService.obtenerNota(noteId, principal);
     }
 
-    /** Bultos + evidencia (foto o PDF). Se puede corregir mientras la NI no se envie. */
+    /** Bultos + enlace de evidencia (V38.7 aiPackingForm). Se puede corregir mientras la NI no se envie. */
     @Transactional
-    public NotaInventarioDetalleDto embalar(UUID noteId, Integer bultos, MultipartFile evidencia,
+    public NotaInventarioDetalleDto embalar(UUID noteId, Integer bultos, String evidencia,
                                             UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
         if (bultos == null || bultos <= 0 || bultos > MAX_BULTOS) {
@@ -68,18 +65,19 @@ public class PreparacionNotaService {
         if (nota.getPickedAt() == null) {
             throw ApiException.badRequest("Confirma el picking antes del embalaje.");
         }
-        Documento doc = archivos.subir("notas/" + noteId, "EVIDENCIA_EMBALAJE", evidencia, principal.userId());
+        String enlace = evidencia == null ? null : evidencia.trim();
+        RecepcionDestinoService.exigirEnlace(enlace, "Registra bultos y evidencia validos.");
 
         Map<String, Object> antes = new HashMap<>();
         antes.put("bultos", nota.getPackageCount());
-        antes.put("evidencia", nota.getPackingDocumentId());
+        antes.put("evidencia", nota.getPackingEvidenceUrl());
         nota.setPackageCount(bultos);
-        nota.setPackingDocumentId(doc.getDocumentId());
+        nota.setPackingEvidenceUrl(enlace);
         nota.setPackedAt(Instant.now());
         nota.setPackedBy(principal.userId());
         notaRepository.save(nota);
         auditoria.registrar(ENTIDAD_AUDITORIA, noteId, "EMBALAJE", antes,
-                Map.of("bultos", bultos, "evidencia", doc.getDocumentId()), principal.userId());
+                Map.of("bultos", bultos, "evidencia", enlace), principal.userId());
         return despachoService.obtenerNota(noteId, principal);
     }
 

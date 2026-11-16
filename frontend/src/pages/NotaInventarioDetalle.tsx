@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Paperclip, Truck } from "lucide-react";
-import {
-  adjuntarDocumentoEnvio,
-  confirmarRecepcionEnvio,
-  obtenerNota,
-  registrarEnvio,
-} from "../api/almacen";
+import { Paperclip, Truck } from "lucide-react";
+import { adjuntarDocumentoEnvio, obtenerNota, registrarEnvio } from "../api/almacen";
 import type { ModalidadEntrega, NotaInventarioDetalle as Detalle, TipoAdjuntoEnvio } from "../api/types";
 import { EnvioBadge, NotaBadge } from "../components/AlmacenBadges";
 import { ETIQUETA_ADJUNTO, ETIQUETA_MODALIDAD, fmtCantidad, fmtDia, fmtFecha, hoyIso } from "../components/formato";
@@ -18,8 +13,8 @@ import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 import BotonDescarga from "../components/BotonDescarga";
 import PreparacionNota from "../components/almacen/PreparacionNota";
+import RecepcionDestinoPanel from "../components/almacen/RecepcionDestinoPanel";
 import { descargarPdfNota } from "../api/documentos";
-import { useConfirmar } from "../components/ui/Confirmacion";
 
 import CampoNumero from "../components/ui/CampoNumero";
 const labelClass = "rotulo";
@@ -34,14 +29,12 @@ function Dato({ label, children }: { label: string; children: React.ReactNode })
 }
 
 export default function NotaInventarioDetalle() {
-  const confirmar = useConfirmar();
   const { id } = useParams<{ id: string }>();
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const [confirmando, setConfirmando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
 
   const [envio, setEnvio] = useState({
@@ -56,7 +49,6 @@ export default function NotaInventarioDetalle() {
     shipDate: hoyIso(),
     expectedDate: "",
   });
-  const [observacion, setObservacion] = useState("");
   const [tipoAdjunto, setTipoAdjunto] = useState<TipoAdjuntoEnvio>("GUIA");
   const inputArchivo = useRef<HTMLInputElement>(null);
 
@@ -104,31 +96,6 @@ export default function NotaInventarioDetalle() {
     }
   }
 
-  async function onConfirmar() {
-    const shipmentId = detalle?.nota.envio?.shipmentId;
-    if (!shipmentId) return;
-    const r = await confirmar({
-      titulo: "¿Confirmar la recepción en destino?",
-      mensaje: "El estado de atención del requerimiento se recalcula con esta entrega.",
-      confirmar: "Confirmar recepción",
-    });
-    if (!r) return;
-    setError(null);
-    setExito(null);
-    setConfirmando(true);
-    try {
-      const res = await confirmarRecepcionEnvio(shipmentId, observacion || undefined);
-      if (res.ok && res.result) {
-        setDetalle(res.result);
-        setExito("Recepción en destino confirmada. El estado del requerimiento se recalculó automáticamente.");
-      } else {
-        setError(res.message);
-      }
-    } finally {
-      setConfirmando(false);
-    }
-  }
-
   async function onAdjuntar(file: File | undefined) {
     const shipmentId = detalle?.nota.envio?.shipmentId;
     if (!file || !shipmentId) return;
@@ -158,7 +125,7 @@ export default function NotaInventarioDetalle() {
 
   const { nota, items, documentos } = detalle;
   const e = nota.envio;
-  const puedeConfirmar = e && (e.status === "EN_TRANSITO" || e.status === "OBSERVADO");
+  const conRecepcion = items.some((it) => it.destRecibido > 0);
 
   return (
     <div>
@@ -214,6 +181,13 @@ export default function NotaInventarioDetalle() {
                 <th className="px-5 py-2.5">SKU</th>
                 <th className="px-5 py-2.5">Producto</th>
                 <th className="px-5 py-2.5">Cantidad</th>
+                {conRecepcion && (
+                  <>
+                    <th className="px-5 py-2.5">Aceptado</th>
+                    <th className="px-5 py-2.5">Observado</th>
+                    <th className="px-5 py-2.5">Devuelto</th>
+                  </>
+                )}
                 <th className="px-5 py-2.5">Costo ref.</th>
               </tr>
             </thead>
@@ -226,6 +200,15 @@ export default function NotaInventarioDetalle() {
                     {it.atributo ? <span className="text-slate-400"> · {it.atributo}</span> : null}
                   </td>
                   <td className="px-5 py-2.5 text-slate-600">{fmtCantidad(it.qty)}</td>
+                  {conRecepcion && (
+                    <>
+                      <td className="px-5 py-2.5 text-slate-600">{fmtCantidad(it.destAceptado)}</td>
+                      <td className={`px-5 py-2.5 ${it.destObservado > 0 ? "text-rose-700" : "text-slate-600"}`}>
+                        {fmtCantidad(it.destObservado)}
+                      </td>
+                      <td className="px-5 py-2.5 text-slate-600">{fmtCantidad(it.destDevuelto)}</td>
+                    </>
+                  )}
                   <td className="px-5 py-2.5 text-slate-600">{it.purchaseCostReference ?? "—"}</td>
                 </tr>
               ))}
@@ -411,24 +394,19 @@ export default function NotaInventarioDetalle() {
               </div>
             </div>
 
-            {puedeConfirmar && (
-              <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4 sm:col-span-4">
-                <Field label="Observación de entrega" className="min-w-64 flex-1">
-                  <input
-                    value={observacion}
-                    onChange={(ev) => setObservacion(ev.target.value)}
-                    placeholder="Opcional"
-                    className={`${inputClass} w-full`}
-                  />
-                </Field>
-                <Button type="button" loading={confirmando} icon={<CheckCircle2 className="size-4" />} onClick={onConfirmar}>
-                  {confirmando ? "Confirmando…" : "Confirmar recepción en destino"}
-                </Button>
-              </div>
-            )}
           </CardBody>
         </Card>
       )}
+
+      <RecepcionDestinoPanel
+        detalle={detalle}
+        onCambio={(d, mensaje) => {
+          setDetalle(d);
+          setError(null);
+          setExito(mensaje);
+        }}
+        onError={setError}
+      />
     </div>
   );
 }

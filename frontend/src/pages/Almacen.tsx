@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { FileSpreadsheet, FileText, PackageCheck, PackageOpen, Truck } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, FileText, PackageCheck, PackageOpen, Truck } from "lucide-react";
 import { listarNotas, listarOrdenesPorRecibir, listarPorDespachar } from "../api/almacen";
 import type { NotaInventario, Orden, Requerimiento } from "../api/types";
 import { EnvioBadge, NotaBadge } from "../components/AlmacenBadges";
 import { fmtCantidad, fmtDia, fmtFecha } from "../components/formato";
+import DiferenciasAlmacen from "../components/almacen/DiferenciasAlmacen";
 import EstadoBadge from "../components/EstadoBadge";
 import OrdenEstadoBadge from "../components/OrdenEstadoBadge";
 import PrioridadBadge from "../components/PrioridadBadge";
@@ -15,12 +16,13 @@ import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 
-type Pestana = "recibir" | "despachar" | "notas";
+type Pestana = "recibir" | "despachar" | "notas" | "diferencias";
 
 const PESTANAS: { id: Pestana; label: string; icon: typeof Truck }[] = [
   { id: "recibir", label: "Por recibir", icon: PackageOpen },
   { id: "despachar", label: "Por despachar", icon: PackageCheck },
   { id: "notas", label: "Notas de inventario", icon: FileText },
+  { id: "diferencias", label: "Diferencias", icon: AlertTriangle },
 ];
 
 const thClass = "px-5 py-3";
@@ -66,6 +68,7 @@ export default function Almacen() {
       {tab === "recibir" && <PorRecibir />}
       {tab === "despachar" && <PorDespachar />}
       {tab === "notas" && <Notas />}
+      {tab === "diferencias" && <DiferenciasAlmacen />}
     </div>
   );
 }

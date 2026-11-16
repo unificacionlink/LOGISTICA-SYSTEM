@@ -41,4 +41,17 @@ public class SalidaItem {
 
     @Column(name = "purchase_cost_reference")
     private BigDecimal purchaseCostReference;
+
+    /** Recepcion en destino (ALM-03, DEC-L063): recibido = aceptado + observado + devuelto. */
+    @Column(name = "dest_received_qty", nullable = false)
+    private BigDecimal destReceivedQty = BigDecimal.ZERO;
+
+    @Column(name = "dest_accepted_qty", nullable = false)
+    private BigDecimal destAcceptedQty = BigDecimal.ZERO;
+
+    @Column(name = "dest_observed_qty", nullable = false)
+    private BigDecimal destObservedQty = BigDecimal.ZERO;
+
+    @Column(name = "dest_returned_qty", nullable = false)
+    private BigDecimal destReturnedQty = BigDecimal.ZERO;
 }

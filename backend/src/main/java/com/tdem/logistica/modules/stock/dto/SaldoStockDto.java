@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /**
  * Un SKU (variante) del catalogo en el almacen central del grupo (DEC-L045):
- * fisico (kardex), reservado, disponible y stock minimo (null = sin minimo).
+ * fisico (kardex), reservado, disponible, stock minimo (null = sin minimo) y en cuarentena.
  */
 public record SaldoStockDto(
         UUID variantId,
@@ -24,5 +24,7 @@ public record SaldoStockDto(
         BigDecimal reservado,
         BigDecimal disponible,
         BigDecimal minimo,
-        Instant ultimoMovimiento) {
+        Instant ultimoMovimiento,
+        /* Devuelto desde destino y recibido en cuarentena (ALM-03); no cuenta como disponible. */
+        BigDecimal enCuarentena) {
 }

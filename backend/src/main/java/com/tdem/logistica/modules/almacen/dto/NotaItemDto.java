@@ -8,5 +8,11 @@ public record NotaItemDto(
         String atributo,
         String codigoVariante,
         BigDecimal qty,
-        BigDecimal purchaseCostReference) {
+        BigDecimal purchaseCostReference,
+        java.util.UUID issueItemId,
+        /* Recepcion en destino (ALM-03): recibido = aceptado + observado + devuelto. */
+        BigDecimal destRecibido,
+        BigDecimal destAceptado,
+        BigDecimal destObservado,
+        BigDecimal destDevuelto) {
 }

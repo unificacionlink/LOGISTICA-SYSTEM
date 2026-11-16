@@ -656,11 +656,9 @@ public class PresupuestoService {
                   from requerimiento_item ri join reqs on reqs.request_id = ri.request_id
                   group by ri.product_id),
                 recibido as (
-                  select si.product_id, sum(si.qty) as qty
+                  select si.product_id, sum(si.dest_accepted_qty) as qty
                   from salida s join reqs on reqs.request_id = s.request_id
                   join salida_item si on si.issue_id = s.issue_id
-                  where exists (select 1 from envio e where e.issue_id = s.issue_id
-                                and e.status in ('RECEPCIONADO', 'CERRADO'))
                   group by si.product_id),
                 base as (
                   select vl.product_id, vl.qty_m1 + vl.qty_m2 + vl.qty_m3 + vl.qty_m4 + vl.qty_m5 + vl.qty_m6 as programado,

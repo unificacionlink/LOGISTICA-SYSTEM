@@ -36,7 +36,9 @@ import java.util.stream.Collectors;
 public class TrackingService {
 
     private static final DateTimeFormatter DD_MM_YYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final Set<String> ENVIO_ENTREGADO = Set.of("RECEPCIONADO", "CERRADO");
+    /** Envios con al menos una recepcion en destino; lo entregado es lo aceptado (ALM-03). */
+    private static final Set<String> ENVIO_ENTREGADO =
+            Set.of("RECEPCION_PARCIAL", "RECEPCIONADO", "RECEPCIONADO_OBSERVADO", "CERRADO");
     private static final Set<String> ESTADOS_APROBADOS = Set.of(
             EstadoRequerimiento.VERIFICACION_STOCK, EstadoRequerimiento.EN_ATENCION,
             EstadoRequerimiento.ATENCION_PARCIAL, EstadoRequerimiento.ATENCION_COMPLETA);
@@ -218,7 +220,7 @@ public class TrackingService {
         int entregasHastaCompletar = 0;
         for (Envio e : entregados) {
             for (SalidaItem si : itemsPorSalida.getOrDefault(e.getSalida().getIssueId(), List.of())) {
-                entregado.merge(si.getRequerimientoItem().getRequestItemId(), si.getQty(), BigDecimal::add);
+                entregado.merge(si.getRequerimientoItem().getRequestItemId(), si.getDestAcceptedQty(), BigDecimal::add);
             }
             if (primera == null) {
                 primera = e.getReceivedAt();

@@ -5,6 +5,39 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L063 — Lote 18b: recepción en destino con diferencias (2026-11-16, v0.48.0, ALM-03 de la V38.7).**
+  - Se sigue la V38.7 tal cual (`opSaveDelivery`, `aiResolve`,
+    `aiReceiveReturn`), con estas decisiones del usuario:
+    - **Destino: solo ENTREGA DIRECTA** al CECO, con constancia. Los almacenes
+      de destino vinculados a CECO de la V38.7 son subalmacenes y no se abordan
+      todavía (DEC-L045 sigue: un solo almacén central).
+    - **Evidencias como enlace**, como la V38.7: embalaje, subsanación,
+      devolución y retorno. En la recepción, la Nota de Inventario firmada
+      (archivo) o el enlace de la conformidad firmada. Reemplaza la evidencia
+      de embalaje como archivo de DEC-L062 (lo ya subido se conserva).
+    - **Operan LOGISTICA, GERENCIA y ADMIN** (V38.7 `cvAllowed`); GERENCIA solo
+      en los requerimientos que puede ver (`exigirAcceso`). Reemplaza
+      DEC-L017 para la recepción en destino.
+  - Recepción parcial o total por producto, hasta el saldo enviado; resultado
+    CONFORME o NO_CONFORME (observación obligatoria); un `client_token` por
+    formulario evita registrar dos veces la misma recepción.
+  - Por producto de la salida: `dest_received = dest_accepted + dest_observed +
+    dest_returned` (V33). Envío `RECEPCION_PARCIAL` / `RECEPCIONADO` /
+    `RECEPCIONADO_OBSERVADO` y `conformity_status`; la NI pasa a
+    `RECEPCION_PARCIAL` o `RECEPCIONADA`.
+  - **La atención del requerimiento cuenta solo lo aceptado** (V38.7
+    `v37ReceivedQty`): AtencionCalculator, Bandeja, Tracking, Dashboard y
+    cumplimiento de presupuesto leen `dest_accepted_qty`. Lo recepcionado antes
+    de V33 queda aceptado y conforme.
+  - Lo observado se **subsana** (pasa a aceptado) o se **devuelve** (queda
+    EN_TRANSITO). El almacén central recibe la devolución **en cuarentena**
+    (`RECIBIDA_OBSERVADA`): no vuelve a disponible ni entra al kardex; Stock
+    la muestra en la columna Cuarentena. La V38.7 no trae un paso posterior
+    para liberar esa cuarentena.
+  - Pantallas: el detalle de la NI con el formulario de recepción, lo
+    observado por resolver y el historial; Almacén › Diferencias (V38.7
+    pestaña "Diferencias") con lo observado y los retornos.
+
 - **DEC-L062 — Lote 18a: picking y embalaje de la Nota de Inventario (2026-11-16, v0.47.0, ALM-02 de la V38.7).**
   - Auditoria previa del Lote 18 contra la matriz V38.7: **ALM-01 ya estaba
     cubierto** (recepcion parcial/completa, exceso bloqueado, guia unica por
@@ -19,9 +52,8 @@ actualizar esta lista y el CHANGELOG.
     `packing_document_id` (V32). La NI sigue `EMITIDA` hasta el envio, como la
     liberacion de la OC (DEC-L061); la interfaz deriva "Por piquear / Por
     embalar / Por enviar".
-  - **Evidencia como archivo subido** (foto o PDF, documento
-    `EVIDENCIA_EMBALAJE`), no un enlace como en la V38.7: queda en el sistema y
-    se audita. Propuesta nuestra, no de la V38.7.
+  - ~~Evidencia como archivo subido~~ *Reemplazado por DEC-L063*: la
+    evidencia del embalaje es un enlace, como en la V38.7.
   - El embalaje se puede corregir mientras la NI no se envie (queda la ultima
     evidencia y cada cambio en `log_cambios`). Solo LOGISTICA/ADMIN.
   - Las NI existentes quedan piqueadas y embaladas en su fecha de emision (sin

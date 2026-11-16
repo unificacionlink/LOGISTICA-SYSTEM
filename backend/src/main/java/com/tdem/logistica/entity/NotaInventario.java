@@ -96,8 +96,12 @@ public class NotaInventario {
     @Column(name = "packed_by")
     private UUID packedBy;
 
+    /** Evidencia anterior a V33 (archivo subido); desde V33 es un enlace. */
     @Column(name = "packing_document_id")
     private UUID packingDocumentId;
+
+    @Column(name = "packing_evidence_url")
+    private String packingEvidenceUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)

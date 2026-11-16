@@ -39,7 +39,8 @@ public class DashboardService {
             entrega as (
               select v.request_id, max(v.received_at) as entregado_en
                 from envio v
-               where v.status in ('RECEPCIONADO','CERRADO') and v.request_id is not null
+               where v.status in ('RECEPCION_PARCIAL','RECEPCIONADO','RECEPCIONADO_OBSERVADO','CERRADO')
+                 and v.request_id is not null
                group by v.request_id
             ),
             aprob as (
@@ -126,7 +127,7 @@ public class DashboardService {
                     where rs.status = 'RESERVADA')),
                 json_build_object('codigo', 'EN_TRANSITO', 'cantidad',
                   (select count(distinct v.request_id) from envio v join reqs using (request_id)
-                    where v.status in ('PENDIENTE','EN_TRANSITO')))
+                    where v.status in ('PENDIENTE','EN_TRANSITO','RECEPCION_PARCIAL')))
               ),
               'semanas', (select coalesce(json_agg(json_build_object('semana', to_char(s.semana, 'YYYY-MM-DD'),
                                                                      'creados', coalesce(c.n, 0))

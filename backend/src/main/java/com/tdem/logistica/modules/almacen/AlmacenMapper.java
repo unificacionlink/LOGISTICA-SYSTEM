@@ -79,7 +79,8 @@ final class AlmacenMapper {
                 e.getStatus(),
                 e.getReceivedAt(),
                 e.getReceivedBy() != null ? e.getReceivedBy().getDisplayName() : null,
-                e.getDeliveryObservation());
+                e.getDeliveryObservation(),
+                e.getConformityStatus());
     }
 
     static NotaInventarioDto toDto(NotaInventario n, Envio envio) {
@@ -105,7 +106,8 @@ final class AlmacenMapper {
                 n.getCecoDestino() != null ? n.getCecoDestino().getCode() : null,
                 n.getRequerimiento().getRequester() != null ? n.getRequerimiento().getRequester().getDisplayName() : null,
                 n.getPickedAt(),
-                n.getPackedAt());
+                n.getPackedAt(),
+                n.getPackingEvidenceUrl());
     }
 
     static NotaItemDto toDto(SalidaItem i) {
@@ -115,7 +117,30 @@ final class AlmacenMapper {
                 i.getVariante() != null ? i.getVariante().getAttributeValue() : null,
                 i.getVariante() != null ? i.getVariante().getInternalVariantCode() : null,
                 i.getQty(),
-                i.getPurchaseCostReference());
+                i.getPurchaseCostReference(),
+                i.getIssueItemId(),
+                i.getDestReceivedQty(),
+                i.getDestAcceptedQty(),
+                i.getDestObservedQty(),
+                i.getDestReturnedQty());
+    }
+
+    static String sku(SalidaItem i) {
+        return i.getVariante() != null ? i.getVariante().getInternalVariantCode() : i.getProducto().getSkuBase();
+    }
+
+    static DestinoDtos.RecepcionDto toDto(RecepcionDestino r, List<DestinoDtos.LineaDto> lineas) {
+        return new DestinoDtos.RecepcionDto(r.getDestinationReceiptId(), r.getReceiptNumber(), r.getCreatedAt(),
+                r.getReceivedBy().getDisplayName(), r.getResult(), r.getObservation(), r.getConformityUrl(),
+                r.getDocumento() != null ? r.getDocumento().getFileUrl() : null,
+                r.getDocumento() != null ? r.getDocumento().getFileName() : null, lineas);
+    }
+
+    static DestinoDtos.ResolucionDto toDto(ResolucionDestino r) {
+        return new DestinoDtos.ResolucionDto(r.getResolutionId(), sku(r.getSalidaItem()),
+                r.getSalidaItem().getProducto().getName(), r.getQty(), r.getAction(), r.getEvidenceUrl(), r.getStatus(),
+                r.getCreatedAt(), r.getCreatedBy().getDisplayName(), r.getReceivedAt(),
+                r.getReceivedBy() != null ? r.getReceivedBy().getDisplayName() : null, r.getReturnEvidenceUrl());
     }
 
     static DocumentoAdjuntoDto toDto(Documento d) {

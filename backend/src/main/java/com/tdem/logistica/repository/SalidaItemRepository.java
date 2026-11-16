@@ -15,15 +15,19 @@ public interface SalidaItemRepository extends JpaRepository<SalidaItem, UUID> {
             "where i.salida.issueId = :issueId")
     List<SalidaItem> findBySalida(@Param("issueId") UUID issueId);
 
+    /** Productos con saldo observado en destino, por resolver (ALM-03). */
+    @Query("select i from SalidaItem i join fetch i.producto left join fetch i.variante join fetch i.salida " +
+            "where i.destObservedQty > 0")
+    List<SalidaItem> findConObservado();
+
     /** Despachado por item de un REQ, en una sola consulta: [requestItemId, suma]. */
     @Query("select i.requerimientoItem.requestItemId, sum(i.qty) from SalidaItem i " +
             "where i.requerimientoItem.requerimiento.requestId = :requestId group by i.requerimientoItem.requestItemId")
     List<Object[]> sumarDespachadoPorItem(@Param("requestId") UUID requestId);
 
-    /** RF-079: entregado (envio recepcionado o cerrado) por item de un REQ: [requestItemId, suma]. */
-    @Query("select i.requerimientoItem.requestItemId, sum(i.qty) from SalidaItem i " +
+    /** RF-079: entregado = aceptado en destino (ALM-03, v37ReceivedQty) por item de un REQ: [requestItemId, suma]. */
+    @Query("select i.requerimientoItem.requestItemId, sum(i.destAcceptedQty) from SalidaItem i " +
             "where i.requerimientoItem.requerimiento.requestId = :requestId " +
-            "and exists (select 1 from Envio e where e.salida = i.salida and e.status in ('RECEPCIONADO','CERRADO')) " +
             "group by i.requerimientoItem.requestItemId")
     List<Object[]> sumarEntregadoPorItem(@Param("requestId") UUID requestId);
 

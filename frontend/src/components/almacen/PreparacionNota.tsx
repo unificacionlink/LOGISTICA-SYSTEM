@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { CheckCircle2, Circle, FileUp, PackageCheck, ScanLine } from "lucide-react";
+import { CheckCircle2, Circle, PackageCheck, ScanLine } from "lucide-react";
 import { confirmarPickingNota, embalarNota } from "../../api/almacen";
 import type { NotaInventarioDetalle } from "../../api/types";
 import Button from "../ui/Button";
@@ -10,7 +10,7 @@ import { fmtDia, fmtFecha } from "../formato";
 
 /**
  * Preparacion de la Nota de Inventario antes del envio (ALM-02, DEC-L062):
- * picking → embalaje (bultos + evidencia) → envio. Una sola accion principal
+ * picking → embalaje (bultos + enlace de evidencia, V38.7) → envio. Una sola accion principal
  * segun el paso; el formulario de envio de la pagina aparece al terminar.
  */
 export default function PreparacionNota({
@@ -26,10 +26,11 @@ export default function PreparacionNota({
   const [ocupado, setOcupado] = useState(false);
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [bultos, setBultos] = useState(nota.packageCount ? String(nota.packageCount) : "");
-  const [archivo, setArchivo] = useState<File | null>(null);
+  const [enlace, setEnlace] = useState(nota.packingEvidenceUrl ?? "");
   const [errorCampo, setErrorCampo] = useState<string | null>(null);
   const bultosRef = useRef<HTMLInputElement>(null);
-  const ids = { bultos: useId(), archivo: useId(), error: useId() };
+  const enlaceRef = useRef<HTMLInputElement>(null);
+  const ids = { bultos: useId(), enlace: useId(), error: useId() };
 
   const enviada = !!nota.envio || nota.status !== "EMITIDA";
   const paso = !nota.pickedAt ? 0 : !nota.packedAt ? 1 : 2;
@@ -46,7 +47,6 @@ export default function PreparacionNota({
       if (res.ok && res.result) {
         onCambio(res.result);
         setCorrigiendo(false);
-        setArchivo(null);
       } else onError(res.message);
     } finally {
       setOcupado(false);
@@ -61,12 +61,13 @@ export default function PreparacionNota({
       bultosRef.current?.focus();
       return;
     }
-    if (!archivo) {
-      setErrorCampo("Adjunta la foto o el PDF del embalaje.");
+    if (!/^https?:\/\/\S+$/i.test(enlace.trim())) {
+      setErrorCampo("Registra el enlace de la evidencia del embalaje (http o https).");
+      enlaceRef.current?.focus();
       return;
     }
     setErrorCampo(null);
-    await ejecutar(() => embalarNota(nota.inventoryNoteId, n, archivo));
+    await ejecutar(() => embalarNota(nota.inventoryNoteId, n, enlace.trim()));
   }
 
   const mostrarFormulario = !enviada && nota.pickedAt && (!nota.packedAt || corrigiendo);
@@ -95,8 +96,13 @@ export default function PreparacionNota({
         {nota.packedAt && !corrigiendo && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
             <span>{nota.packageCount} {nota.packageCount === 1 ? "bulto" : "bultos"}</span>
-            {evidenciaEmbalaje && (
-              <a href={evidenciaEmbalaje.fileUrl} target="_blank" rel="noopener noreferrer" className="text-brand-700 hover:underline">
+            {(nota.packingEvidenceUrl ?? evidenciaEmbalaje?.fileUrl) && (
+              <a
+                href={nota.packingEvidenceUrl ?? evidenciaEmbalaje?.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-700 hover:underline"
+              >
                 Evidencia del embalaje
               </a>
             )}
@@ -140,29 +146,30 @@ export default function PreparacionNota({
               />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <label htmlFor={ids.archivo} className="text-[0.8125rem] font-medium text-slate-700">
-                Evidencia del embalaje <span className="text-rose-600" aria-hidden="true">*</span>
+              <label htmlFor={ids.enlace} className="text-[0.8125rem] font-medium text-slate-700">
+                Enlace de la evidencia <span className="text-rose-600" aria-hidden="true">*</span>
               </label>
-              <label
-                htmlFor={ids.archivo}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 hover:border-slate-400 hover:bg-slate-50 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-brand-100"
-              >
-                <FileUp className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
-                <span className="truncate">{archivo ? archivo.name : "Foto o PDF"}</span>
-                <input
-                  id={ids.archivo}
-                  name="file"
-                  type="file"
-                  required
-                  accept="application/pdf,image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  aria-describedby={errorCampo ? ids.error : undefined}
-                  onChange={(e) => {
-                    setArchivo(e.target.files?.[0] ?? null);
-                    setErrorCampo(null);
-                  }}
-                />
-              </label>
+              <input
+                id={ids.enlace}
+                ref={enlaceRef}
+                name="evidencia"
+                type="url"
+                inputMode="url"
+                required
+                maxLength={500}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="https://"
+                value={enlace}
+                onChange={(e) => {
+                  setEnlace(e.target.value);
+                  setErrorCampo(null);
+                }}
+                aria-describedby={errorCampo ? ids.error : undefined}
+                className={`${inputClass} w-full`}
+              />
             </div>
             <Button type="submit" icon={<PackageCheck className="size-4" />} loading={ocupado}>
               Registrar embalaje

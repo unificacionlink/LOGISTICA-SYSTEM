@@ -132,6 +132,20 @@ class MigracionLote16Test {
         assertNull(ni.get("packing_document_id"), "sin evidencia: no se inventa un archivo");
     }
 
+    /** V33 (DEC-L063): lo recepcionado antes del Lote 18b queda aceptado y conforme. */
+    @Test
+    void v33DejaLoRecepcionadoComoAceptado() {
+        Map<String, Object> si = jdbc.queryForMap("""
+                select si.qty, si.dest_received_qty, si.dest_accepted_qty, si.dest_observed_qty, v.conformity_status
+                  from salida_item si join envio v on v.issue_id = si.issue_id
+                  join nota_inventario n on n.issue_id = si.issue_id
+                 where n.inventory_note_code = 'NI-LEGADO-2'""");
+        assertEquals(0, ((BigDecimal) si.get("qty")).compareTo((BigDecimal) si.get("dest_received_qty")));
+        assertEquals(0, ((BigDecimal) si.get("qty")).compareTo((BigDecimal) si.get("dest_accepted_qty")));
+        assertEquals(0, ((BigDecimal) si.get("dest_observed_qty")).signum());
+        assertEquals("CONFORME", si.get("conformity_status"));
+    }
+
     // ------------------------------------------------------------------
 
     private static void sembrarLegado() {
@@ -188,6 +202,23 @@ class MigracionLote16Test {
                   origin_warehouse_id, movement_type, picking_user_id, created_by)
                 select 1, 'NI-LEGADO', ?, ?, ?, warehouse_id, 'CONSUMO', ?, ? from salida where issue_id = ?""",
                 empresa, req, salida, usuario, usuario, salida);
+
+        // NI ya recepcionada en destino (anterior a V33): 3 u. del item C.
+        UUID salida2 = jdbc.queryForObject("""
+                insert into salida (company_id, warehouse_id, issue_type, ceco_id, request_id, created_by)
+                values (?, (select warehouse_id from almacen limit 1), 'CONSUMO_INTERNO', ?, ?, ?) returning issue_id""",
+                UUID.class, empresa, ceco, req, usuario);
+        jdbc.update("insert into salida_item (issue_id, product_id, qty, request_item_id) values (?, ?, 3, ?)",
+                salida2, productoC, itemC);
+        UUID nota2 = jdbc.queryForObject("""
+                insert into nota_inventario (note_number, inventory_note_code, company_id, request_id, issue_id,
+                  origin_warehouse_id, movement_type, picking_user_id, created_by, status)
+                select 2, 'NI-LEGADO-2', ?, ?, ?, warehouse_id, 'CONSUMO', ?, ?, 'RECEPCIONADA'
+                  from salida where issue_id = ? returning inventory_note_id""",
+                UUID.class, empresa, req, salida2, usuario, usuario, salida2);
+        jdbc.update("""
+                insert into envio (shipment_type, request_id, issue_id, inventory_note_id, delivery_mode, status, created_by)
+                values ('DESPACHO_REQUERIMIENTO', ?, ?, ?, 'PROPIO', 'RECEPCIONADO', ?)""", req, salida2, nota2, usuario);
     }
 
     private static UUID item(UUID req, String variante, int qty) {

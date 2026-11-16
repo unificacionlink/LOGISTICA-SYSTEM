@@ -176,10 +176,10 @@ class ControlPresupuestalTest {
 				       r.request_id, r.requester_user_id
 				from requerimiento r where r.request_id = ? returning issue_id""", UUID.class, requestId);
 		jdbc.update("""
-				insert into salida_item (issue_id, product_id, qty, request_item_id)
-				select ?, ri.product_id, ?, ri.request_item_id from requerimiento_item ri
+				insert into salida_item (issue_id, product_id, qty, request_item_id, dest_received_qty, dest_accepted_qty)
+				select ?, ri.product_id, ?, ri.request_item_id, ?, ? from requerimiento_item ri
 				join producto p on p.product_id = ri.product_id where ri.request_id = ? and p.sku_base = ?""",
-				issue, qty, requestId, sku);
+				issue, qty, qty, qty, requestId, sku);
 		UUID nota = jdbc.queryForObject("""
 				insert into nota_inventario (note_number, inventory_note_code, company_id, request_id, issue_id,
 				  origin_warehouse_id, movement_type, picking_user_id, created_by)

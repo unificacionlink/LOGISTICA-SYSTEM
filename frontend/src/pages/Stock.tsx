@@ -191,6 +191,7 @@ export default function Stock() {
                   <th className={th}>Producto</th>
                   <th className={`${th} text-right`}>Físico</th>
                   <th className={`${th} col-sec text-right`}>Reservado</th>
+                  <th className={`${th} col-sec text-right`}>Cuarentena</th>
                   <th className={`${th} text-right`}>Disponible</th>
                   <th className={`${th} col-sec text-right`}>Mínimo</th>
                   <th className={`${th} col-sec`} />
@@ -219,6 +220,9 @@ export default function Stock() {
                     </td>
                     <td className="col-sec px-4 py-2.5 text-right text-slate-500">
                       {s.reservado > 0 ? fmtCantidad(s.reservado) : "—"}
+                    </td>
+                    <td className="col-sec px-4 py-2.5 text-right text-slate-500">
+                      {s.enCuarentena > 0 ? fmtCantidad(s.enCuarentena) : "—"}
                     </td>
                     <td className={`px-4 py-2.5 text-right font-medium ${s.disponible > 0 ? "text-slate-900" : "text-slate-400"}`}>
                       {fmtCantidad(s.disponible)}

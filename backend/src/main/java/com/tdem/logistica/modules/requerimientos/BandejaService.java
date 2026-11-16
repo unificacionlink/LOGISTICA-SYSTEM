@@ -70,8 +70,7 @@ public class BandejaService {
             ),
             sal as (
               select si.request_item_id, sum(si.qty) as despachado,
-                     coalesce(sum(si.qty) filter (where exists (
-                       select 1 from envio v where v.issue_id = si.issue_id and v.status in ('RECEPCIONADO','CERRADO'))), 0) as entregado
+                     sum(si.dest_accepted_qty) as entregado
                 from salida_item si join it on it.request_item_id = si.request_item_id
                group by si.request_item_id
             ),
@@ -165,7 +164,7 @@ public class BandejaService {
             env as (
               select distinct on (v.request_id) v.request_id, v.inventory_note_id
                 from envio v join base b on b.request_id = v.request_id
-               where v.status in ('PENDIENTE','EN_TRANSITO') and v.inventory_note_id is not null
+               where v.status in ('PENDIENTE','EN_TRANSITO','RECEPCION_PARCIAL') and v.inventory_note_id is not null
                order by v.request_id
             )
             select b.*, coalesce(i.n, 0) as items_count, i.resumen,
@@ -429,9 +428,8 @@ public class BandejaService {
             )
             select it.*,
                    coalesce((select sum(si.qty) from salida_item si where si.request_item_id = it.request_item_id), 0) as despachado,
-                   coalesce((select sum(si.qty) from salida_item si where si.request_item_id = it.request_item_id
-                               and exists (select 1 from envio v where v.issue_id = si.issue_id
-                                             and v.status in ('RECEPCIONADO','CERRADO'))), 0) as entregado,
+                   coalesce((select sum(si.dest_accepted_qty) from salida_item si
+                              where si.request_item_id = it.request_item_id), 0) as entregado,
                    coalesce((select sum(cci.quantity) from caja_chica_item cci
                                join caja_chica_ref cr on cr.petty_cash_ref_id = cci.petty_cash_ref_id
                               where cci.request_item_id = it.request_item_id and cr.destination = 'PROYECTO'
