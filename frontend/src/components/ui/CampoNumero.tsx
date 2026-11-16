@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes, Ref } from "react";
 import { limpiarNumero } from "../../utils/numeros";
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange" | "min" | "max" | "step"> & {
@@ -10,6 +10,7 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onC
   maxEnteros?: number;
   /** Si se escribe mas, se deja en este valor (ej. lo pendiente por recibir). */
   max?: number;
+  ref?: Ref<HTMLInputElement>;
 };
 
 /**

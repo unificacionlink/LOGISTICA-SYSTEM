@@ -9,13 +9,10 @@ import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
-import com.tdem.logistica.storage.StorageClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -41,12 +38,6 @@ public class DespachoService {
     private static final Set<String> MODALIDADES =
             Set.of("AGENCIA", "PROVEEDOR_ENTREGA", "RECOJO", "TERRESTRE_NORMAL", "COURIER", "PROPIO");
     private static final Set<String> TIPOS_ADJUNTO = Set.of("GUIA", "TICKET_ENVIO", "CONFORMIDAD_ENTREGA");
-    // Sin image/svg+xml, mismo criterio que las cotizaciones y fotos de producto.
-    private static final Map<String, String> EXTENSIONES_PERMITIDAS = Map.of(
-            "application/pdf", ".pdf",
-            "image/jpeg", ".jpg",
-            "image/png", ".png",
-            "image/webp", ".webp");
 
     private final RequerimientoRepository requerimientoRepository;
     private final RequerimientoItemRepository requerimientoItemRepository;
@@ -62,7 +53,7 @@ public class DespachoService {
     private final DocumentoRepository documentoRepository;
     private final DocumentoRelacionRepository documentoRelacionRepository;
     private final UsuarioRepository usuarioRepository;
-    private final StorageClient storageClient;
+    private final ArchivosAlmacen archivos;
     private final AtencionCalculator atencionCalculator;
     private final RealtimeNotifier realtimeNotifier;
 
@@ -80,7 +71,7 @@ public class DespachoService {
                            DocumentoRepository documentoRepository,
                            DocumentoRelacionRepository documentoRelacionRepository,
                            UsuarioRepository usuarioRepository,
-                           StorageClient storageClient,
+                           ArchivosAlmacen archivos,
                            AtencionCalculator atencionCalculator,
                            RealtimeNotifier realtimeNotifier) {
         this.requerimientoRepository = requerimientoRepository;
@@ -97,7 +88,7 @@ public class DespachoService {
         this.documentoRepository = documentoRepository;
         this.documentoRelacionRepository = documentoRelacionRepository;
         this.usuarioRepository = usuarioRepository;
-        this.storageClient = storageClient;
+        this.archivos = archivos;
         this.atencionCalculator = atencionCalculator;
         this.realtimeNotifier = realtimeNotifier;
     }
@@ -168,7 +159,9 @@ public class DespachoService {
                 : documentoRelacionRepository.findDocumentos("ENVIO", envio.getShipmentId()).stream()
                         .map(rel -> AlmacenMapper.toDto(rel.getDocumento()))
                         .toList();
-        return new NotaInventarioDetalleDto(AlmacenMapper.toDto(nota, envio), items, documentos);
+        DocumentoAdjuntoDto evidencia = nota.getPackingDocumentId() == null ? null
+                : documentoRepository.findById(nota.getPackingDocumentId()).map(AlmacenMapper::toDto).orElse(null);
+        return new NotaInventarioDetalleDto(AlmacenMapper.toDto(nota, envio), items, documentos, evidencia);
     }
 
     private List<NotaInventarioDto> notasDto(List<NotaInventario> notas) {
@@ -366,6 +359,11 @@ public class DespachoService {
         if (!"EMITIDA".equals(nota.getStatus())) {
             throw ApiException.badRequest("Esta nota ya tiene un envio registrado o no esta vigente.");
         }
+        if (nota.getPackedAt() == null) {
+            throw ApiException.badRequest(nota.getPickedAt() == null
+                    ? "Confirma el picking y el embalaje antes de registrar el envio."
+                    : "Registra el embalaje (bultos y evidencia) antes del envio.");
+        }
         if (envioRepository.findByNota(noteId).isPresent()) {
             throw ApiException.badRequest("Esta nota ya tiene un envio registrado.");
         }
@@ -430,36 +428,9 @@ public class DespachoService {
         if (!TIPOS_ADJUNTO.contains(documentType)) {
             throw ApiException.badRequest("Tipo de documento invalido (guia, ticket o conformidad).");
         }
-        if (file.isEmpty()) {
-            throw ApiException.badRequest("Selecciona un archivo.");
-        }
         Envio envio = envioRepository.findById(shipmentId)
                 .orElseThrow(() -> ApiException.notFound("Envio no encontrado."));
-        String contentType = file.getContentType();
-        String extension = contentType != null ? EXTENSIONES_PERMITIDAS.get(contentType) : null;
-        if (extension == null) {
-            throw ApiException.badRequest("Formato no soportado (usa PDF, JPG, PNG o WEBP).");
-        }
-        // La extension sale del content-type validado (no del nombre del cliente): sin path traversal.
-        String path = "envios/" + envio.getShipmentId() + "/" + UUID.randomUUID() + extension;
-        byte[] contenido;
-        try {
-            contenido = file.getBytes();
-        } catch (IOException e) {
-            throw new UncheckedIOException("No se pudo leer el archivo subido.", e);
-        }
-        String url = storageClient.subir(path, contenido, contentType);
-
-        Documento documento = new Documento();
-        documento.setDocumentId(UUID.randomUUID());
-        documento.setDocumentType(documentType);
-        documento.setFileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : path);
-        documento.setFileUrl(url);
-        documento.setMimeType(contentType);
-        documento.setUploadedBy(principal.userId());
-        documento.setUploadedAt(Instant.now());
-        documento.setStatus("ACTIVO");
-        documentoRepository.save(documento);
+        Documento documento = archivos.subir("envios/" + envio.getShipmentId(), documentType, file, principal.userId());
 
         DocumentoRelacion rel = new DocumentoRelacion();
         rel.setDocumentRelationId(UUID.randomUUID());

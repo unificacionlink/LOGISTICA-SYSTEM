@@ -17,6 +17,7 @@ import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 import BotonDescarga from "../components/BotonDescarga";
+import PreparacionNota from "../components/almacen/PreparacionNota";
 import { descargarPdfNota } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
 
@@ -184,7 +185,6 @@ export default function NotaInventarioDetalle() {
             {fmtDia(nota.pickingDate)} · {nota.pickingUserName}
           </Dato>
           <Dato label="Estado del bien">{nota.itemState}</Dato>
-          <Dato label="Bultos">{nota.packageCount ?? "—"}</Dato>
           <Dato label="Unidades">{fmtCantidad(nota.totalItemQty)}</Dato>
           <Dato label="Valor referencial">
             {nota.totalValueSnapshot !== null ? `${fmtCantidad(nota.totalValueSnapshot)} PEN` : "—"}
@@ -193,6 +193,15 @@ export default function NotaInventarioDetalle() {
           {nota.comments && <Dato label="Comentarios">{nota.comments}</Dato>}
         </CardBody>
       </Card>
+
+      <PreparacionNota
+        detalle={detalle}
+        onCambio={(d) => {
+          setDetalle(d);
+          setError(null);
+        }}
+        onError={setError}
+      />
 
       <Card className="mb-4 overflow-hidden">
         <CardBody className="pb-3">
@@ -225,7 +234,7 @@ export default function NotaInventarioDetalle() {
         </div>
       </Card>
 
-      {!e && nota.status === "EMITIDA" && (
+      {!e && nota.status === "EMITIDA" && nota.packedAt && (
         <form onSubmit={onRegistrarEnvio}>
           <Card className="mb-4">
             <CardBody className="grid gap-4 sm:grid-cols-4">

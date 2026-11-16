@@ -2,6 +2,7 @@ package com.tdem.logistica;
 
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.modules.almacen.DespachoService;
+import com.tdem.logistica.modules.almacen.PreparacionNotaService;
 import com.tdem.logistica.modules.almacen.RecepcionService;
 import com.tdem.logistica.modules.almacen.dto.*;
 import com.tdem.logistica.modules.compras.ComprasService;
@@ -12,15 +13,18 @@ import com.tdem.logistica.modules.tracking.dto.EventoDto;
 import com.tdem.logistica.modules.tracking.dto.HitoDto;
 import com.tdem.logistica.modules.tracking.dto.TrackingDto;
 import com.tdem.logistica.security.UsuarioPrincipal;
+import com.tdem.logistica.storage.StorageClient;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -30,6 +34,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 /**
  * Lote 6 de punta a punta contra Postgres real (BdRrhhSimulada) con los
@@ -50,6 +56,8 @@ class AlmacenFlujoTest {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private RecepcionService recepcionService;
 	@Autowired private DespachoService despachoService;
+	@Autowired private PreparacionNotaService preparacionService;
+	@MockitoBean private StorageClient storage;
 	@Autowired private ComprasService comprasService;
 	@Autowired private TrackingService trackingService;
 	@Autowired private DashboardService dashboardService;
@@ -126,12 +134,50 @@ class AlmacenFlujoTest {
 		assertEquals(0, kardex(f).signum());
 		assertEquals("EN_ATENCION", estadoRequerimiento(f), "despachar no es entregar (RF-079)");
 
+		// --- Preparacion de la NI 1 (ALM-02): picking -> embalaje -> envio ---
+		when(storage.subir(any(), any(), any())).thenReturn("https://storage.test/embalaje.jpg");
+		UUID nota1 = ni1.nota().inventoryNoteId();
+		RegistrarEnvioRequest agencia = new RegistrarEnvioRequest("AGENCIA", "Shalom", "SH-001", null, null, "PEN",
+				new BigDecimal("50"), new BigDecimal("9"), LocalDate.now(), LocalDate.now().plusDays(2));
+		ApiException sinPreparar = assertThrows(ApiException.class,
+				() -> despachoService.registrarEnvio(nota1, agencia, logistica));
+		assertTrue(sinPreparar.getMessage().contains("picking"), sinPreparar.getMessage());
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2, foto(), logistica),
+				"no se embala sin picking");
+		assertThrows(ApiException.class, () -> preparacionService.confirmarPicking(nota1, solicitante),
+				"solo LOGISTICA/ADMIN prepara");
+
+		NotaInventarioDetalleDto piqueada = preparacionService.confirmarPicking(nota1, logistica);
+		assertNotNull(piqueada.nota().pickedAt());
+		assertNull(piqueada.nota().packedAt());
+		assertThrows(ApiException.class, () -> preparacionService.confirmarPicking(nota1, logistica),
+				"el picking se confirma una vez");
+		assertThrows(ApiException.class, () -> despachoService.registrarEnvio(nota1, agencia, logistica),
+				"el envio exige el embalaje");
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 0, foto(), logistica),
+				"bultos > 0");
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2,
+				new MockMultipartFile("file", "x.svg", "image/svg+xml", new byte[] {1}), logistica),
+				"solo PDF o imagen");
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2, null, logistica),
+				"la evidencia es obligatoria");
+
+		preparacionService.embalar(nota1, 3, foto(), logistica);
+		NotaInventarioDetalleDto embalada = preparacionService.embalar(nota1, 2, foto(), logistica);
+		assertNotNull(embalada.nota().packedAt());
+		assertEquals(2, embalada.nota().packageCount(), "el embalaje se corrige antes del envio");
+		assertEquals("EVIDENCIA_EMBALAJE", embalada.evidenciaEmbalaje().documentType());
+		assertEquals(2, jdbc.queryForObject(
+				"select count(*) from log_cambios where entidad = 'NOTA_INVENTARIO' and entidad_id = ? and accion = 'EMBALAJE'",
+				Integer.class, nota1));
+
 		// --- Envio + confirmacion de la NI 1 -> atencion parcial ---
 		NotaInventarioDetalleDto enviada1 = despachoService.registrarEnvio(ni1.nota().inventoryNoteId(),
-				new RegistrarEnvioRequest("AGENCIA", "Shalom", "SH-001", null, null, "PEN",
-						new BigDecimal("50"), new BigDecimal("9"), LocalDate.now(), LocalDate.now().plusDays(2)),
-				logistica);
+				agencia, logistica);
 		assertEquals("DESPACHADA", enviada1.nota().status());
+		assertEquals(2, enviada1.nota().envio().packageCount(), "el envio toma los bultos del embalaje");
+		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 4, foto(), logistica),
+				"una NI enviada ya no se re-embala");
 		assertEquals(0, enviada1.nota().envio().shippingCostTotal().compareTo(new BigDecimal("59")));
 		UUID envio1 = enviada1.nota().envio().shipmentId();
 
@@ -153,6 +199,8 @@ class AlmacenFlujoTest {
 		assertEquals("SIN_ENVIO", parcial.entregas().get(1).estadoEntrega());
 
 		// --- Envio + confirmacion de la NI 2 -> atencion completa ---
+		preparacionService.confirmarPicking(ni2.nota().inventoryNoteId(), logistica);
+		preparacionService.embalar(ni2.nota().inventoryNoteId(), 1, foto(), logistica);
 		UUID envio2 = despachoService.registrarEnvio(ni2.nota().inventoryNoteId(),
 				new RegistrarEnvioRequest("RECOJO", null, null, null, null, null, null, null, null, null),
 				logistica).nota().envio().shipmentId();
@@ -337,4 +385,9 @@ class AlmacenFlujoTest {
 
 		return new Fixture(req, item, orden, ordenItem, producto, variante);
 	}
+
+	private static MockMultipartFile foto() {
+		return new MockMultipartFile("file", "embalaje.jpg", "image/jpeg", new byte[] {1, 2, 3});
+	}
+
 }

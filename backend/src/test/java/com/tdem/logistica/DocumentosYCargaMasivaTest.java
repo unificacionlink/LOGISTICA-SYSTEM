@@ -145,6 +145,9 @@ class DocumentosYCargaMasivaTest {
 		NotaInventarioDetalleDto ni = despachoService.crearNotaInventario(f.requestId,
 				new CrearNotaRequest(List.of(new DespachoItemInput(f.requestItemId, new BigDecimal("6"))), 2, null,
 						"Entregar en recepcion"), logistica);
+		// NI ya preparada (picking + embalaje los cubre AlmacenFlujoTest).
+		jdbc.update("update nota_inventario set picked_at = now(), packed_at = now() where inventory_note_id = ?",
+				ni.nota().inventoryNoteId());
 		despachoService.registrarEnvio(ni.nota().inventoryNoteId(),
 				new RegistrarEnvioRequest("AGENCIA", "Shalom", "SH-777", 2, null, "PEN",
 						new BigDecimal("40"), null, null, null), logistica);

@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * V20 (DEC-L039) sobre datos previos al Lote 16: cada linea de RFQ de un solo
@@ -117,6 +118,20 @@ class MigracionLote16Test {
                 String.class));
     }
 
+    /** V32 (DEC-L062): las NI previas al Lote 18 quedan piqueadas y embaladas, para no frenar su envio. */
+    @Test
+    void v32DejaLasNotasExistentesPiqueadasYEmbaladas() {
+        Map<String, Object> ni = jdbc.queryForMap("""
+                select status, picked_at = created_at as piqueada, packed_at = created_at as embalada,
+                       picked_by = created_by as por_su_emisor, packing_document_id
+                  from nota_inventario where inventory_note_code = 'NI-LEGADO'""");
+        assertEquals("EMITIDA", ni.get("status"));
+        assertEquals(Boolean.TRUE, ni.get("piqueada"));
+        assertEquals(Boolean.TRUE, ni.get("embalada"));
+        assertEquals(Boolean.TRUE, ni.get("por_su_emisor"));
+        assertNull(ni.get("packing_document_id"), "sin evidencia: no se inventa un archivo");
+    }
+
     // ------------------------------------------------------------------
 
     private static void sembrarLegado() {
@@ -162,6 +177,17 @@ class MigracionLote16Test {
                   qty_ordered, unit_cost, line_subtotal, line_total)
                 select ?, request_item_id, product_id, variant_id, 'Legado', uom_id, 3, 10, 30, 30
                 from requerimiento_item where request_item_id = ?""", orden, itemC);
+
+        // NI emitida y todavia sin envio (anterior a V32).
+        UUID salida = jdbc.queryForObject("""
+                insert into salida (company_id, warehouse_id, issue_type, ceco_id, request_id, created_by)
+                values (?, (select warehouse_id from almacen limit 1), 'CONSUMO_INTERNO', ?, ?, ?) returning issue_id""",
+                UUID.class, empresa, ceco, req, usuario);
+        jdbc.update("""
+                insert into nota_inventario (note_number, inventory_note_code, company_id, request_id, issue_id,
+                  origin_warehouse_id, movement_type, picking_user_id, created_by)
+                select 1, 'NI-LEGADO', ?, ?, ?, warehouse_id, 'CONSUMO', ?, ? from salida where issue_id = ?""",
+                empresa, req, salida, usuario, usuario, salida);
     }
 
     private static UUID item(UUID req, String variante, int qty) {

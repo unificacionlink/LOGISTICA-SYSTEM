@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.47.0",
+    titulo: "Picking y embalaje antes del envío",
+    cambios: [
+      "La nota de inventario ahora muestra su preparación: picking, embalaje y envío.",
+      "Antes de enviar, se confirma el picking y se registra el embalaje con la cantidad de bultos y una foto o PDF como evidencia.",
+      "En Almacén › Notas de inventario se ve en qué paso está cada nota que todavía no sale.",
+    ],
+  },
+  {
     version: "0.46.0",
     titulo: "Órdenes de compra con aprobación",
     cambios: [

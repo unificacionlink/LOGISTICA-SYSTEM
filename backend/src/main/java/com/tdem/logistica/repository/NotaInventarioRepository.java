@@ -1,7 +1,9 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.NotaInventario;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +15,10 @@ public interface NotaInventarioRepository extends JpaRepository<NotaInventario, 
 
     @Query("select coalesce(max(n.noteNumber), 0) from NotaInventario n where n.empresa.companyId = :companyId")
     Integer maxNumeroPorEmpresa(@Param("companyId") UUID companyId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select n from NotaInventario n where n.inventoryNoteId = :noteId")
+    Optional<NotaInventario> bloquear(@Param("noteId") UUID noteId);
 
     @Query("select n from NotaInventario n join fetch n.requerimiento r join fetch n.empresa " +
             "left join fetch n.cecoDestino join fetch n.pickingUser order by n.createdAt desc")

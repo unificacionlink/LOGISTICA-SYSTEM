@@ -23,12 +23,14 @@ public class AlmacenController {
     private final RecepcionService recepcionService;
     private final DespachoService despachoService;
     private final CargaMasivaService cargaMasivaService;
+    private final PreparacionNotaService preparacionService;
 
     public AlmacenController(RecepcionService recepcionService, DespachoService despachoService,
-                             CargaMasivaService cargaMasivaService) {
+                             CargaMasivaService cargaMasivaService, PreparacionNotaService preparacionService) {
         this.recepcionService = recepcionService;
         this.despachoService = despachoService;
         this.cargaMasivaService = cargaMasivaService;
+        this.preparacionService = preparacionService;
     }
 
     // ---------- Carga masiva de ingresos (RF-031) ----------
@@ -112,6 +114,23 @@ public class AlmacenController {
     public ApiResponse<NotaInventarioDetalleDto> nota(
             @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(despachoService.obtenerNota(id, principal));
+    }
+
+    // ---------- Preparacion (ALM-02) ----------
+
+    @PostMapping("/notas/{id}/picking")
+    public ApiResponse<NotaInventarioDetalleDto> confirmarPicking(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(preparacionService.confirmarPicking(id, principal), "Picking confirmado.");
+    }
+
+    @PostMapping(value = "/notas/{id}/embalaje", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<NotaInventarioDetalleDto> embalar(
+            @PathVariable UUID id,
+            @RequestParam("bultos") Integer bultos,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(preparacionService.embalar(id, bultos, file, principal), "Embalaje registrado.");
     }
 
     // ---------- Envio ----------

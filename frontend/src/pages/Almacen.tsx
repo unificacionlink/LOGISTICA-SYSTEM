@@ -232,7 +232,13 @@ function Notas() {
                       <NotaBadge estado={n.status} />
                     </td>
                     <td className="px-5 py-3">
-                      {n.envio ? <EnvioBadge estado={n.envio.status} /> : <span className="text-xs text-slate-400">Sin envío</span>}
+                      {n.envio ? (
+                        <EnvioBadge estado={n.envio.status} />
+                      ) : (
+                        <span className="text-xs text-slate-500">
+                          {!n.pickedAt ? "Por piquear" : !n.packedAt ? "Por embalar" : "Por enviar"}
+                        </span>
+                      )}
                     </td>
                     <td className="col-sec px-5 py-3 text-xs text-slate-400">{fmtFecha(n.issuedAt)}</td>
                     <td className="px-5 py-3 text-right">

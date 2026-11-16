@@ -146,7 +146,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/almacen?tab=despachar",
         ancla: "almacen-tab-despachar",
         titulo: "Despachar",
-        texto: "Despacha lo reservado con su nota de inventario. Quien pidió confirma la entrega.",
+        texto: "Despacha lo reservado con su nota de inventario: confirma el picking, registra el embalaje con su foto y recién ahí el envío. Quien pidió confirma la entrega.",
       },
       AYUDA,
     ],

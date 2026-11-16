@@ -86,6 +86,19 @@ export function obtenerNota(noteId: string) {
   return http.get<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}`);
 }
 
+// ---------- Preparacion (ALM-02) ----------
+
+export function confirmarPickingNota(noteId: string) {
+  return http.post<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}/picking`, {});
+}
+
+export function embalarNota(noteId: string, bultos: number, evidencia: File) {
+  const form = new FormData();
+  form.append("bultos", String(bultos));
+  form.append("file", evidencia);
+  return http.postForm<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}/embalaje`, form);
+}
+
 // ---------- Envio ----------
 
 export interface RegistrarEnvioInput {

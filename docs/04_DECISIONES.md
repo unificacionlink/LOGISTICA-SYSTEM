@@ -5,6 +5,28 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L062 — Lote 18a: picking y embalaje de la Nota de Inventario (2026-11-16, v0.47.0, ALM-02 de la V38.7).**
+  - Auditoria previa del Lote 18 contra la matriz V38.7: **ALM-01 ya estaba
+    cubierto** (recepcion parcial/completa, exceso bloqueado, guia unica por
+    proveedor + serie + numero, mas estricto que "por item"); la guia
+    obligatoria sigue atada a PD-02. Pendientes del lote: ALM-03 (recepcion en
+    destino con aceptado/observado, subsanar o devolver, cuarentena), ALM-04
+    (entrega directa proveedor -> CECO) y ALM-05 (F-LOG-10, falta el formato).
+  - La NI sigue el orden de la V38.7 (`aiPickGroup`/`aiPackingForm`/`opSendNote`):
+    **picking -> embalaje -> envio**. Picking es una confirmacion; embalaje pide
+    **bultos y evidencia**; el envio se bloquea sin embalaje.
+  - **Fechas, no estados**: `picked_at/by`, `packed_at/by`,
+    `packing_document_id` (V32). La NI sigue `EMITIDA` hasta el envio, como la
+    liberacion de la OC (DEC-L061); la interfaz deriva "Por piquear / Por
+    embalar / Por enviar".
+  - **Evidencia como archivo subido** (foto o PDF, documento
+    `EVIDENCIA_EMBALAJE`), no un enlace como en la V38.7: queda en el sistema y
+    se audita. Propuesta nuestra, no de la V38.7.
+  - El embalaje se puede corregir mientras la NI no se envie (queda la ultima
+    evidencia y cada cambio en `log_cambios`). Solo LOGISTICA/ADMIN.
+  - Las NI existentes quedan piqueadas y embaladas en su fecha de emision (sin
+    evidencia), para no frenar envios en curso.
+
 - **DEC-L061 — OC con aprobación, pago y liberación (2026-11-16, v0.46.0, Lote 17).**
   Adapta de la V38.7 `approveBuy` (aprobar la compra), `cvCoordinate` (estado
   de pago con constancia) y `caRelease` (liberar para recepción).

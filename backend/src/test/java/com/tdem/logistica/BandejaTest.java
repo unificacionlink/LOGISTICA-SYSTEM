@@ -138,6 +138,9 @@ class BandejaTest {
 		DespachoRequerimientoDto d = despacho.obtenerDespacho(a, log);
 		NotaInventarioDetalleDto nota = despacho.crearNotaInventario(a, new CrearNotaRequest(
 				List.of(new DespachoItemInput(d.items().get(0).requestItemId(), new BigDecimal("4"))), 1, "NUEVO", null), log);
+		// NI ya preparada (picking + embalaje los cubre AlmacenFlujoTest).
+		jdbc.update("update nota_inventario set picked_at = now(), packed_at = now() where inventory_note_id = ?",
+				nota.nota().inventoryNoteId());
 		despacho.registrarEnvio(nota.nota().inventoryNoteId(), new RegistrarEnvioRequest("PROPIO", null, null, 1, null,
 				"PEN", BigDecimal.ZERO, BigDecimal.ZERO, LocalDate.now(), LocalDate.now()), log);
 		BandejaDto.Fila fa = fila(a, log);

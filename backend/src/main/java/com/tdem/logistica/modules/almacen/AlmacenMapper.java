@@ -103,7 +103,9 @@ final class AlmacenMapper {
                 toDto(envio),
                 n.getAlmacenOrigen() != null ? n.getAlmacenOrigen().getName() : null,
                 n.getCecoDestino() != null ? n.getCecoDestino().getCode() : null,
-                n.getRequerimiento().getRequester() != null ? n.getRequerimiento().getRequester().getDisplayName() : null);
+                n.getRequerimiento().getRequester() != null ? n.getRequerimiento().getRequester().getDisplayName() : null,
+                n.getPickedAt(),
+                n.getPackedAt());
     }
 
     static NotaItemDto toDto(SalidaItem i) {

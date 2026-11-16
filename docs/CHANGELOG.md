@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.0 — 2026-11-16
+
+Lote 18a: picking y embalaje antes del envío (DEC-L062, ALM-02 de la V38.7).
+
+- `V32__ni_picking_embalaje.sql`: `nota_inventario.picked_at/by`, `packed_at/by`, `packing_document_id` y check de embalar solo lo piqueado; documento `EVIDENCIA_EMBALAJE`; las NI existentes quedan piqueadas y embaladas.
+- Nuevo `PreparacionNotaService` y endpoints `POST /api/almacen/notas/{id}/picking` y `POST /api/almacen/notas/{id}/embalaje` (multipart: `bultos` + `file`), con lock de la NI y auditoría `PICKING`/`EMBALAJE`. `DespachoService.registrarEnvio` exige la NI embalada; el detalle trae `evidenciaEmbalaje`.
+- `ArchivosAlmacen`: validación de formato y subida al Storage compartida por adjuntos del envío y evidencia del embalaje; el archivo se borra si la transacción se revierte.
+- Frontend: `components/almacen/PreparacionNota` en el detalle de la NI (Picking · Embalaje · Envío con `aria-current="step"`, una acción por paso, formulario de bultos + foto/PDF con etiquetas asociadas y error anunciado); el formulario de envío aparece recién con la NI embalada; Almacén › Notas muestra "Por piquear / Por embalar / Por enviar". `CampoNumero` acepta `ref`.
+- `AlmacenFlujoTest` cubre el orden, validaciones, corrección del embalaje y bloqueo tras el envío; `MigracionLote16Test` cubre V32 sobre NI previas; `MigracionesFlywayTest` pasa a 32 migraciones.
+
 ## 0.46.0 — 2026-11-16
 
 Lote 17: orden de compra con aprobación, pago y liberación (DEC-L061).

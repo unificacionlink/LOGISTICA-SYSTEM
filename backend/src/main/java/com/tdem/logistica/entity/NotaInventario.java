@@ -82,6 +82,23 @@ public class NotaInventario {
     @Column(name = "issued_at")
     private Instant issuedAt;
 
+    /** Picking confirmado (ALM-02, DEC-L062). */
+    @Column(name = "picked_at")
+    private Instant pickedAt;
+
+    @Column(name = "picked_by")
+    private UUID pickedBy;
+
+    /** Embalaje con bultos y evidencia; el envio lo exige. */
+    @Column(name = "packed_at")
+    private Instant packedAt;
+
+    @Column(name = "packed_by")
+    private UUID packedBy;
+
+    @Column(name = "packing_document_id")
+    private UUID packingDocumentId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private Usuario createdBy;

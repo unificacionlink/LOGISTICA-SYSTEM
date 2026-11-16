@@ -25,5 +25,7 @@ public record NotaInventarioDto(
         EnvioDto envio,
         String almacenOrigen,
         String cecoCodigo,
-        String solicitante) {
+        String solicitante,
+        Instant pickedAt,
+        Instant packedAt) {
 }

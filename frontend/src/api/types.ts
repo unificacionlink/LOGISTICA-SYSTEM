@@ -664,6 +664,9 @@ export interface NotaInventario {
   almacenOrigen: string | null;
   cecoCodigo: string | null;
   solicitante: string | null;
+  /** Preparacion antes del envio (ALM-02): picking y embalaje. */
+  pickedAt: string | null;
+  packedAt: string | null;
 }
 
 export interface NotaItem {
@@ -687,6 +690,7 @@ export interface NotaInventarioDetalle {
   nota: NotaInventario;
   items: NotaItem[];
   documentos: DocumentoAdjunto[];
+  evidenciaEmbalaje: Omit<DocumentoAdjunto, "documentType"> | null;
 }
 
 export interface DespachoRequerimiento {
