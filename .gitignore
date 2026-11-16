@@ -41,3 +41,7 @@ desktop.ini
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Skill modern-web-guidance (instalacion local, no se versiona)
+.agents/
+skills-lock.json
