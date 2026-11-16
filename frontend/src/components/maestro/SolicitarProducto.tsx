@@ -147,6 +147,9 @@ function Formulario({
       onKeyDown={(e) => {
         if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
           e.preventDefault();
+          // Enter que confirma una composicion IME (acentos, chino, japones) no envia;
+          // keyCode 229 cubre Safari, que entrega compositionend antes de este keydown.
+          if (e.nativeEvent.isComposing || e.keyCode === 229) return;
           void onEnviar();
         }
       }}

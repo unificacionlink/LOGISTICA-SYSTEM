@@ -33,7 +33,7 @@ export default function CecosUsuario({
   const porId = useMemo(() => new Map(cecos.map((c) => [c.id, c])), [cecos]);
   // PYC y Gerencia usan estos CECOs como ambito de presupuestos (DEC-L036).
   const gestiona = u.roles.includes("PYC") || u.roles.includes("GERENCIA");
-  const cambiaron = [...seleccion].sort().join() !== [...u.cecoIds].sort().join();
+  const cambiaron = seleccion.toSorted().join() !== u.cecoIds.toSorted().join();
 
   const resultados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();

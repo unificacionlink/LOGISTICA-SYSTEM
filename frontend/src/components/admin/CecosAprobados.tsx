@@ -36,7 +36,7 @@ export default function CecosAprobados({
   const [guardando, setGuardando] = useState(false);
   const porId = useMemo(() => new Map(cecos.map((c) => [c.id, c])), [cecos]);
   const nombre = useMemo(() => new Map(usuarios.map((x) => [x.id, x.nombre])), [usuarios]);
-  const cambiaron = [...seleccion].sort().join() !== [...actuales].sort().join();
+  const cambiaron = seleccion.toSorted().join() !== actuales.toSorted().join();
 
   /** Aprobador actual del CECO si es otro usuario (se le quitara al guardar). */
   const otroAprobador = (c: CecoAdmin) => (c.aprobadorId && c.aprobadorId !== u.id ? nombre.get(c.aprobadorId) : null);

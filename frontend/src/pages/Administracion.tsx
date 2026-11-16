@@ -243,7 +243,7 @@ function FilaUsuario({
   const [temporal, setTemporal] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [errorFila, setErrorFila] = useState<string | null>(null);
-  const cambiaronRoles = [...seleccion].sort().join() !== [...u.roles].sort().join();
+  const cambiaronRoles = seleccion.toSorted().join() !== u.roles.toSorted().join();
 
   async function onGuardarRoles() {
     setGuardando("roles");

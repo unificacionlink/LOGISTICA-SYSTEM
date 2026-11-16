@@ -188,7 +188,7 @@ export default function CargaMasivaFotos({
   const hechas = conteo("ok") + conteo("error");
   // Primero lo que requiere atencion; lo subido al final.
   const orden: Estado[] = ["error", "subiendo", "lista", "sin_producto", "repetida", "omitida", "ok"];
-  const visibles = [...filas].sort((a, b) => orden.indexOf(a.estado) - orden.indexOf(b.estado));
+  const visibles = filas.toSorted((a, b) => orden.indexOf(a.estado) - orden.indexOf(b.estado));
 
   return createPortal(
     <div

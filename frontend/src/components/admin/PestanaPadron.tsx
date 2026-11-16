@@ -47,7 +47,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
   }, [personal]);
   const empresa =
     elegida ||
-    [...datos.empresas].sort((a, b) => (conteo.get(b.code) ?? 0) - (conteo.get(a.code) ?? 0))[0]?.code ||
+    datos.empresas.toSorted((a, b) => (conteo.get(b.code) ?? 0) - (conteo.get(a.code) ?? 0))[0]?.code ||
     "";
   const empresasManuales = datos.empresas.filter((e) => e.altaManual).map((e) => e.code);
   const esManual = empresasManuales.includes(empresa);
