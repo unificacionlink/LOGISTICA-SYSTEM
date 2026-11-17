@@ -358,7 +358,7 @@ export default function RequerimientosNuevo() {
           No tienes centros de costo asignados. Pide a un administrador que te los asigne para crear requerimientos.
         </Alert>
       ) : (
-        <form onSubmit={onSubmit} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_380px]">
+        <form onSubmit={onSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
           <div className="flex flex-col gap-6">
             <Card>
               <CardBody className="flex flex-col gap-5">
@@ -476,8 +476,9 @@ export default function RequerimientosNuevo() {
             </Card>
           </div>
 
-          <aside className="lg:sticky lg:top-6">
-            <Card data-tutorial="req-pedido" className="overflow-hidden">
+          {/* En computadora el pedido ocupa toda la altura de la columna izquierda: la lista se desplaza por dentro. */}
+          <aside className="lg:relative lg:min-h-[30rem]">
+            <Card data-tutorial="req-pedido" className="flex flex-col overflow-hidden lg:absolute lg:inset-0">
               <CardHeader className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="size-4.5 text-slate-500" />
@@ -489,7 +490,7 @@ export default function RequerimientosNuevo() {
               </CardHeader>
 
               {pendientes.length > 0 && (
-                <ul className="divide-y divide-amber-100 border-b border-amber-100 bg-amber-50/60">
+                <ul className="max-h-48 shrink-0 divide-y divide-amber-100 overflow-y-auto border-b border-amber-100 bg-amber-50/60">
                   {pendientes.map((p) => (
                     <li key={p.key} className="flex flex-col gap-2 p-4">
                       <div className="flex items-start justify-between gap-2">
@@ -533,12 +534,11 @@ export default function RequerimientosNuevo() {
               )}
 
               {items.length === 0 && pendientes.length > 0 ? null : items.length === 0 ? (
-                <EmptyState
-                  icon={ShoppingCart}
-                  title="Aún no agregas productos"
-                />
+                <div className="flex flex-1 items-center justify-center">
+                  <EmptyState icon={ShoppingCart} title="Aún no agregas productos" />
+                </div>
               ) : (
-                <ul className="max-h-[26.25rem] divide-y divide-slate-100 overflow-y-auto">
+                <ul className="max-h-[26.25rem] divide-y divide-slate-100 overflow-y-auto lg:max-h-none lg:min-h-0 lg:flex-1">
                   {items.map((it) => (
                     <li key={it.variante.variantId} className="flex flex-col gap-2 p-4">
                       <div className="flex items-start justify-between gap-2">
@@ -610,7 +610,7 @@ export default function RequerimientosNuevo() {
                 </ul>
               )}
 
-              <div className="flex flex-col gap-3 border-t border-slate-100 p-4">
+              <div className="mt-auto flex shrink-0 flex-col gap-3 border-t border-slate-100 p-4">
                 {errorItems && <Alert tone="danger">{errorItems}</Alert>}
                 {errorEnvio && <Alert tone="danger">{errorEnvio}</Alert>}
                 <Button data-tutorial="req-enviar" type="submit" disabled={items.length + pendientes.length === 0} className="w-full">
