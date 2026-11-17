@@ -92,6 +92,7 @@ class RecepcionDestinoTest {
 		UUID envio = despachoService.registrarEnvio(noteId, new RegistrarEnvioRequest("PROPIO", null, null, null, null,
 				null, null, null, null, null), logistica).nota().envio().shipmentId();
 		UUID item = ni.items().get(0).issueItemId();
+		assertEquals(1, correos(requestId, "DESPACHO_ENVIADO"), "DEC-L066: el solicitante sabe que salio su pedido");
 
 		// --- Validaciones de opSaveDelivery ---
 		assertThrows(ApiException.class, () -> recibir(envio, item, 6, "CONFORME", null, ENLACE, null, solicitante),
@@ -133,6 +134,7 @@ class RecepcionDestinoTest {
 		assertEquals("NO_CONFORME", r2.nota().envio().conformityStatus());
 		assertEquals(0, new BigDecimal("4").compareTo(r2.items().get(0).destObservado()));
 		assertEquals(2, r2.recepciones().size());
+		assertEquals(2, correos(requestId, "RECEPCION_REGISTRADA"), "un correo por recepcion al solicitante");
 		assertEquals("https://storage.test/nota-firmada.pdf", r2.recepciones().get(1).documentoUrl());
 		assertEquals("ATENCION_PARCIAL", estado(requestId), "lo observado no cuenta como atendido");
 		assertThrows(ApiException.class, () -> recibir(envio, item, 1, "CONFORME", null, ENLACE, null, logistica),
@@ -196,6 +198,13 @@ class RecepcionDestinoTest {
 	private SaldoStockDto saldo() {
 		return stockService.listarSaldos(new UsuarioPrincipal(usuario("logistica@logistica.test"), List.of("LOGISTICA")))
 				.stream().filter(s -> s.codigoVariante().equals("AC01002-00")).findFirst().orElseThrow();
+	}
+
+	private int correos(UUID requestId, String evento) {
+		return jdbc.queryForObject("""
+				select count(*) from correo_saliente c join usuario u on u.user_id = c.recipient_user_id
+				where c.entity_id = ? and c.event_type = ? and u.corporate_email = 'solicitante@logistica.test'""",
+				Integer.class, requestId, evento);
 	}
 
 	private String estado(UUID requestId) {

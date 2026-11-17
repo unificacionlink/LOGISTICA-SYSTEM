@@ -5,6 +5,40 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L067 — Tablero Kanban de Requerimientos para Logística (2026-11-17, v0.52.0).**
+  - Decisión del usuario: vista **Tablero** dentro de Requerimientos (selector
+    Lista / Tablero, solo LOGISTICA y ADMIN), con la misma empresa y búsqueda.
+    Una tarjeta por requerimiento que recorre todo el flujo.
+  - Columnas: Por aprobar → Abastecimiento → Por despachar → En tránsito →
+    Con diferencias → Atendido. Cada REQ va en la **primera etapa con algo
+    pendiente** (lo que falta comprar frena antes que lo que falta despachar, y
+    esto antes que lo que está en camino); la tarjeta lista **por qué no
+    avanza**: las acciones de la bandeja, el paso de la nota sin enviar
+    (picking, embalaje, envío) y las unidades observadas en destino.
+  - Sin estados nuevos (DEC-L048): la etapa se calcula en `BandejaService` con
+    la misma consulta de la bandeja (`GET /api/requerimientos/tablero`).
+    Atendido muestra solo los 20 más recientes; las demás columnas, hasta 60.
+
+- **DEC-L066 — Correos automáticos (2026-11-17, v0.51.0, RF-007, RF-063, ADM-03 de la V38.7).**
+  - Proveedor: **Resend por HTTPS**, el mismo de RR.HH., con el dominio
+    `tdemperu.com` ya verificado (`no-reply@tdemperu.com`). HTTPS y no SMTP:
+    Render no permite SMTP en todos sus planes.
+  - **Bandeja de salida** `correo_saliente` (V35): `AvisosCorreo` escribe el
+    aviso en la misma transacción que la acción (si se revierte, no sale);
+    `DespachadorCorreos` lo envía cada 30 s fuera de la petición, con
+    `Idempotency-Key` = id del correo. Fallos: reintento a 1, 5, 15 y 60 min;
+    al quinto queda `ERROR` y va al Registro de errores del ADMIN (RF-063).
+  - Eventos (decisión del usuario): **aprobación pendiente** (aprobador
+    asignado + GERENCIA del CECO; sin asignado, todo APROBADOR y GERENCIA; sin
+    ADMIN, que es respaldo), **decisión** al solicitante (aprobado, observado
+    con motivo, rechazado), **despacho enviado** y **recepción registrada** al
+    solicitante. Más un **recordatorio** a las 8:00 (lunes a sábado) de lo que
+    sigue por aprobar desde antes de hoy, una vez por día y persona.
+  - Solo cuentas activas con acceso; nunca a quien hizo la acción. El texto de
+    los usuarios se escapa en el HTML.
+  - Sin aprobar desde el correo: un enlace a la plataforma; tras iniciar
+    sesión se vuelve a la ruta pedida (solo rutas internas).
+
 - **DEC-L065 — Padrón: estado Cesado y eliminación definitiva por ADMIN (2026-11-17, v0.50.0).**
   - Decisión del usuario: tres estados visibles, **Activo**, **Inactivo** (lo
     hizo un ADMIN, con fecha y quién; solo un ADMIN reactiva) y **Cesado**

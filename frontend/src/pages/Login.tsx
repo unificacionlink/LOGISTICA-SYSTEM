@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Lock, Mail } from "lucide-react";
 import * as authApi from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
@@ -14,6 +14,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { refrescar } = useAuth();
 
   async function onSubmit(e: FormEvent) {
@@ -27,7 +28,7 @@ export default function Login() {
         return;
       }
       await refrescar();
-      navigate("/inicio");
+      navigate(destinoTrasIngreso(location.state), { replace: true });
     } finally {
       setEnviando(false);
     }
@@ -101,4 +102,12 @@ export default function Login() {
       </div>
     </div>
   );
+}
+
+/** Vuelve a la ruta interna que se pidio sin sesion (enlace de un correo); nunca a otro sitio. */
+function destinoTrasIngreso(state: unknown): string {
+  const desde = (state as { desde?: unknown } | null)?.desde;
+  return typeof desde === "string" && desde.startsWith("/") && !desde.startsWith("//") && !desde.startsWith("/login")
+    ? desde
+    : "/inicio";
 }

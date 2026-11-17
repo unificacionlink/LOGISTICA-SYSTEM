@@ -10,6 +10,7 @@ import com.tdem.logistica.modules.almacen.dto.RecepcionDestinoRequest;
 import com.tdem.logistica.modules.almacen.dto.ResolverObservadoRequest;
 import com.tdem.logistica.modules.requerimientos.RequerimientoMapper;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
+import com.tdem.logistica.modules.notificaciones.AvisosCorreo;
 import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -63,6 +64,7 @@ public class RecepcionDestinoService {
     private final DespachoService despachoService;
     private final Auditoria auditoria;
     private final RealtimeNotifier realtimeNotifier;
+    private final AvisosCorreo avisosCorreo;
 
     public RecepcionDestinoService(EnvioRepository envioRepository, SalidaItemRepository salidaItemRepository,
                                    SalidaRepository salidaRepository, NotaInventarioRepository notaRepository,
@@ -74,7 +76,9 @@ public class RecepcionDestinoService {
                                    UsuarioRepository usuarioRepository, ArchivosAlmacen archivos,
                                    AtencionCalculator atencionCalculator, RequerimientoService requerimientoService,
                                    DespachoService despachoService, Auditoria auditoria,
-                                   RealtimeNotifier realtimeNotifier) {
+                                   RealtimeNotifier realtimeNotifier,
+                                   AvisosCorreo avisosCorreo) {
+        this.avisosCorreo = avisosCorreo;
         this.envioRepository = envioRepository;
         this.salidaItemRepository = salidaItemRepository;
         this.salidaRepository = salidaRepository;
@@ -208,6 +212,8 @@ public class RecepcionDestinoService {
             envio.setDeliveryObservation(observacion);
         }
         actualizarEstado(envio, nota, items.values(), false);
+        avisosCorreo.recepcionRegistrada(nota.getRequerimiento().getRequestId(), nota.getInventoryNoteCode(),
+                resultado, envio.getStatus(), observacion, principal.userId());
         auditoria.registrar("ENVIO", shipmentId, "RECIBIR", Map.of("estado", antes),
                 Map.of("estado", envio.getStatus(), "recepcion", rec.getReceiptNumber(), "resultado", resultado),
                 principal.userId());

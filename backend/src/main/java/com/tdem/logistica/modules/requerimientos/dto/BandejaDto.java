@@ -45,7 +45,17 @@ public record BandejaDto(
             int itemsEntregados,
             String resumenItems,
             Avance avance,
-            List<Accion> acciones) {
+            List<Accion> acciones,
+            Tablero tablero) {
+    }
+
+    /**
+     * Donde va el REQ en el tablero de Logistica (DEC-L067): la primera etapa del
+     * flujo que aun tiene algo pendiente. {@code preparacion}: PICKING / EMBALAJE /
+     * ENVIO si hay una nota de inventario sin enviar; {@code observado}: unidades
+     * observadas en destino que faltan resolver (DEC-L063).
+     */
+    public record Tablero(String etapa, String preparacion, int observado) {
     }
 
     public record Avance(double entregado, double enCamino, double listo, double enCompra) {

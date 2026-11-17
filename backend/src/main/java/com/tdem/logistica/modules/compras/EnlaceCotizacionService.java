@@ -2,6 +2,7 @@ package com.tdem.logistica.modules.compras;
 
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.Auditoria;
+import com.tdem.logistica.config.UrlPublica;
 import com.tdem.logistica.entity.Cotizacion;
 import com.tdem.logistica.entity.Rfq;
 import com.tdem.logistica.entity.RfqEnlace;
@@ -23,7 +24,6 @@ import com.tdem.logistica.repository.RfqItemRepository;
 import com.tdem.logistica.repository.RfqRepository;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.security.UsuarioPrincipal;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -74,7 +74,7 @@ public class EnlaceCotizacionService {
     private final ComprasService compras;
     private final Auditoria auditoria;
     private final RealtimeNotifier notifier;
-    private final String urlPublica;
+    private final UrlPublica urlPublica;
 
     public EnlaceCotizacionService(RfqEnlaceRepository enlaceRepository, RfqRepository rfqRepository,
                                    RfqItemRepository rfqItemRepository, CotizacionRepository cotizacionRepository,
@@ -83,8 +83,7 @@ public class EnlaceCotizacionService {
                                    ProductoImagenRepository productoImagenRepository,
                                    ComprasService compras, Auditoria auditoria,
                                    RealtimeNotifier notifier,
-                                   @Value("${app.public-url:}") String urlPublica,
-                                   @Value("${app.cors.allowed-origins}") String origenes) {
+                                   UrlPublica urlPublica) {
         this.enlaceRepository = enlaceRepository;
         this.rfqRepository = rfqRepository;
         this.rfqItemRepository = rfqItemRepository;
@@ -95,9 +94,7 @@ public class EnlaceCotizacionService {
         this.compras = compras;
         this.auditoria = auditoria;
         this.notifier = notifier;
-        // Sin APP_PUBLIC_URL se usa el primer origen permitido (en produccion, el dominio).
-        String base = urlPublica != null && !urlPublica.isBlank() ? urlPublica : origenes.split(",")[0];
-        this.urlPublica = base.trim().replaceAll("/+$", "");
+        this.urlPublica = urlPublica;
     }
 
     // ================================================================ Logistica
@@ -295,7 +292,7 @@ public class EnlaceCotizacionService {
     }
 
     private String url(String token) {
-        return urlPublica + "/cotizar/" + token;
+        return urlPublica.de("/cotizar/" + token);
     }
 
     static String hash(String token) {

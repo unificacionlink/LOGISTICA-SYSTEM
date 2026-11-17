@@ -1424,6 +1424,24 @@ export interface FilaBandeja {
   resumenItems: string | null;
   avance: AvanceBandeja;
   acciones: AccionBandeja[];
+  tablero: TableroFila;
+}
+
+/** Etapa del tablero de Logistica (DEC-L067): la primera del flujo con algo pendiente. */
+export type EtapaTablero = "aprobacion" | "abastecimiento" | "preparacion" | "transito" | "diferencias" | "atendido";
+
+export interface TableroFila {
+  /** null: borrador o rechazado (no van al tablero). */
+  etapa: EtapaTablero | null;
+  /** Nota de inventario sin enviar: que paso le falta. */
+  preparacion: "PICKING" | "EMBALAJE" | "ENVIO" | null;
+  /** Unidades observadas en destino por resolver (DEC-L063). */
+  observado: number;
+}
+
+export interface TableroRequerimientos {
+  columnas: { id: EtapaTablero; label: string; total: number; tarjetas: FilaBandeja[] }[];
+  empresas: { code: string; total: number }[];
 }
 
 export interface Bandeja {

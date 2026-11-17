@@ -12,6 +12,7 @@ import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.modules.requerimientos.BandejaService;
 import com.tdem.logistica.modules.requerimientos.dto.AvanceRequerimientoDto;
 import com.tdem.logistica.modules.requerimientos.dto.BandejaDto;
+import com.tdem.logistica.modules.requerimientos.dto.TableroDto;
 import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.modules.stock.dto.AjusteStockRequest;
 import com.tdem.logistica.modules.compras.OrdenCompraService;
@@ -85,6 +86,7 @@ class BandejaTest {
 		aprobar(a);
 		assertEquals(List.of("DESPACHAR"), codigos(fila(a, log)));
 		assertTrue(enVista(a, "atencion", log) && enVista(a, "despacho", log));
+		assertEquals("preparacion", columna(a, log), "DEC-L067: stock listo -> Por despachar");
 
 		// B: sin stock -> PEDIR_COTIZACION
 		UUID b = requerimiento(Map.of("AC01003-00", 3), usuario("solicitante@logistica.test"));
@@ -93,6 +95,7 @@ class BandejaTest {
 		assertEquals("PEDIR_COTIZACION", codigos(fila(b, log)).get(0));
 		assertTrue(enVista(b, "compras", log) && enVista(b, "atencion", log));
 		assertFalse(enVista(b, "despacho", log));
+		assertEquals("abastecimiento", columna(b, log));
 
 		// Con una oferta -> ADJUDICAR
 		UUID prov = jdbc.queryForObject("insert into proveedor (ruc, legal_name) values ('20100000099', 'Prov') returning supplier_id", UUID.class);
@@ -127,6 +130,7 @@ class BandejaTest {
 		recepcion.registrar(oc.orderId(), new RegistrarRecepcionRequest(List.of(new RecepcionItemInput(
 				ro.items().get(0).orderItemId(), BigDecimal.ONE, "CONFORME", null, null)), null, null), log);
 		assertEquals(List.of("DESPACHAR", "RECIBIR_OC"), codigos(fila(b, log)));
+		assertEquals("abastecimiento", columna(b, log), "lo que falta comprar frena antes que lo listo");
 		AvanceRequerimientoDto.Item ib = bandeja.avance(b, log).items().get(0);
 		assertEquals(0, BigDecimal.ONE.compareTo(ib.listo()));
 		assertEquals(0, new BigDecimal("2").compareTo(ib.enCompra()));
@@ -138,6 +142,8 @@ class BandejaTest {
 		DespachoRequerimientoDto d = despacho.obtenerDespacho(a, log);
 		NotaInventarioDetalleDto nota = despacho.crearNotaInventario(a, new CrearNotaRequest(
 				List.of(new DespachoItemInput(d.items().get(0).requestItemId(), new BigDecimal("4"))), 1, "NUEVO", null), log);
+		assertEquals("preparacion", columna(a, log));
+		assertEquals("PICKING", fila(a, log).tablero().preparacion(), "la nota espera su picking");
 		// NI ya preparada (picking + embalaje los cubre AlmacenFlujoTest).
 		jdbc.update("update nota_inventario set picked_at = now(), packed_at = now() where inventory_note_id = ?",
 				nota.nota().inventoryNoteId());
@@ -147,11 +153,23 @@ class BandejaTest {
 		assertEquals(List.of("CONFIRMAR_ENTREGA"), codigos(fa));
 		assertEquals(1.0, fa.avance().enCamino(), 0.001);
 		assertTrue(enVista(a, "seguimiento", log));
+		assertEquals("transito", columna(a, log));
+		assertNull(fa.tablero().preparacion());
 
 		// C: pendiente de aprobacion -> Seguimiento (espera al aprobador)
 		UUID cc = requerimiento(Map.of("EP01006-00", 2), usuario("solicitante@logistica.test"));
 		assertEquals(List.of("APROBACION"), codigos(fila(cc, log)));
 		assertTrue(enVista(cc, "seguimiento", log));
+		assertEquals("aprobacion", columna(cc, log));
+
+		// Tablero: totales = tarjetas, solo de Logistica
+		TableroDto tablero = bandeja.tablero(null, null, log);
+		assertEquals(List.of("aprobacion", "abastecimiento", "preparacion", "transito", "diferencias", "atendido"),
+				tablero.columnas().stream().map(TableroDto.Columna::id).toList());
+		tablero.columnas().forEach(col -> assertEquals(col.total(), col.tarjetas().size(), col.id()));
+		assertEquals(0, bandeja.tablero("METRIN", null, log).columnas().stream().mapToInt(TableroDto.Columna::total).sum());
+		assertThrows(ApiException.class, () -> bandeja.tablero(null, null,
+				new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"))));
 
 		// Conteos consistentes con las filas de cada vista
 		BandejaDto todo = bandeja.bandeja(null, null, null, 0, log);
@@ -187,6 +205,12 @@ class BandejaTest {
 			}
 		}
 		throw new AssertionError("no esta en ninguna vista");
+	}
+
+	private String columna(UUID id, UsuarioPrincipal p) {
+		return bandeja.tablero(null, null, p).columnas().stream()
+				.filter(c -> c.tarjetas().stream().anyMatch(f -> f.id().equals(id)))
+				.map(TableroDto.Columna::id).findFirst().orElse(null);
 	}
 
 	private boolean enVista(UUID id, String vista, UsuarioPrincipal p) {

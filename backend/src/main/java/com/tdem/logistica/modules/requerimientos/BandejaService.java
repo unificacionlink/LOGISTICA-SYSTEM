@@ -6,6 +6,7 @@ import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.Requerimiento;
 import com.tdem.logistica.modules.requerimientos.dto.AvanceRequerimientoDto;
 import com.tdem.logistica.modules.requerimientos.dto.BandejaDto;
+import com.tdem.logistica.modules.requerimientos.dto.TableroDto;
 import com.tdem.logistica.repository.RequerimientoRepository;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -33,6 +34,12 @@ import java.util.function.Predicate;
 public class BandejaService {
 
     static final int POR_PAGINA = 50;
+    static final String ETAPA_APROBACION = "aprobacion";
+    static final String ETAPA_ABASTECIMIENTO = "abastecimiento";
+    static final String ETAPA_PREPARACION = "preparacion";
+    static final String ETAPA_TRANSITO = "transito";
+    static final String ETAPA_DIFERENCIAS = "diferencias";
+    static final String ETAPA_ATENDIDO = "atendido";
     private static final ZoneId LIMA = ZoneId.of("America/Lima");
 
     private static final Set<String> APROBADOS = Set.of(
@@ -161,6 +168,20 @@ public class BandejaService {
                where o.status in ('POR_APROBAR','EMITIDA','EN_ATENCION','RECEPCION_PARCIAL')
                order by nc.request_id, (o.status = 'POR_APROBAR' or o.released_at is null) desc, o.created_at
             ),
+            prep as (
+              select n.request_id,
+                     bool_or(n.picked_at is null) as por_piquear,
+                     bool_or(n.picked_at is not null and n.packed_at is null) as por_embalar,
+                     bool_or(n.packed_at is not null) as por_enviar
+                from nota_inventario n join base b on b.request_id = n.request_id
+               where n.status = 'EMITIDA'
+               group by n.request_id
+            ),
+            obs as (
+              select it.request_id, sum(si.dest_observed_qty) as observado
+                from salida_item si join it on it.request_item_id = si.request_item_id
+               group by it.request_id
+            ),
             env as (
               select distinct on (v.request_id) v.request_id, v.inventory_note_id
                 from envio v join base b on b.request_id = v.request_id
@@ -174,7 +195,9 @@ public class BandejaService {
                    coalesce(x.ruta, false) as ruta, coalesce(x.caja, false) as caja, coalesce(x.emitir, false) as emitir,
                    x.pedir, x.adjudicar, x.esperando, oc.order_id, oc.oc_status, coalesce(oc.oc_liberada, false) as oc_liberada,
                    env.inventory_note_id,
-                   coalesce(cc.por_revisar, false) as cc_por_revisar, coalesce(cc.observada, false) as cc_observada
+                   coalesce(cc.por_revisar, false) as cc_por_revisar, coalesce(cc.observada, false) as cc_observada,
+                   coalesce(pr.por_piquear, false) as por_piquear, coalesce(pr.por_embalar, false) as por_embalar,
+                   coalesce(pr.por_enviar, false) as por_enviar, coalesce(ob.observado, 0) as observado
               from base b
               left join items i on i.request_id = b.request_id
               left join avance a on a.request_id = b.request_id
@@ -182,6 +205,8 @@ public class BandejaService {
               left join oc on oc.request_id = b.request_id
               left join env on env.request_id = b.request_id
               left join cc on cc.request_id = b.request_id
+              left join prep pr on pr.request_id = b.request_id
+              left join obs ob on ob.request_id = b.request_id
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -251,6 +276,89 @@ public class BandejaService {
         List<BandejaDto.Fila> filas = filtrados.stream()
                 .skip((long) pag * POR_PAGINA).limit(POR_PAGINA).map(Registro::fila).toList();
         return new BandejaDto(vistaActiva, vistas, empresas, filtrados.size(), pag, POR_PAGINA, filas);
+    }
+
+    // ---------------------------------------------------------------- tablero (DEC-L067)
+
+    private static final List<DefVista> COLUMNAS = List.of(
+            new DefVista(ETAPA_APROBACION, "Por aprobar"),
+            new DefVista(ETAPA_ABASTECIMIENTO, "Abastecimiento"),
+            new DefVista(ETAPA_PREPARACION, "Por despachar"),
+            new DefVista(ETAPA_TRANSITO, "En tránsito"),
+            new DefVista(ETAPA_DIFERENCIAS, "Con diferencias"),
+            new DefVista(ETAPA_ATENDIDO, "Atendido"));
+
+    /**
+     * Tablero Kanban de Logistica: cada REQ en la primera etapa con algo pendiente.
+     * Atendido muestra solo los mas recientes (es historial).
+     */
+    public TableroDto tablero(String empresa, String q, UsuarioPrincipal principal) {
+        if (!principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN)) {
+            throw ApiException.forbidden("El tablero es de Logistica.");
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("todos", true)
+                .addValue("yo", principal.userId());
+        LocalDate hoy = LocalDate.now(LIMA);
+        List<Registro> todos = jdbc.query(SQL, params, (rs, n) -> registro(rs, true, principal.userId()));
+
+        List<String> palabras = Arrays.stream(normalizar(q == null ? "" : q).split("\\s+"))
+                .filter(s -> !s.isBlank()).limit(6).toList();
+        Predicate<Registro> porBusqueda = r -> palabras.stream().allMatch(r.busqueda()::contains);
+        Predicate<Registro> enTablero = r -> r.fila().tablero().etapa() != null;
+        String emp = empresa == null || empresa.isBlank() ? null : empresa;
+
+        Map<String, Integer> porEmp = new TreeMap<>();
+        todos.stream().filter(enTablero).filter(porBusqueda)
+                .forEach(r -> porEmp.merge(r.fila().empresaCode(), 1, Integer::sum));
+        List<BandejaDto.Empresa> empresas = porEmp.entrySet().stream()
+                .map(e -> new BandejaDto.Empresa(e.getKey(), e.getValue())).toList();
+
+        List<Registro> visibles = todos.stream().filter(enTablero).filter(porBusqueda)
+                .filter(r -> emp == null || emp.equals(r.fila().empresaCode())).toList();
+        List<TableroDto.Columna> columnas = COLUMNAS.stream().map(c -> {
+            boolean historial = ETAPA_ATENDIDO.equals(c.id());
+            List<BandejaDto.Fila> tarjetas = visibles.stream()
+                    .filter(r -> c.id().equals(r.fila().tablero().etapa()))
+                    .sorted(orden(historial, hoy))
+                    .map(Registro::fila).toList();
+            int max = historial ? 20 : TableroDto.MAX_POR_COLUMNA;
+            return new TableroDto.Columna(c.id(), c.label(), tarjetas.size(),
+                    tarjetas.stream().limit(max).toList());
+        }).toList();
+        return new TableroDto(columnas, empresas);
+    }
+
+    /**
+     * Primera etapa del flujo con algo pendiente: lo que falta de comprar frena antes
+     * que lo que falta despachar, y esto antes que lo que esta en camino. Borradores
+     * y rechazados no van al tablero (null).
+     */
+    static String etapa(String status, List<BandejaDto.Accion> acciones, double compra, double listo, double camino,
+                        String preparacion, int observado) {
+        if (EstadoRequerimiento.PENDIENTE_APROBACION.equals(status) || EstadoRequerimiento.OBSERVADO.equals(status)) {
+            return ETAPA_APROBACION;
+        }
+        if (EstadoRequerimiento.ATENCION_COMPLETA.equals(status)) {
+            return ETAPA_ATENDIDO;
+        }
+        if (!APROBADOS.contains(status)) {
+            return null;
+        }
+        if (compra > 0 || acciones.stream().anyMatch(a -> DE_COMPRAS.contains(a.codigo()))) {
+            return ETAPA_ABASTECIMIENTO;
+        }
+        if (listo > 0 || preparacion != null || acciones.stream().anyMatch(a -> "DESPACHAR".equals(a.codigo()))) {
+            return ETAPA_PREPARACION;
+        }
+        if (camino > 0 || acciones.stream().anyMatch(a -> "CONFIRMAR_ENTREGA".equals(a.codigo()))) {
+            return ETAPA_TRANSITO;
+        }
+        if (observado > 0) {
+            return ETAPA_DIFERENCIAS;
+        }
+        // Aprobado sin nada pendiente registrado: queda a la vista en el primer tramo para revisarlo.
+        return ETAPA_ABASTECIMIENTO;
     }
 
     private static Comparator<Registro> orden(boolean cerrados, LocalDate hoy) {
@@ -365,13 +473,18 @@ public class BandejaService {
         double listo = Math.min(rs.getDouble("f_listo"), 1 - entregado - camino);
         double compra = Math.min(rs.getDouble("f_compra"), Math.max(0, 1 - entregado - camino - listo));
 
+        String preparacion = rs.getBoolean("por_piquear") ? "PICKING"
+                : rs.getBoolean("por_embalar") ? "EMBALAJE" : rs.getBoolean("por_enviar") ? "ENVIO" : null;
+        int observado = rs.getBigDecimal("observado").intValue();
+        String etapa = etapa(status, acciones, compra, listo, camino, preparacion, observado);
+
         BandejaDto.Fila fila = new BandejaDto.Fila(
                 id, rs.getString("request_code"), rs.getString("empresa"), rs.getString("ceco_code"),
                 rs.getString("ceco_name"), requester, rs.getString("solicitante"), rs.getString("priority"), status,
                 rs.getObject("required_date", LocalDate.class), rs.getObject("created_at", OffsetDateTime.class),
                 rs.getInt("items_count"), rs.getInt("entregados"), rs.getString("resumen"),
                 new BandejaDto.Avance(redondear(entregado), redondear(camino), redondear(listo), redondear(compra)),
-                acciones);
+                acciones, new BandejaDto.Tablero(etapa, preparacion, observado));
         String busqueda = normalizar(String.join(" ", Objects.toString(fila.code(), ""),
                 Objects.toString(fila.cecoCode(), ""), Objects.toString(fila.cecoNombre(), ""),
                 Objects.toString(fila.solicitante(), ""), Objects.toString(fila.resumenItems(), "")));

@@ -1,6 +1,6 @@
 import { enCache, luegoInvalidar, MINUTO } from "./cache";
 import { http } from "./http";
-import type { AvanceItem, Bandeja, CatalogoFormulario, Requerimiento, RequerimientoDetalle } from "./types";
+import type { AvanceItem, Bandeja, CatalogoFormulario, Requerimiento, RequerimientoDetalle, TableroRequerimientos } from "./types";
 
 export interface ItemInput {
   variantId: string;
@@ -34,6 +34,14 @@ export function obtenerBandeja(p: { vista?: string; empresa?: string; q?: string
   if (p.q?.trim()) qs.set("q", p.q.trim());
   if (p.pagina) qs.set("pagina", String(p.pagina));
   return http.get<Bandeja>(`/api/requerimientos/bandeja?${qs}`);
+}
+
+/** Tablero Kanban de Logistica (DEC-L067): mismos filtros de empresa y busqueda que la bandeja. */
+export function obtenerTablero(p: { empresa?: string; q?: string }) {
+  const qs = new URLSearchParams();
+  if (p.empresa) qs.set("empresa", p.empresa);
+  if (p.q?.trim()) qs.set("q", p.q.trim());
+  return http.get<TableroRequerimientos>(`/api/requerimientos/tablero?${qs}`);
 }
 
 export function obtenerAvance(id: string) {

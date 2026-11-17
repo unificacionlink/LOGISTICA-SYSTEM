@@ -167,6 +167,13 @@ RRHH, sin la ruta), `RRHH_SYNC_SERVICE_TOKEN` (el mismo valor que la
 variable homonima de RRHH-SYSTEM) y `RRHH_SYNC_CRON` (default
 `0 0 6 * * *`, hora de Lima). Sin `RRHH_API_URL` el sync queda apagado.
 
+Correos automaticos (DEC-L066): `RESEND_API_KEY` (cuenta de Resend de RR.HH.,
+dominio `tdemperu.com` ya verificado; sin ella los correos quedan `OMITIDO`),
+`CORREO_FROM` (default `no-reply@tdemperu.com`), `CORREO_FROM_NAME` (default
+`Logística TDEM`), `CORREO_INTERVALO_MS` (default 30000, cada cuanto se envia la
+bandeja) y `CORREO_RECORDATORIO_CRON` (default `0 0 8 * * MON-SAT`, hora de Lima).
+Los enlaces de los correos usan `APP_PUBLIC_URL`.
+
 Frontend (`frontend/.env.local`, gitignored): `VITE_API_URL`.
 
 ## Scripts

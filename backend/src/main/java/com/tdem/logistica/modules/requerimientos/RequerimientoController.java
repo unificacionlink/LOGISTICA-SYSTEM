@@ -34,6 +34,14 @@ public class RequerimientoController {
     }
 
     /** Bandeja operativa (DEC-L048): vistas, conteos, busqueda y pagina calculados en el servidor. */
+    /** Tablero Kanban de Logistica (DEC-L067). */
+    @GetMapping("/tablero")
+    public ApiResponse<TableroDto> tablero(@RequestParam(required = false) String empresa,
+                                           @RequestParam(required = false) String q,
+                                           @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(bandeja.tablero(empresa, q, principal));
+    }
+
     @GetMapping("/bandeja")
     public ApiResponse<BandejaDto> bandeja(
             @RequestParam(required = false) String vista,

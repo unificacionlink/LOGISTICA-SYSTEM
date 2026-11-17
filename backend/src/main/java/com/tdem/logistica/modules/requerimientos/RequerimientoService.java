@@ -14,6 +14,7 @@ import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.modules.aprobaciones.dto.AprobacionPendienteDto;
 import com.tdem.logistica.modules.requerimientos.dto.*;
 import com.tdem.logistica.realtime.RealtimeNotifier;
+import com.tdem.logistica.modules.notificaciones.AvisosCorreo;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import com.tdem.logistica.storage.BorradoDiferido;
@@ -74,6 +75,7 @@ public class RequerimientoService {
     private final AmbitoAprobacion ambitoAprobacion;
     private final ControlPresupuestalService controlPresupuestal;
     private final StockService stockService;
+    private final AvisosCorreo avisosCorreo;
 
     public RequerimientoService(
             RequerimientoRepository requerimientoRepository,
@@ -91,8 +93,10 @@ public class RequerimientoService {
             Auditoria auditoria,
             AmbitoAprobacion ambitoAprobacion,
             ControlPresupuestalService controlPresupuestal,
-            StockService stockService) {
+            StockService stockService,
+            AvisosCorreo avisosCorreo) {
         this.stockService = stockService;
+        this.avisosCorreo = avisosCorreo;
         this.ambitoAprobacion = ambitoAprobacion;
         this.controlPresupuestal = controlPresupuestal;
         this.realtimeNotifier = realtimeNotifier;
@@ -499,6 +503,7 @@ public class RequerimientoService {
         } else {
             realtimeNotifier.nuevaAprobacionPendiente(pendiente);
         }
+        avisosCorreo.aprobacionPendiente(r.getRequestId(), aprobacion.getAssignedTo(), principal.userId());
         return dto;
     }
 

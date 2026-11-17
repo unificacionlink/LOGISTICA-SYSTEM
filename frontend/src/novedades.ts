@@ -13,6 +13,23 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.52.0",
+    titulo: "Tablero de requerimientos",
+    cambios: [
+      "Logística puede ver los requerimientos como tablero: Por aprobar, Abastecimiento, Por despachar, En tránsito, Con diferencias y Atendido.",
+      "Cada tarjeta dice por qué el requerimiento aún no llega al final: qué falta hacer, qué se está esperando o qué llegó observado.",
+    ],
+  },
+  {
+    version: "0.51.0",
+    titulo: "Avisos por correo",
+    cambios: [
+      "Los aprobadores reciben un correo cuando llega un requerimiento por aprobar, y un recordatorio a las 8:00 si sigue pendiente.",
+      "El solicitante recibe un correo cuando su requerimiento se aprueba, se observa (con el motivo) o se rechaza, cuando su pedido sale del almacén y cuando se registra la recepción.",
+      "El botón del correo abre directamente la pantalla correspondiente; si no has iniciado sesión, te lleva ahí después de ingresar.",
+    ],
+  },
+  {
     version: "0.50.0",
     titulo: "Personal cesado y eliminación",
     cambios: [

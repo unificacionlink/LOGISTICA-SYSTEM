@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.52.0 — 2026-11-17
+
+Tablero Kanban de Requerimientos para Logística (DEC-L067).
+
+- `BandejaService.tablero` y `GET /api/requerimientos/tablero?empresa&q` (LOGISTICA/ADMIN): columnas por etapa con total y tarjetas (hasta 60; Atendido, las 20 más recientes).
+- La consulta de la bandeja suma el paso de la NI sin enviar (`PICKING`/`EMBALAJE`/`ENVIO`) y las unidades observadas en destino; cada fila trae `tablero {etapa, preparacion, observado}`.
+- Frontend: selector Lista / Tablero en Requerimientos (`?modo=tablero`); `components/requerimientos/TableroRequerimientos` con columnas desplazables, tarjetas con prioridad, CECO, solicitante, avance, motivos (acción propia, espera, diferencias) y vencimiento; clic abre el panel del requerimiento.
+- `BandejaTest` cubre la etapa en cada paso del flujo, totales por columna y el acceso solo de Logística.
+
+## 0.51.0 — 2026-11-17
+
+Correos automáticos (DEC-L066, RF-007, RF-063, ADM-03 de la V38.7).
+
+- `V35__correo_saliente.sql`: bandeja de salida con evento, destinatario, asunto, HTML, estado (PENDIENTE/ENVIADO/ERROR/OMITIDO), intentos, próximo intento, último error, id del proveedor y `dedupe_key`.
+- Nuevo módulo `modules/notificaciones`: `AvisosCorreo` (encola en la transacción de la acción), `PlantillasCorreo` (HTML en tablas con texto escapado), `EnvioCorreo` + `ResendEnvioCorreo` (API HTTPS de Resend con `Idempotency-Key`), `DespachadorCorreos` (cada 30 s, `skip locked`, reintentos 1/5/15/60 min y ERROR al 5.º intento en el registro de errores) y `RecordatorioAprobaciones` (8:00 lunes a sábado).
+- Disparadores: `RequerimientoService.enviar`, `AprobacionService.decidir`, `DespachoService.registrarEnvio` y `RecepcionDestinoService.registrar`.
+- `config/UrlPublica`: base de los enlaces, compartida con el enlace del proveedor.
+- Variables nuevas: `RESEND_API_KEY`, `CORREO_FROM`, `CORREO_FROM_NAME`, `CORREO_INTERVALO_MS`, `CORREO_RECORDATORIO_CRON`.
+- Frontend: tras iniciar sesión se vuelve a la ruta pedida (enlace del correo), solo rutas internas.
+- `CorreosTest` (destinatarios, escape, rollback, envío, reintentos y ERROR, recordatorio sin repetir); `RecepcionDestinoTest` cubre los correos de despacho y recepción; `MigracionesFlywayTest` pasa a 35 migraciones.
+
 ## 0.50.0 — 2026-11-17
 
 Padrón: estado Cesado y eliminación definitiva por ADMIN (DEC-L065).

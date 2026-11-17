@@ -26,12 +26,14 @@ function iniciales(nombre: string): string {
 export default function ProtectedLayout() {
   const { usuario, cargando, cerrarSesion, tieneAlgunRol } = useAuth();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
 
   if (cargando) {
     return <PantallaCarga texto="Verificando sesión" />;
   }
-  if (!usuario) return <Navigate to="/login" replace />;
+  // Se recuerda a donde iba (p. ej. el enlace de un correo, DEC-L066) para volver tras ingresar.
+  if (!usuario) return <Navigate to="/login" replace state={{ desde: location.pathname + location.search }} />;
   // Tras una contrasena temporal no se opera nada hasta cambiarla (DEC-L024).
   if (usuario.debeCambiarPassword) return <CambiarPassword obligatorio />;
 

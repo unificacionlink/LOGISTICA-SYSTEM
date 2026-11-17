@@ -59,6 +59,14 @@ app:
   public-url: ${APP_PUBLIC_URL:}
   publico:
     limite-por-minuto: ${PUBLICO_LIMITE_POR_MINUTO:30}
+  # Correos automaticos (DEC-L066) por Resend, el mismo proveedor y dominio
+  # verificado de RR.HH. Sin RESEND_API_KEY los correos quedan OMITIDO.
+  correo:
+    resend-api-key: ${RESEND_API_KEY:}
+    from: ${CORREO_FROM:no-reply@tdemperu.com}
+    from-name: ${CORREO_FROM_NAME:Logística TDEM}
+    intervalo-ms: ${CORREO_INTERVALO_MS:30000}
+    recordatorio-cron: ${CORREO_RECORDATORIO_CRON:0 0 8 * * MON-SAT}
   cookie-secure: ${COOKIE_SECURE:true}
   # Storage compatible con S3 (DEC-L015/DEC-L016). Hoy: Supabase Storage del
   # proyecto de RRHH (endpoint https://<ref>.storage.supabase.co/storage/v1/s3,

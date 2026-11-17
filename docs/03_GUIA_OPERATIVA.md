@@ -56,6 +56,17 @@ Pendiente (2026-09-24): el despliegue en Render se decide al acercarse la
 marcha blanca. Render cobra por servicio y no se puede compartir el de RRHH
 (es otra app, en Node).
 
+## Correos automaticos (DEC-L066)
+
+1. En Resend (la misma cuenta de RR.HH.), **API Keys → Create**: una key
+   "logistica" con permiso *Sending access* al dominio `tdemperu.com`.
+2. En Render, agregar `RESEND_API_KEY` con esa key (y `APP_PUBLIC_URL =
+   https://logistica.tdemperu.com` si no estaba). El dominio ya esta verificado
+   por RR.HH.: no hay que tocar el DNS.
+3. Revisar envios en la tabla `correo_saliente` (estado `ENVIADO` / `ERROR`);
+   los que fallan 5 veces aparecen en **Administracion → Registro → Errores**
+   como `CorreoNoEnviado`. Sin la key, los correos quedan `OMITIDO`.
+
 ## Alta de usuarios reales (DEC-L024)
 
 1. Configurar `RRHH_API_URL` y `RRHH_SYNC_SERVICE_TOKEN` (ver

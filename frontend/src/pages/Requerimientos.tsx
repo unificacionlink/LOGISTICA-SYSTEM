@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Inbox, Plus, Search, X } from "lucide-react";
-import { obtenerBandeja } from "../api/requerimientos";
-import type { Bandeja, FilaBandeja } from "../api/types";
+import { Inbox, Kanban, List, Plus, Search, X } from "lucide-react";
+import { obtenerBandeja, obtenerTablero } from "../api/requerimientos";
+import type { Bandeja, FilaBandeja, TableroRequerimientos } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { EMPRESAS } from "../components/empresas";
 import FilaRequerimiento, { GRID_FILA } from "../components/requerimientos/FilaRequerimiento";
 import PanelRequerimiento from "../components/requerimientos/PanelRequerimiento";
+import TableroRequerimientosVista from "../components/requerimientos/TableroRequerimientos";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -82,6 +83,8 @@ export default function Requerimientos() {
   const empresa = params.get("empresa") ?? leerEmpresaGuardada();
   const q = params.get("q") ?? "";
   const reqAbierto = params.get("req");
+  // Tablero Kanban (DEC-L067): solo Logistica/ADMIN, con la misma empresa y busqueda.
+  const enTablero = esGestor && params.get("modo") === "tablero";
 
   const [texto, setTexto] = useState(q);
   const [datos, setDatos] = useState<Bandeja | null>(null);
@@ -89,6 +92,7 @@ export default function Requerimientos() {
   const [cargando, setCargando] = useState(true);
   const [masCargando, setMasCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tablero, setTablero] = useState<TableroRequerimientos | null>(null);
   const consulta = useRef(0);
 
   const cambiar = useCallback(
@@ -126,6 +130,15 @@ export default function Requerimientos() {
 
   const cargar = useCallback(() => {
     const n = ++consulta.current;
+    if (enTablero) {
+      return obtenerTablero({ empresa, q }).then((res) => {
+        if (n !== consulta.current) return;
+        if (res.ok && res.result) {
+          setTablero(res.result);
+          setError(null);
+        } else setError(res.message);
+      });
+    }
     return obtenerBandeja({ vista, empresa, q }).then((res) => {
       if (n !== consulta.current) return;
       if (res.ok && res.result) {
@@ -134,7 +147,7 @@ export default function Requerimientos() {
         setError(null);
       } else setError(res.message);
     });
-  }, [vista, empresa, q]);
+  }, [vista, empresa, q, enTablero]);
 
   useEffect(() => {
     cargar().finally(() => setCargando(false));
@@ -165,13 +178,18 @@ export default function Requerimientos() {
   }
 
   const conteoVista = useMemo(() => new Map((datos?.vistas ?? []).map((v) => [v.id, v.total])), [datos]);
-  const conteoEmpresa = useMemo(() => new Map((datos?.empresas ?? []).map((e) => [e.code, e.total])), [datos]);
-  const totalEmpresas = (datos?.empresas ?? []).reduce((s, e) => s + e.total, 0);
+  const fuenteEmpresas = enTablero ? tablero?.empresas : datos?.empresas;
+  const conteoEmpresa = useMemo(() => new Map((fuenteEmpresas ?? []).map((e) => [e.code, e.total])), [fuenteEmpresas]);
+  const totalEmpresas = (fuenteEmpresas ?? []).reduce((s, e) => s + e.total, 0);
+  const hayConteo = enTablero ? !!tablero : !!datos;
   // Logistica ve siempre las tres empresas; quien pide, solo si tiene de varias.
   const empresas = esGestor ? EMPRESAS : EMPRESAS.filter((e) => conteoEmpresa.has(e.code));
   const conSelector = esGestor || empresas.length > 1;
   const conEmpresa = conSelector && !empresa;
-  const filaAbierta = filas.find((f) => f.id === reqAbierto) ?? null;
+  const filaAbierta =
+    (enTablero
+      ? tablero?.columnas.flatMap((c) => c.tarjetas).find((f) => f.id === reqAbierto)
+      : filas.find((f) => f.id === reqAbierto)) ?? null;
 
   return (
     <div>
@@ -212,7 +230,7 @@ export default function Requerimientos() {
                 >
                   {e.marca && <span className={`size-2 rounded-full ${e.marca}`} aria-hidden="true" />}
                   {e.label}
-                  <span className="font-mono text-xs tabular-nums text-slate-400">{datos ? n : "–"}</span>
+                  <span className="font-mono text-xs tabular-nums text-slate-400">{hayConteo ? n : "–"}</span>
                 </button>
               );
             })}
@@ -239,88 +257,127 @@ export default function Requerimientos() {
             </button>
           )}
         </label>
-      </div>
-
-      <div role="tablist" aria-label="Vista" data-tutorial="req-vistas" className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {vistasBase.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            role="tab"
-            aria-selected={vista === v.id}
-            onClick={() => cambiar({ vista: v.id === vistasBase[0].id ? null : v.id })}
-            className={`-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-              vista === v.id
-                ? "border-brand-600 text-brand-700"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
+        {esGestor && (
+          <div
+            role="group"
+            aria-label="Modo de vista"
+            className="flex shrink-0 gap-1 self-start rounded-lg border border-slate-200 bg-slate-50 p-1 lg:self-auto"
           >
-            {v.label}
-            <span
-              className={`rounded-md px-1.5 font-mono text-xs tabular-nums ${
-                vista === v.id ? "bg-brand-50 text-brand-700" : "text-slate-400"
-              }`}
-            >
-              {datos ? (conteoVista.get(v.id) ?? 0) : "–"}
-            </span>
-          </button>
-        ))}
+            {[
+              { id: null, label: "Lista", icono: List },
+              { id: "tablero", label: "Tablero", icono: Kanban },
+            ].map((m) => {
+              const activo = enTablero === (m.id === "tablero");
+              return (
+                <button
+                  key={m.label}
+                  type="button"
+                  aria-pressed={activo}
+                  onClick={() => cambiar({ modo: m.id })}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    activo ? "bg-white text-slate-900 shadow-boton" : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <m.icono className="size-4" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="cabecera-tabla hidden border-b border-slate-200 pl-4 md:flex md:items-center">
-          <div className={`grid flex-1 gap-x-4 pr-3 ${GRID_FILA}`}>
-            <span className="py-2.5">Requerimiento</span>
-            <span className="py-2.5">Avance</span>
-            <span className="py-2.5">Requerido</span>
-            <span className="py-2.5 text-right">Estado</span>
-          </div>
-          <span className="w-44 shrink-0 py-2.5 pr-4 text-right">Siguiente paso</span>
-        </div>
-
-        {cargando ? (
-          <div className="divide-y divide-slate-100">
-            {[0, 1, 2, 3, 4, 5].map((k) => (
-              <FilaEsqueleto key={k} />
+      {enTablero ? (
+        <TableroRequerimientosVista
+          datos={tablero}
+          conEmpresa={!empresa}
+          reqAbierto={reqAbierto}
+          onAbrir={abrirReq}
+        />
+      ) : (
+        <>
+          <div role="tablist" aria-label="Vista" data-tutorial="req-vistas" className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200">
+            {vistasBase.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                role="tab"
+                aria-selected={vista === v.id}
+                onClick={() => cambiar({ vista: v.id === vistasBase[0].id ? null : v.id })}
+                className={`-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                  vista === v.id
+                    ? "border-brand-600 text-brand-700"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {v.label}
+                <span
+                  className={`rounded-md px-1.5 font-mono text-xs tabular-nums ${
+                    vista === v.id ? "bg-brand-50 text-brand-700" : "text-slate-400"
+                  }`}
+                >
+                  {datos ? (conteoVista.get(v.id) ?? 0) : "–"}
+                </span>
+              </button>
             ))}
           </div>
-        ) : filas.length === 0 ? (
-          <EmptyState
-            icon={Inbox}
-            title={q ? "Sin resultados" : (VACIO[vista] ?? "Sin requerimientos")}
-            action={
-              q ? (
-                <Button variant="secondary" size="sm" onClick={() => setTexto("")}>
-                  Quitar búsqueda
-                </Button>
-              ) : undefined
-            }
-          />
-        ) : (
-          <>
-            <ul className="divide-y divide-slate-100">
-              {filas.map((f) => (
-                <FilaRequerimiento
-                  key={f.id}
-                  f={f}
-                  esGestor={esGestor}
-                  conEmpresa={conEmpresa}
-                  seleccionada={f.id === reqAbierto}
-                  vista={vista}
-                  onAbrir={abrirReq}
-                />
-              ))}
-            </ul>
-            {datos && filas.length < datos.total && (
-              <div className="border-t border-slate-100 px-4 py-3 text-center">
-                <Button variant="ghost" size="sm" loading={masCargando} onClick={mostrarMas}>
-                  Mostrar más ({datos.total - filas.length} restantes)
-                </Button>
+
+          <Card className="overflow-hidden">
+            <div className="cabecera-tabla hidden border-b border-slate-200 pl-4 md:flex md:items-center">
+              <div className={`grid flex-1 gap-x-4 pr-3 ${GRID_FILA}`}>
+                <span className="py-2.5">Requerimiento</span>
+                <span className="py-2.5">Avance</span>
+                <span className="py-2.5">Requerido</span>
+                <span className="py-2.5 text-right">Estado</span>
               </div>
+              <span className="w-44 shrink-0 py-2.5 pr-4 text-right">Siguiente paso</span>
+            </div>
+
+            {cargando ? (
+              <div className="divide-y divide-slate-100">
+                {[0, 1, 2, 3, 4, 5].map((k) => (
+                  <FilaEsqueleto key={k} />
+                ))}
+              </div>
+            ) : filas.length === 0 ? (
+              <EmptyState
+                icon={Inbox}
+                title={q ? "Sin resultados" : (VACIO[vista] ?? "Sin requerimientos")}
+                action={
+                  q ? (
+                    <Button variant="secondary" size="sm" onClick={() => setTexto("")}>
+                      Quitar búsqueda
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <>
+                <ul className="divide-y divide-slate-100">
+                  {filas.map((f) => (
+                    <FilaRequerimiento
+                      key={f.id}
+                      f={f}
+                      esGestor={esGestor}
+                      conEmpresa={conEmpresa}
+                      seleccionada={f.id === reqAbierto}
+                      vista={vista}
+                      onAbrir={abrirReq}
+                    />
+                  ))}
+                </ul>
+                {datos && filas.length < datos.total && (
+                  <div className="border-t border-slate-100 px-4 py-3 text-center">
+                    <Button variant="ghost" size="sm" loading={masCargando} onClick={mostrarMas}>
+                      Mostrar más ({datos.total - filas.length} restantes)
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
-      </Card>
+          </Card>
+        </>
+      )}
 
       {reqAbierto && (
         <PanelRequerimiento
