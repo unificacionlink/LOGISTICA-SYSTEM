@@ -5,6 +5,20 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L065 — Padrón: estado Cesado y eliminación definitiva por ADMIN (2026-11-17, v0.50.0).**
+  - Decisión del usuario: tres estados visibles, **Activo**, **Inactivo** (lo
+    hizo un ADMIN, con fecha y quién; solo un ADMIN reactiva) y **Cesado**
+    (lo trajo el sync de RR.HH., con fecha). Se calcula de `active` +
+    `inactivated_by` (V34), sin columna nueva.
+  - Además, el ADMIN puede **eliminar de verdad** a una persona
+    (`POST /api/admin/personal/{id}/eliminar`): irreversible, exige motivo y
+    queda en `log_cambios` (`ELIMINAR`) con sus datos y el motivo.
+  - Solo se elimina **sin cuenta vinculada** (con cuenta se inactiva) y, si
+    viene de RR.HH., **solo cesada**: una vigente en RR.HH. volvería en la
+    siguiente sincronización.
+  - Matiza DEC-L064 ("nadie se elimina"): inactivar sigue siendo lo normal;
+    eliminar es para errores de carga o depuración.
+
 - **DEC-L064 — Padrón de personal: CRUD sin borrado (2026-11-17, v0.49.0).**
   - Decisión del usuario: el padrón (`personal`, DEC-L041) se mantiene desde
     Administración › Personal; **nadie se elimina**, se inactiva y queda la

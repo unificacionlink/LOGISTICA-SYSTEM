@@ -6,8 +6,9 @@ import java.util.UUID;
 /**
  * Persona del padron (DEC-L041). {@code correo}: el de su cuenta si la tiene,
  * si no el que trae RR.HH. o el Excel. {@code userId} null = sin cuenta.
- * Inactiva (DEC-L064): {@code inactivadoEn} con fecha; {@code inactivadoPor}
- * null = cese de RR.HH., si no el nombre del ADMIN que la inactivo.
+ * {@code estado}: ACTIVO, INACTIVO (lo hizo un ADMIN: {@code inactivadoPor}) o
+ * CESADO (lo trajo RR.HH.); {@code inactivadoEn} es la fecha (DEC-L064).
+ * {@code eliminable}: sin cuenta y, si viene de RR.HH., cesado (DEC-L065).
  */
 public record PersonalAdminDto(
         UUID id,
@@ -23,5 +24,7 @@ public record PersonalAdminDto(
         UUID userId,
         boolean activo,
         Instant inactivadoEn,
-        String inactivadoPor) {
+        String inactivadoPor,
+        String estado,
+        boolean eliminable) {
 }

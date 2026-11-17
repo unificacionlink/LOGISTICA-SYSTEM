@@ -80,6 +80,11 @@ export function cambiarActivoPersona(personalId: string, activo: boolean) {
   return http.patch<PersonalAdmin[]>(`/api/admin/personal/${personalId}/activo`, { activo });
 }
 
+/** Borra a la persona del padron: irreversible, con motivo (DEC-L065). */
+export function eliminarPersona(personalId: string, motivo: string) {
+  return http.post<PersonalAdmin[]>(`/api/admin/personal/${personalId}/eliminar`, { motivo });
+}
+
 /** Crea la cuenta de una persona del padron; devuelve su contrasena temporal. */
 export function darAcceso(personalId: string, correo: string, roles: string[]) {
   return http.post<DarAccesoResultado>(`/api/admin/personal/${personalId}/acceso`, { correo, roles });

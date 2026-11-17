@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Search, UserCheck, UserPlus, Users } from "lucide-react";
-import { cambiarActivoPersona, darAcceso, listarPersonal } from "../../api/admin";
+import { cambiarActivoPersona, darAcceso, eliminarPersona, listarPersonal } from "../../api/admin";
 import type { AdminDatos, CecoAdmin, PersonalAdmin } from "../../api/types";
 import Alert from "../ui/Alert";
 import Badge from "../ui/Badge";
@@ -15,7 +15,7 @@ import CargaPersonalExcel from "./CargaPersonalExcel";
 import FormPersona from "./FormPersona";
 import { ETIQUETA_ROL } from "./roles";
 
-type Filtro = "activos" | "sin" | "con" | "inactivos";
+type Filtro = "activos" | "sin" | "con" | "inactivos" | "cesados";
 
 /** Fila desplegada: dar acceso o editar sus datos. */
 type Abierto = { id: string; modo: "acceso" | "editar" } | null;
@@ -28,13 +28,14 @@ function fecha(iso: string | null): string {
 
 /** A quien cesa RR.HH. lo reactiva el sync; al resto, solo un ADMIN (DEC-L064). */
 function puedeReactivar(p: PersonalAdmin): boolean {
-  return p.fuente === "MANUAL" || p.inactivadoPor !== null;
+  return p.fuente === "MANUAL" || p.estado === "INACTIVO";
 }
 
 /**
  * Padron de personal por empresa (DEC-L041): cada empresa con su propia lista.
- * TDEM llega de RR.HH.; GOYDEL y METRIN se agregan aqui o por Excel. Nadie se
- * elimina: se inactiva con fecha y solo ADMIN lo reactiva (DEC-L064).
+ * TDEM llega de RR.HH.; GOYDEL y METRIN se agregan aqui o por Excel. Estados:
+ * activo, inactivo (ADMIN, solo ADMIN reactiva) y cesado (RR.HH.), con fecha
+ * (DEC-L064). Eliminar borra de verdad, con motivo (DEC-L065).
  */
 export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDatos; recargarAdmin: () => void }) {
   const confirmar = useConfirmar();
@@ -78,6 +79,23 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
     const res = await cambiarActivoPersona(p.id, activo);
     if (res.ok && res.result) aplicarLista(res.result);
     else setError(res.message);
+  }
+
+  async function eliminar(p: PersonalAdmin) {
+    const r = await confirmar({
+      titulo: `¿Eliminar a ${p.nombre} del padrón?`,
+      mensaje: "Se borra definitivamente y no se puede deshacer.",
+      confirmar: "Eliminar",
+      peligro: true,
+      motivo: "Motivo de la eliminación",
+    });
+    if (!r) return;
+    setError(null);
+    const res = await eliminarPersona(p.id, r.motivo);
+    if (res.ok && res.result) {
+      setAbierto(null);
+      aplicarLista(res.result);
+    } else setError(res.message);
   }
 
   // Los chips cuentan solo al personal activo.
@@ -151,6 +169,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
           <option value="sin">Activos sin cuenta</option>
           <option value="con">Activos con cuenta</option>
           <option value="inactivos">Inactivos</option>
+          <option value="cesados">Cesados</option>
         </select>
         {esManual && (
           <>
@@ -212,8 +231,8 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
           <EmptyState
             icon={Users}
             title={
-              filtro === "inactivos"
-                ? `Sin personal inactivo en ${empresa}`
+              filtro === "inactivos" || filtro === "cesados"
+                ? `Sin personal ${filtro === "inactivos" ? "inactivo" : "cesado"} en ${empresa}`
                 : conteo.get(empresa)
                   ? "Sin resultados"
                   : `Aún no hay personal de ${empresa}`
@@ -225,7 +244,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
               <tr className="border-b border-slate-200 cabecera-tabla">
                 <th className={thClass}>Persona</th>
                 <th className={`${thClass} col-sec`}>CECO</th>
-                <th className={`${thClass} text-right`}>{filtro === "inactivos" ? "Estado" : "Cuenta"}</th>
+                <th className={`${thClass} text-right`}>{filtro === "inactivos" || filtro === "cesados" ? "Estado" : "Cuenta"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -239,6 +258,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
                   abrir={(modo) => setAbierto({ id: p.id, modo })}
                   cerrar={() => setAbierto(null)}
                   cambiarEstado={(activo) => cambiarEstado(p, activo)}
+                  eliminar={() => eliminar(p)}
                   alGuardar={aplicarLista}
                 />
               ))}
@@ -251,7 +271,8 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
 }
 
 function coincide(p: PersonalAdmin, filtro: Filtro): boolean {
-  if (filtro === "inactivos") return !p.activo;
+  if (filtro === "inactivos") return p.estado === "INACTIVO";
+  if (filtro === "cesados") return p.estado === "CESADO";
   if (!p.activo) return false;
   return filtro === "activos" || (filtro === "con") === (p.userId !== null);
 }
@@ -264,6 +285,7 @@ function FilaPersona({
   abrir,
   cerrar,
   cambiarEstado,
+  eliminar,
   alGuardar,
 }: {
   p: PersonalAdmin;
@@ -273,17 +295,21 @@ function FilaPersona({
   abrir: (modo: "acceso" | "editar") => void;
   cerrar: () => void;
   cambiarEstado: (activo: boolean) => void;
+  eliminar: () => void;
   alGuardar: (lista: PersonalAdmin[]) => void;
 }) {
-  const acciones: AccionMenu[] = p.activo
-    ? [
-        ...(p.fuente === "MANUAL" ? [{ label: "Editar datos", onClick: () => abrir("editar") }] : []),
-        { label: "Inactivar", onClick: () => cambiarEstado(false), peligro: true },
-      ]
-    : puedeReactivar(p)
-      ? [{ label: "Reactivar", onClick: () => cambiarEstado(true) }]
-      : [];
-  const origenInactivo = p.inactivadoPor ? `Inactivado por ${p.inactivadoPor}` : "Cese en RR.HH.";
+  const acciones: AccionMenu[] = [
+    ...(p.activo && p.fuente === "MANUAL" ? [{ label: "Editar datos", onClick: () => abrir("editar") }] : []),
+    ...(p.activo ? [{ label: "Inactivar", onClick: () => cambiarEstado(false), peligro: true }] : []),
+    ...(!p.activo && puedeReactivar(p) ? [{ label: "Reactivar", onClick: () => cambiarEstado(true) }] : []),
+    ...(p.eliminable ? [{ label: "Eliminar", onClick: eliminar, peligro: true }] : []),
+  ];
+  const cesado = p.estado === "CESADO";
+  const origenInactivo = cesado
+    ? p.fuente === "RRHH_SYNC"
+      ? "Cese en RR.HH."
+      : "Cese"
+    : `Inactivado por ${p.inactivadoPor ?? "—"}`;
 
   return (
     <>
@@ -308,7 +334,9 @@ function FilaPersona({
           <div className="flex items-center justify-end gap-2">
             {!p.activo ? (
               <span className="inline-flex flex-col items-end gap-0.5" title={origenInactivo}>
-                <Badge tone="gris">Inactivo desde {fecha(p.inactivadoEn)}</Badge>
+                <Badge tone={cesado ? "amarillo" : "gris"}>
+                  {cesado ? "Cesado" : "Inactivo"} desde {fecha(p.inactivadoEn)}
+                </Badge>
                 <span className="text-xs text-slate-400">{origenInactivo}</span>
               </span>
             ) : p.userId ? (

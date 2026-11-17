@@ -1,6 +1,7 @@
 package com.tdem.logistica.modules.identidad;
 
 import com.tdem.logistica.common.ApiResponse;
+import com.tdem.logistica.common.MotivoRequest;
 import com.tdem.logistica.documentos.Descargas;
 import com.tdem.logistica.modules.identidad.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -110,6 +111,15 @@ public class AdminController {
                                                                     @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(padron.cambiarActivo(id, request.activo(), principal),
                 request.activo() ? "Persona reactivada." : "Persona inactivada.");
+    }
+
+    /** Borra a la persona del padron (DEC-L065): irreversible, con motivo. */
+    @PostMapping("/personal/{id}/eliminar")
+    public ApiResponse<List<PersonalAdminDto>> eliminarPersona(@PathVariable UUID id,
+                                                               @RequestBody(required = false) MotivoRequest request,
+                                                               @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(padron.eliminar(id, request != null ? request.motivo() : null, principal),
+                "Persona eliminada del padron.");
     }
 
     @PostMapping("/personal/{id}/acceso")

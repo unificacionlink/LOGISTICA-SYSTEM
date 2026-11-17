@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.50.0",
+    titulo: "Personal cesado y eliminación",
+    cambios: [
+      "El personal que RR.HH. da de baja ahora aparece como Cesado, con su fecha, y tiene su propio filtro.",
+      "Un administrador puede eliminar definitivamente a una persona del padrón indicando el motivo. Solo se puede si no tiene cuenta en la plataforma.",
+    ],
+  },
+  {
     version: "0.49.0",
     titulo: "Mantenimiento del personal",
     cambios: [

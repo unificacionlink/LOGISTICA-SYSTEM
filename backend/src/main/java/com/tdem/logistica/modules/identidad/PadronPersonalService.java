@@ -25,8 +25,9 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * Mantenimiento del padron de personal (DEC-L064), solo ADMIN. Nadie se borra:
- * se inactiva con fecha y quien lo hizo, y solo un ADMIN lo reactiva.
+ * Mantenimiento del padron de personal (DEC-L064), solo ADMIN. Estados: ACTIVO,
+ * INACTIVO (lo hizo un ADMIN, con fecha y quien; solo un ADMIN lo reactiva) y
+ * CESADO (lo trajo el sync de RR.HH., con fecha).
  * <ul>
  *   <li>Alta y edicion solo en empresas que RR.HH. aun no cubre (DEC-L028); los
  *       datos de RR.HH. se corrigen alla.</li>
@@ -34,6 +35,8 @@ import java.util.regex.Pattern;
  *       siga activa en el padron de otra empresa. El sync no reactiva a quien
  *       inactivo un ADMIN.</li>
  *   <li>A quien cesa RR.HH. lo reactiva el sync cuando RR.HH. lo vuelva a enviar.</li>
+ *   <li>Eliminar (DEC-L065) borra de verdad, con motivo y auditoria: solo sin cuenta
+ *       vinculada y, si viene de RR.HH., solo cesado (si no, el sync lo traeria de nuevo).</li>
  * </ul>
  */
 @Service
@@ -66,7 +69,7 @@ public class PadronPersonalService {
         return jdbc.query("""
                 select p.personal_id, e.code, p.dni, p.full_name, coalesce(u.corporate_email, p.email),
                        p.position, p.ceco_id, c.code, c.name, p.fuente, p.user_id, p.active,
-                       p.inactivated_at, quien.display_name
+                       p.inactivated_at, quien.display_name, p.inactivated_by is not null
                   from personal p
                   join empresa e on e.company_id = p.company_id
                   left join ceco c on c.ceco_id = p.ceco_id
@@ -75,10 +78,14 @@ public class PadronPersonalService {
                  order by e.code, p.full_name""",
                 (rs, n) -> {
                     Timestamp inactivo = rs.getTimestamp(13);
+                    String fuente = rs.getString(10);
+                    UUID userId = rs.getObject(11, UUID.class);
+                    String estado = estado(rs.getBoolean(12), rs.getBoolean(15));
                     return new PersonalAdminDto(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
                             rs.getString(4), rs.getString(5), rs.getString(6), rs.getObject(7, UUID.class),
-                            rs.getString(8), rs.getString(9), rs.getString(10), rs.getObject(11, UUID.class),
-                            rs.getBoolean(12), inactivo != null ? inactivo.toInstant() : null, rs.getString(14));
+                            rs.getString(8), rs.getString(9), fuente, userId, rs.getBoolean(12),
+                            inactivo != null ? inactivo.toInstant() : null, rs.getString(14), estado,
+                            eliminable(fuente, estado, userId));
                 });
     }
 
@@ -196,6 +203,47 @@ public class PadronPersonalService {
         }
     }
 
+    // ---------------------------------------------------------------- eliminar (DEC-L065)
+
+    /** Borra a la persona del padron. Irreversible: exige motivo y queda en auditoria con sus datos. */
+    @Transactional
+    public List<PersonalAdminDto> eliminar(UUID personalId, String motivo, UsuarioPrincipal principal) {
+        AdminService.exigirAdmin(principal);
+        if (motivo == null || motivo.isBlank()) {
+            throw ApiException.badRequest("Indica el motivo para eliminar a la persona.");
+        }
+        Ficha f = ficha(personalId);
+        if (f.userId() != null) {
+            throw ApiException.badRequest(f.nombre() + " tiene cuenta en la plataforma: no se puede eliminar,"
+                    + " inactivalo.");
+        }
+        String estado = estado(f.activo(), f.inactivadoPorAdmin());
+        if (!eliminable(f.fuente(), estado, f.userId())) {
+            throw ApiException.badRequest(f.nombre() + " viene de RR.HH. y sigue vigente alla: la sincronizacion lo"
+                    + " traeria de nuevo. Solo se elimina cuando RR.HH. lo cesa.");
+        }
+        Map<String, Object> antes = datos(f.nombre(), f.email(), f.cargo(), f.cecoId());
+        antes.put("empresa", jdbc.queryForObject("select code from empresa where company_id = ?", String.class,
+                f.companyId()));
+        antes.put("dni", f.dni());
+        antes.put("fuente", f.fuente());
+        antes.put("estado", estado);
+        Map<String, Object> despues = new HashMap<>();
+        despues.put("motivo", motivo.trim());
+        auditoria.registrar("PERSONAL", personalId, "ELIMINAR", antes, despues, principal.userId());
+        jdbc.update("delete from personal where personal_id = ?", personalId);
+        return listar(principal);
+    }
+
+    static String estado(boolean activo, boolean inactivadoPorAdmin) {
+        return activo ? "ACTIVO" : inactivadoPorAdmin ? "INACTIVO" : "CESADO";
+    }
+
+    /** Sin cuenta y, si viene de RR.HH., solo cesado: si no, el sync lo volveria a traer. */
+    static boolean eliminable(String fuente, String estado, UUID userId) {
+        return userId == null && (FUENTE_MANUAL.equals(fuente) || "CESADO".equals(estado));
+    }
+
     private void reactivar(Ficha f) {
         if (!FUENTE_MANUAL.equals(f.fuente()) && !f.inactivadoPorAdmin()) {
             throw ApiException.badRequest(f.nombre() + " ceso en RR.HH.: vuelve a estar activo cuando RR.HH. lo"
@@ -212,17 +260,17 @@ public class PadronPersonalService {
     // ---------------------------------------------------------------- utilidades
 
     private record Ficha(UUID id, UUID companyId, String nombre, String email, String cargo, UUID cecoId,
-                         String fuente, boolean activo, boolean inactivadoPorAdmin, UUID userId) {
+                         String fuente, boolean activo, boolean inactivadoPorAdmin, UUID userId, String dni) {
     }
 
     private Ficha ficha(UUID personalId) {
         return jdbc.query("""
                 select personal_id, company_id, full_name, email, position, ceco_id, fuente, active,
-                       inactivated_by is not null, user_id
+                       inactivated_by is not null, user_id, dni
                   from personal where personal_id = ? for update""",
                 (rs, n) -> new Ficha(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
                         rs.getString(4), rs.getString(5), rs.getObject(6, UUID.class), rs.getString(7),
-                        rs.getBoolean(8), rs.getBoolean(9), rs.getObject(10, UUID.class)),
+                        rs.getBoolean(8), rs.getBoolean(9), rs.getObject(10, UUID.class), rs.getString(11)),
                 personalId).stream().findFirst().orElseThrow(() -> ApiException.notFound("Persona no encontrada."));
     }
 

@@ -936,6 +936,10 @@ export interface PersonalAdmin {
   inactivadoEn: string | null;
   /** ADMIN que lo inactivo; null en un inactivo = cese de RR.HH. */
   inactivadoPor: string | null;
+  /** INACTIVO lo hizo un ADMIN; CESADO lo trajo RR.HH. */
+  estado: "ACTIVO" | "INACTIVO" | "CESADO";
+  /** Sin cuenta y, si viene de RR.HH., cesado (DEC-L065). */
+  eliminable: boolean;
 }
 
 export interface DarAccesoResultado {

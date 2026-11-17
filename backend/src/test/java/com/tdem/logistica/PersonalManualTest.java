@@ -234,6 +234,22 @@ class PersonalManualTest {
 		assertEquals(1, contar("select count(*) from log_cambios where entidad = 'PERSONAL' and accion = 'INACTIVAR'"
 				+ " and entidad_id = '" + creada.id() + "'"));
 
+		// --- DEC-L065: eliminar de verdad, solo ADMIN, con motivo y sin cuenta ---
+		assertThrows(ApiException.class, () -> padron.eliminar(creada.id(), "Error de carga", admin), "tiene cuenta");
+		PersonalAdminDto temporal = buscar(padron.crear(
+				new PersonaRequest("METRIN", "40222003", "Carga Equivocada", null, null, null), admin), "40222003");
+		assertEquals("ACTIVO", temporal.estado());
+		assertTrue(temporal.eliminable());
+		assertThrows(ApiException.class, () -> padron.eliminar(temporal.id(), "  ", admin), "exige motivo");
+		assertThrows(ApiException.class, () -> padron.eliminar(temporal.id(), "Error", logistica), "solo ADMIN");
+		List<PersonalAdminDto> sinTemporal = padron.eliminar(temporal.id(), "Se cargo por error", admin);
+		assertTrue(sinTemporal.stream().noneMatch(p -> p.id().equals(temporal.id())));
+		assertEquals(0, contar("select count(*) from personal where personal_id = '" + temporal.id() + "'"));
+		assertEquals(1, contar("select count(*) from log_cambios where entidad = 'PERSONAL' and accion = 'ELIMINAR'"
+				+ " and entidad_id = '" + temporal.id() + "' and despues->>'motivo' = 'Se cargo por error'"
+				+ " and antes->>'dni' = '40222003'"));
+		assertThrows(ApiException.class, () -> padron.eliminar(temporal.id(), "Otra vez", admin), "ya no existe");
+
 		// La carga Excel tambien deja la fecha y quien inactivo.
 		personal.confirmar(excel(fila("METRIN", "40222001", "Nina Metrin Rojas", "", "", "", "", "NO")), admin);
 		assertEquals(admin.userId(), jdbc.queryForObject(

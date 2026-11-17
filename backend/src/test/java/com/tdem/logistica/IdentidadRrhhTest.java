@@ -248,6 +248,9 @@ class IdentidadRrhhTest {
 		assertFalse(pedroInactivo.activo(), "sigue en la lista, inactivo");
 		assertNotNull(pedroInactivo.inactivadoEn());
 		assertNotNull(pedroInactivo.inactivadoPor());
+		assertEquals("INACTIVO", pedroInactivo.estado());
+		assertFalse(pedroInactivo.eliminable(), "viene de RR.HH. y sigue vigente: el sync lo traeria de nuevo");
+		assertThrows(ApiException.class, () -> padronService.eliminar(fichaPedro, "Duplicado", admin));
 		SyncResultadoDto conPedroInactivo = syncService.sincronizar();
 		assertFalse(jdbc.queryForObject("select active from personal where personal_id = ?", Boolean.class, fichaPedro),
 				"RR.HH. lo sigue enviando, pero lo inactivo un ADMIN");
@@ -262,6 +265,11 @@ class IdentidadRrhhTest {
 				java.sql.Timestamp.class, fichaRosa), "el cese de RR.HH. deja su fecha");
 		assertThrows(ApiException.class, () -> padronService.cambiarActivo(fichaRosa, true, admin),
 				"a quien cesa RR.HH. lo reactiva el sync, no a mano");
+		PersonalAdminDto rosaCesada = padronService.listar(admin).stream()
+				.filter(p -> p.id().equals(fichaRosa)).findFirst().orElseThrow();
+		assertEquals("CESADO", rosaCesada.estado());
+		assertFalse(rosaCesada.eliminable(), "tiene cuenta");
+		assertThrows(ApiException.class, () -> padronService.eliminar(fichaRosa, "Cesada", admin), "tiene cuenta");
 
 		assertThrows(ApiException.class, () -> padronService.cambiarActivo(fichaPedro, true, noAdmin), "solo ADMIN reactiva");
 		padronService.cambiarActivo(fichaPedro, true, admin);

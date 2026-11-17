@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.50.0 — 2026-11-17
+
+Padrón: estado Cesado y eliminación definitiva por ADMIN (DEC-L065).
+
+- `PersonalAdminDto` trae `estado` (ACTIVO / INACTIVO / CESADO) y `eliminable`.
+- `PadronPersonalService.eliminar` y `POST /api/admin/personal/{id}/eliminar` (`MotivoRequest`): solo ADMIN, con motivo, sin cuenta vinculada y, si viene de RR.HH., solo cesada; auditoría `ELIMINAR` con los datos y el motivo.
+- Frontend: filtro Cesados, insignia "Cesado desde…" (RR.HH.) junto a "Inactivo desde…" (ADMIN) y acción Eliminar con motivo en el menú de la fila.
+- `PersonalManualTest` (eliminar con motivo, sin cuenta, solo ADMIN, auditoría) e `IdentidadRrhhTest` (estados y no se elimina a quien sigue vigente en RR.HH. o tiene cuenta).
+
 ## 0.49.0 — 2026-11-17
 
 Padrón de personal como CRUD sin borrado (DEC-L064).
