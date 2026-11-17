@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.53.0",
+    titulo: "Usuarios ordenados por rol",
+    cambios: [
+      "Administración › Usuarios ahora separa a los usuarios por rol: solicitantes, aprobadores, gerencia, PYC, logística y administradores, con su cantidad.",
+      "Cada lista muestra lo que importa de ese rol: para qué CECOs pide un solicitante o qué CECOs aprueba un aprobador.",
+      "Al hacer clic en un usuario se abre su ficha al costado para cambiar roles, CECOs, acceso y datos en un solo lugar.",
+    ],
+  },
+  {
     version: "0.52.0",
     titulo: "Tablero de requerimientos",
     cambios: [

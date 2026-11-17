@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.53.0 — 2026-11-17
+
+Administración › Usuarios ordenada por rol.
+
+- Pestañas por rol con conteo (Todos, Solicitantes, Aprobadores, Gerencia, PYC / Presupuestos, Logística, Administradores y Sin rol si hay alguno); la columna cambia según el rol: CECOs para pedir, CECOs que aprueba o roles.
+- Filtros de empresa y estado de acceso; inactivos al final.
+- La ficha se edita en un panel lateral (`components/admin/PanelUsuario`): roles como botones, CECOs para pedir y que aprueba, acceso (contraseña, activar) y datos, con el resultado de cada cambio en el mismo panel.
+- `components/admin/PestanaUsuarios` y `NuevoUsuario` salen de `pages/Administracion.tsx` (de 789 a 308 líneas).
+
 ## 0.52.0 — 2026-11-17
 
 Tablero Kanban de Requerimientos para Logística (DEC-L067).
