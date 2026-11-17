@@ -1,34 +1,51 @@
 import { useEffect, useMemo, useState } from "react";
-import { Copy, FileSpreadsheet, Search, UserCheck, Users } from "lucide-react";
-import { darAcceso, listarPersonal } from "../../api/admin";
-import type { AdminDatos, PersonalAdmin } from "../../api/types";
+import { Copy, Search, UserCheck, UserPlus, Users } from "lucide-react";
+import { cambiarActivoPersona, darAcceso, listarPersonal } from "../../api/admin";
+import type { AdminDatos, CecoAdmin, PersonalAdmin } from "../../api/types";
 import Alert from "../ui/Alert";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
-import { Card } from "../ui/Card";
+import { Card, CardBody } from "../ui/Card";
+import { useConfirmar } from "../ui/Confirmacion";
 import EmptyState from "../ui/EmptyState";
 import Field, { inputClass } from "../ui/Field";
+import MenuAcciones, { type AccionMenu } from "../ui/MenuAcciones";
 import { SkeletonTable } from "../ui/Skeleton";
 import CargaPersonalExcel from "./CargaPersonalExcel";
+import FormPersona from "./FormPersona";
 import { ETIQUETA_ROL } from "./roles";
 
-type FiltroCuenta = "" | "sin" | "con";
+type Filtro = "activos" | "sin" | "con" | "inactivos";
+
+/** Fila desplegada: dar acceso o editar sus datos. */
+type Abierto = { id: string; modo: "acceso" | "editar" } | null;
 
 const thClass = "px-5 py-3";
 
+function fecha(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString("es-PE") : "";
+}
+
+/** A quien cesa RR.HH. lo reactiva el sync; al resto, solo un ADMIN (DEC-L064). */
+function puedeReactivar(p: PersonalAdmin): boolean {
+  return p.fuente === "MANUAL" || p.inactivadoPor !== null;
+}
+
 /**
  * Padron de personal por empresa (DEC-L041): cada empresa con su propia lista.
- * TDEM llega de RR.HH.; GOYDEL y METRIN se cargan por Excel. La cuenta se crea
- * aqui con "Dar acceso".
+ * TDEM llega de RR.HH.; GOYDEL y METRIN se agregan aqui o por Excel. Nadie se
+ * elimina: se inactiva con fecha y solo ADMIN lo reactiva (DEC-L064).
  */
 export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDatos; recargarAdmin: () => void }) {
+  const confirmar = useConfirmar();
   const [personal, setPersonal] = useState<PersonalAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "" = aun no elegida: se muestra la empresa con mas personal (TDEM, la de RR.HH.).
   const [elegida, setElegida] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [filtro, setFiltro] = useState<FiltroCuenta>("");
-  const [abierto, setAbierto] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<Filtro>("activos");
+  const [abierto, setAbierto] = useState<Abierto>(null);
+  const [agregando, setAgregando] = useState(false);
   const [verExcel, setVerExcel] = useState(false);
 
   function cargar() {
@@ -40,9 +57,33 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
 
   useEffect(cargar, []);
 
+  function aplicarLista(lista: PersonalAdmin[]) {
+    setPersonal(lista);
+    recargarAdmin();
+  }
+
+  async function cambiarEstado(p: PersonalAdmin, activo: boolean) {
+    const ok = await confirmar(
+      activo
+        ? { titulo: `¿Reactivar a ${p.nombre}?`, confirmar: "Reactivar" }
+        : {
+            titulo: `¿Inactivar a ${p.nombre}?`,
+            mensaje: p.userId ? "También pierde el acceso a la plataforma." : undefined,
+            confirmar: "Inactivar",
+            peligro: true,
+          },
+    );
+    if (!ok) return;
+    setError(null);
+    const res = await cambiarActivoPersona(p.id, activo);
+    if (res.ok && res.result) aplicarLista(res.result);
+    else setError(res.message);
+  }
+
+  // Los chips cuentan solo al personal activo.
   const conteo = useMemo(() => {
     const m = new Map<string, number>();
-    personal?.forEach((p) => m.set(p.empresaCode, (m.get(p.empresaCode) ?? 0) + 1));
+    personal?.forEach((p) => p.activo && m.set(p.empresaCode, (m.get(p.empresaCode) ?? 0) + 1));
     return m;
   }, [personal]);
   const empresa =
@@ -58,7 +99,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
       (p) =>
         p.empresaCode === empresa &&
         // La fila abierta se queda aunque cambie de grupo: muestra la contrasena recien creada.
-        (filtro === "" || p.id === abierto || (filtro === "con") === (p.userId !== null)) &&
+        (p.id === abierto?.id || coincide(p, filtro)) &&
         (!q || p.nombre.toLowerCase().includes(q) || p.dni.includes(q) || (p.correo ?? "").toLowerCase().includes(q)),
     );
   }, [personal, empresa, filtro, busqueda, abierto]);
@@ -75,6 +116,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
             onClick={() => {
               setElegida(e.code);
               setAbierto(null);
+              setAgregando(false);
               setVerExcel(false);
             }}
             className={`rounded-full border px-3 py-1 font-mono text-xs transition-colors ${
@@ -101,20 +143,55 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
         </label>
         <select
           value={filtro}
-          onChange={(e) => setFiltro(e.target.value as FiltroCuenta)}
+          onChange={(e) => setFiltro(e.target.value as Filtro)}
           className={inputClass}
-          aria-label="Cuenta"
+          aria-label="Estado"
         >
-          <option value="">Con y sin cuenta</option>
-          <option value="sin">Sin cuenta</option>
-          <option value="con">Con cuenta</option>
+          <option value="activos">Activos</option>
+          <option value="sin">Activos sin cuenta</option>
+          <option value="con">Activos con cuenta</option>
+          <option value="inactivos">Inactivos</option>
         </select>
         {esManual && (
-          <Button variant="secondary" icon={<FileSpreadsheet className="size-4" />} onClick={() => setVerExcel((v) => !v)}>
-            Carga por Excel
-          </Button>
+          <>
+            <Button
+              icon={<UserPlus className="size-4" />}
+              onClick={() => {
+                setAgregando((v) => !v);
+                setVerExcel(false);
+              }}
+            >
+              Agregar persona
+            </Button>
+            <MenuAcciones
+              acciones={[
+                {
+                  label: verExcel ? "Ocultar carga por Excel" : "Carga por Excel",
+                  onClick: () => {
+                    setVerExcel((v) => !v);
+                    setAgregando(false);
+                  },
+                },
+              ]}
+            />
+          </>
         )}
       </div>
+
+      {esManual && agregando && (
+        <Card className="mb-3">
+          <CardBody>
+            <FormPersona
+              key={empresa}
+              empresaCode={empresa}
+              persona={null}
+              cecos={datos.cecos}
+              alGuardar={aplicarLista}
+              cerrar={() => setAgregando(false)}
+            />
+          </CardBody>
+        </Card>
+      )}
 
       {esManual && verExcel && (
         <CargaPersonalExcel
@@ -132,14 +209,23 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
         {!personal ? (
           !error && <SkeletonTable cols={4} />
         ) : filtrados.length === 0 ? (
-          <EmptyState icon={Users} title={conteo.get(empresa) ? "Sin resultados" : `Aún no hay personal de ${empresa}`} />
+          <EmptyState
+            icon={Users}
+            title={
+              filtro === "inactivos"
+                ? `Sin personal inactivo en ${empresa}`
+                : conteo.get(empresa)
+                  ? "Sin resultados"
+                  : `Aún no hay personal de ${empresa}`
+            }
+          />
         ) : (
           <table className="tabla">
             <thead>
               <tr className="border-b border-slate-200 cabecera-tabla">
                 <th className={thClass}>Persona</th>
                 <th className={`${thClass} col-sec`}>CECO</th>
-                <th className={`${thClass} text-right`}>Cuenta</th>
+                <th className={`${thClass} text-right`}>{filtro === "inactivos" ? "Estado" : "Cuenta"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -148,13 +234,12 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
                   key={p.id}
                   p={p}
                   roles={datos.roles}
-                  abierto={abierto === p.id}
-                  abrir={() => setAbierto(p.id)}
+                  cecos={datos.cecos}
+                  modo={abierto?.id === p.id ? abierto.modo : null}
+                  abrir={(modo) => setAbierto({ id: p.id, modo })}
                   cerrar={() => setAbierto(null)}
-                  alCrear={(lista) => {
-                    setPersonal(lista);
-                    recargarAdmin();
-                  }}
+                  cambiarEstado={(activo) => cambiarEstado(p, activo)}
+                  alGuardar={aplicarLista}
                 />
               ))}
             </tbody>
@@ -165,18 +250,117 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
   );
 }
 
+function coincide(p: PersonalAdmin, filtro: Filtro): boolean {
+  if (filtro === "inactivos") return !p.activo;
+  if (!p.activo) return false;
+  return filtro === "activos" || (filtro === "con") === (p.userId !== null);
+}
+
 function FilaPersona({
   p,
   roles,
-  abierto,
+  cecos,
+  modo,
   abrir,
+  cerrar,
+  cambiarEstado,
+  alGuardar,
+}: {
+  p: PersonalAdmin;
+  roles: string[];
+  cecos: CecoAdmin[];
+  modo: "acceso" | "editar" | null;
+  abrir: (modo: "acceso" | "editar") => void;
+  cerrar: () => void;
+  cambiarEstado: (activo: boolean) => void;
+  alGuardar: (lista: PersonalAdmin[]) => void;
+}) {
+  const acciones: AccionMenu[] = p.activo
+    ? [
+        ...(p.fuente === "MANUAL" ? [{ label: "Editar datos", onClick: () => abrir("editar") }] : []),
+        { label: "Inactivar", onClick: () => cambiarEstado(false), peligro: true },
+      ]
+    : puedeReactivar(p)
+      ? [{ label: "Reactivar", onClick: () => cambiarEstado(true) }]
+      : [];
+  const origenInactivo = p.inactivadoPor ? `Inactivado por ${p.inactivadoPor}` : "Cese en RR.HH.";
+
+  return (
+    <>
+      <tr className={modo ? "bg-slate-50" : "hover:bg-slate-50"}>
+        <td className="col-flex px-5 py-3" title={p.nombre}>
+          <p className={`text-sm ${p.activo ? "text-slate-800" : "text-slate-500"}`}>{p.nombre}</p>
+          <p className="truncate text-xs text-slate-500">
+            <span className="font-mono">{p.dni}</span>
+            {p.cargo && ` · ${p.cargo}`}
+          </p>
+        </td>
+        <td className="col-sec px-5 py-3 text-xs text-slate-600" title={p.cecoNombre ?? undefined}>
+          {p.cecoCode ? (
+            <>
+              <span className="font-mono">{p.cecoCode}</span> <span className="text-slate-400">{p.cecoNombre}</span>
+            </>
+          ) : (
+            "—"
+          )}
+        </td>
+        <td className="whitespace-nowrap px-5 py-3">
+          <div className="flex items-center justify-end gap-2">
+            {!p.activo ? (
+              <span className="inline-flex flex-col items-end gap-0.5" title={origenInactivo}>
+                <Badge tone="gris">Inactivo desde {fecha(p.inactivadoEn)}</Badge>
+                <span className="text-xs text-slate-400">{origenInactivo}</span>
+              </span>
+            ) : p.userId ? (
+              <span className="inline-flex flex-col items-end gap-0.5">
+                <Badge tone="verde">
+                  <UserCheck className="size-3" />
+                  Con cuenta
+                </Badge>
+                {p.correo && <span className="text-xs text-slate-400">{p.correo}</span>}
+              </span>
+            ) : (
+              !modo && (
+                <Button size="sm" variant="secondary" onClick={() => abrir("acceso")}>
+                  Dar acceso
+                </Button>
+              )
+            )}
+            <MenuAcciones acciones={acciones} etiqueta={`Acciones de ${p.nombre}`} />
+          </div>
+        </td>
+      </tr>
+      {modo && (
+        <tr className="bg-slate-50">
+          <td colSpan={3} className="px-5 pb-4 pt-1">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              {modo === "editar" ? (
+                <FormPersona
+                  empresaCode={p.empresaCode}
+                  persona={p}
+                  cecos={cecos}
+                  alGuardar={alGuardar}
+                  cerrar={cerrar}
+                />
+              ) : (
+                <DarAcceso p={p} roles={roles} cerrar={cerrar} alCrear={alGuardar} />
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function DarAcceso({
+  p,
+  roles,
   cerrar,
   alCrear,
 }: {
   p: PersonalAdmin;
   roles: string[];
-  abierto: boolean;
-  abrir: () => void;
   cerrar: () => void;
   alCrear: (lista: PersonalAdmin[]) => void;
 }) {
@@ -204,118 +388,73 @@ function FilaPersona({
     }
   }
 
+  if (temporal || aviso) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        {temporal ? (
+          <>
+            <span className="text-slate-600">Contraseña temporal (se muestra una sola vez):</span>
+            <code className="rounded bg-brand-50 px-2 py-0.5 font-mono text-base font-semibold tracking-wider text-slate-900">
+              {temporal}
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(temporal);
+                setCopiado(true);
+              }}
+              className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800"
+            >
+              <Copy className="size-3.5" />
+              {copiado ? "Copiada" : "Copiar"}
+            </button>
+          </>
+        ) : (
+          <span className="text-slate-600">{aviso}</span>
+        )}
+        <Button size="sm" variant="ghost" className="ml-auto" onClick={cerrar}>
+          Cerrar
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <tr className={abierto ? "bg-slate-50" : "hover:bg-slate-50"}>
-        <td className="col-flex px-5 py-3" title={p.nombre}>
-          <p className="text-sm text-slate-800">{p.nombre}</p>
-          <p className="truncate text-xs text-slate-500">
-            <span className="font-mono">{p.dni}</span>
-            {p.cargo && ` · ${p.cargo}`}
-          </p>
-        </td>
-        <td className="col-sec px-5 py-3 text-xs text-slate-600" title={p.cecoNombre ?? undefined}>
-          {p.cecoCode ? (
-            <>
-              <span className="font-mono">{p.cecoCode}</span> <span className="text-slate-400">{p.cecoNombre}</span>
-            </>
-          ) : (
-            "—"
-          )}
-        </td>
-        <td className="whitespace-nowrap px-5 py-3 text-right">
-          {p.userId ? (
-            <span className="inline-flex flex-col items-end gap-0.5">
-              <Badge tone="verde">
-                <UserCheck className="size-3" />
-                Con cuenta
-              </Badge>
-              {p.correo && <span className="text-xs text-slate-400">{p.correo}</span>}
-            </span>
-          ) : (
-            !abierto && (
-              <Button size="sm" variant="secondary" onClick={abrir}>
-                Dar acceso
-              </Button>
-            )
-          )}
-        </td>
-      </tr>
-      {abierto && (
-        <tr className="bg-slate-50">
-          <td colSpan={3} className="px-5 pb-4 pt-1">
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              {temporal || aviso ? (
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  {temporal ? (
-                    <>
-                      <span className="text-slate-600">Contraseña temporal (se muestra una sola vez):</span>
-                      <code className="rounded bg-brand-50 px-2 py-0.5 font-mono text-base font-semibold tracking-wider text-slate-900">
-                        {temporal}
-                      </code>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard?.writeText(temporal);
-                          setCopiado(true);
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800"
-                      >
-                        <Copy className="size-3.5" />
-                        {copiado ? "Copiada" : "Copiar"}
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-slate-600">{aviso}</span>
-                  )}
-                  <Button size="sm" variant="ghost" className="ml-auto" onClick={cerrar}>
-                    Cerrar
-                  </Button>
-                </div>
-              ) : (
-                <form onSubmit={onCrear} className="grid gap-4 sm:grid-cols-[minmax(0,18rem)_1fr]">
-                  <Field label="Correo de ingreso" required>
-                    <input
-                      required
-                      type="email"
-                      autoFocus
-                      value={correo}
-                      onChange={(e) => setCorreo(e.target.value)}
-                      className={`${inputClass} w-full`}
-                    />
-                  </Field>
-                  <div>
-                    <div className="rotulo mb-2">Roles</div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2">
-                      {roles.map((r) => (
-                        <label key={r} className="flex items-center gap-2 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={seleccion.includes(r)}
-                            onChange={(e) =>
-                              setSeleccion((prev) => (e.target.checked ? [...prev, r] : prev.filter((x) => x !== r)))
-                            }
-                          />
-                          {ETIQUETA_ROL[r] ?? r}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  {error && <Alert tone="danger" className="sm:col-span-2">{error}</Alert>}
-                  <div className="flex gap-2 sm:col-span-2">
-                    <Button type="submit" size="sm" loading={guardando} disabled={seleccion.length === 0}>
-                      Crear cuenta
-                    </Button>
-                    <Button type="button" size="sm" variant="ghost" disabled={guardando} onClick={cerrar}>
-                      Cancelar
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
+    <form onSubmit={onCrear} className="grid gap-4 sm:grid-cols-[minmax(0,18rem)_1fr]">
+      <Field label="Correo de ingreso" required>
+        <input
+          required
+          type="email"
+          autoFocus
+          value={correo}
+          onChange={(e) => setCorreo(e.target.value)}
+          className={`${inputClass} w-full`}
+        />
+      </Field>
+      <div>
+        <div className="rotulo mb-2">Roles</div>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {roles.map((r) => (
+            <label key={r} className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={seleccion.includes(r)}
+                onChange={(e) => setSeleccion((prev) => (e.target.checked ? [...prev, r] : prev.filter((x) => x !== r)))}
+              />
+              {ETIQUETA_ROL[r] ?? r}
+            </label>
+          ))}
+        </div>
+      </div>
+      {error && <Alert tone="danger" className="sm:col-span-2">{error}</Alert>}
+      <div className="flex gap-2 sm:col-span-2">
+        <Button type="submit" size="sm" loading={guardando} disabled={seleccion.length === 0}>
+          Crear cuenta
+        </Button>
+        <Button type="button" size="sm" variant="ghost" disabled={guardando} onClick={cerrar}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
   );
 }

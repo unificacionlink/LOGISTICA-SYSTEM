@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.49.0 — 2026-11-17
+
+Padrón de personal como CRUD sin borrado (DEC-L064).
+
+- `V34__personal_inactivacion.sql`: `personal.inactivated_at` y `inactivated_by` (check `active = inactivated_at is null`); los inactivos previos toman `updated_at`.
+- Nuevo `PadronPersonalService` (solo ADMIN): `POST /api/admin/personal` (alta en empresas manuales), `PUT /api/admin/personal/{id}` (edición de personas MANUAL, refleja la cuenta MANUAL) y `PATCH /api/admin/personal/{id}/activo` (inactivar/reactivar, con auditoría `CREAR`/`EDITAR`/`INACTIVAR`/`REACTIVAR` y la cuenta vinculada). `GET /api/admin/personal` trae también a los inactivos con fecha y quién los inactivó.
+- `PersonalSyncService`: no reactiva a quien inactivó un ADMIN ni su cuenta, y deja la fecha del cese. `PersonalManualService`: la carga Excel registra fecha y ADMIN al inactivar.
+- Frontend: Administración › Personal con filtro Activos / sin cuenta / con cuenta / Inactivos, "Agregar persona" (`components/admin/FormPersona`), menú por fila Editar datos · Inactivar · Reactivar con confirmación; la carga por Excel pasa al menú "⋯".
+- `PersonalManualTest.crudDelPadronSinBorrar` e `IdentidadRrhhTest` (sync respeta la inactivación del ADMIN, cese de RR.HH. no se reactiva a mano); `MigracionesFlywayTest` pasa a 34 migraciones.
+
 ## 0.48.0 — 2026-11-16
 
 Lote 18b: recepción en destino con diferencias (DEC-L063, ALM-03 de la V38.7).

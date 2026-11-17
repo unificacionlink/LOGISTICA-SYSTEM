@@ -5,6 +5,24 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L064 — Padrón de personal: CRUD sin borrado (2026-11-17, v0.49.0).**
+  - Decisión del usuario: el padrón (`personal`, DEC-L041) se mantiene desde
+    Administración › Personal; **nadie se elimina**, se inactiva y queda la
+    fecha (`inactivated_at`) y el ADMIN que lo hizo (`inactivated_by`, V34).
+    **Solo un ADMIN reactiva.**
+  - Alta y edición individual solo en empresas sin padrón en RR.HH.
+    (`identidad_manual_empresa_habilitada`, DEC-L028); empresa y DNI no se
+    editan (son la clave). La cuenta MANUAL vinculada refleja nombre, correo,
+    cargo y CECO de planilla. Lo de RR.HH. se corrige allá.
+  - Inactivar vale para cualquier persona; su cuenta pierde acceso salvo que
+    siga activa en el padrón de otra empresa. Reactivar la persona reactiva su
+    cuenta.
+  - Sync de RR.HH.: a quien inactivó un ADMIN no lo reactiva (ni a su cuenta)
+    aunque RR.HH. lo siga enviando. Un cese de RR.HH. (`inactivated_by` null)
+    no se reactiva a mano: vuelve cuando RR.HH. lo envíe. La carga Excel
+    también deja fecha y ADMIN al inactivar.
+  - Los inactivos previos a V34 toman `updated_at` como fecha de inactivación.
+
 - **DEC-L063 — Lote 18b: recepción en destino con diferencias (2026-11-16, v0.48.0, ALM-03 de la V38.7).**
   - Se sigue la V38.7 tal cual (`opSaveDelivery`, `aiResolve`,
     `aiReceiveReturn`), con estas decisiones del usuario:

@@ -2,10 +2,13 @@ package com.tdem.logistica;
 
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.modules.identidad.AdminService;
+import com.tdem.logistica.modules.identidad.PadronPersonalService;
 import com.tdem.logistica.modules.identidad.PersonalManualService;
 import com.tdem.logistica.modules.identidad.dto.DarAccesoDto;
 import com.tdem.logistica.modules.identidad.dto.DarAccesoRequest;
 import com.tdem.logistica.modules.identidad.dto.EditarUsuarioRequest;
+import com.tdem.logistica.modules.identidad.dto.PersonaRequest;
+import com.tdem.logistica.modules.identidad.dto.PersonalAdminDto;
 import com.tdem.logistica.modules.identidad.dto.PersonalCargaDto;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
@@ -15,7 +18,10 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -36,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** DEC-L028/DEC-L041: padron de personal de GOYDEL y METRIN por Excel, acceso y edicion individual. */
 @SpringBootTest
 @ActiveProfiles("seed-test-data")
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PersonalManualTest {
 
 	private static final List<String> CABECERA = List.of("Empresa", "DNI", "Nombre completo", "Correo", "Cargo",
@@ -46,6 +53,7 @@ class PersonalManualTest {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private PersonalManualService personal;
 	@Autowired private AdminService adminService;
+	@Autowired private PadronPersonalService padron;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -64,6 +72,7 @@ class PersonalManualTest {
 	}
 
 	@Test
+	@Order(1)
 	void altaEdicionYCesePorExcel() throws IOException {
 		UsuarioPrincipal admin = new UsuarioPrincipal(usuario("admin@logistica.test"), List.of("ADMIN"));
 		UsuarioPrincipal logistica = new UsuarioPrincipal(usuario("logistica@logistica.test"), List.of("LOGISTICA"));
@@ -173,6 +182,69 @@ class PersonalManualTest {
 			assertThrows(ApiException.class, () -> adminService.editarUsuario(tdem,
 					new EditarUsuarioRequest("X", "x@x.pe", null, null), admin));
 		}
+	}
+
+	/** DEC-L064: alta, edicion, inactivacion con fecha y reactivacion solo por ADMIN. */
+	@Test
+	@Order(2)
+	void crudDelPadronSinBorrar() throws IOException {
+		UsuarioPrincipal admin = new UsuarioPrincipal(usuario("admin@logistica.test"), List.of("ADMIN"));
+		UsuarioPrincipal logistica = new UsuarioPrincipal(usuario("logistica@logistica.test"), List.of("LOGISTICA"));
+		PersonaRequest nina = new PersonaRequest("metrin", "40222001", " Nina Metrin ", "Nina@Metrin.pe", "Analista", null);
+
+		assertThrows(ApiException.class, () -> padron.crear(nina, logistica), "solo ADMIN");
+		PersonalAdminDto creada = buscar(padron.crear(nina, admin), "40222001");
+		assertEquals("Nina Metrin", creada.nombre());
+		assertEquals("nina@metrin.pe", creada.correo());
+		assertTrue(creada.activo());
+		assertEquals("MANUAL", creada.fuente());
+		assertThrows(ApiException.class, () -> padron.crear(nina, admin), "ya esta en el padron");
+		assertThrows(ApiException.class, () -> padron.crear(
+				new PersonaRequest("METRIN", "40-1", "Dni Malo", null, null, null), admin), "DNI invalido");
+		assertThrows(ApiException.class, () -> padron.crear(
+				new PersonaRequest("METRIN", "40222002", "Correo Ajeno", "admin@logistica.test", null, null), admin),
+				"correo de la cuenta de otro");
+
+		PersonalAdminDto editada = buscar(padron.editar(creada.id(),
+				new PersonaRequest(null, null, "Nina Metrin Rojas", "nina@metrin.pe", "", null), admin), "40222001");
+		assertEquals("Nina Metrin Rojas", editada.nombre());
+		assertNull(editada.cargo());
+		assertThrows(ApiException.class, () -> padron.editar(creada.id(),
+				new PersonaRequest(null, null, "X", null, null, null), logistica), "solo ADMIN");
+
+		// Con cuenta: al inactivarla pierde acceso; al reactivarla lo recupera.
+		DarAccesoDto acceso = adminService.darAcceso(creada.id(),
+				new DarAccesoRequest("nina@metrin.pe", List.of("SOLICITANTE")), admin);
+		assertNotNull(acceso.acceso());
+		UUID cuenta = usuario("nina@metrin.pe");
+		PersonalAdminDto inactiva = buscar(padron.cambiarActivo(creada.id(), false, admin), "40222001");
+		assertFalse(inactiva.activo(), "no se borra: queda inactiva");
+		assertNotNull(inactiva.inactivadoEn());
+		assertNotNull(inactiva.inactivadoPor());
+		assertFalse(jdbc.queryForObject("select active from usuario where user_id = ?", Boolean.class, cuenta));
+		assertThrows(ApiException.class, () -> padron.cambiarActivo(creada.id(), false, admin), "ya esta inactiva");
+		ApiException duplicada = assertThrows(ApiException.class, () -> padron.crear(nina, admin));
+		assertTrue(duplicada.getMessage().contains("reactivalo"), duplicada.getMessage());
+		assertThrows(ApiException.class, () -> padron.cambiarActivo(creada.id(), true, logistica), "solo ADMIN reactiva");
+
+		PersonalAdminDto reactivada = buscar(padron.cambiarActivo(creada.id(), true, admin), "40222001");
+		assertTrue(reactivada.activo());
+		assertNull(reactivada.inactivadoEn());
+		assertTrue(jdbc.queryForObject("select active from usuario where user_id = ?", Boolean.class, cuenta));
+		assertEquals(1, contar("select count(*) from log_cambios where entidad = 'PERSONAL' and accion = 'INACTIVAR'"
+				+ " and entidad_id = '" + creada.id() + "'"));
+
+		// La carga Excel tambien deja la fecha y quien inactivo.
+		personal.confirmar(excel(fila("METRIN", "40222001", "Nina Metrin Rojas", "", "", "", "", "NO")), admin);
+		assertEquals(admin.userId(), jdbc.queryForObject(
+				"select inactivated_by from personal where personal_id = ?", UUID.class, creada.id()));
+		personal.confirmar(excel(fila("METRIN", "40222001", "Nina Metrin Rojas", "", "", "", "", "SI")), admin);
+		assertEquals(0, contar("select count(*) from personal where personal_id = '" + creada.id()
+				+ "' and (inactivated_at is not null or inactivated_by is not null)"));
+	}
+
+	private static PersonalAdminDto buscar(List<PersonalAdminDto> lista, String dni) {
+		return lista.stream().filter(p -> p.dni().equals(dni)).findFirst().orElseThrow();
 	}
 
 	// ------------------------------------------------------------------

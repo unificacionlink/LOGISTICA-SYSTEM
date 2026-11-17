@@ -56,6 +56,30 @@ export function listarPersonal() {
   return http.get<PersonalAdmin[]>("/api/admin/personal");
 }
 
+export interface PersonaInput {
+  /** Solo al agregar: la empresa y el DNI no cambian. */
+  empresaCode?: string;
+  dni?: string;
+  nombre: string;
+  correo?: string;
+  cargo?: string;
+  cecoId?: string;
+}
+
+/** Alta individual, solo en empresas sin padron en RR.HH. (DEC-L064). */
+export function crearPersona(input: PersonaInput) {
+  return http.post<PersonalAdmin[]>("/api/admin/personal", input);
+}
+
+export function editarPersona(personalId: string, input: PersonaInput) {
+  return http.put<PersonalAdmin[]>(`/api/admin/personal/${personalId}`, input);
+}
+
+/** Inactivar en lugar de eliminar; reactivar es solo de ADMIN (DEC-L064). */
+export function cambiarActivoPersona(personalId: string, activo: boolean) {
+  return http.patch<PersonalAdmin[]>(`/api/admin/personal/${personalId}/activo`, { activo });
+}
+
 /** Crea la cuenta de una persona del padron; devuelve su contrasena temporal. */
 export function darAcceso(personalId: string, correo: string, roles: string[]) {
   return http.post<DarAccesoResultado>(`/api/admin/personal/${personalId}/acceso`, { correo, roles });

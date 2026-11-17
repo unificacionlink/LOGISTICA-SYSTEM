@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.49.0",
+    titulo: "Mantenimiento del personal",
+    cambios: [
+      "En Administración › Personal ahora se puede agregar y editar personal de GOYDEL y METRIN sin usar el Excel.",
+      "Ya no se elimina a nadie: la persona queda inactiva y se muestra desde qué fecha y quién la inactivó.",
+      "Solo un administrador puede reactivar a una persona inactiva. Al inactivarla, también pierde el acceso a la plataforma.",
+      "Nuevo filtro para ver al personal inactivo.",
+    ],
+  },
+  {
     version: "0.48.0",
     titulo: "Recepción en destino con diferencias",
     cambios: [

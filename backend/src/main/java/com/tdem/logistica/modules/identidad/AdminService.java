@@ -53,12 +53,14 @@ public class AdminService {
     private final AccesoVigente accesoVigente;
     private final JdbcTemplate jdbc;
     private final Auditoria auditoria;
+    private final PadronPersonalService padron;
 
     public AdminService(UsuarioRepository usuarioRepository, UsuarioRolRepository usuarioRolRepository,
                         RolRepository rolRepository, EmpresaRepository empresaRepository, CecoRepository cecoRepository,
                         PersonalSyncService syncService, PasswordEncoder passwordEncoder, AccesoVigente accesoVigente,
-                        JdbcTemplate jdbc, Auditoria auditoria) {
+                        JdbcTemplate jdbc, Auditoria auditoria, PadronPersonalService padron) {
         this.auditoria = auditoria;
+        this.padron = padron;
         this.usuarioRepository = usuarioRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.rolRepository = rolRepository;
@@ -399,21 +401,9 @@ public class AdminService {
 
     // ---------------------------------------------------------------- padron (DEC-L041)
 
-    /** Personal vigente de todas las empresas; la pantalla lo muestra por empresa, sin mezclar. */
+    /** Padron completo, activos e inactivos (DEC-L064). */
     public List<PersonalAdminDto> personal(UsuarioPrincipal principal) {
-        exigirAdmin(principal);
-        return jdbc.query("""
-                select p.personal_id, e.code, p.dni, p.full_name, coalesce(u.corporate_email, p.email),
-                       p.position, c.code, c.name, p.fuente, p.user_id
-                  from personal p
-                  join empresa e on e.company_id = p.company_id
-                  left join ceco c on c.ceco_id = p.ceco_id
-                  left join usuario u on u.user_id = p.user_id
-                 where p.active
-                 order by e.code, p.full_name""",
-                (rs, n) -> new PersonalAdminDto(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                        rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8),
-                        rs.getString(9), rs.getObject(10, UUID.class)));
+        return padron.listar(principal);
     }
 
     /** Persona del padron, leida para dar acceso. */

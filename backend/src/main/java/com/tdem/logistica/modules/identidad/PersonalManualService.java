@@ -168,12 +168,12 @@ public class PersonalManualService {
         if (a.planes.stream().allMatch(p -> "SIN_CAMBIOS".equals(p.accion))) {
             throw ApiException.badRequest("El archivo no tiene cambios que aplicar.");
         }
-        aplicar(a);
+        aplicar(a, principal.userId());
         accesoVigente.invalidarTodo();
         return a.resultado(true);
     }
 
-    private void aplicar(Analisis a) {
+    private void aplicar(Analisis a, UUID admin) {
         Map<String, Ceco> cecos = new HashMap<>(a.ctx.cecos);
 
         for (Plan p : a.planes) {
@@ -202,12 +202,17 @@ public class PersonalManualService {
                         p.empresa.getCompanyId(), p.dni, p.nombre, p.correo, p.cargo, cecoId, p.activo, userId);
             } else {
                 // En blanco = no se cambia (correo, cargo y CECO).
+                // DEC-L064: inactivar deja fecha y el ADMIN que lo hizo; reactivar los limpia.
                 jdbc.update("""
                         update personal
                            set full_name = ?, email = coalesce(?, email), position = coalesce(?, position),
-                               ceco_id = coalesce(?, ceco_id), active = ?, user_id = coalesce(user_id, ?)
+                               ceco_id = coalesce(?, ceco_id), active = ?, user_id = coalesce(user_id, ?),
+                               inactivated_at = case when ? then null else coalesce(inactivated_at, now()) end,
+                               inactivated_by = case when ? then null
+                                                     when active then ? else inactivated_by end
                          where personal_id = ?""",
-                        p.nombre, p.correo, p.cargo, cecoId, p.activo, userId, p.existente.id());
+                        p.nombre, p.correo, p.cargo, cecoId, p.activo, userId, p.activo, p.activo, admin,
+                        p.existente.id());
             }
 
             // La cuenta (si tiene) refleja sus datos y su estado; los roles no se tocan.

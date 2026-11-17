@@ -23,10 +23,12 @@ public class AdminController {
 
     private final AdminService service;
     private final PersonalManualService personal;
+    private final PadronPersonalService padron;
 
-    public AdminController(AdminService service, PersonalManualService personal) {
+    public AdminController(AdminService service, PersonalManualService personal, PadronPersonalService padron) {
         this.service = service;
         this.personal = personal;
+        this.padron = padron;
     }
 
     @GetMapping
@@ -85,6 +87,29 @@ public class AdminController {
     @GetMapping("/personal")
     public ApiResponse<List<PersonalAdminDto>> personal(@AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.personal(principal));
+    }
+
+    /** Alta individual (empresas sin padron en RR.HH., DEC-L064). */
+    @PostMapping("/personal")
+    public ApiResponse<List<PersonalAdminDto>> crearPersona(@Valid @RequestBody PersonaRequest request,
+                                                            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(padron.crear(request, principal), "Persona agregada al padron.");
+    }
+
+    @PutMapping("/personal/{id}")
+    public ApiResponse<List<PersonalAdminDto>> editarPersona(@PathVariable UUID id,
+                                                             @Valid @RequestBody PersonaRequest request,
+                                                             @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(padron.editar(id, request, principal), "Datos actualizados.");
+    }
+
+    /** No se elimina a nadie: se inactiva con fecha y solo ADMIN lo reactiva (DEC-L064). */
+    @PatchMapping("/personal/{id}/activo")
+    public ApiResponse<List<PersonalAdminDto>> cambiarActivoPersona(@PathVariable UUID id,
+                                                                    @RequestBody CambiarActivoRequest request,
+                                                                    @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(padron.cambiarActivo(id, request.activo(), principal),
+                request.activo() ? "Persona reactivada." : "Persona inactivada.");
     }
 
     @PostMapping("/personal/{id}/acceso")

@@ -5,6 +5,7 @@ import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.modules.auth.AuthService;
 import com.tdem.logistica.modules.auth.UsuarioDto;
 import com.tdem.logistica.modules.identidad.AdminService;
+import com.tdem.logistica.modules.identidad.PadronPersonalService;
 import com.tdem.logistica.modules.identidad.PersonalSyncService;
 import com.tdem.logistica.modules.identidad.dto.*;
 import com.tdem.logistica.security.AccesoVigente;
@@ -49,6 +50,7 @@ class IdentidadRrhhTest {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private PersonalSyncService syncService;
 	@Autowired private AdminService adminService;
+	@Autowired private PadronPersonalService padronService;
 	@Autowired private AuthService authService;
 	@Autowired private AccesoVigente accesoVigente;
 
@@ -237,6 +239,36 @@ class IdentidadRrhhTest {
 		assertEquals(List.of("SOLICITANTE", "LOGISTICA"), accesoVigente.obtener(ana).roles(), "el sync no pisa roles asignados");
 		assertTrue(jdbc.queryForObject(
 				"select active from usuario where corporate_email = 'carla@metrin.pe'", Boolean.class), "MANUAL no se toca");
+
+		// --- DEC-L064: nadie se borra; a quien inactiva un ADMIN el sync no lo reactiva ---
+		UUID fichaPedro = pedro.id();
+		assertThrows(ApiException.class, () -> padronService.cambiarActivo(fichaPedro, false, noAdmin), "solo ADMIN");
+		PersonalAdminDto pedroInactivo = padronService.cambiarActivo(fichaPedro, false, admin).stream()
+				.filter(p -> p.id().equals(fichaPedro)).findFirst().orElseThrow();
+		assertFalse(pedroInactivo.activo(), "sigue en la lista, inactivo");
+		assertNotNull(pedroInactivo.inactivadoEn());
+		assertNotNull(pedroInactivo.inactivadoPor());
+		SyncResultadoDto conPedroInactivo = syncService.sincronizar();
+		assertFalse(jdbc.queryForObject("select active from personal where personal_id = ?", Boolean.class, fichaPedro),
+				"RR.HH. lo sigue enviando, pero lo inactivo un ADMIN");
+		assertEquals(0, conPedroInactivo.actualizados(), "no cuenta como cambio en cada sync");
+		assertThrows(ApiException.class, () -> padronService.editar(fichaPedro,
+				new PersonaRequest(null, null, "Pedro", null, null, null), admin), "sus datos se corrigen en RR.HH.");
+		assertThrows(ApiException.class, () -> padronService.crear(
+				new PersonaRequest("TDEMSRL", "40000099", "Nuevo Tdem", null, null, null), admin), "TDEM viene de RR.HH.");
+
+		UUID fichaRosa = jdbc.queryForObject("select personal_id from personal where dni = '40000002'", UUID.class);
+		assertNotNull(jdbc.queryForObject("select inactivated_at from personal where personal_id = ?",
+				java.sql.Timestamp.class, fichaRosa), "el cese de RR.HH. deja su fecha");
+		assertThrows(ApiException.class, () -> padronService.cambiarActivo(fichaRosa, true, admin),
+				"a quien cesa RR.HH. lo reactiva el sync, no a mano");
+
+		assertThrows(ApiException.class, () -> padronService.cambiarActivo(fichaPedro, true, noAdmin), "solo ADMIN reactiva");
+		padronService.cambiarActivo(fichaPedro, true, admin);
+		syncService.sincronizar();
+		assertTrue(jdbc.queryForObject("select active from personal where personal_id = ?", Boolean.class, fichaPedro));
+		assertNull(jdbc.queryForObject("select inactivated_at from personal where personal_id = ?",
+				java.sql.Timestamp.class, fichaPedro));
 
 		// --- Sync 3: RRHH responde vacio -> no se desactiva a nadie ---
 		personal = "[]";

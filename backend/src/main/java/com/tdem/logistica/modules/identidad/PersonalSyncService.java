@@ -100,9 +100,12 @@ public class PersonalSyncService {
         }
     }
 
-    /** Fila del padron, leida una sola vez. */
+    /**
+     * Fila del padron, leida una sola vez. {@code inactivadoPorAdmin}: la inactivo
+     * un ADMIN y solo un ADMIN la reactiva (DEC-L064); el sync no la toca.
+     */
     private record FilaPadron(UUID id, UUID companyId, String dni, String nombre, String email, String cargo,
-                              UUID cecoId, String fuente, boolean activo, UUID userId) {
+                              UUID cecoId, String fuente, boolean activo, UUID userId, boolean inactivadoPorAdmin) {
     }
 
     private SyncResultadoDto aplicar(List<PersonalRrhh> personal, List<CecoCatalogoRrhh> catalogo) {
@@ -161,11 +164,12 @@ public class PersonalSyncService {
         // Padron y cuentas actuales, en dos consultas.
         Map<String, FilaPadron> padron = new HashMap<>();
         jdbc.query("""
-                select personal_id, company_id, dni, full_name, email, position, ceco_id, fuente, active, user_id
+                select personal_id, company_id, dni, full_name, email, position, ceco_id, fuente, active, user_id,
+                       inactivated_by is not null
                   from personal""", rs -> {
             FilaPadron f = new FilaPadron(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
                     rs.getString(4), rs.getString(5), rs.getString(6), rs.getObject(7, UUID.class), rs.getString(8),
-                    rs.getBoolean(9), rs.getObject(10, UUID.class));
+                    rs.getBoolean(9), rs.getObject(10, UUID.class), rs.getBoolean(11));
             padron.put(clave(f.companyId(), f.dni()), f);
         });
         List<Usuario> usuarios = usuarioRepository.findAllConEmpresa();
@@ -243,7 +247,8 @@ public class PersonalSyncService {
             } else {
                 cambios.add(new Object[] {nombre, email, cargo, cecoId, userId, marca, f.id()});
                 boolean cambia = !nombre.equals(f.nombre()) || !Objects.equals(email, f.email())
-                        || !Objects.equals(cargo, f.cargo()) || !Objects.equals(cecoId, f.cecoId()) || !f.activo()
+                        || !Objects.equals(cargo, f.cargo()) || !Objects.equals(cecoId, f.cecoId())
+                        || (!f.activo() && !f.inactivadoPorAdmin())
                         || !Objects.equals(userId, f.userId()) || !FUENTE_RRHH.equals(f.fuente());
                 if (cambia) {
                     actualizados++;
@@ -251,7 +256,8 @@ public class PersonalSyncService {
             }
 
             if (u != null) {
-                actualizarCuenta(u, dni, nombre, email, empresa, cargo, ahora, usuarioPorCorreo, avisos);
+                boolean reactivar = f == null || !f.inactivadoPorAdmin();
+                actualizarCuenta(u, dni, nombre, email, empresa, cargo, reactivar, ahora, usuarioPorCorreo, avisos);
                 if (cecoId != null) {
                     // Solo agrega el CECO de planilla: no quita los asignados a mano (DEC-L029).
                     cecosDeCuentas.add(new Object[] {u.getUserId(), cecoId});
@@ -268,7 +274,9 @@ public class PersonalSyncService {
         jdbc.batchUpdate("""
                 update personal
                    set full_name = ?, email = ?, position = ?, ceco_id = ?, user_id = ?, fuente = 'RRHH_SYNC',
-                       active = true, source_synced_at = ?
+                       active = inactivated_by is null,
+                       inactivated_at = case when inactivated_by is null then null else inactivated_at end,
+                       source_synced_at = ?
                  where personal_id = ?""", cambios);
         jdbc.batchUpdate("insert into usuario_ceco (user_id, ceco_id) values (?, ?) on conflict do nothing", cecosDeCuentas);
 
@@ -281,14 +289,16 @@ public class PersonalSyncService {
             for (Map.Entry<String, FilaPadron> e : padron.entrySet()) {
                 FilaPadron f = e.getValue();
                 if (FUENTE_RRHH.equals(f.fuente()) && f.activo() && !vigentes.contains(e.getKey())) {
-                    ceses.add(new Object[] {marca, f.id()});
+                    ceses.add(new Object[] {marca, marca, f.id()});
                     if (f.userId() != null) {
                         cuentasDeCesados.add(f.userId());
                     }
                     desactivados++;
                 }
             }
-            jdbc.batchUpdate("update personal set active = false, source_synced_at = ? where personal_id = ?", ceses);
+            jdbc.batchUpdate("""
+                    update personal set active = false, inactivated_at = ?, source_synced_at = ?
+                     where personal_id = ?""", ceses);
             for (Usuario u : usuarios) {
                 if (FUENTE_RRHH.equals(u.getFuente()) && u.isActive()
                         && (u.getEmployeeExternalId() == null || !dnisActivos.contains(u.getEmployeeExternalId()))) {
@@ -322,9 +332,13 @@ public class PersonalSyncService {
                 cecosCreados[0], cecosDesactivados, avisos);
     }
 
-    /** Datos de RR.HH. en la cuenta ya existente de la persona; nunca toca roles ni contrasena. */
+    /**
+     * Datos de RR.HH. en la cuenta ya existente de la persona; nunca toca roles ni contrasena.
+     * {@code reactivar} false: la persona la inactivo un ADMIN y su cuenta sigue como esta (DEC-L064).
+     */
     private static void actualizarCuenta(Usuario u, String dni, String nombre, String email, Empresa empresa, String cargo,
-                                         Instant ahora, Map<String, Usuario> porCorreo, List<String> avisos) {
+                                         boolean reactivar, Instant ahora, Map<String, Usuario> porCorreo,
+                                         List<String> avisos) {
         if (email != null && !u.getCorporateEmail().equalsIgnoreCase(email)) {
             Usuario dueno = porCorreo.get(email);
             if (dueno != null && !dueno.getUserId().equals(u.getUserId())) {
@@ -340,7 +354,9 @@ public class PersonalSyncService {
         u.setEmpresa(empresa);
         u.setCargo(cargo);
         u.setFuente(FUENTE_RRHH);
-        u.setActive(true);
+        if (reactivar) {
+            u.setActive(true);
+        }
         u.setSourceSyncedAt(ahora);
     }
 

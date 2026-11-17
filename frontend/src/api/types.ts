@@ -926,10 +926,16 @@ export interface PersonalAdmin {
   nombre: string;
   correo: string | null;
   cargo: string | null;
+  cecoId: string | null;
   cecoCode: string | null;
   cecoNombre: string | null;
   fuente: "RRHH_SYNC" | "MANUAL";
   userId: string | null;
+  /** Nadie se borra: se inactiva con fecha (DEC-L064). */
+  activo: boolean;
+  inactivadoEn: string | null;
+  /** ADMIN que lo inactivo; null en un inactivo = cese de RR.HH. */
+  inactivadoPor: string | null;
 }
 
 export interface DarAccesoResultado {
