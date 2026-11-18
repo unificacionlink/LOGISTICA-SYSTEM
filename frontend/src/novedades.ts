@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.54.0",
+    titulo: "Prioridad con tiempo de atención",
+    cambios: [
+      "Las prioridades ahora son Urgente (2 días hábiles), Aprovisionamiento (10 días hábiles) e Implementación (20 días hábiles).",
+      "La fecha ya no se escribe: el sistema muestra la fecha de solicitud y la atención tentativa según la prioridad, sin contar fines de semana ni feriados.",
+      "El botón «Tiempo de atención» muestra cuánto demora cada prioridad y qué fecha tendría si envías hoy.",
+      "En el detalle del requerimiento ves en qué día hábil va frente a su plazo, o si ya se pasó.",
+    ],
+  },
+  {
     version: "0.53.0",
     titulo: "Usuarios ordenados por rol",
     cambios: [

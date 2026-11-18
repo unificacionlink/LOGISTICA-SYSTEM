@@ -5,6 +5,7 @@ import com.tdem.logistica.modules.aprobaciones.AprobacionService;
 import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
 import com.tdem.logistica.modules.compras.ComprasService;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
+import com.tdem.logistica.modules.requerimientos.SlaAtencion;
 import com.tdem.logistica.modules.requerimientos.dto.CrearRequerimientoRequest;
 import com.tdem.logistica.modules.requerimientos.dto.ItemRequerimientoRequest;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDetalleDto;
@@ -70,7 +71,15 @@ class ObservarProgramarTest {
 		LocalDate hoy = LocalDate.now(ZoneId.of("America/Lima"));
 
 		RequerimientoDto req = requerimientos.crear(solicitud(2), solicitante);
-		requerimientos.enviar(req.id(), solicitante);
+		// --- DEC-L068: la fecha sale de la prioridad; la que manda el cliente (pasada) se ignora ---
+		LocalDate tentativa = SlaAtencion.fechaTentativa("IMPLEMENTACION", hoy);
+		assertEquals(tentativa, req.requiredDate());
+		assertEquals(20, req.sla().diasHabiles());
+		assertNull(req.submittedAt());
+		assertNull(req.sla().transcurridos(), "el borrador no corre el tiempo de atencion");
+		RequerimientoDto enviado = requerimientos.enviar(req.id(), solicitante);
+		assertNotNull(enviado.submittedAt());
+		assertEquals(0, enviado.sla().transcurridos());
 		UUID aprobacion1 = requerimientos.obtener(req.id(), aprobador).pendingApprovalId();
 		assertNotNull(aprobacion1);
 
@@ -114,7 +123,7 @@ class ObservarProgramarTest {
 		assertThrows(ApiException.class, () -> requerimientos.programarEntrega(req.id(), hoy.minusDays(1), logistica));
 		RequerimientoDto programado = requerimientos.programarEntrega(req.id(), fecha, logistica);
 		assertEquals(fecha, programado.scheduledDeliveryDate());
-		assertEquals(hoy.plusDays(10), programado.requiredDate(), "la fecha requerida no se toca");
+		assertEquals(tentativa, programado.requiredDate(), "la fecha requerida no se toca");
 		requerimientos.programarEntrega(req.id(), fecha, logistica); // misma fecha: no se audita de nuevo
 		requerimientos.programarEntrega(req.id(), fecha.plusDays(1), logistica);
 		assertEquals(2, jdbc.queryForObject("""
@@ -150,8 +159,8 @@ class ObservarProgramarTest {
 		UUID ceco = jdbc.queryForObject("select ceco_id from ceco where company_id = ? and code = 'ADM'", UUID.class, empresa);
 		UUID variante = jdbc.queryForObject(
 				"select variant_id from producto_variante where internal_variant_code = 'AC01001-00'", UUID.class);
-		return new CrearRequerimientoRequest(ceco, "NORMAL", "CONSUMO", "Reposicion de materiales de oficina",
-				LocalDate.now(ZoneId.of("America/Lima")).plusDays(10),
+		return new CrearRequerimientoRequest(ceco, "IMPLEMENTACION", "CONSUMO", "Reposicion de materiales de oficina",
+				LocalDate.now(ZoneId.of("America/Lima")).minusDays(5),
 				List.of(new ItemRequerimientoRequest(variante, new BigDecimal(cantidad), null, null)));
 	}
 

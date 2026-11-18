@@ -1,5 +1,6 @@
 package com.tdem.logistica.documentos;
 
+import com.tdem.logistica.modules.requerimientos.SlaAtencion;
 import com.tdem.logistica.documentos.PdfCorporativo.Campo;
 import com.tdem.logistica.documentos.PdfCorporativo.Columna;
 import com.tdem.logistica.modules.almacen.dto.EnvioDto;
@@ -62,7 +63,7 @@ final class DocumentosPdf {
                 Campo.de("Solicitante", r.requesterNombre()),
                 Campo.de("Centro de costos", r.cecoNombre()),
                 Campo.de("Estado", etiqueta(r.status())),
-                Campo.de("Prioridad", etiqueta(r.priority())),
+                Campo.de("Prioridad", SlaAtencion.etiqueta(r.priority())),
                 Campo.de("Fecha requerida", fecha(r.requiredDate())),
                 Campo.de("Creado", fechaHora(r.createdAt())),
                 Campo.ancho("Propósito", r.purpose()),
@@ -236,7 +237,7 @@ final class DocumentosPdf {
         pdf.campos(List.of(
                 Campo.de("ID de seguimiento", r.code()),
                 Campo.de("Fecha de entrega programada", fecha(t.entregaProgramada())),
-                Campo.de("Nivel de urgencia", etiqueta(r.priority())),
+                Campo.de("Nivel de urgencia", SlaAtencion.etiqueta(r.priority())),
                 Campo.de("Centro de costos que recepciona", ceco(t.cecoCodigo(), r.cecoNombre())),
                 Campo.de("Solicitante", r.requesterNombre()),
                 Campo.de("Valor del pedido", t.valorPedido() != null ? "PEN " + monto(t.valorPedido()) : null),

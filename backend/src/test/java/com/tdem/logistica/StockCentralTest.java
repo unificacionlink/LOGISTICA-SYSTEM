@@ -150,7 +150,7 @@ class StockCentralTest {
 		UUID req = jdbc.queryForObject("""
 				insert into requerimiento (request_code, company_id, ceco_id, requester_user_id, requester_type,
 				  purpose, justification, status, priority)
-				values ('REQ-GOYDEL-1', ?, ?, ?, 'INTERNO', 'CONSUMO', 'prueba', 'PENDIENTE_APROBACION', 'NORMAL')
+				values ('REQ-GOYDEL-1', ?, ?, ?, 'INTERNO', 'CONSUMO', 'prueba', 'PENDIENTE_APROBACION', 'APROVISIONAMIENTO')
 				returning request_id""", UUID.class, goydel, ceco, usuario("solicitante@logistica.test"));
 		UUID item = jdbc.queryForObject("""
 				insert into requerimiento_item (request_id, product_id, variant_id, uom_id, qty_requested)

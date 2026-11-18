@@ -3,6 +3,7 @@ import { Clock3 } from "lucide-react";
 import type { EtapaTablero, FilaBandeja, TableroRequerimientos } from "../../api/types";
 import { EMPRESAS } from "../empresas";
 import PrioridadBadge from "../PrioridadBadge";
+import { PRIORIDAD_POR_DEFECTO } from "./prioridades";
 import { fmtDia } from "../formato";
 import { Skeleton } from "../ui/Skeleton";
 import { etiquetaAccion } from "./acciones";
@@ -103,7 +104,7 @@ const Tarjeta = memo(function Tarjeta({
             />
           )}
           <span className="font-mono text-xs font-medium text-brand-700">{f.code}</span>
-          {f.priority !== "NORMAL" && (
+          {f.priority !== PRIORIDAD_POR_DEFECTO && (
             <span className="ml-auto">
               <PrioridadBadge prioridad={f.priority} />
             </span>

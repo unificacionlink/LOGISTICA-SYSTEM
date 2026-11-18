@@ -1,5 +1,6 @@
 package com.tdem.logistica.modules.notificaciones;
 
+import com.tdem.logistica.modules.requerimientos.SlaAtencion;
 import com.tdem.logistica.config.UrlPublica;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -24,8 +25,6 @@ import java.util.UUID;
 public class AvisosCorreo {
 
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final Map<String, String> PRIORIDAD = Map.of(
-            "NORMAL", "Normal", "URGENTE", "Urgente", "CRITICA", "Crítica");
     private static final Map<String, String> MODALIDAD = Map.of(
             "AGENCIA", "Agencia", "PROVEEDOR_ENTREGA", "Entrega del proveedor", "RECOJO", "Recojo",
             "TERRESTRE_NORMAL", "Terrestre", "COURIER", "Courier", "PROPIO", "Movilidad propia");
@@ -238,7 +237,7 @@ public class AvisosCorreo {
         Map<String, String> datos = new LinkedHashMap<>();
         datos.put("Requerimiento", r.codigo());
         datos.put("CECO", r.ceco());
-        datos.put("Prioridad", PRIORIDAD.getOrDefault(r.prioridad(), r.prioridad()));
+        datos.put("Prioridad", SlaAtencion.etiqueta(r.prioridad()));
         datos.put("Fecha requerida", r.fechaRequerida() != null ? r.fechaRequerida().format(FECHA) : null);
         return datos;
     }

@@ -6,6 +6,7 @@ import { EMPRESAS } from "../empresas";
 import Alert from "../ui/Alert";
 import Button from "../ui/Button";
 import Field, { inputClass } from "../ui/Field";
+import { diasHabiles, prioridad as datosPrioridad } from "./prioridades";
 
 /** Un producto del pedido ya repartido entre almacen, compra y caja chica (estimado al momento). */
 export interface LineaConfirmacion {
@@ -20,12 +21,6 @@ export interface LineaConfirmacion {
   /** Hay stock en almacen (lo unico que ve quien no es Logistica, DEC-L059). */
   conStock: boolean;
 }
-
-const PRIORIDAD: Record<string, { label: string; clase: string }> = {
-  NORMAL: { label: "Normal", clase: "bg-slate-100 text-slate-700" },
-  URGENTE: { label: "Urgente", clase: "bg-amber-50 text-amber-700" },
-  CRITICA: { label: "Crítica", clase: "bg-rose-50 text-rose-700" },
-};
 
 const PROPOSITO: Record<string, string> = {
   CONSUMO: "Consumo",
@@ -52,8 +47,7 @@ export default function ConfirmarRequerimiento({
   cecoNombre,
   prioridad,
   proposito,
-  fechaRequerida,
-  atencionEstimada,
+  fechaTentativa,
   lineas,
   conCantidades,
   procesando,
@@ -69,8 +63,8 @@ export default function ConfirmarRequerimiento({
   cecoNombre: string;
   prioridad: string;
   proposito: string;
-  fechaRequerida: string;
-  atencionEstimada: string | null;
+  /** DEC-L068: hoy + los dias habiles de la prioridad (la calcula el servidor). */
+  fechaTentativa: string | null;
   lineas: LineaConfirmacion[];
   /** Logistica/Admin: reparto almacen / compra en unidades. El resto solo ve con o sin stock. */
   conCantidades: boolean;
@@ -105,7 +99,7 @@ export default function ConfirmarRequerimiento({
   }, []);
 
   const empresa = EMPRESAS.find((e) => e.code === empresaCode);
-  const prio = PRIORIDAD[prioridad] ?? PRIORIDAD.NORMAL;
+  const prio = datosPrioridad(prioridad);
   const unidades = lineas.reduce((s, l) => s + l.cantidad, 0);
   const delAlmacen = lineas.reduce((s, l) => s + l.delAlmacen, 0);
   const aComprar = lineas.reduce((s, l) => s + l.aComprar, 0);
@@ -166,8 +160,11 @@ export default function ConfirmarRequerimiento({
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${prio.clase}`}>{prio.label}</span>
               <span className="text-slate-600">{PROPOSITO[proposito] ?? proposito}</span>
-              {fechaRequerida && <span className="text-slate-500">· Para el {fecha(fechaRequerida)}</span>}
-              {atencionEstimada && <span className="text-slate-500">· Atención estimada {atencionEstimada}</span>}
+              {fechaTentativa && (
+                <span className="text-slate-500">
+                  · Atención tentativa {fecha(fechaTentativa)} ({diasHabiles(prio.dias)})
+                </span>
+              )}
             </div>
             {conCantidades ? (
               <dl className={`mt-3 grid gap-3 border-t border-slate-200 pt-3 ${cajaChica > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>

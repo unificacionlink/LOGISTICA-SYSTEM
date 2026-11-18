@@ -55,7 +55,7 @@ public class BandejaService {
     /** Acciones del solicitante que lo dejan en "Pendientes mios" (DEC-L054). */
     private static final Set<String> DEL_SOLICITANTE = Set.of(
             "ENVIAR", "CORREGIR", "REGISTRAR_CAJA_CHICA", "CORREGIR_CAJA_CHICA");
-    private static final Map<String, Integer> PESO_PRIORIDAD = Map.of("CRITICA", 0, "URGENTE", 1, "NORMAL", 2);
+    private static final Map<String, Integer> PESO_PRIORIDAD = Map.of("URGENTE", 0, "APROVISIONAMIENTO", 1, "IMPLEMENTACION", 2);
 
     private static final String SQL = """
             with base as (

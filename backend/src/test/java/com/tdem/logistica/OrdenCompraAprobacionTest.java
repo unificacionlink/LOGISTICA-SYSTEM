@@ -233,7 +233,7 @@ class OrdenCompraAprobacionTest {
 		UUID reqId = jdbc.queryForObject("""
 				insert into requerimiento (request_code, company_id, ceco_id, requester_user_id, requester_type,
 				  purpose, justification, status, priority)
-				values (?, ?, ?, ?, 'INTERNO', 'CONSUMO', 'prueba', 'PENDIENTE_APROBACION', 'NORMAL') returning request_id""",
+				values (?, ?, ?, ?, 'INTERNO', 'CONSUMO', 'prueba', 'PENDIENTE_APROBACION', 'APROVISIONAMIENTO') returning request_id""",
 				UUID.class, "REQ-" + UUID.randomUUID().toString().substring(0, 8), empresa, cecoId, requester);
 		pedido.forEach((v, q) -> jdbc.update("""
 				insert into requerimiento_item (request_id, product_id, variant_id, uom_id, qty_requested)

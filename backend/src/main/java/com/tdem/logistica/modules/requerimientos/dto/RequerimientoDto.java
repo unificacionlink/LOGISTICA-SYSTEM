@@ -24,11 +24,21 @@ public record RequerimientoDto(
         String resumenItems,
         /** DEC-L054: el solicitante sugiere la caja chica del proyecto. */
         boolean cajaChicaSugerida,
-        String cajaChicaNota) {
+        String cajaChicaNota,
+        /** DEC-L068: envio a aprobacion y tiempo de atencion de su prioridad. */
+        OffsetDateTime submittedAt,
+        Sla sla) {
+
+    /**
+     * {@code transcurridos}: dias habiles desde el envio hasta hoy; null si aun no
+     * se envia o ya esta cerrado.
+     */
+    public record Sla(int diasHabiles, Integer transcurridos) {
+    }
 
     public RequerimientoDto conResumen(Integer items, String resumen) {
         return new RequerimientoDto(id, code, requesterUserId, cecoId, cecoNombre, requesterNombre, priority, purpose,
                 justification, status, requiredDate, scheduledDeliveryDate, createdAt, empresaCode, items, resumen,
-                cajaChicaSugerida, cajaChicaNota);
+                cajaChicaSugerida, cajaChicaNota, submittedAt, sla);
     }
 }

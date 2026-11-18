@@ -27,10 +27,12 @@ public final class AppConstants {
     }
 
     public static final class PrioridadRequerimiento {
-        public static final String NORMAL = "NORMAL";
+        // DEC-L068: cada prioridad tiene su tiempo de atencion (SlaAtencion).
         public static final String URGENTE = "URGENTE";
-        public static final String CRITICA = "CRITICA";
-        public static final Set<String> VALORES = Set.of(NORMAL, URGENTE, CRITICA);
+        public static final String APROVISIONAMIENTO = "APROVISIONAMIENTO";
+        public static final String IMPLEMENTACION = "IMPLEMENTACION";
+        public static final String POR_DEFECTO = APROVISIONAMIENTO;
+        public static final Set<String> VALORES = Set.of(URGENTE, APROVISIONAMIENTO, IMPLEMENTACION);
     }
 
     public static final class PropositoRequerimiento {

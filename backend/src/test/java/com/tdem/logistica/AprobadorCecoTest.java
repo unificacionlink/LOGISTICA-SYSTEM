@@ -124,7 +124,7 @@ class AprobadorCecoTest {
 	private CrearRequerimientoRequest solicitud(UUID ceco) {
 		UUID variante = jdbc.queryForObject(
 				"select variant_id from producto_variante where internal_variant_code = 'AC01001-00'", UUID.class);
-		return new CrearRequerimientoRequest(ceco, "NORMAL", "CONSUMO", "Reposicion de materiales de oficina",
+		return new CrearRequerimientoRequest(ceco, "APROVISIONAMIENTO", "CONSUMO", "Reposicion de materiales de oficina",
 				LocalDate.now(ZoneId.of("America/Lima")).plusDays(10),
 				List.of(new ItemRequerimientoRequest(variante, BigDecimal.ONE, null, null)));
 	}

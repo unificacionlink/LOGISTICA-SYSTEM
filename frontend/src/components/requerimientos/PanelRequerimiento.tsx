@@ -11,6 +11,7 @@ import type {
   ComprasDetalle,
   EtapaCompraItem,
   FilaBandeja,
+  Requerimiento,
   RequerimientoDetalle,
   Tracking,
 } from "../../api/types";
@@ -20,6 +21,7 @@ import { fmtCantidad, fmtDia } from "../formato";
 import EstadoBadge from "../EstadoBadge";
 import { EMPRESAS } from "../empresas";
 import PrioridadBadge from "../PrioridadBadge";
+import { diasHabiles } from "./prioridades";
 import RfqEstadoBadge from "../RfqEstadoBadge";
 import Alert from "../ui/Alert";
 import Badge from "../ui/Badge";
@@ -308,7 +310,7 @@ export default function PanelRequerimiento({
               {r && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <EstadoBadge estado={r.status} />
-                  {r.priority !== "NORMAL" && <PrioridadBadge prioridad={r.priority} />}
+                  <PrioridadBadge prioridad={r.priority} />
                   {venc && <span className={`text-xs font-medium ${venc.tono}`}>{venc.texto}</span>}
                 </div>
               )}
@@ -432,7 +434,10 @@ export default function PanelRequerimiento({
                   <Dato label="CECO">{r.cecoNombre ?? "—"}</Dato>
                   <Dato label="Solicitante">{r.requesterNombre ?? "—"}</Dato>
                   <Dato label="Propósito">{PROPOSITO[r.purpose] ?? r.purpose}</Dato>
-                  <Dato label="Fecha requerida">{fmtDia(r.requiredDate)}</Dato>
+                  <Dato label="Atención tentativa">
+                    {fmtDia(r.requiredDate)}
+                    <SlaTexto sla={r.sla} />
+                  </Dato>
                   <Dato label="Entrega programada">{fmtDia(r.scheduledDeliveryDate)}</Dato>
                   <Dato label="Creado">{fmtFechaHora(r.createdAt)}</Dato>
                 </dl>
@@ -556,5 +561,21 @@ export default function PanelRequerimiento({
       </aside>
     </div>,
     document.body,
+  );
+}
+
+/** Tiempo de atencion del REQ (DEC-L068): dia habil en curso frente al plazo de su prioridad. */
+function SlaTexto({ sla }: { sla: Requerimiento["sla"] }) {
+  if (!sla) return null;
+  if (sla.transcurridos == null) {
+    return <span className="block text-xs text-slate-500">{diasHabiles(sla.diasHabiles)}</span>;
+  }
+  const vencido = sla.transcurridos > sla.diasHabiles;
+  return (
+    <span className={`block text-xs tabular-nums ${vencido ? "font-medium text-rose-700" : "text-slate-500"}`}>
+      {vencido
+        ? `Fuera de plazo por ${diasHabiles(sla.transcurridos - sla.diasHabiles)}`
+        : `Día hábil ${sla.transcurridos} de ${sla.diasHabiles}`}
+    </span>
   );
 }

@@ -1,5 +1,6 @@
 package com.tdem.logistica.modules.tracking;
 
+import com.tdem.logistica.modules.requerimientos.SlaAtencion;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.modules.tracking.dto.EntregaDto;
 import com.tdem.logistica.modules.tracking.dto.TrackingDto;
@@ -63,7 +64,7 @@ final class TrackingExcel {
                 int c = 0;
                 texto(row, c++, r.code());
                 fecha(row, c++, t.entregaProgramada(), estilos);
-                texto(row, c++, r.priority());
+                texto(row, c++, SlaAtencion.etiqueta(r.priority()));
                 texto(row, c++, ceco);
                 texto(row, c++, t.direccionEnvio());
                 monto(row, c++, t.valorPedido(), estilos);

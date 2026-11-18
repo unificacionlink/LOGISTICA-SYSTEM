@@ -28,6 +28,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 import BotonDescarga from "../components/BotonDescarga";
 import { descargarPdfRequerimiento } from "../api/documentos";
 import { soles, textoDesviacion } from "../components/presupuestos/formato";
+import { prioridad } from "../components/requerimientos/prioridades";
 
 function fmtFechaHora(iso: string | null): string {
   if (!iso) return "—";
@@ -400,14 +401,14 @@ export default function RequerimientoDetalle() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <div className="rotulo">Prioridad</div>
-              <div className="mt-1 text-sm text-slate-700">{requerimiento.priority}</div>
+              <div className="mt-1 text-sm text-slate-700">{prioridad(requerimiento.priority).label}</div>
             </div>
             <div>
               <div className="rotulo">Propósito</div>
               <div className="mt-1 text-sm text-slate-700">{requerimiento.purpose}</div>
             </div>
             <div>
-              <div className="rotulo">Fecha requerida</div>
+              <div className="rotulo">Atención tentativa</div>
               <div className="mt-1 text-sm text-slate-700">{fmtFecha(requerimiento.requiredDate)}</div>
             </div>
             <div>

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.54.0 — 2026-11-18
+
+Prioridad con tiempo de atención y fecha tentativa automática (DEC-L068).
+
+- `V36__prioridad_sla.sql`: prioridades `URGENTE` / `APROVISIONAMIENTO` / `IMPLEMENTACION` (Crítica y Urgente → Urgente, Normal → Aprovisionamiento, por defecto Aprovisionamiento) y `requerimiento.submitted_at` (relleno con la primera aprobación de cada REQ enviado).
+- `modules/requerimientos/SlaAtencion`: plazos (2, 10 y 20 días hábiles), días hábiles sin fines de semana ni feriados nacionales de Perú (Pascua por Meeus/Jones/Butcher) y etiquetas.
+- `RequerimientoService`: `crear`, `actualizar` y `enviar` ignoran la fecha del cliente y guardan hoy + plazo (sin adelantarse al mes de un borrador de presupuesto); `enviar` fija `submitted_at` antes del control presupuestal. `GET /api/requerimientos/sla` da los plazos y la fecha tentativa de hoy.
+- `RequerimientoDto` suma `submittedAt` y `sla {diasHabiles, transcurridos}`.
+- Orden de bandeja y de reparto de recepciones, correos, PDF y Excel con las prioridades nuevas.
+- Frontend: la prioridad muestra su plazo; "Fecha requerida" pasa a **Atención tentativa** de solo lectura con la fecha de solicitud y el botón **Tiempo de atención** (`components/requerimientos/TiempoAtencion`); el panel del REQ muestra "Día hábil X de N" o "Fuera de plazo". `components/requerimientos/prioridades.ts` concentra etiquetas, colores y plazos.
+- `SlaAtencionTest` (fines de semana, feriados, Semana Santa) y `ObservarProgramarTest` (fecha pasada del cliente ignorada, envío y SLA).
+
 ## 0.53.0 — 2026-11-17
 
 Administración › Usuarios ordenada por rol.

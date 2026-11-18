@@ -6,10 +6,11 @@ import {
   crearRequerimiento,
   enviarRequerimiento,
   obtenerCatalogoFormulario,
+  obtenerSla,
   obtenerStockDisponible,
   obtenerRequerimiento,
 } from "../api/requerimientos";
-import type { Ceco, Familia, VarianteConStock } from "../api/types";
+import type { Ceco, Familia, Prioridad, SlaRequerimiento, VarianteConStock } from "../api/types";
 import { etiquetaFamilia } from "../components/familia";
 import { useAuth } from "../auth/AuthContext";
 import BuscadorProductos, { Miniatura, StockDisponible } from "../components/BuscadorProductos";
@@ -27,6 +28,8 @@ import { Skeleton } from "../components/ui/Skeleton";
 
 import CampoNumero from "../components/ui/CampoNumero";
 import ConfirmarRequerimiento, { type LineaConfirmacion } from "../components/requerimientos/ConfirmarRequerimiento";
+import { diasHabiles, fechaLarga, PRIORIDAD_POR_DEFECTO, PRIORIDADES } from "../components/requerimientos/prioridades";
+import TiempoAtencion from "../components/requerimientos/TiempoAtencion";
 interface ItemCarrito {
   variante: VarianteConStock;
   qty: string;
@@ -58,9 +61,10 @@ export default function RequerimientosNuevo() {
   const [cecos, setCecos] = useState<Ceco[]>([]);
 
   const [cecoId, setCecoId] = useState("");
-  const [priority, setPriority] = useState("NORMAL");
+  const [priority, setPriority] = useState<Prioridad>(PRIORIDAD_POR_DEFECTO);
   const [purpose, setPurpose] = useState("");
-  const [requiredDate, setRequiredDate] = useState("");
+  // DEC-L068: la fecha no se escribe; sale de la prioridad (hoy + dias habiles).
+  const [sla, setSla] = useState<SlaRequerimiento | null>(null);
   const [justification, setJustification] = useState("");
   // DEC-L054: nota para Logistica sobre lo marcado para la caja chica del proyecto.
   const [cajaChicaNota, setCajaChicaNota] = useState("");
@@ -71,14 +75,7 @@ export default function RequerimientosNuevo() {
     (max, it) => (it.variante.plazoAtencionDias == null ? max : Math.max(max ?? 0, it.variante.plazoAtencionDias)),
     null,
   );
-  const atencionEstimada =
-    plazoMaximo == null
-      ? null
-      : new Date(Date.now() + plazoMaximo * 86_400_000).toLocaleDateString("es-PE", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        });
+  const fechaTentativa = sla?.plazos.find((p) => p.prioridad === priority)?.fechaTentativa ?? null;
   const [errorItems, setErrorItems] = useState<string | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -87,6 +84,16 @@ export default function RequerimientosNuevo() {
   const [guardadoId, setGuardadoId] = useState<string | null>(null);
   const [excepcion, setExcepcion] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vigente = true;
+    void obtenerSla().then((res) => {
+      if (vigente && res.ok && res.result) setSla(res.result);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, []);
 
   useEffect(() => {
     // El catalogo puede venir de la cache de la pestana; el stock siempre fresco.
@@ -132,9 +139,8 @@ export default function RequerimientosNuevo() {
             });
           }
           setCecos(deSuEmpresa);
-          setPriority(requerimiento.priority);
+          setPriority(PRIORIDADES.some((p) => p.id === requerimiento.priority) ? requerimiento.priority : PRIORIDAD_POR_DEFECTO);
           setPurpose(requerimiento.purpose);
-          setRequiredDate(requerimiento.requiredDate ?? "");
           setJustification(requerimiento.justification);
           setCajaChicaNota(requerimiento.cajaChicaNota ?? "");
 
@@ -252,7 +258,6 @@ export default function RequerimientosNuevo() {
       priority,
       purpose,
       justification,
-      requiredDate: requiredDate || undefined,
       cajaChicaNota:
         validos.some((it) => Number(it.cajaChica) > 0) && cajaChicaNota.trim() ? cajaChicaNota.trim() : undefined,
       items: validos.map((it) => ({
@@ -394,12 +399,14 @@ export default function RequerimientosNuevo() {
                     <select
                       required
                       value={priority}
-                      onChange={(e) => setPriority(e.target.value)}
+                      onChange={(e) => setPriority(e.target.value as Prioridad)}
                       className={`${inputClass} w-full`}
                     >
-                      <option value="NORMAL">Normal</option>
-                      <option value="URGENTE">Urgente</option>
-                      <option value="CRITICA">Crítica</option>
+                      {PRIORIDADES.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label} · {diasHabiles(p.dias)}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                 </div>
@@ -421,13 +428,25 @@ export default function RequerimientosNuevo() {
                       <option value="IMPLEMENTACION">Implementación</option>
                     </select>
                   </Field>
-                  <Field label="Fecha requerida" hint={atencionEstimada && `Atención estimada: ${atencionEstimada}`}>
-                    <input
-                      type="date"
-                      value={requiredDate}
-                      onChange={(e) => setRequiredDate(e.target.value)}
-                      className={`${inputClass} w-full`}
-                    />
+                  <Field
+                    label="Atención tentativa"
+                    hint={
+                      <span className="flex flex-wrap items-center gap-x-1.5">
+                        {sla && <span>Solicitud {fechaLarga(sla.hoy)} ·</span>}
+                        <TiempoAtencion sla={sla} seleccionada={priority} plazoProductos={plazoMaximo} />
+                      </span>
+                    }
+                  >
+                    <div
+                      aria-live="polite"
+                      className={`${inputClass} flex w-full items-center justify-between gap-2 bg-slate-50 text-slate-700 shadow-none`}
+                    >
+                      {fechaTentativa ? (
+                        <span className="tabular-nums">{fechaLarga(fechaTentativa)}</span>
+                      ) : (
+                        <Skeleton className="h-4 w-28" />
+                      )}
+                    </div>
                   </Field>
                 </div>
 
@@ -629,8 +648,7 @@ export default function RequerimientosNuevo() {
           cecoNombre={cecoElegido?.name ?? ""}
           prioridad={priority}
           proposito={purpose}
-          fechaRequerida={requiredDate}
-          atencionEstimada={atencionEstimada}
+          fechaTentativa={fechaTentativa}
           lineas={lineasConfirmacion}
           conCantidades={verCantidadStock}
           procesando={enviando}

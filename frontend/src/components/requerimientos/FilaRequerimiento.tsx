@@ -6,6 +6,7 @@ import { fmtDia } from "../formato";
 import EstadoBadge from "../EstadoBadge";
 import { EMPRESAS } from "../empresas";
 import PrioridadBadge from "../PrioridadBadge";
+import { PRIORIDAD_POR_DEFECTO } from "./prioridades";
 import { accionPrincipal, etiquetaAccion, rutaAccion } from "./acciones";
 import BarraAvance from "./BarraAvance";
 import { diasParaVencer, textoVencimiento } from "./bandeja";
@@ -83,7 +84,7 @@ export default memo(function FilaRequerimiento({
               {principal}
             </span>
             {extra && <span className="shrink-0 text-xs text-slate-400">{extra}</span>}
-            {f.priority !== "NORMAL" && <PrioridadBadge prioridad={f.priority} />}
+            {f.priority !== PRIORIDAD_POR_DEFECTO && <PrioridadBadge prioridad={f.priority} />}
           </p>
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
             {conEmpresa && (

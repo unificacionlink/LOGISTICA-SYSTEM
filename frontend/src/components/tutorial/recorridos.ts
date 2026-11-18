@@ -62,7 +62,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/requerimientos/nuevo",
         ancla: "req-datos",
         titulo: "Datos del pedido",
-        texto: "Elige el centro de costo (solo ves los tuyos), la prioridad, el propósito y para cuándo lo necesitas.",
+        texto: "Elige el centro de costo (solo ves los tuyos), la prioridad y el propósito. La fecha de atención sale sola según la prioridad.",
       },
       {
         ruta: "/requerimientos/nuevo",

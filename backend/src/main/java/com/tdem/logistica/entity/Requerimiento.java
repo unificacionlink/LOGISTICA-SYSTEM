@@ -57,6 +57,10 @@ public class Requerimiento {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    // DEC-L068: ultimo envio a aprobacion; desde ese dia corre el tiempo de atencion.
+    @Column(name = "submitted_at")
+    private OffsetDateTime submittedAt;
+
     // RF-068: la fija Logistica (RequerimientoService.programarEntrega).
     @Column(name = "scheduled_delivery_date", insertable = false)
     private LocalDate scheduledDeliveryDate;

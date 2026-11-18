@@ -8,7 +8,14 @@ export type EstadoRequerimiento =
   | "ATENCION_COMPLETA"
   | "RECHAZADO";
 
-export type Prioridad = "NORMAL" | "URGENTE" | "CRITICA";
+/** DEC-L068: cada prioridad tiene su tiempo de atencion en dias habiles. */
+export type Prioridad = "URGENTE" | "APROVISIONAMIENTO" | "IMPLEMENTACION";
+
+/** Plazos por prioridad con la fecha tentativa si se envia hoy (GET /api/requerimientos/sla). */
+export interface SlaRequerimiento {
+  hoy: string;
+  plazos: { prioridad: Prioridad; etiqueta: string; diasHabiles: number; fechaTentativa: string }[];
+}
 export type Proposito = "CONSUMO" | "VENTA" | "PRESTAMO" | "IMPLEMENTACION";
 
 export interface Usuario {
@@ -46,6 +53,10 @@ export interface Requerimiento {
   /** DEC-L054: el solicitante sugiere la caja chica del proyecto. */
   cajaChicaSugerida: boolean;
   cajaChicaNota: string | null;
+  /** DEC-L068: ultimo envio a aprobacion; desde ahi corre el tiempo de atencion. */
+  submittedAt: string | null;
+  /** transcurridos: dias habiles desde el envio (null en borrador o cerrado). */
+  sla: { diasHabiles: number; transcurridos: number | null };
 }
 
 export interface RequerimientoItem {

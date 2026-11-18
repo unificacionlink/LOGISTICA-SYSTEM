@@ -135,7 +135,7 @@ public class BorradoresPresupuestoService {
                         insert into requerimiento (request_id, request_code, company_id, ceco_id, requester_user_id,
                           requester_type, priority, purpose, justification, status, required_date,
                           budget_id, budget_version_id, budget_month)
-                        values (?, ?, ?, ?, ?, 'INTERNO', 'NORMAL', 'CONSUMO', ?, 'BORRADOR', ?, ?, ?, ?)""",
+                        values (?, ?, ?, ?, ?, 'INTERNO', 'APROVISIONAMIENTO', 'CONSUMO', ?, 'BORRADOR', ?, ?, ?, ?)""",
                         requestId, RequerimientoService.generarRequestCode(cab.empresaCode()), cab.companyId(),
                         cab.cecoId(), cab.requesterId(), justificacion, requerida, budgetId, versionId,
                         (short) mes);

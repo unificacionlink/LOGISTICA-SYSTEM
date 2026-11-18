@@ -28,8 +28,8 @@ import java.util.*;
  * Caja Chica como ruta de compra del requerimiento (DEC-L003, DEC-L026).
  * <ul>
  *   <li>Sugerencia por regla (RF-023..025, RF-051): bajo monto (pendiente
- *       valorizado al ultimo costo conocido <= umbral), mismo dia (urgente o
- *       critico con fecha requerida hoy o vencida) y falla de proveedor (RFQ
+ *       valorizado al ultimo costo conocido <= umbral), mismo dia (urgente con
+ *       fecha de atencion hoy o vencida) y falla de proveedor (RFQ
  *       cerrada sin OC).</li>
  *   <li>Caja chica del proyecto (DEC-L054): el solicitante la sugiere,
  *       Logistica autoriza la ruta en Necesidades y el proyecto compra con su
@@ -223,9 +223,7 @@ public class CajaChicaService {
     }
 
     private static boolean esMismoDia(Requerimiento r) {
-        boolean urgente = PrioridadRequerimiento.URGENTE.equals(r.getPriority())
-                || PrioridadRequerimiento.CRITICA.equals(r.getPriority());
-        return urgente && r.getRequiredDate() != null && !r.getRequiredDate().isAfter(LocalDate.now(LIMA));
+        return PrioridadRequerimiento.URGENTE.equals(r.getPriority()) && r.getRequiredDate() != null && !r.getRequiredDate().isAfter(LocalDate.now(LIMA));
     }
 
     /** Un consolidado del REQ se anulo porque el proveedor no atendio (o, antes del Lote 16, RFQ cerrada sin OC). */

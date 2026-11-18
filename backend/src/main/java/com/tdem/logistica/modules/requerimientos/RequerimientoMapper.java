@@ -1,5 +1,6 @@
 package com.tdem.logistica.modules.requerimientos;
 
+import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
 import com.tdem.logistica.entity.FamiliaProducto;
 import com.tdem.logistica.entity.ProductoVariante;
 import com.tdem.logistica.entity.Requerimiento;
@@ -10,6 +11,10 @@ import com.tdem.logistica.modules.requerimientos.dto.FamiliaDto;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoItemDto;
 import com.tdem.logistica.modules.requerimientos.dto.VarianteCatalogoDto;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Set;
 
 /** Equivalente a *.mapper.ts: fila (entidad) <-> DTO, a mano (sin MapStruct). */
 public final class RequerimientoMapper {
@@ -38,7 +43,23 @@ public final class RequerimientoMapper {
                 null,
                 null,
                 r.isPettyCashSuggested(),
-                r.getPettyCashSuggestionNote());
+                r.getPettyCashSuggestionNote(),
+                r.getSubmittedAt(),
+                sla(r));
+    }
+
+    private static final Set<String> SIN_RELOJ = Set.of(
+            EstadoRequerimiento.BORRADOR, EstadoRequerimiento.ATENCION_COMPLETA, EstadoRequerimiento.RECHAZADO);
+
+    private static RequerimientoDto.Sla sla(Requerimiento r) {
+        int dias = SlaAtencion.plazo(r.getPriority()).diasHabiles();
+        Integer transcurridos = null;
+        if (r.getSubmittedAt() != null && !SIN_RELOJ.contains(r.getStatus())) {
+            ZoneId lima = ZoneId.of("America/Lima");
+            transcurridos = SlaAtencion.habilesEntre(
+                    r.getSubmittedAt().atZoneSameInstant(lima).toLocalDate(), LocalDate.now(lima));
+        }
+        return new RequerimientoDto.Sla(dias, transcurridos);
     }
 
     public static RequerimientoItemDto toDto(RequerimientoItem i) {

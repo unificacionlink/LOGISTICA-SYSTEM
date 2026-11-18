@@ -79,7 +79,7 @@ class CajaChicaTest {
 		UsuarioPrincipal ajeno = principal("pyc@logistica.test", "PYC");
 
 		// --- El solicitante sugiere comprar con la caja chica del proyecto ---
-		RequerimientoDto req = requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "NORMAL", "CONSUMO",
+		RequerimientoDto req = requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "APROVISIONAMIENTO", "CONSUMO",
 				"Pilas y cinta para la obra del proyecto", LocalDate.now(LIMA).plusDays(5),
 				List.of(item("AC01001-00", 5), item("AC01002-00", 3)), true, "Hay una ferreteria al lado de la obra"),
 				solicitante);
@@ -178,11 +178,11 @@ class CajaChicaTest {
 
 		ItemRequerimientoRequest guantes = item("AC01003-00", 5);
 		ItemRequerimientoRequest otro = item("AC01004-00", 2);
-		assertThrows(ApiException.class, () -> requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "NORMAL",
+		assertThrows(ApiException.class, () -> requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "APROVISIONAMIENTO",
 				"CONSUMO", "Guantes para la obra del proyecto", LocalDate.now(LIMA).plusDays(5), List.of(
 						new ItemRequerimientoRequest(guantes.variantId(), guantes.qtyRequested(), null, null, new BigDecimal("6"))),
 				null, null), solicitante), "no mas de lo pedido");
-		RequerimientoDto req = requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "NORMAL", "CONSUMO",
+		RequerimientoDto req = requerimientos.crear(new CrearRequerimientoRequest(cecoAdm(), "APROVISIONAMIENTO", "CONSUMO",
 				"Guantes para la obra del proyecto", LocalDate.now(LIMA).plusDays(5), List.of(
 						new ItemRequerimientoRequest(guantes.variantId(), guantes.qtyRequested(), null, null, new BigDecimal("2")),
 						otro),

@@ -79,7 +79,7 @@ class ConsolidacionComprasTest {
 	@Test
 	void stockParcialCreaNecesidadQueEntraAlConsolidado() {
 		stock("MU03004-00", 2);
-		Req req = requerimiento("ADM", "NORMAL", null, Map.of("MU03004-00", 5));
+		Req req = requerimiento("ADM", "APROVISIONAMIENTO", null, Map.of("MU03004-00", 5));
 
 		aprobar(req);
 
@@ -103,7 +103,7 @@ class ConsolidacionComprasTest {
 	@Test
 	void conStockSuficienteNoHayNecesidad() {
 		stock("MU03006-00", 10);
-		Req req = requerimiento("ADM", "NORMAL", null, Map.of("MU03006-00", 4));
+		Req req = requerimiento("ADM", "APROVISIONAMIENTO", null, Map.of("MU03006-00", 4));
 
 		aprobar(req);
 
@@ -123,7 +123,7 @@ class ConsolidacionComprasTest {
 		Map<String, Integer> pedidoA = new LinkedHashMap<>();
 		pedidoA.put("AC01001-00", 3);
 		pedidoA.put("AC01002-00", 2);
-		Req a = requerimiento("ADM", "NORMAL", null, pedidoA);
+		Req a = requerimiento("ADM", "APROVISIONAMIENTO", null, pedidoA);
 		Req b = requerimiento("OPS", "URGENTE", LocalDate.now(LIMA).plusDays(10), Map.of("AC01001-00", 4));
 		aprobar(a);
 		aprobar(b);
@@ -148,7 +148,7 @@ class ConsolidacionComprasTest {
 				"un consolidado se cotiza una sola vez");
 
 		// --- Lo aprobado despues abre otro consolidado ---
-		Req c = requerimiento("ADM", "NORMAL", null, Map.of("AC01001-00", 1));
+		Req c = requerimiento("ADM", "APROVISIONAMIENTO", null, Map.of("AC01001-00", 1));
 		aprobar(c);
 		ConsolidadoDto cx2 = consolidado("AC01001-00");
 		assertNotEquals(cx.consolidationId(), cx2.consolidationId());
@@ -240,7 +240,7 @@ class ConsolidacionComprasTest {
 		UsuarioPrincipal logistica = logistica();
 		UUID s = proveedor("20100000013");
 		abastecimiento.reemplazarCobertura(producto("AC01003"), List.of(s), logistica);
-		Req req = requerimiento("ADM", "NORMAL", null, Map.of("AC01003-00", 2));
+		Req req = requerimiento("ADM", "APROVISIONAMIENTO", null, Map.of("AC01003-00", 2));
 		aprobar(req);
 		ConsolidadoDto c = consolidado("AC01003-00");
 		RfqDto rfq = abastecimiento.prepararSolicitudes(List.of(c.consolidationId()), logistica).get(0);

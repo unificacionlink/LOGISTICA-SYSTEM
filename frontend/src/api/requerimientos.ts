@@ -1,6 +1,14 @@
 import { enCache, luegoInvalidar, MINUTO } from "./cache";
 import { http } from "./http";
-import type { AvanceItem, Bandeja, CatalogoFormulario, Requerimiento, RequerimientoDetalle, TableroRequerimientos } from "./types";
+import type {
+  AvanceItem,
+  Bandeja,
+  CatalogoFormulario,
+  Requerimiento,
+  RequerimientoDetalle,
+  SlaRequerimiento,
+  TableroRequerimientos,
+} from "./types";
 
 export interface ItemInput {
   variantId: string;
@@ -16,7 +24,6 @@ export interface CrearRequerimientoInput {
   priority: string;
   purpose: string;
   justification: string;
-  requiredDate?: string;
   items: ItemInput[];
   /** DEC-L054: nota para Logistica sobre los productos marcados para caja chica. */
   cajaChicaNota?: string;
@@ -59,6 +66,11 @@ export function obtenerRequerimiento(id: string) {
  */
 export function obtenerCatalogoFormulario() {
   return enCache("catalogo", 10 * MINUTO, () => http.get<CatalogoFormulario>("/api/requerimientos/catalogo"));
+}
+
+/** Tiempo de atencion por prioridad (DEC-L068): la fecha tentativa cambia con el dia. */
+export function obtenerSla() {
+  return http.get<SlaRequerimiento>("/api/requerimientos/sla");
 }
 
 /** Disponible del almacen central por variante (solo las que tienen); siempre fresco. */

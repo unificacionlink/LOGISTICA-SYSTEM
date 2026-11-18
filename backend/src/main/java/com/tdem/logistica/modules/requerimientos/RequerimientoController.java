@@ -59,6 +59,12 @@ public class RequerimientoController {
         return ApiResponse.ok(bandeja.avance(id, principal));
     }
 
+    /** Tiempo de atencion por prioridad (DEC-L068). */
+    @GetMapping("/sla")
+    public ApiResponse<SlaDto> sla() {
+        return ApiResponse.ok(service.sla());
+    }
+
     @GetMapping("/catalogo")
     public ApiResponse<CatalogoFormularioDto> catalogo(@AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.obtenerDatosFormulario(principal));

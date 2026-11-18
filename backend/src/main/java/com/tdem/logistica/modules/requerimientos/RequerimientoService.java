@@ -5,7 +5,6 @@ import com.tdem.logistica.common.Auditoria;
 import com.tdem.logistica.common.AppConstants.EntidadAprobacion;
 import com.tdem.logistica.common.AppConstants.EstadoAprobacion;
 import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
-import com.tdem.logistica.common.AppConstants.PrioridadRequerimiento;
 import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.aprobaciones.AmbitoAprobacion;
@@ -28,6 +27,7 @@ import java.math.BigDecimal;
 import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -336,9 +336,7 @@ public class RequerimientoService {
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
         Ceco ceco = cecoPermitido(request.cecoId(), principal);
 
-        String prioridad = request.priority() != null && PrioridadRequerimiento.VALORES.contains(request.priority())
-                ? request.priority()
-                : PrioridadRequerimiento.NORMAL;
+        String prioridad = SlaAtencion.normalizar(request.priority());
 
         List<UUID> variantIds = request.items().stream().map(ItemRequerimientoRequest::variantId).toList();
         List<ProductoVariante> variantes = productoVarianteRepository.findActivasPorId(variantIds);
@@ -361,7 +359,8 @@ public class RequerimientoService {
         r.setPurpose(request.purpose());
         r.setJustification(request.justification());
         r.setStatus(EstadoRequerimiento.BORRADOR);
-        r.setRequiredDate(request.requiredDate());
+        // DEC-L068: la fecha no la escribe el solicitante; sale de la prioridad.
+        r.setRequiredDate(fechaTentativa(prioridad, null));
         r.setPettyCashSuggested(request.sugiereCajaChica());
         r.setPettyCashSuggestionNote(request.notaCajaChica());
         requerimientoRepository.save(r);
@@ -406,9 +405,7 @@ public class RequerimientoService {
             throw ApiException.badRequest("El centro de costo es de otra empresa: crea un requerimiento nuevo para ella.");
         }
 
-        String prioridad = request.priority() != null && PrioridadRequerimiento.VALORES.contains(request.priority())
-                ? request.priority()
-                : PrioridadRequerimiento.NORMAL;
+        String prioridad = SlaAtencion.normalizar(request.priority());
 
         List<UUID> variantIds = request.items().stream().map(ItemRequerimientoRequest::variantId).toList();
         List<ProductoVariante> variantes = productoVarianteRepository.findActivasPorId(variantIds);
@@ -424,7 +421,7 @@ public class RequerimientoService {
         r.setPriority(prioridad);
         r.setPurpose(request.purpose());
         r.setJustification(request.justification());
-        r.setRequiredDate(request.requiredDate());
+        r.setRequiredDate(fechaTentativa(prioridad, r.getBudgetMonth() == null ? null : r.getRequiredDate()));
         r.setPettyCashSuggested(request.sugiereCajaChica());
         r.setPettyCashSuggestionNote(request.notaCajaChica());
         requerimientoRepository.save(r);
@@ -483,6 +480,11 @@ public class RequerimientoService {
             throw ApiException.badRequest("Edita el requerimiento y elige la talla/color de "
                     + String.join(", ", sinVariante) + ".");
         }
+        // DEC-L068: el tiempo de atencion corre desde hoy. Antes del control
+        // presupuestal: la fecha ubica al REQ en su semestre.
+        r.setRequiredDate(fechaTentativa(r.getPriority(), r.getBudgetMonth() == null ? null : r.getRequiredDate()));
+        r.setSubmittedAt(OffsetDateTime.now());
+        requerimientoRepository.saveAndFlush(r);
         controlPresupuestal.verificar(r.getRequestId(), justificacionPresupuestal, principal.userId());
 
         r.setStatus(EstadoRequerimiento.PENDIENTE_APROBACION);
@@ -505,6 +507,25 @@ public class RequerimientoService {
         }
         avisosCorreo.aprobacionPendiente(r.getRequestId(), aprobacion.getAssignedTo(), principal.userId());
         return dto;
+    }
+
+    /**
+     * Fecha tentativa de atencion (DEC-L068): hoy + los dias habiles de la prioridad.
+     * Un borrador de presupuesto (DEC-L049) no se adelanta a su mes programado:
+     * {@code minima} es la fecha que trae de ese mes.
+     */
+    private static LocalDate fechaTentativa(String prioridad, LocalDate minima) {
+        LocalDate fecha = SlaAtencion.fechaTentativa(prioridad, LocalDate.now(ZONA));
+        return minima != null && minima.isAfter(fecha) ? minima : fecha;
+    }
+
+    /** Plazos por prioridad con la fecha tentativa si se envia hoy (boton "Tiempo de atencion"). */
+    public SlaDto sla() {
+        LocalDate hoy = LocalDate.now(ZONA);
+        return new SlaDto(hoy, SlaAtencion.PLAZOS.stream()
+                .map(p -> new SlaDto.Plazo(p.prioridad(), p.etiqueta(), p.diasHabiles(),
+                        SlaAtencion.fechaTentativa(p.prioridad(), hoy)))
+                .toList());
     }
 
     /**

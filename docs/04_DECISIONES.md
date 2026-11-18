@@ -5,6 +5,29 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L068 — Prioridad con tiempo de atención (SLA) y fecha que no se escribe (2026-11-18, v0.54.0).**
+  - Decisión del usuario: tres prioridades con su plazo en **días hábiles**:
+    **Urgente 2**, **Aprovisionamiento 10** e **Implementación 20**. Reemplazan
+    a Normal / Urgente / Crítica (V36): Crítica y Urgente → Urgente, Normal →
+    Aprovisionamiento; los REQ existentes conservan su fecha.
+  - Hábil = lunes a viernes que no sea feriado nacional de Perú (fechas fijas
+    más Jueves y Viernes Santo, `SlaAtencion`). Los feriados no se configuran:
+    si cambia la ley, se edita `SlaAtencion.FERIADOS_FIJOS`.
+  - **La fecha no la escribe el solicitante** (ni Logística): el servidor
+    ignora `requiredDate` del cliente y guarda la **atención tentativa** = hoy +
+    plazo de la prioridad, así nunca es pasada. Se recalcula al **enviar a
+    aprobación** (el plazo corre desde el envío, también al reenviar un
+    observado) y queda en `requerimiento.submitted_at`. Un borrador de
+    presupuesto (DEC-L049) no se adelanta a su mes programado.
+  - El cálculo va antes del control presupuestal: la fecha ubica al REQ en su
+    semestre (DEC-L038).
+  - Botón **Tiempo de atención** en el formulario: plazo de cada prioridad y la
+    fecha tentativa si se envía hoy (`GET /api/requerimientos/sla`). El panel
+    del REQ muestra el día hábil en curso frente al plazo o cuánto se pasó.
+  - La programación de entrega de Logística (RF-068) no cambia. La ruta
+    "mismo día" de caja chica (DEC-L039) queda para Urgente con la fecha de
+    atención hoy o vencida.
+
 - **DEC-L067 — Tablero Kanban de Requerimientos para Logística (2026-11-17, v0.52.0).**
   - Decisión del usuario: vista **Tablero** dentro de Requerimientos (selector
     Lista / Tablero, solo LOGISTICA y ADMIN), con la misma empresa y búsqueda.

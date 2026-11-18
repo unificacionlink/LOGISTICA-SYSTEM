@@ -21,9 +21,9 @@ public interface NecesidadCompraRepository extends JpaRepository<NecesidadCompra
     @Query(DETALLE + "where n.status in :statuses order by r.createdAt, n.createdAt")
     List<NecesidadCompra> findByStatusIn(@Param("statuses") Collection<String> statuses);
 
-    /** Orden de reparto de lo recibido: critica, urgente, normal; luego la mas antigua. */
+    /** Orden de reparto de lo recibido: urgente, aprovisionamiento, implementacion; luego la mas antigua. */
     @Query(DETALLE + "where n.consolidacion.consolidationId in :ids and n.status <> 'ANULADA' " +
-            "order by case r.priority when 'CRITICA' then 0 when 'URGENTE' then 1 else 2 end, r.createdAt, n.createdAt")
+            "order by case r.priority when 'URGENTE' then 0 when 'APROVISIONAMIENTO' then 1 else 2 end, r.createdAt, n.createdAt")
     List<NecesidadCompra> findByConsolidaciones(@Param("ids") Collection<UUID> ids);
 
     @Query(DETALLE + "where r.requestId = :requestId order by n.createdAt")

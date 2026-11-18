@@ -5,6 +5,7 @@ import com.tdem.logistica.modules.presupuestos.ControlPresupuestalService;
 import com.tdem.logistica.modules.presupuestos.PresupuestoService;
 import com.tdem.logistica.modules.presupuestos.dto.*;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
+import com.tdem.logistica.modules.requerimientos.SlaAtencion;
 import com.tdem.logistica.modules.requerimientos.dto.CrearRequerimientoRequest;
 import com.tdem.logistica.modules.requerimientos.dto.ItemRequerimientoRequest;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
@@ -34,7 +35,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("seed-test-data")
 class ControlPresupuestalTest {
 
-	private static final LocalDate FECHA = LocalDate.of(2027, 3, 15); // 2027-S1
+	// DEC-L068: la fecha del REQ la calcula el sistema (hoy + 10 dias habiles); ubica el semestre.
+	private static final LocalDate FECHA = SlaAtencion.fechaTentativa("APROVISIONAMIENTO",
+			LocalDate.now(java.time.ZoneId.of("America/Lima")));
 
 	private static EmbeddedPostgres pg;
 
@@ -74,7 +77,7 @@ class ControlPresupuestalTest {
 		// --- Sin periodo, o con el control desactivado, el envio no se valida ---
 		RequerimientoDto r1 = enviar(ceco, Map.of("AC01001", 1), null, solicitante);
 		assertNull(requerimientos.obtener(r1.id(), solicitante).controlPresupuestal());
-		PeriodoDto periodo = presupuestos.crearPeriodo(new CrearPeriodoRequest(ceco, 2027, 1), pyc);
+		PeriodoDto periodo = presupuestos.crearPeriodo(new CrearPeriodoRequest(ceco, FECHA.getYear(), FECHA.getMonthValue() <= 6 ? 1 : 2), pyc);
 		assertFalse(periodo.controlObligatorio());
 		RequerimientoDto r2 = enviar(ceco, Map.of("AC01001", 1), null, solicitante);
 		assertNull(requerimientos.obtener(r2.id(), solicitante).controlPresupuestal());
@@ -163,7 +166,7 @@ class ControlPresupuestalTest {
 				jdbc.queryForObject("select variant_id from producto_variante where internal_variant_code = ?",
 						UUID.class, e.getKey() + "-00"),
 				BigDecimal.valueOf(e.getValue()), null, null)).toList();
-		RequerimientoDto r = requerimientos.crear(new CrearRequerimientoRequest(ceco, "NORMAL", "CONSUMO",
+		RequerimientoDto r = requerimientos.crear(new CrearRequerimientoRequest(ceco, "APROVISIONAMIENTO", "CONSUMO",
 				"Materiales para la obra del semestre", FECHA, lineas), p);
 		return requerimientos.enviar(r.id(), justificacion, p);
 	}
