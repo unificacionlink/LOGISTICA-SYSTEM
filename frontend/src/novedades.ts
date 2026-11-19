@@ -13,6 +13,13 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.55.1",
+    titulo: "Logística con su propio espacio de datos",
+    cambios: [
+      "La información y los archivos de Logística ahora se guardan en un espacio propio, separado del de RR.HH. No cambia nada en el uso de la plataforma.",
+    ],
+  },
+  {
     version: "0.55.0",
     titulo: "Proveedores: incorporación, evaluación y desempeño",
     cambios: [

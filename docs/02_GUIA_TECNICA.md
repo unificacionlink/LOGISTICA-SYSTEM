@@ -9,14 +9,15 @@ y traducidas a Java/React.
 
 - **Backend**: Java 21 LTS + Spring Boot 4.1 (Maven) — `backend/`.
 - **Frontend**: React 19 + TypeScript + Vite + react-router-dom — `frontend/`.
-- **Base de datos**: la BD Postgres de Supabase de **RRHH-SYSTEM**, en un
-  esquema propio `logistica` con rol dedicado `logistica_app` (DEC-L016;
-  antes usaba el proyecto `LOGISTICA-TDEM`, que se retira). Postgres puro via
+- **Base de datos**: Postgres de Supabase del proyecto propio
+  **LOGISTICA-TDEM** (`uwaenymwvixuocwbavnz`), esquema `logistica` con rol
+  dedicado `logistica_app` (DEC-L072; del 2026-09-24 al 2026-11-19 vivio en la
+  BD de RRHH-SYSTEM, DEC-L016). Postgres puro via
   JDBC/JPA, sin RLS (DEC-L008): la autorizacion por rol vive 100% en la capa
   de servicio de Spring. Nada de FKs/vistas/queries hacia tablas de RRHH: la
   integracion con RRHH es solo por su API HTTP.
-- **Archivos** (fotos de producto, cotizaciones): Supabase Storage del
-  proyecto de RRHH via su API S3 (`storage/S3StorageClient`), bucket publico
+- **Archivos** (fotos de producto, cotizaciones): Supabase Storage de
+  LOGISTICA-TDEM via su API S3 (`storage/S3StorageClient`), bucket publico
   `logistica-productos`. Cloudflare R2 queda como alternativa por
   configuracion (DEC-L015).
 - **Autenticacion**: Spring Security + JWT propio en cookie httpOnly
@@ -160,8 +161,7 @@ los documentos de proveedores; el backend los lee con las mismas llaves S3 y el
 navegador nunca recibe su URL (`documento.file_url = 'privado:<clave>'`).
 - Supabase (actual): endpoint `https://<ref>.storage.supabase.co/storage/v1/s3`,
   region del proyecto (p. ej. `us-east-2`), llaves de *Storage -> S3
-  Connection* (**no** la service_role key: esa da acceso total a la BD de
-  RRHH), URL publica `https://<ref>.supabase.co/storage/v1/object/public/logistica-productos`.
+  Connection* (**no** la service_role key: esa da acceso total a la BD), URL publica `https://<ref>.supabase.co/storage/v1/object/public/logistica-productos`.
 - Cloudflare R2 (opcional): endpoint `https://<account>.r2.cloudflarestorage.com`,
   region `auto`, token de API de R2, URL publica del bucket (dominio propio o r2.dev).
 

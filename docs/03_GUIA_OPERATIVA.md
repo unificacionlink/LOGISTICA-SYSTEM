@@ -5,18 +5,18 @@
 Requiere JDK 21 y Node 20+.
 
 **Backend:**
-0. **Una sola vez**: preparar la BD de RRHH con
+0. **Ya hecho en LOGISTICA-TDEM** (DEC-L072). En un proyecto nuevo: correr
    `db_design_reference/setup/rrhh_db_esquema_logistica.sql` (SQL Editor del
-   proyecto Supabase de RRHH, como `postgres`, cambiando antes la contrasena).
-   Crea el rol `logistica_app` y el esquema `logistica` (DEC-L016).
+   proyecto, como `postgres`, cambiando antes la contrasena). Crea el rol
+   `logistica_app` y el esquema `logistica`.
 1. Crear `backend/src/main/resources/application-local.yml` (gitignored) con
-   `spring.datasource.url/username/password` apuntando a la BD de RRHH con el
-   rol `logistica_app` (usuario del pooler: `logistica_app.<ref_rrhh>`), mas
+   `spring.datasource.url/username/password` apuntando a LOGISTICA-TDEM con el
+   rol `logistica_app` (usuario del pooler: `logistica_app.uwaenymwvixuocwbavnz`), mas
    `app.jwt.secret`, `app.cors.allowed-origins` y `app.storage.*` — ver
    variables en `docs/02_GUIA_TECNICA.md`. **Nunca** conectar LOGISTICA con
-   el usuario `postgres` de RRHH.
+   el usuario `postgres`.
    - **Usar el connection pooler de Supabase (Supavisor), puerto 5432**
-     (`aws-0-<region>.pooler.supabase.com:5432`), **no** la conexion directa
+     (`aws-0-us-east-2.pooler.supabase.com:5432` para LOGISTICA-TDEM), **no** la conexion directa
      (`db.<ref>.supabase.co:5432`): en 2026-09-17 se confirmo que el host
      directo resuelve solo a IPv6 y falla por timeout en redes sin ruta
      IPv6. El pooler en modo sesion (puerto 5432, no el 6543 de modo
@@ -47,15 +47,15 @@ en Render, verificar en el dashboard que el Health Check Path quede igual
 que en el blueprint (aprendizaje de RRHH-SYSTEM: puede desincronizarse).
 
 Variables de entorno a configurar en Render (nunca en el repo):
-`DB_URL`, `DB_USERNAME` (`logistica_app.<ref_rrhh>`), `DB_PASSWORD`,
+`DB_URL`, `DB_USERNAME` (`logistica_app.<ref>`), `DB_PASSWORD`,
 `DB_SCHEMA=logistica`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS` (no aplica si es
 un unico servicio, pero se deja definible), `COOKIE_SECURE=true` y las
 `STORAGE_*`.
 
-Documentos de proveedores (DEC-L071): crear en el Storage de RR.HH. un bucket
-**privado** (sin acceso público) llamado `logistica-privado`, o el nombre que se
-ponga en `STORAGE_PRIVATE_BUCKET`. Usa las mismas llaves S3; sin el bucket, solo
-la subida y descarga de documentos de proveedores falla.
+Documentos de proveedores (DEC-L071): bucket **privado** `logistica-privado`
+(o el nombre de `STORAGE_PRIVATE_BUCKET`) en el Storage de LOGISTICA-TDEM, ya
+creado. Usa las mismas llaves S3; sin el bucket, solo la subida y descarga de
+documentos de proveedores falla.
 
 Pendiente (2026-09-24): el despliegue en Render se decide al acercarse la
 marcha blanca. Render cobra por servicio y no se puede compartir el de RRHH
@@ -132,11 +132,13 @@ Si hace falta regenerarlo desde cero, `scripts/seed_catalogo_sku.py` (Python
 `docs_base/ERP_BASE_DATOS_FINAL_V38_MAESTRO_SKU_CONSOLIDADO.xlsx` y
 generando SQL estatico en `db_design_reference/seed/`.
 
-## BD compartida con RRHH (DEC-L016)
+## BD propia en Supabase (DEC-L072)
 
-LOGISTICA vive en el esquema `logistica` de la BD de Supabase de RRHH-SYSTEM,
-con el rol `logistica_app`, que no tiene permisos sobre las tablas de RRHH.
-Reglas para que separarla siga siendo trivial:
+LOGISTICA vive en el proyecto Supabase **LOGISTICA-TDEM**
+(`uwaenymwvixuocwbavnz`), en el esquema `logistica` con el rol
+`logistica_app`. Del 2026-09-24 al 2026-11-19 vivio en la BD de RRHH-SYSTEM
+(DEC-L016); el corte esta documentado en `06_PLAN_MUDANZA_SUPABASE.md`.
+Reglas que se mantienen:
 
 - Nada de FKs, vistas, funciones ni queries hacia otros esquemas. Los datos
   de RRHH se consumen solo por su API HTTP (DEC-L002).
@@ -144,37 +146,32 @@ Reglas para que separarla siga siendo trivial:
 - Toda migracion usa `${schema}.`; `beforeMigrate.sql` frena cualquier
   intento de migrar sobre `public`.
 
-**Respaldo propio.** Un restore de backup de Supabase restaura la BD
-**completa** (RRHH + LOGISTICA a la vez). Para poder restaurar solo
-LOGISTICA, sacar copias del esquema:
+**Respaldo propio** del esquema (cliente PostgreSQL 17):
 
 ```
-pg_dump "postgresql://logistica_app.<ref>:<pass>@aws-0-<region>.pooler.supabase.com:5432/postgres"   --schema=logistica --no-owner --no-privileges -Fc -f logistica_AAAAMMDD.dump
+pg_dump "postgresql://logistica_app.uwaenymwvixuocwbavnz:<pass>@aws-0-us-east-2.pooler.supabase.com:5432/postgres" --schema=logistica --no-owner --no-privileges -Fc -f logistica_AAAAMMDD.dump
 ```
 
-### Como separar LOGISTICA a su propia BD
+### Como mudar LOGISTICA a otro proyecto
 
-Cuando hacerlo: la BD de RRHH se acerca a sus limites de disco, CPU o
-conexiones; se necesitan backups/restores independientes; o cada sistema
-pasa a tener su propio equipo o presupuesto.
+Procedimiento probado en la mudanza RR-HH -> LOGISTICA-TDEM (detalle en
+`06_PLAN_MUDANZA_SUPABASE.md`):
 
-1. Crear el proyecto Supabase nuevo y correr en el
-   `db_design_reference/setup/rrhh_db_esquema_logistica.sql` (el mismo script).
-2. Detener el backend de LOGISTICA (evita escrituras durante la copia).
-3. `pg_dump` del esquema desde la BD de RRHH (comando de arriba) y
-   `pg_restore --no-owner --role=logistica_app -d "<url_nueva_como_logistica_app>" logistica_AAAAMMDD.dump`.
-   Incluye `flyway_schema_history`, asi que Flyway continua donde estaba.
-4. Cambiar `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` y arrancar. **Sin
+1. En el proyecto nuevo: `db_design_reference/setup/rrhh_db_esquema_logistica.sql`,
+   buckets `logistica-productos` (publico) y `logistica-privado` (privado) y
+   llaves S3 propias. Comprobar que su Postgres sea igual o mas nuevo.
+2. Suspender el servicio de Render y esperar a que sus conexiones JDBC
+   desaparezcan de `pg_stat_activity` en la BD vieja.
+3. `pg_dump` del esquema (comando de arriba) y `pg_restore --no-owner
+   --no-privileges --exit-on-error` como `logistica_app`, **sin** la entrada
+   `SCHEMA - logistica` de la lista (`pg_restore -l` / `-L`): el rol no puede
+   crear esquemas. Incluye `flyway_schema_history`.
+4. Copiar los archivos de los dos buckets con la misma clave y reescribir las
+   URLs publicas (`documento.file_url` y las columnas `*_url`) **antes** de
+   arrancar: si no, `LimpiezaFotos` (03:30) borra los archivos nuevos por
+   huerfanos.
+5. Cambiar `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` y las `STORAGE_*`;
+   `alter role logistica_app nologin;` en la BD vieja; reanudar. **Sin
    cambios de codigo.**
-5. Verificar (login + un requerimiento) y recien entonces, desde la BD de
-   RRHH: `drop schema logistica cascade; drop role logistica_app;`.
-6. Storage: si tambien se muda, copiar los buckets `logistica-productos` y
-   `logistica-privado` (p.
-   ej. con `rclone` sobre la API S3) y actualizar `documento.file_url` con un
-   `update ... set file_url = replace(file_url, '<url_vieja>', '<url_nueva>')`.
-
-### Retiro del proyecto viejo `LOGISTICA-TDEM`
-
-Solo tenia datos de prueba. Una vez verificado el arranque en la BD de RRHH:
-pausarlo (no borrarlo) unas 2 semanas como respaldo, y luego eliminarlo.
-Las fotos subidas en su Storage durante las pruebas no se migran.
+6. A las 2 semanas: respaldo, `drop schema logistica cascade; drop role
+   logistica_app;`, borrar los buckets viejos y revocar sus llaves S3.

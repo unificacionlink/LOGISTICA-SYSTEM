@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.55.1 — 2026-11-19
+
+Logística pasa a su propio proyecto Supabase, `LOGISTICA-TDEM` (DEC-L072). Sin cambios de código.
+
+- BD: esquema `logistica` y rol `logistica_app` en `uwaenymwvixuocwbavnz` (pooler `aws-0-us-east-2`, puerto 5432), copiados con `pg_dump`/`pg_restore` desde RR-HH (85 tablas, Flyway V39).
+- Storage: buckets `logistica-productos` (público) y `logistica-privado` (privado) con llaves S3 propias; 19 archivos copiados y `documento.file_url` reescrito a la URL pública nueva.
+- Render: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` y `STORAGE_PUBLIC_URL` apuntan al proyecto nuevo.
+- RR-HH: `logistica_app` en `nologin`; su retiro definitivo queda para dentro de 2 semanas (`docs/06_PLAN_MUDANZA_SUPABASE.md`).
+
 ## 0.55.0 — 2026-11-18
 
 Módulo de Proveedores integral, Lote 19a (DEC-L069, DEC-L070, DEC-L071).

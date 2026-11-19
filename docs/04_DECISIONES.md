@@ -5,6 +5,32 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L072 — Logística en su propio proyecto Supabase (2026-11-19, v0.55.1).**
+  Reemplaza DEC-L016 (BD en RRHH-SYSTEM) y la parte de DEC-L015 que usaba el
+  Storage de RRHH.
+  - Decisión del usuario: separar Logística de RR.HH. en datos, archivos y
+    llaves. El proyecto `LOGISTICA-TDEM` (`uwaenymwvixuocwbavnz`, us-east-2,
+    Postgres 17.6) ya existía, se pagaba igual y no se usaba.
+  - Mismo diseño que en RR-HH: esquema `logistica`, rol `logistica_app` (creado
+    con `db_design_reference/setup/rrhh_db_esquema_logistica.sql`), sin RLS,
+    conexión por el pooler en modo sesión (`aws-0-us-east-2`, puerto 5432).
+    Buckets `logistica-productos` (público) y `logistica-privado` (privado) con
+    llaves S3 propias. **Sin cambios de código**: solo variables de Render.
+  - Corte del 2026-11-19 (unos 15 min con el servicio suspendido): `pg_dump`
+    del esquema en RR-HH → `pg_restore` (sin `CREATE SCHEMA`), copia de los 19
+    archivos verificada por SHA-256 y reescritura de `documento.file_url` a la
+    URL pública nueva **antes** de arrancar (si no, `LimpiezaFotos` las veía
+    huérfanas y las borraba). Verificación: misma huella de conteos en las 85
+    tablas (2617 filas), Flyway en V39, 0 URLs viejas.
+  - En RR-HH, `logistica_app` quedó en `nologin` (vuelta atrás: `login` + las
+    variables viejas). Pendiente a las 2 semanas: respaldo final, `drop schema
+    logistica cascade; drop role logistica_app;`, borrar el bucket
+    `logistica-productos` de RR-HH y **revocar las llaves S3 de RR-HH** que usaba
+    Logística (abrían todos sus buckets). Plan y bitácora en
+    `docs/06_PLAN_MUDANZA_SUPABASE.md`.
+  - Los tests no cambian: `BdRrhhSimulada` sigue sirviendo (la BD sigue
+    teniendo un esquema `logistica` junto a `public`).
+
 - **DEC-L071 — Documentos del proveedor en un bucket privado (2026-11-18, v0.55.0).**
   - Decisión del usuario: los documentos de proveedores (ficha RUC, F-LOG-06,
     constancias, certificados, evidencias de evaluación) **no** van al bucket
@@ -1375,7 +1401,7 @@ actualizar esta lista y el CHANGELOG.
   `incidencia_recepcion.issue_type` usa `DANO` sin enye (el diccionario dice
   DANO con enye) para evitar problemas de codificacion; la UI muestra "Dano".
 
-- **DEC-L016 — LOGISTICA en la BD de RRHH-SYSTEM, esquema propio
+- **DEC-L016 — [Reemplazada por DEC-L072] LOGISTICA en la BD de RRHH-SYSTEM, esquema propio
   (2026-09-24).** El usuario ya paga Supabase Pro por RRHH y no quiere un
   segundo pago (~USD 10/mes por proyecto adicional) mientras LOGISTICA este
   en desarrollo. El proyecto `LOGISTICA-TDEM` solo tenia datos de prueba y se
@@ -1406,7 +1432,7 @@ actualizar esta lista y el CHANGELOG.
   - Render: fuera de alcance por ahora (cobra por servicio; se decide al
     acercarse la marcha blanca).
 
-- **DEC-L015 — Storage S3-compatible para imagenes/documentos
+- **DEC-L015 — [Storage de RRHH reemplazado por DEC-L072] Storage S3-compatible para imagenes/documentos
   (2026-09-24).** Con ~725 SKU (589 productos base) con foto, el catalogo y el
   buscador de requerimientos cargan cientos de miniaturas por sesion. Se
   evaluo Cloudflare R2 (sin cargo por egress, 10 GB gratis), pero exige

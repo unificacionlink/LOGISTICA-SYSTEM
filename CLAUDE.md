@@ -16,17 +16,18 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs_base/` — material fuente de Jonathan (gitignored): diccionario de datos y catálogo de 725 SKU (xlsx), matriz de funcionalidades (RF-xxx), informe de metodología, prototipo HTML V38. `docs_base/V38_7_ENTREGA_2026-10-06/` — la V38.7 (módulos JS en `codigo/`, base demo, matriz de 24 funcionalidades).
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
-- `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD compartida con RRHH.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L071 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD propia en Supabase.
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L072 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `docs/05_PLAN_PROVEEDORES.md` — plan y diagnóstico del Lote 19a (proveedores), con los indicadores pendientes de datos.
+- `docs/06_PLAN_MUDANZA_SUPABASE.md` — mudanza de RR-HH al proyecto propio (DEC-L072): bitácora del corte y retiro pendiente en RR-HH.
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
 
 ## Stack
 
 - **Backend** (`backend/`): Java 21 + Spring Boot 4.1 (Maven), JPA/Hibernate, Flyway, Spring Security + JWT propio en cookie httpOnly `auth_token`, WebSocket/STOMP (`/ws`, sin SockJS), AWS SDK S3, Tess4j + PDFBox (OCR de cotizaciones), Apache POI (Excel), Lombok.
 - **Frontend** (`frontend/`): React 19 + TypeScript + Vite + react-router-dom 7 + Tailwind v4, `lucide-react`, `@stomp/stompjs`. Sin librería de componentes (componentes propios en `components/ui/`).
-- **BD**: Postgres de Supabase del proyecto **RRHH-SYSTEM**, esquema propio `logistica`, rol `logistica_app` (DEC-L016). Postgres puro vía JDBC, **sin RLS**.
-- **Archivos**: Supabase Storage (API S3) del proyecto RRHH, bucket público `logistica-productos` (DEC-L015). La BD solo guarda URLs. Los documentos de proveedores van al bucket **privado** `logistica-privado` (`STORAGE_PRIVATE_BUCKET`, DEC-L071): `documento.file_url = 'privado:<clave>'` y se descargan solo por el backend (`StorageClient.leerPrivado`).
+- **BD**: Postgres de Supabase del proyecto propio **LOGISTICA-TDEM** (`uwaenymwvixuocwbavnz`, desde el 2026-11-19; antes vivía en el de RR-HH), esquema `logistica`, rol `logistica_app` (DEC-L072). Postgres puro vía JDBC, **sin RLS**.
+- **Archivos**: Supabase Storage (API S3) de LOGISTICA-TDEM, bucket público `logistica-productos` (DEC-L015). La BD solo guarda URLs. Los documentos de proveedores van al bucket **privado** `logistica-privado` (`STORAGE_PRIVATE_BUCKET`, DEC-L071): `documento.file_url = 'privado:<clave>'` y se descargan solo por el backend (`StorageClient.leerPrivado`).
 - **Despliegue**: Render, un único Web Service Docker (`Dockerfile` raíz): el build de React se copia a `backend/src/main/resources/static` y lo sirve Spring (sin CORS en prod). Health: `/api/health`.
 
 ## Comandos
@@ -40,7 +41,7 @@ Backend (desde `backend/`; en PowerShell el `-D...` va entre comillas):
 ./mvnw test -Dtest=AlmacenFlujoTest           # un solo test
 ./mvnw package
 ```
-Config local en `backend/src/main/resources/application-local.yml` (gitignored). Conectar por el **pooler de Supabase, puerto 5432 (modo sesión)**, nunca la conexión directa (solo IPv6) ni el usuario `postgres`.
+Config local en `backend/src/main/resources/application-local.yml` (gitignored). Conectar por el **pooler de Supabase `aws-0-us-east-2`, puerto 5432 (modo sesión)**, nunca la conexión directa (solo IPv6) ni el usuario `postgres`.
 
 Frontend (desde `frontend/`, sirve en `:5173`, `VITE_API_URL` en `.env.local`):
 ```
