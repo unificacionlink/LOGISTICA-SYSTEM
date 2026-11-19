@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.58.0 — 2026-11-19
+
+Nomenclatura de variantes por tipo de atributo (DEC-L075).
+
+- `modules/maestro/NomenclaturaVariante`: código = prefijo del tipo + valor limpio (Talla sin prefijo, Clase `C`, Color `CL`, Modelo `M`, Otro `OT`), máximo 20 caracteres. `MaestroService` la usa al crear productos, agregar variantes y aprobar solicitudes; la solicitud la valida al enviarse.
+- `CLASE` admitido como tipo de atributo. `V40__atributo_clase_en_solicitud.sql` amplía el check de `solicitud_maestro_producto.proposed_attribute_type`.
+- Frontend: tipo "Clase" y vista previa del código de la variante en Solicitar alta de producto y en Nuevo producto (`atributos.codigoAtributo`).
+- Tests: `NomenclaturaVarianteTest`, caso de colores en `MaestroProductosTest`; `MigracionesFlywayTest` cuenta 40 migraciones.
+
 ## 0.57.0 — 2026-11-19
 
 Guardados más rápidos: altas sin SELECT previo, inserciones en lote y aprobación por conjuntos (DEC-L074).

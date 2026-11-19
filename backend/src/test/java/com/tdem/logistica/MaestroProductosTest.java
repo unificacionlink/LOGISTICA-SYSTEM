@@ -158,6 +158,10 @@ class MaestroProductosTest {
 		assertThrows(ApiException.class, () -> maestro.crearProducto(new CrearProductoRequest(ep01.id(), "Mezcla", und,
 				List.of(new VarianteInput("TALLA", "S"), new VarianteInput("COLOR", "ROJO"))), logistica));
 		assertEquals(3, maestro.agregarVariante(casco.productId(), new VarianteInput("TALLA", "L"), logistica).variantes().size());
+		// DEC-L075: el codigo de la variante lleva el prefijo de su tipo de atributo.
+		ProductoCreadoDto chaleco = maestro.crearProducto(new CrearProductoRequest(ep01.id(), "Chaleco reflectivo de prueba", und,
+				List.of(new VarianteInput("COLOR", "naranja"), new VarianteInput("COLOR", "Verde limón"))), logistica);
+		assertEquals(List.of(chaleco.skuBase() + "-CLNARANJA", chaleco.skuBase() + "-CLVERDELIMON"), chaleco.variantes());
 		assertThrows(ApiException.class, () -> maestro.agregarVariante(casco.productId(), new VarianteInput("TALLA", "L"), logistica));
 		assertThrows(ApiException.class, () -> maestro.agregarVariante(p.productId(), new VarianteInput("TALLA", "L"), logistica),
 				"producto sin atributos");

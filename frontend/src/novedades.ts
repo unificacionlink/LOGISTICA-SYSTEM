@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.58.0",
+    titulo: "Códigos de variantes según su atributo",
+    cambios: [
+      "Al sugerir un producto con talla, clase, color, modelo u otro atributo, su código se arma solo según el tipo: por ejemplo, talla L queda -L, clase 0 queda -C0 y color azul queda -CLAZUL.",
+      "Mientras escribes el atributo ves cómo quedará el código de la variante.",
+    ],
+  },
+  {
     version: "0.57.0",
     titulo: "Guardados más rápidos",
     cambios: [

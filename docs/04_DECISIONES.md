@@ -5,6 +5,27 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L075 — Código de variante según el tipo de atributo (2026-11-19, v0.58.0).**
+  - Decisión del usuario: al sugerir o crear un producto con atributo, el
+    código de la variante sigue una nomenclatura por tipo (antes era el valor
+    pegado tal cual: "AZUL MARINO" → `-AZULMARINO`).
+  - Regla (`maestro/NomenclaturaVariante`): variante = SKU + "-" + prefijo +
+    valor. Talla sin prefijo, como el catálogo sembrado (`EP01027-L`,
+    `EP02010-42`); Clase `C` (`EP04002-C0`); Color `CL` (`-CLAZUL`); Modelo
+    `M` (`-MXR200`); Otro `OT` (`-OT12`). Sin atributo, `-00`.
+  - Del valor quedan letras y números sin tildes; si repite el nombre del tipo
+    ("Color azul", "Clase 2", "C0") esa palabra se quita para no duplicar el
+    prefijo. Código de hasta 20 caracteres (`attribute_code`); si no cabe, se
+    pide abreviar.
+  - Vale para el alta directa, para agregar una variante y para la solicitud del
+    solicitante (se valida al enviarla). `CLASE` pasa a ser un tipo elegible
+    (V40 amplía el check de `solicitud_maestro_producto`). Las 725 variantes
+    sembradas no cambian.
+  - El formulario muestra el código mientras se escribe
+    (`components/maestro/atributos.codigoAtributo`, misma regla que el backend).
+  - El stock en el formulario de requerimiento queda como está (DEC-L059):
+    quien solo pide ve "Con stock"/"Sin stock"; Logística y Admin, la cantidad.
+
 - **DEC-L074 — Guardados con menos idas a la BD (2026-11-19, v0.57.0).**
   - Problema: los ids se asignan a mano (`UUID.randomUUID()`), así que
     `save()` de Spring Data no sabía que la entidad era nueva y hacía `merge`:

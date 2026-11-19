@@ -8,7 +8,7 @@ import Field, { inputClass } from "../ui/Field";
 import { Skeleton } from "../ui/Skeleton";
 import { EstadoSolicitud } from "./BandejaSolicitudes";
 import { SelectorFamilia, SelectorUnidad } from "./SelectoresMaestro";
-import { ETIQUETA_ATRIBUTO, unidadPorDefecto } from "./atributos";
+import { codigoAtributo, ETIQUETA_ATRIBUTO, unidadPorDefecto } from "./atributos";
 
 /**
  * RF-004: "¿No encuentras el producto?" bajo el buscador del requerimiento.
@@ -176,7 +176,16 @@ function Formulario({
       <Field label="Unidad" required>
         <SelectorUnidad clasificacion={clasificacion} value={uomId} onChange={setUomId} requerido={false} />
       </Field>
-      <Field label="Talla / color (opcional)">
+      <Field
+        label="Atributo (opcional)"
+        hint={
+          atributoValor.trim()
+            ? (codigoAtributo(atributoTipo, atributoValor)
+                ? `Código de la variante: SKU-${codigoAtributo(atributoTipo, atributoValor)}`
+                : "Usa letras y números (máximo 20 caracteres en el código).")
+            : undefined
+        }
+      >
         <div className="flex gap-2">
           <select
             value={atributoTipo}

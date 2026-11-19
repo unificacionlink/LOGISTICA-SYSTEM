@@ -7,7 +7,7 @@ import Button from "../ui/Button";
 import { Card, CardBody, CardHeader } from "../ui/Card";
 import Field, { inputClass } from "../ui/Field";
 import { SelectorFamilia, SelectorUnidad } from "./SelectoresMaestro";
-import { ETIQUETA_ATRIBUTO, unidadPorDefecto } from "./atributos";
+import { codigoAtributo, ETIQUETA_ATRIBUTO, unidadPorDefecto } from "./atributos";
 
 /** Alta directa de un SKU por Logistica (DEC-L025). El codigo lo genera el sistema. */
 export default function NuevoProducto({
@@ -83,7 +83,7 @@ export default function NuevoProducto({
 
           <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-3">
             <input type="checkbox" checked={conVariantes} onChange={(e) => setConVariantes(e.target.checked)} />
-            Tiene tallas, colores o modelos
+            Tiene tallas, clases, colores o modelos
           </label>
           {conVariantes && (
             <div className="grid gap-4 sm:col-span-3 sm:grid-cols-[160px_1fr]">
@@ -96,7 +96,14 @@ export default function NuevoProducto({
                   ))}
                 </select>
               </Field>
-              <Field label="Valores separados por coma">
+              <Field
+                label="Valores separados por coma"
+                hint={
+                  lista.length > 0
+                    ? `Variantes: ${lista.map((v) => `SKU-${codigoAtributo(tipo, v) ?? "?"}`).join(", ")}`
+                    : undefined
+                }
+              >
                 <input
                   value={valores}
                   onChange={(e) => setValores(e.target.value)}

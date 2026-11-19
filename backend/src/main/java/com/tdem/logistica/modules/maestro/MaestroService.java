@@ -18,7 +18,8 @@ import java.util.*;
  *       familia (p. ej. AC01007), el mismo formato de los 725 SKU sembrados.
  *       La familia se bloquea mientras se calcula el correlativo.</li>
  *   <li>Variante = SKU + "-" + codigo de atributo; "-00" si no tiene
- *       atributo (EP01027-L, AC01001-00).</li>
+ *       atributo (EP01027-L, AC01001-00). El codigo depende del tipo de
+ *       atributo: {@link NomenclaturaVariante} (DEC-L075).</li>
  *   <li>Solo LOGISTICA/ADMIN crean productos. El solicitante pide el alta
  *       ({@code solicitud_maestro_producto}); Logistica la aprueba (y crea el
  *       SKU) o la rechaza con motivo.</li>
@@ -30,7 +31,7 @@ import java.util.*;
 @Transactional(readOnly = true)
 public class MaestroService {
 
-    static final Set<String> TIPOS_ATRIBUTO = Set.of("TALLA", "COLOR", "MODELO", "OTRO");
+    static final Set<String> TIPOS_ATRIBUTO = Set.of("TALLA", "CLASE", "COLOR", "MODELO", "OTRO");
     private static final String SIN_ATRIBUTO = "00";
 
     private final JdbcTemplate jdbc;
@@ -177,10 +178,7 @@ public class MaestroService {
             throw ApiException.badRequest("Indica el valor del atributo.");
         }
         String v = valor.trim().toUpperCase(Locale.ROOT);
-        String codigo = v.replaceAll("[^A-Z0-9]", "");
-        if (codigo.isEmpty() || codigo.length() > 20) {
-            throw ApiException.badRequest("Valor de atributo invalido: \"" + valor + "\" (usa letras y numeros).");
-        }
+        String codigo = NomenclaturaVariante.codigo(tipo, v);
         String interno = sku + "-" + codigo;
         Integer existe = jdbc.queryForObject(
                 "select count(*) from producto_variante where internal_variant_code = ?", Integer.class, interno);
@@ -210,6 +208,8 @@ public class MaestroService {
         if (r.atributoValor() != null && !r.atributoValor().isBlank()) {
             tipo = tipoAtributo(r.atributoTipo());
             valor = r.atributoValor().trim().toUpperCase(Locale.ROOT);
+            // Se valida ya, para que quien sugiere vea el codigo que tendra la variante.
+            NomenclaturaVariante.codigo(tipo, valor);
         }
         String nombre = normalizarNombre(r.nombre());
         String parecido = parecido(r.familyId(), nombre);
@@ -361,7 +361,7 @@ public class MaestroService {
     private static String tipoAtributo(String tipo) {
         String t = tipo == null ? "" : tipo.trim().toUpperCase(Locale.ROOT);
         if (!TIPOS_ATRIBUTO.contains(t)) {
-            throw ApiException.badRequest("Tipo de atributo invalido (TALLA, COLOR, MODELO u OTRO).");
+            throw ApiException.badRequest("Tipo de atributo invalido (TALLA, CLASE, COLOR, MODELO u OTRO).");
         }
         return t;
     }

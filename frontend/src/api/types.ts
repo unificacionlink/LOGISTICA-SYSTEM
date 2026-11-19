@@ -1282,7 +1282,7 @@ export interface Clasificacion {
   unidades: { id: string; code: string; nombre: string }[];
 }
 
-export type TipoAtributo = "TALLA" | "COLOR" | "MODELO" | "OTRO";
+export type TipoAtributo = "TALLA" | "CLASE" | "COLOR" | "MODELO" | "OTRO";
 
 export interface ProductoCreado {
   productId: string;
