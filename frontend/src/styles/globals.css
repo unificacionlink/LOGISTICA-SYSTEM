@@ -243,7 +243,7 @@
    position:fixed de adentro (visor de fotos, capas), que dejan de cubrir la
    ventana y quedan fuera de pantalla en paginas largas. */
 .animate-pagina-in {
-  animation: pagina-in 0.22s var(--ease-suave) backwards;
+  animation: pagina-in 0.12s var(--ease-suave) backwards;
 }
 
 /* Barra indeterminada de la pantalla de carga: un tramo que cruza de lado a lado. */

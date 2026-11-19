@@ -1,6 +1,7 @@
 import type { Client } from "@stomp/stompjs";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { invalidar } from "../api/cache";
 import { API_URL } from "../api/http";
 import type { AprobacionPendiente, Orden, Requerimiento } from "../api/types";
 import {
@@ -55,28 +56,37 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         brokerURL: WS_URL,
         reconnectDelay: 4000,
         onConnect: () => {
+          // Cada aviso marca como viejas las listas que cambia: si alguna esta en
+          // pantalla se actualiza sola; si no, se pide al volver (DEC-L073).
           c.subscribe("/user/queue/mis-requerimientos", (msg) => {
-            busDecision.emit(JSON.parse(msg.body) as Requerimiento);
+            const req = JSON.parse(msg.body) as Requerimiento;
+            invalidar("bandeja", "tablero", `avance:${req.id}`, `tracking:${req.id}`);
+            busDecision.emit(req);
           });
           c.subscribe("/user/queue/caja-chica", (msg) => {
+            invalidar("cajachica-lista", "compras-necesidades");
             busCajaChica.emit(JSON.parse(msg.body) as AvisoCajaChica);
           });
           if (esLogistica) {
             c.subscribe("/user/queue/cotizaciones", (msg) => {
+              invalidar("compras-rfqs", "compras-consolidados");
               busCotizacion.emit(JSON.parse(msg.body) as CotizacionPorEnlace);
             });
           }
           if (decideOrdenes) {
             c.subscribe("/topic/ordenes-compra", (msg) => {
+              invalidar("compras-ordenes", "compras-por-emitir", "almacen-recibir");
               busOrden.emit(JSON.parse(msg.body) as Orden);
             });
           }
           if (esAprobador) {
             c.subscribe("/topic/aprobaciones", (msg) => {
+              invalidar("bandeja", "tablero");
               busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
             });
             // REQ de un CECO con aprobador asignado: solo le llega a ese usuario (DEC-L030).
             c.subscribe("/user/queue/aprobaciones", (msg) => {
+              invalidar("bandeja", "tablero");
               busAprobacion.emit(JSON.parse(msg.body) as AprobacionPendiente);
             });
           }
@@ -95,13 +105,17 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuario?.id]);
 
-  const value: RealtimeContextValue = {
-    onNuevaAprobacion: busAprobacion.subscribe,
-    onMiRequerimientoDecidido: busDecision.subscribe,
-    onCotizacionPorEnlace: busCotizacion.subscribe,
-    onCajaChica: busCajaChica.subscribe,
-    onOrdenDeCompra: busOrden.subscribe,
-  };
+  // Los buses no cambian: el valor del contexto tampoco (no re-renderiza a quien lo usa).
+  const value = useMemo<RealtimeContextValue>(
+    () => ({
+      onNuevaAprobacion: busAprobacion.subscribe,
+      onMiRequerimientoDecidido: busDecision.subscribe,
+      onCotizacionPorEnlace: busCotizacion.subscribe,
+      onCajaChica: busCajaChica.subscribe,
+      onOrdenDeCompra: busOrden.subscribe,
+    }),
+    [busAprobacion, busDecision, busCotizacion, busCajaChica, busOrden],
+  );
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }

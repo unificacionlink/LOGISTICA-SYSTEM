@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { invalidar } from "../api/cache";
+import { useDatos } from "../api/useDatos";
 import { ConsolidadoEstadoBadge } from "../components/compras/etiquetas";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
@@ -6,11 +8,7 @@ import { decidirAprobacion } from "../api/aprobaciones";
 import { obtenerDetalleCompra } from "../api/compras";
 import { obtenerFormularioCajaChica } from "../api/cajachica";
 import { enviarRequerimiento, obtenerRequerimiento, programarEntrega } from "../api/requerimientos";
-import type {
-  ComprasDetalle,
-  FormularioCajaChica,
-  RequerimientoDetalle as RequerimientoDetalleType,
-} from "../api/types";
+import type { FormularioCajaChica } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useRealtime } from "../realtime/useRealtime";
 import EstadoBadge from "../components/EstadoBadge";
@@ -57,9 +55,12 @@ export default function RequerimientoDetalle() {
   const esGestor = tieneAlgunRol("LOGISTICA", "ADMIN");
   const [actualizadoEnVivo, setActualizadoEnVivo] = useState(false);
 
-  const [detalle, setDetalle] = useState<RequerimientoDetalleType | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
+  // Misma clave que el panel lateral de la bandeja (DEC-L073).
+  const detalleDatos = useDatos(id ? `req:${id}` : null, () => obtenerRequerimiento(id ?? ""));
+  const detalle = detalleDatos.datos;
+  const setDetalle = detalleDatos.mutar;
+  const error = detalle ? null : detalleDatos.error;
+  const cargando = detalleDatos.cargando;
   const [enviando, setEnviando] = useState(false);
   const [msgEnvio, setMsgEnvio] = useState<string | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
@@ -72,34 +73,10 @@ export default function RequerimientoDetalle() {
   const [errorDecision, setErrorDecision] = useState<string | null>(null);
   const [msgDecision, setMsgDecision] = useState<string | null>(null);
 
-  const [comprasDetalle, setComprasDetalle] = useState<ComprasDetalle | null>(null);
-  const [comprasFallo, setComprasFallo] = useState(false);
-
-  /** Recarga tras una accion (enviar, decidir): con esqueleto. */
-  function cargar() {
+  /** Tras una accion (enviar, decidir): se actualiza por detras, sin vaciar la pantalla. */
+  const cargar = useCallback(() => {
     if (!id) return;
-    setCargando(true);
-    obtenerRequerimiento(id)
-      .then((res) => {
-        if (res.ok) setDetalle(res.result);
-        else setError(res.message);
-      })
-      .finally(() => setCargando(false));
-  }
-
-  // Carga inicial: el estado se toca solo cuando llega la respuesta.
-  useEffect(() => {
-    if (!id) return;
-    let vigente = true;
-    obtenerRequerimiento(id).then((res) => {
-      if (!vigente) return;
-      if (res.ok) setDetalle(res.result);
-      else setError(res.message);
-      setCargando(false);
-    });
-    return () => {
-      vigente = false;
-    };
+    invalidar(`req:${id}`, `avance:${id}`, `tracking:${id}`, `compras-req:${id}`, "bandeja", "tablero");
   }, [id]);
 
   useEffect(() => {
@@ -108,9 +85,9 @@ export default function RequerimientoDetalle() {
       setDetalle((prev) => (prev ? { ...prev, requerimiento: actualizado, pendingApprovalId: null } : prev));
       setActualizadoEnVivo(true);
       // Sin esqueleto: trae el motivo de la observacion y el resto sin tapar la pantalla.
-      obtenerRequerimiento(actualizado.id).then((res) => res.ok && res.result && setDetalle(res.result));
+      cargar();
     });
-  }, [id, onMiRequerimientoDecidido]);
+  }, [id, onMiRequerimientoDecidido, setDetalle, cargar]);
 
   async function onEnviar() {
     if (!id) return;
@@ -208,18 +185,9 @@ export default function RequerimientoDetalle() {
     esGestor &&
     (detalle?.requerimiento.status === "EN_ATENCION" || detalle?.requerimiento.status === "ATENCION_PARCIAL");
 
-  useEffect(() => {
-    if (!puedeVerCompras || !id) return;
-    let vigente = true;
-    obtenerDetalleCompra(id).then((res) => {
-      if (!vigente) return;
-      if (res.ok && res.result) setComprasDetalle(res.result);
-      else setComprasFallo(true);
-    });
-    return () => {
-      vigente = false;
-    };
-  }, [puedeVerCompras, id]);
+  const comprasDatos = useDatos(puedeVerCompras ? `compras-req:${id}` : null, () => obtenerDetalleCompra(id ?? ""));
+  const comprasDetalle = comprasDatos.datos;
+  const comprasFallo = !!comprasDatos.error;
   const cargandoCompras = puedeVerCompras && !comprasFallo && comprasDetalle?.requerimiento.id !== id;
 
   // DEC-L054: el solicitante registra aqui lo que su proyecto compro con caja chica.

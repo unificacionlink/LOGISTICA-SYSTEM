@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { invalidar } from "../../api/cache";
+import { useDatos } from "../../api/useDatos";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { ChevronDown, Clock3, ExternalLink, X } from "lucide-react";
@@ -6,15 +8,7 @@ import { decidirAprobacion } from "../../api/aprobaciones";
 import { obtenerDetalleCompra } from "../../api/compras";
 import { enviarRequerimiento, obtenerAvance, obtenerRequerimiento } from "../../api/requerimientos";
 import { obtenerTracking } from "../../api/tracking";
-import type {
-  AvanceItem,
-  ComprasDetalle,
-  EtapaCompraItem,
-  FilaBandeja,
-  Requerimiento,
-  RequerimientoDetalle,
-  Tracking,
-} from "../../api/types";
+import type { AvanceItem, EtapaCompraItem, FilaBandeja, Requerimiento } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { EnvioBadge } from "../AlmacenBadges";
 import { fmtCantidad, fmtDia } from "../formato";
@@ -163,35 +157,22 @@ export default function PanelRequerimiento({
 }) {
   const { usuario } = useAuth();
   const confirmar = useConfirmar();
-  const [detalle, setDetalle] = useState<RequerimientoDetalle | null>(null);
-  const [avance, setAvance] = useState<AvanceItem[] | null>(null);
-  const [tracking, setTracking] = useState<Tracking | null>(null);
-  const [compras, setCompras] = useState<ComprasDetalle | null>(null);
   const [verCompras, setVerCompras] = useState(false);
   const [verHistorial, setVerHistorial] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
-  const [version, setVersion] = useState(0);
 
-  useEffect(() => {
-    let vigente = true;
-    Promise.all([obtenerRequerimiento(id), obtenerAvance(id), obtenerTracking(id)]).then(([d, a, t]) => {
-      if (!vigente) return;
-      if (d.ok && d.result) setDetalle(d.result);
-      else setError(d.message);
-      if (a.ok && a.result) setAvance(a.result.items);
-      if (t.ok && t.result) setTracking(t.result);
-    });
-    return () => {
-      vigente = false;
-    };
-  }, [id, version]);
-
-  useEffect(() => {
-    if (!verCompras || compras) return;
-    obtenerDetalleCompra(id).then((res) => res.ok && res.result && setCompras(res.result));
-  }, [verCompras, compras, id]);
+  // Mismas claves que la ficha completa: abrirla despues sale al instante (DEC-L073).
+  const detalleDatos = useDatos(`req:${id}`, () => obtenerRequerimiento(id));
+  const avanceDatos = useDatos(`avance:${id}`, () => obtenerAvance(id));
+  const trackingDatos = useDatos(`tracking:${id}`, () => obtenerTracking(id));
+  const comprasDatos = useDatos(verCompras ? `compras-req:${id}` : null, () => obtenerDetalleCompra(id));
+  const detalle = detalleDatos.datos;
+  const avance = avanceDatos.datos?.items ?? null;
+  const tracking = trackingDatos.datos;
+  const compras = comprasDatos.datos;
+  const error = errorAccion ?? detalleDatos.error;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCerrar();
@@ -199,14 +180,11 @@ export default function PanelRequerimiento({
     return () => document.removeEventListener("keydown", onKey);
   }, [onCerrar]);
 
+  // Tras una accion los datos se actualizan por detras, sin vaciar el panel.
   function recargar(mensaje: string) {
     setAviso(mensaje);
-    setError(null);
-    setDetalle(null);
-    setAvance(null);
-    setTracking(null);
-    setCompras(null);
-    setVersion((v) => v + 1);
+    setErrorAccion(null);
+    invalidar(`req:${id}`, `avance:${id}`, `tracking:${id}`, `compras-req:${id}`);
     onCambio();
   }
 
@@ -242,7 +220,7 @@ export default function PanelRequerimiento({
         decisionReason: r.motivo || undefined,
       });
       if (res.ok) recargar(res.message);
-      else setError(res.message);
+      else setErrorAccion(res.message);
     } finally {
       setProcesando(false);
     }
@@ -263,7 +241,7 @@ export default function PanelRequerimiento({
         res = await enviarRequerimiento(id, r.motivo);
       }
       if (res.ok) recargar(res.message);
-      else setError(res.message);
+      else setErrorAccion(res.message);
     } finally {
       setProcesando(false);
     }

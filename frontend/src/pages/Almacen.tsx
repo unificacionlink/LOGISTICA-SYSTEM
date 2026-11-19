@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, FileSpreadsheet, FileText, PackageCheck, PackageOpen, Truck } from "lucide-react";
 import { listarNotas, listarOrdenesPorRecibir, listarPorDespachar } from "../api/almacen";
-import type { NotaInventario, Orden, Requerimiento } from "../api/types";
+import { useDatos } from "../api/useDatos";
 import { EnvioBadge, NotaBadge } from "../components/AlmacenBadges";
 import { fmtCantidad, fmtDia, fmtFecha } from "../components/formato";
 import DiferenciasAlmacen from "../components/almacen/DiferenciasAlmacen";
@@ -73,24 +72,8 @@ export default function Almacen() {
   );
 }
 
-function useCarga<T>(cargar: () => Promise<{ ok: boolean; result?: T | null; message: string }>) {
-  const [datos, setDatos] = useState<T | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
-  useEffect(() => {
-    cargar()
-      .then((res) => {
-        if (res.ok) setDatos(res.result ?? null);
-        else setError(res.message);
-      })
-      .finally(() => setCargando(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return { datos, error, cargando };
-}
-
 function PorRecibir() {
-  const { datos, error, cargando } = useCarga<Orden[]>(listarOrdenesPorRecibir);
+  const { datos, error, cargando } = useDatos("almacen-recibir", listarOrdenesPorRecibir);
   const ordenes = datos ?? [];
   return (
     <>
@@ -147,7 +130,7 @@ function PorRecibir() {
 }
 
 function PorDespachar() {
-  const { datos, error, cargando } = useCarga<Requerimiento[]>(listarPorDespachar);
+  const { datos, error, cargando } = useDatos("almacen-despachar", listarPorDespachar);
   const reqs = datos ?? [];
   return (
     <>
@@ -199,7 +182,7 @@ function PorDespachar() {
 }
 
 function Notas() {
-  const { datos, error, cargando } = useCarga<NotaInventario[]>(listarNotas);
+  const { datos, error, cargando } = useDatos("almacen-notas", listarNotas);
   const notas = datos ?? [];
   return (
     <>

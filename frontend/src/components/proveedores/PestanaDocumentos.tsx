@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDatos } from "../../api/useDatos";
 import { Download, FileText, Upload } from "lucide-react";
 import {
   anularDocumentoProveedor,
@@ -117,18 +118,15 @@ function PanelSubir({
  */
 export default function PestanaDocumentos({ supplierId, onCambio }: { supplierId: string; onCambio: () => void }) {
   const confirmar = useConfirmar();
-  const [datos, setDatos] = useState<DocumentosProveedor | null>(null);
+  // Memoria de la pestana (DEC-L073): volver a la pestana no la vacia.
+  const docsDatos = useDatos(`proveedor-documentos:${supplierId}`, () => listarDocumentosProveedor(supplierId));
+  const datos = docsDatos.datos;
+  const setDatos = docsDatos.mutar;
   const [subiendo, setSubiendo] = useState<{ requisito: Requisito | null } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [errorAccion, setError] = useState<string | null>(null);
+  const error = errorAccion ?? docsDatos.error;
   const [aviso, setAviso] = useState<string | null>(null);
   const [verAnulados, setVerAnulados] = useState(false);
-
-  useEffect(() => {
-    listarDocumentosProveedor(supplierId).then((res) => {
-      if (res.ok && res.result) setDatos(res.result);
-      else setError(res.message);
-    });
-  }, [supplierId]);
 
   async function anular(id: string, nombre: string) {
     const r = await confirmar({

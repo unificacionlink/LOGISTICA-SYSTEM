@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Camera, Clock, Images, Loader2, PackagePlus, Plus, Search, Truck, Upload } from "lucide-react";
 import { guardarProveedoresProducto, listarProveedoresProducto } from "../api/compras";
@@ -91,6 +91,8 @@ export default function CatalogoProductos() {
   const [familias, setFamilias] = useState<Familia[]>([]);
 
   const [query, setQuery] = useState("");
+  // Filtrar no traba el teclado: la lista se actualiza apenas haya un respiro.
+  const queryDiferido = useDeferredValue(query);
   const [filtroFamilia, setFiltroFamilia] = useState("");
   const [subiendoProductId, setSubiendoProductId] = useState<string | null>(null);
   const [errorSubida, setErrorSubida] = useState<string | null>(null);
@@ -162,13 +164,18 @@ export default function CatalogoProductos() {
     }
   }
 
+  // Empresa de los precios en pantalla: la primera respuesta elige la empresa y
+  // no debe volver a pedir los mismos precios al fijarla.
+  const preciosDe = useRef<string | null>(null);
   useEffect(() => {
     if (!puedeVerPrecios) return;
+    if (empresaPrecios && preciosDe.current === empresaPrecios) return;
     listarPrecios(empresaPrecios || undefined).then((res) => {
       if (!res.ok || !res.result) {
         setError(res.message);
         return;
       }
+      preciosDe.current = res.result.companyId;
       setEmpresas(res.result.empresas);
       if (!empresaPrecios) setEmpresaPrecios(res.result.companyId);
       setPrecios(Object.fromEntries(res.result.precios.map((pv) => [pv.productId, pv])));
@@ -219,12 +226,12 @@ export default function CatalogoProductos() {
   }
 
   const filtrados = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = queryDiferido.trim().toLowerCase();
     return productos
       .filter((p) => coincideFamilia(filtroFamilia, p.tipoId, p.familiaId))
       .filter((p) => !q || p.skuBase.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q))
       .filter((p) => !soloSinPrecio || !precios[p.productId]);
-  }, [productos, query, filtroFamilia, soloSinPrecio, precios]);
+  }, [productos, queryDiferido, filtroFamilia, soloSinPrecio, precios]);
 
   const visibles = filtrados.slice(0, LIMITE_RESULTADOS);
 

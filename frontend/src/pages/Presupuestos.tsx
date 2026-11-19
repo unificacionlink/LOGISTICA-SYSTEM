@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useDatos } from "../api/useDatos";
 import { Link, useNavigate } from "react-router-dom";
 import { CalendarRange, PiggyBank } from "lucide-react";
 import {
@@ -25,38 +26,33 @@ import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 
 import CampoNumero from "../components/ui/CampoNumero";
+const SIN_PRESUPUESTOS: PresupuestoResumen[] = [];
 const ESTADOS = Object.keys(ETIQUETA_PRESUPUESTO) as EstadoPresupuesto[];
 
 export default function Presupuestos() {
   const navigate = useNavigate();
   const confirmar = useConfirmar();
-  const [presupuestos, setPresupuestos] = useState<PresupuestoResumen[]>([]);
-  const [periodos, setPeriodos] = useState<PeriodosPresupuestales | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorAccion, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [anio, setAnio] = useState("");
   const [estado, setEstado] = useState<EstadoPresupuesto | "">("");
   const [verPeriodos, setVerPeriodos] = useState(false);
   const [dialogo, setDialogo] = useState<"presupuesto" | "periodo" | null>(null);
 
+  // Memoria de la pestana (DEC-L073); la clave lleva los filtros, asi una
+  // respuesta vieja nunca pisa a la de los filtros actuales.
+  const periodosDatos = useDatos("presupuestos-periodos", listarPeriodos);
+  const lista = useDatos(`presupuestos:${anio}|${estado}`, () =>
+    listarPresupuestos({ anio: anio ? Number(anio) : undefined, estado: estado || undefined }),
+  );
+  const periodos = periodosDatos.datos;
+  const presupuestos = lista.datos ?? SIN_PRESUPUESTOS;
+  const cargando = lista.cargando;
+  const error = errorAccion ?? lista.error ?? periodosDatos.error;
+
   function cargarPeriodos() {
-    listarPeriodos().then((res) => {
-      if (res.ok && res.result) setPeriodos(res.result);
-      else setError(res.message);
-    });
+    void periodosDatos.recargar();
   }
-
-  useEffect(cargarPeriodos, []);
-
-  useEffect(() => {
-    listarPresupuestos({ anio: anio ? Number(anio) : undefined, estado: estado || undefined })
-      .then((res) => {
-        if (res.ok) setPresupuestos(res.result ?? []);
-        else setError(res.message);
-      })
-      .finally(() => setCargando(false));
-  }, [anio, estado]);
 
   const esPyc = (periodos?.cecosConfigurables.length ?? 0) > 0;
   const disponibles = useMemo(
@@ -200,10 +196,7 @@ export default function Presupuestos() {
           <>
             <select
               value={anio}
-              onChange={(e) => {
-                setCargando(true);
-                setAnio(e.target.value);
-              }} aria-label="Año" className={`${inputClass} w-32`}>
+              onChange={(e) => setAnio(e.target.value)} aria-label="Año" className={`${inputClass} w-32`}>
               <option value="">Todos los años</option>
               {anios.map((a) => (
                 <option key={a} value={a}>
@@ -213,10 +206,7 @@ export default function Presupuestos() {
             </select>
             <select
               value={estado}
-              onChange={(e) => {
-                setCargando(true);
-                setEstado(e.target.value as EstadoPresupuesto | "");
-              }}
+              onChange={(e) => setEstado(e.target.value as EstadoPresupuesto | "")}
               aria-label="Estado"
               className={`${inputClass} w-44`}
             >

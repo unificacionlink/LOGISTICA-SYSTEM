@@ -3,6 +3,8 @@ import { progreso, type TipoActividad } from "../api/progreso";
 
 // Si la respuesta llega antes, no se muestra nada (evita parpadeos).
 const RETRASO_MS = 250;
+// Guardar: el boton ya muestra que esta ocupado; la tarjeta solo si tarda (DEC-L073).
+const RETRASO_GUARDAR_MS = 1000;
 // Una vez visible, se queda al menos esto (evita un destello de un cuadro).
 const MINIMO_VISIBLE_MS = 200;
 
@@ -17,8 +19,9 @@ type Fase = "oculta" | "visible" | "saliendo";
 /**
  * Indicador global de peticiones en curso. La barra avanza sola hacia el 90%
  * (no sabemos cuanto falta) y completa el 100% al terminar.
- * - Guardando: capa tenue sobre la pantalla con tarjeta central; bloquea
- *   clics para que no se envie dos veces un formulario.
+ * - Guardando: una capa transparente bloquea clics desde el primer momento
+ *   (para que no se envie dos veces un formulario) y, si tarda mas de 1 s,
+ *   aparece la tarjeta central sobre un velo tenue, sin desenfoque (DEC-L073).
  * - Cargando/descargando: solo una barra fina arriba, sin bloquear. Cada
  *   pantalla ya muestra sus esqueletos; tapar todo al navegar o al abrir un
  *   detalle se sentia como una espera extra.
@@ -50,7 +53,8 @@ export default function CapaCarga() {
         timers.current.push(window.setInterval(() => setAvance((a) => a + (0.9 - a) * 0.08), 200));
       };
       // Si ya estaba en pantalla (otra peticion encadenada), sigue sin esperar.
-      programar(mostrar, fase === "oculta" ? RETRASO_MS : 0);
+      const empiezaAGuardar = actividad === "guardando" && (fase === "oculta" || tipo !== "guardando");
+      programar(mostrar, empiezaAGuardar ? RETRASO_GUARDAR_MS : fase === "oculta" ? RETRASO_MS : 0);
     } else if (fase !== "oculta") {
       const restante = Math.max(0, MINIMO_VISIBLE_MS - (Date.now() - visibleDesde.current));
       programar(() => {
@@ -63,14 +67,21 @@ export default function CapaCarga() {
       }, restante);
     }
     return limpiar;
-    // "fase" se lee solo para decidir el retraso; no debe reiniciar el efecto.
+    // "fase" y "tipo" se leen solo para decidir el retraso; no deben reiniciar el efecto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actividad]);
 
-  if (fase === "oculta") return null;
+  // Bloqueo invisible mientras se guarda y la tarjeta todavia no aparece.
+  const bloqueo = actividad === "guardando" && !(fase === "visible" && tipo === "guardando") && (
+    <div aria-hidden="true" className="fixed inset-0 z-60 cursor-progress" />
+  );
+
+  if (fase === "oculta") return bloqueo || null;
 
   if (tipo !== "guardando") {
     return (
+      <>
+      {bloqueo}
       <div
         role="status"
         aria-live="polite"
@@ -84,6 +95,7 @@ export default function CapaCarga() {
           style={{ transform: `scaleX(${avance})` }}
         />
       </div>
+      </>
     );
   }
 
@@ -92,7 +104,7 @@ export default function CapaCarga() {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed inset-0 z-60 flex items-center justify-center bg-slate-100/60 backdrop-blur-[3px] transition-opacity duration-150 ${
+      className={`fixed inset-0 z-60 flex items-center justify-center bg-slate-100/50 transition-opacity duration-150 ${
         fase === "visible" ? "animate-capa-in opacity-100" : "opacity-0"
       }`}
     >

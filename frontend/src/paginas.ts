@@ -112,7 +112,37 @@ const DEL_MENU: Record<string, Carga> = {
   "/admin": c.administracion,
 };
 
-/** Descarga la pantalla antes del clic (hover o foco en el menu). */
+/** Pantallas de detalle: se precargan al pasar el mouse por un enlace hacia ellas. */
+const DETALLES: [RegExp, Carga][] = [
+  [/^\/requerimientos\/nuevo$/, c.requerimientosNuevo],
+  [/^\/requerimientos\/[^/]+\/editar$/, c.requerimientosNuevo],
+  [/^\/(compras\/)?requerimientos\/[^/]+\/caja-chica$/, c.comprasCajaChica],
+  [/^\/requerimientos\/[^/]+$/, c.requerimientoDetalle],
+  [/^\/presupuestos\/[^/]+$/, c.presupuestoDetalle],
+  [/^\/proveedores\/nuevo$/, c.proveedorForm],
+  [/^\/proveedores\/[^/]+\/editar$/, c.proveedorForm],
+  [/^\/proveedores\/[^/]+$/, c.proveedorFicha],
+  [/^\/compras\/consolidados\/[^/]+$/, c.comprasConsolidado],
+  [/^\/compras\/comparativo$/, c.comprasComparativo],
+  [/^\/compras\/rfq\/[^/]+$/, c.comprasRfqDetalle],
+  [/^\/compras\/ordenes$/, c.comprasOrdenes],
+  [/^\/compras\/ordenes\/[^/]+$/, c.comprasOrdenDetalle],
+  [/^\/almacen\/ordenes\/[^/]+\/recepcion$/, c.almacenRecepcion],
+  [/^\/almacen\/requerimientos\/[^/]+\/despacho$/, c.almacenDespacho],
+  [/^\/almacen\/notas\/[^/]+$/, c.notaInventario],
+  [/^\/stock\/ajustes$/, c.stockAjustes],
+];
+
+const precargadas = new Set<Carga>();
+
+/**
+ * Descarga la pantalla antes del clic (hover o foco en el menu o en cualquier
+ * enlace interno), asi el clic no espera al codigo y luego a los datos.
+ */
 export function precargarPagina(to: string) {
-  DEL_MENU[to]?.().catch(() => {});
+  const ruta = to.split(/[?#]/)[0];
+  const carga = DEL_MENU[ruta] ?? DETALLES.find(([patron]) => patron.test(ruta))?.[1];
+  if (!carga || precargadas.has(carga)) return;
+  precargadas.add(carga);
+  carga().catch(() => precargadas.delete(carga));
 }

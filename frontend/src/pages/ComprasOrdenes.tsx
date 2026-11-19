@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useDatos } from "../api/useDatos";
 import { Link } from "react-router-dom";
 import { PackageCheck } from "lucide-react";
 import { listarOrdenes } from "../api/compras";
@@ -10,6 +10,7 @@ import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 
+const SIN_ORDENES: Orden[] = [];
 const PAGO: Record<Orden["paymentStatus"], string> = { PENDIENTE: "Pendiente", ANTICIPO: "Anticipo", PAGADO: "Pagado" };
 
 function fmtFecha(iso: string | null): string {
@@ -18,18 +19,9 @@ function fmtFecha(iso: string | null): string {
 }
 
 export default function ComprasOrdenes() {
-  const [ordenes, setOrdenes] = useState<Orden[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
-    listarOrdenes()
-      .then((res) => {
-        if (res.ok) setOrdenes(res.result ?? []);
-        else setError(res.message);
-      })
-      .finally(() => setCargando(false));
-  }, []);
+  const lista = useDatos("compras-ordenes", listarOrdenes);
+  const ordenes = lista.datos ?? SIN_ORDENES;
+  const { error, cargando } = lista;
 
   return (
     <div>

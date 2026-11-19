@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { useDatos } from "../../api/useDatos";
 import { Copy, Search, UserCheck, UserPlus, Users } from "lucide-react";
 import { cambiarActivoPersona, darAcceso, eliminarPersona, listarPersonal } from "../../api/admin";
 import type { AdminDatos, CecoAdmin, PersonalAdmin } from "../../api/types";
@@ -39,24 +40,24 @@ function puedeReactivar(p: PersonalAdmin): boolean {
  */
 export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDatos; recargarAdmin: () => void }) {
   const confirmar = useConfirmar();
-  const [personal, setPersonal] = useState<PersonalAdmin[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const padron = useDatos("admin-personal", listarPersonal);
+  const personal = padron.datos;
+  const setPersonal = padron.mutar;
+  const [errorAccion, setError] = useState<string | null>(null);
+  const error = errorAccion ?? padron.error;
   // "" = aun no elegida: se muestra la empresa con mas personal (TDEM, la de RR.HH.).
   const [elegida, setElegida] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  // Filtrar no traba el teclado: la lista se actualiza apenas haya un respiro.
+  const busquedaDiferido = useDeferredValue(busqueda);
   const [filtro, setFiltro] = useState<Filtro>("activos");
   const [abierto, setAbierto] = useState<Abierto>(null);
   const [agregando, setAgregando] = useState(false);
   const [verExcel, setVerExcel] = useState(false);
 
   function cargar() {
-    listarPersonal().then((res) => {
-      if (res.ok && res.result) setPersonal(res.result);
-      else setError(res.message);
-    });
+    void padron.recargar();
   }
-
-  useEffect(cargar, []);
 
   function aplicarLista(lista: PersonalAdmin[]) {
     setPersonal(lista);
@@ -112,7 +113,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
   const esManual = empresasManuales.includes(empresa);
 
   const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
+    const q = busquedaDiferido.trim().toLowerCase();
     return (personal ?? []).filter(
       (p) =>
         p.empresaCode === empresa &&
@@ -120,7 +121,7 @@ export default function PestanaPadron({ datos, recargarAdmin }: { datos: AdminDa
         (p.id === abierto?.id || coincide(p, filtro)) &&
         (!q || p.nombre.toLowerCase().includes(q) || p.dni.includes(q) || (p.correo ?? "").toLowerCase().includes(q)),
     );
-  }, [personal, empresa, filtro, busqueda, abierto]);
+  }, [personal, empresa, filtro, busquedaDiferido, abierto]);
 
   return (
     <>

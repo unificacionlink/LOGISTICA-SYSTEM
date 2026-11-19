@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { useDatos } from "../api/useDatos";
 import { Boxes, FileSpreadsheet, Search } from "lucide-react";
 import { listarSaldosStock } from "../api/stock";
 import type { Familia, SaldoStock } from "../api/types";
@@ -27,6 +28,7 @@ const FILTROS: { id: Filtro; label: string }[] = [
   { id: "sin", label: "Sin stock" },
 ];
 
+const SIN_SALDOS: SaldoStock[] = [];
 const POR_PAGINA = 100;
 const th = "px-4 py-3";
 
@@ -44,23 +46,16 @@ function coincideFiltro(f: Filtro, s: SaldoStock): boolean {
  */
 export default function Stock() {
   const navigate = useNavigate();
-  const [saldos, setSaldos] = useState<SaldoStock[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const stock = useDatos("stock-saldos", listarSaldosStock);
+  const saldos = stock.datos ?? SIN_SALDOS;
+  const { cargando, error } = stock;
   const [texto, setTexto] = useState("");
+  // Filtrar no traba el teclado: la lista se actualiza apenas haya un respiro.
+  const textoDiferido = useDeferredValue(texto);
   const [familia, setFamilia] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("con");
   const [visibles, setVisibles] = useState(POR_PAGINA);
   const [abierto, setAbierto] = useState<SaldoStock | null>(null);
-
-  useEffect(() => {
-    listarSaldosStock()
-      .then((res) => {
-        if (res.ok) setSaldos(res.result ?? []);
-        else setError(res.message);
-      })
-      .finally(() => setCargando(false));
-  }, []);
 
   const familias = useMemo<Familia[]>(() => {
     const m = new Map<string, Familia>();
@@ -81,13 +76,13 @@ export default function Stock() {
 
   // Busqueda y familia primero: los conteos de los filtros responden a ellas.
   const base = useMemo(() => {
-    const t = texto.trim().toLowerCase();
+    const t = textoDiferido.trim().toLowerCase();
     return saldos.filter(
       (s) =>
         coincideFamilia(familia, s.tipoId, s.familiaId) &&
         (!t || s.codigoVariante.toLowerCase().includes(t) || s.nombreProducto.toLowerCase().includes(t)),
     );
-  }, [saldos, texto, familia]);
+  }, [saldos, textoDiferido, familia]);
 
   const conteo = useMemo(() => {
     const c: Record<Filtro, number> = { todos: base.length, con: 0, sin: 0, bajo: 0 };
@@ -102,7 +97,7 @@ export default function Stock() {
   const filtrados = useMemo(() => base.filter((s) => coincideFiltro(filtro, s)), [base, filtro]);
 
   function actualizar(s: SaldoStock) {
-    setSaldos((prev) => prev.map((x) => (x.variantId === s.variantId ? s : x)));
+    stock.mutar((prev) => (prev ?? []).map((x) => (x.variantId === s.variantId ? s : x)));
     setAbierto((prev) => (prev?.variantId === s.variantId ? s : prev));
   }
 

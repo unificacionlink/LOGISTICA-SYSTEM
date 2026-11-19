@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useDatos } from "../../api/useDatos";
 import { Info } from "lucide-react";
 import { obtenerDesempenoProveedor } from "../../api/proveedores";
-import type { DesempenoProveedor } from "../../api/types";
 import { cantidad } from "../compras/formato";
 import { ETIQUETA_TIPO_INCIDENCIA } from "../formato";
 import Alert from "../ui/Alert";
@@ -30,15 +29,10 @@ const pct = (a: number, b: number) => (b === 0 ? "—" : `${Math.round((a * 100)
  * Lo que no se puede medir con los datos actuales se lista como pendiente.
  */
 export default function PestanaDesempeno({ supplierId }: { supplierId: string }) {
-  const [d, setD] = useState<DesempenoProveedor | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    obtenerDesempenoProveedor(supplierId).then((res) => {
-      if (res.ok && res.result) setD(res.result);
-      else setError(res.message);
-    });
-  }, [supplierId]);
+  // Memoria de la pestana (DEC-L073): volver a la pestana no la vacia.
+  const desempeno = useDatos(`proveedor-desempeno:${supplierId}`, () => obtenerDesempenoProveedor(supplierId));
+  const d = desempeno.datos;
+  const error = d ? null : desempeno.error;
 
   if (error) return <Alert tone="danger">{error}</Alert>;
   if (!d) {

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDatos } from "../../api/useDatos";
 import { ChevronDown } from "lucide-react";
 import { obtenerComprasProveedor } from "../../api/proveedores";
-import type { ComprasProveedor } from "../../api/types";
 import { cantidad, dinero } from "../compras/formato";
 import { fmtDia, fmtFecha } from "../formato";
 import Alert from "../ui/Alert";
@@ -26,17 +26,12 @@ function Dato({ titulo, valor }: { titulo: string; valor: string }) {
  * Los montos van por moneda: no hay tipo de cambio registrado.
  */
 export default function PestanaCompras({ supplierId }: { supplierId: string }) {
-  const [datos, setDatos] = useState<ComprasProveedor | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Memoria de la pestana (DEC-L073): volver a la pestana no la vacia.
+  const compras = useDatos(`proveedor-compras:${supplierId}`, () => obtenerComprasProveedor(supplierId));
+  const datos = compras.datos;
+  const error = datos ? null : compras.error;
   const [vista, setVista] = useState<Vista>("ordenes");
   const [abierto, setAbierto] = useState<string | null>(null);
-
-  useEffect(() => {
-    obtenerComprasProveedor(supplierId).then((res) => {
-      if (res.ok && res.result) setDatos(res.result);
-      else setError(res.message);
-    });
-  }, [supplierId]);
 
   if (error) return <Alert tone="danger">{error}</Alert>;
   if (!datos) {

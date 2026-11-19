@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useDatos } from "../api/useDatos";
 import { Link } from "react-router-dom";
 import { obtenerDashboard } from "../api/dashboard";
 import type { CodigoEtapa, Dashboard as DashboardData } from "../api/types";
@@ -270,27 +271,14 @@ function TablaComparativos({ filas }: { filas: DashboardData["comparativos"] }) 
 export default function Dashboard() {
   const [dias, setDias] = useState(90);
   const [empresa, setEmpresa] = useState<string | null>(null);
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // Filtros de la ultima respuesta: si no coinciden con los actuales, se esta actualizando.
-  const [cargadoPara, setCargadoPara] = useState<string | null>(null);
-  const clave = `${dias}|${empresa ?? ""}`;
-  const actualizando = cargadoPara !== clave;
-
-  useEffect(() => {
-    let vigente = true;
-    obtenerDashboard(dias, empresa).then((res) => {
-      if (!vigente) return;
-      if (res.ok) {
-        setData(res.result);
-        setError(null);
-      } else setError(res.message);
-      setCargadoPara(`${dias}|${empresa ?? ""}`);
-    });
-    return () => {
-      vigente = false;
-    };
-  }, [dias, empresa]);
+  // Al cambiar un filtro sigue lo anterior (atenuado) hasta que llegue lo nuevo (DEC-L073).
+  const tablero = useDatos(`dashboard:${dias}|${empresa ?? ""}`, () => obtenerDashboard(dias, empresa), {
+    conservar: true,
+  });
+  const data = tablero.datos;
+  const error = tablero.error;
+  // Atenuado solo mientras se ve lo del filtro anterior, no al refrescar por detras.
+  const actualizando = tablero.previo;
 
   const pctRespuesta = data && data.rfqEnviadas > 0 ? Math.round((data.rfqRespondidas / data.rfqEnviadas) * 100) : null;
   const aprobacion = duracionHoras(data?.horasAprobacion ?? null);

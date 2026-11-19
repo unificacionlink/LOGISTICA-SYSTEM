@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.56.0 — 2026-11-19
+
+Pantallas más rápidas y fluidas: memoria de la pestaña y guardado sin bloqueo visible (DEC-L073).
+
+- `api/cache.ts`: store por clave con versión y suscriptores (`revalidar`, `fijar`, `invalidar` por familia, `precargarDatos`, tope de 60 claves). `enCache`, `invalidar`, `luegoInvalidar` y `vaciarCache` conservan su uso.
+- `api/useDatos.ts`: hook `useDatos(clave, pedir, { fresco, conservar })` → `{ datos, cargando, actualizando, previo, error, recargar, mutar }`. Muestra lo último al instante y vuelve a pedir por detrás.
+- Migradas: bandeja y tablero de Requerimientos, panel lateral, ficha del REQ y su tracking (mismas claves: el panel y la ficha comparten datos), Aprobaciones, Dashboard (conserva lo anterior al cambiar filtro), Compras (sus 6 listas), Órdenes, Almacén (4 pestañas), Stock, Proveedores y las pestañas Documentos, Compras y Desempeño de la ficha, Presupuestos, Administración y padrón.
+- Tras guardar ya no se vuelve a los esqueletos (ficha y panel del REQ): se invalida y se actualiza por detrás.
+- `CapaCarga`: bloqueo transparente al guardar; tarjeta solo pasado 1 s y sin `backdrop-blur`.
+- `ProtectedLayout`: `Suspense` fijo con la `key` adentro; precarga del código de cualquier enlace interno (`precargarPagina` reconoce las rutas de detalle). Entrada de pantalla de 220 a 120 ms.
+- `RealtimeProvider`: los avisos invalidan las listas afectadas; valor del contexto memorizado.
+- Catálogo: los precios ya no se piden dos veces al abrir. `useDeferredValue` en los filtros locales de Stock, Catálogo, Proveedores, Padrón y Usuarios.
+
 ## 0.55.1 — 2026-11-19
 
 Logística pasa a su propio proyecto Supabase, `LOGISTICA-TDEM` (DEC-L072). Sin cambios de código.

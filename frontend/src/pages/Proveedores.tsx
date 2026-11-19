@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { useDatos } from "../api/useDatos";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Truck, UserPlus } from "lucide-react";
 import { obtenerPanelProveedores } from "../api/proveedores";
-import type { FilaProveedor, PanelProveedores } from "../api/types";
+import type { FilaProveedor } from "../api/types";
 import { fmtDia } from "../components/formato";
 import { fmtNota } from "../components/proveedores/estados";
 import { EstadoProveedorBadge, VigenciaBadge } from "../components/proveedores/Insignias";
@@ -85,17 +86,13 @@ export default function Proveedores() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const filtro = (params.get("filtro") as Filtro | null) ?? "todos";
-  const [panel, setPanel] = useState<PanelProveedores | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const panelDatos = useDatos("proveedores-panel", obtenerPanelProveedores);
+  const panel = panelDatos.datos;
+  const error = panelDatos.error;
   const [busqueda, setBusqueda] = useState("");
+  // Filtrar no traba el teclado: la lista se actualiza apenas haya un respiro.
+  const busquedaDiferido = useDeferredValue(busqueda);
   const [configurando, setConfigurando] = useState(false);
-
-  useEffect(() => {
-    obtenerPanelProveedores().then((res) => {
-      if (res.ok && res.result) setPanel(res.result);
-      else setError(res.message);
-    });
-  }, []);
 
   function filtrar(f: Filtro) {
     setParams(f === "todos" ? {} : { filtro: f }, { replace: true });
@@ -103,13 +100,13 @@ export default function Proveedores() {
 
   const visibles = useMemo(() => {
     if (!panel) return [];
-    const q = normal(busqueda.trim());
+    const q = normal(busquedaDiferido.trim());
     return panel.proveedores.filter((p) => {
       if (!(CUMPLE[filtro] ?? CUMPLE.todos)(p)) return false;
       if (!q) return true;
       return normal([p.ruc, p.legalName, p.tradeName, p.categorias, p.busqueda].filter(Boolean).join(" ")).includes(q);
     });
-  }, [panel, busqueda, filtro]);
+  }, [panel, busquedaDiferido, filtro]);
 
   const k = panel?.kpis;
   const filtroMas = FILTROS_MAS.find((f) => f.id === filtro);

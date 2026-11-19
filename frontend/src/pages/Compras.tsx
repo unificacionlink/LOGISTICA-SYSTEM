@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useDatos } from "../api/useDatos";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ClipboardList, FileQuestion, Layers, ListTodo, Scale, Send, Wallet } from "lucide-react";
 import { listarCajaChica, obtenerReglaCajaChica } from "../api/cajachica";
@@ -12,7 +13,7 @@ import {
   listarRfqsAbiertas,
   prepararSolicitudes,
 } from "../api/compras";
-import type { CompraCajaChica, Consolidado, Necesidad, PorEmitir, ReglaCajaChica, Rfq } from "../api/types";
+import type { Consolidado, Necesidad, PorEmitir, Rfq } from "../api/types";
 import { fmtDia } from "../components/formato";
 import PestanaCajaChica from "../components/cajachica/PestanaCajaChica";
 import { ConsolidadoEstadoBadge, OrigenesConsolidado } from "../components/compras/etiquetas";
@@ -37,7 +38,8 @@ type Pestana = "necesidades" | "consolidados" | "solicitudes" | "caja";
 const PESTANAS: Pestana[] = ["necesidades", "consolidados", "solicitudes", "caja"];
 
 type Parte = "necesidades" | "consolidados" | "porEmitir" | "rfqs" | "caja" | "regla";
-const TODAS: readonly Parte[] = ["necesidades", "consolidados", "porEmitir", "rfqs", "caja", "regla"];
+// Referencia estable para las listas que aun no llegan.
+const VACIA: never[] = [];
 
 const th = "px-5 py-3";
 const cabecera =
@@ -55,45 +57,39 @@ export default function Compras() {
   const [params, setParams] = useSearchParams();
   const tab = (PESTANAS.includes(params.get("tab") as Pestana) ? params.get("tab") : "consolidados") as Pestana;
 
-  const [necesidades, setNecesidades] = useState<Necesidad[]>([]);
-  const [consolidados, setConsolidados] = useState<Consolidado[]>([]);
-  const [porEmitir, setPorEmitir] = useState<PorEmitir[]>([]);
-  const [rfqs, setRfqs] = useState<Rfq[]>([]);
-  const [compras, setCompras] = useState<CompraCajaChica[]>([]);
-  const [regla, setRegla] = useState<ReglaCajaChica | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Memoria de la pestana (DEC-L073): al volver se ven al instante y se
+  // actualizan por detras. Cada accion vuelve a pedir solo las listas que cambia.
+  const nec = useDatos("compras-necesidades", listarNecesidades);
+  const con = useDatos("compras-consolidados", listarConsolidados);
+  const emi = useDatos("compras-por-emitir", listarPorEmitir);
+  const rfq = useDatos("compras-rfqs", listarRfqsAbiertas);
+  const caja = useDatos("cajachica-lista", listarCajaChica);
+  const reglaDatos = useDatos("cajachica-regla", obtenerReglaCajaChica);
+  const necesidades = nec.datos ?? VACIA;
+  const consolidados = con.datos ?? VACIA;
+  const porEmitir = emi.datos ?? VACIA;
+  const rfqs = rfq.datos ?? VACIA;
+  const compras = caja.datos ?? VACIA;
+  const regla = reglaDatos.datos;
+  const cargando = nec.cargando || con.cargando || emi.cargando || rfq.cargando;
+  const [errorAccion, setError] = useState<string | null>(null);
+  const error = errorAccion ?? nec.error ?? con.error ?? emi.error ?? rfq.error;
   const [aviso, setAviso] = useState<string | null>(null);
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [procesando, setProcesando] = useState<string | null>(null);
 
-  // Abrir trae todo (los conteos de las pestanas lo necesitan); cada accion
-  // recarga solo las listas que cambia.
-  const cargar = useCallback((partes: readonly Parte[] = TODAS) => {
-    const pide = new Set(partes);
-    const nada = Promise.resolve(null);
-    return Promise.all([
-      pide.has("necesidades") ? listarNecesidades() : nada,
-      pide.has("consolidados") ? listarConsolidados() : nada,
-      pide.has("porEmitir") ? listarPorEmitir() : nada,
-      pide.has("rfqs") ? listarRfqsAbiertas() : nada,
-      pide.has("caja") ? listarCajaChica() : nada,
-      pide.has("regla") ? obtenerReglaCajaChica() : nada,
-    ]).then(([nec, con, emi, rfq, caja, reg]) => {
-      const fallo = [nec, con, emi, rfq].find((r) => r && !r.ok);
-      setError(fallo ? fallo.message : null);
-      if (nec?.ok) setNecesidades(nec.result ?? []);
-      if (con?.ok) setConsolidados(con.result ?? []);
-      if (emi?.ok) setPorEmitir(emi.result ?? []);
-      if (rfq?.ok) setRfqs(rfq.result ?? []);
-      if (caja?.ok) setCompras(caja.result ?? []);
-      if (reg?.ok) setRegla(reg.result);
-    });
-  }, []);
-
-  useEffect(() => {
-    cargar().finally(() => setCargando(false));
-  }, [cargar]);
+  const listas: Record<Parte, { recargar: () => Promise<unknown> }> = {
+    necesidades: nec,
+    consolidados: con,
+    porEmitir: emi,
+    rfqs: rfq,
+    caja,
+    regla: reglaDatos,
+  };
+  // Tras una accion: vuelve a pedir lo que cambio, sin vaciar la pantalla.
+  function cargar(partes: readonly Parte[]) {
+    return Promise.all(partes.map((p) => listas[p].recargar()));
+  }
 
   function irA(id: Pestana) {
     setParams(id === "consolidados" ? {} : { tab: id }, { replace: true });
@@ -210,8 +206,8 @@ export default function Compras() {
         <PestanaCajaChica
           compras={compras}
           regla={regla}
-          onCompra={(c) => setCompras((prev) => prev.map((x) => (x.id === c.id ? c : x)))}
-          onRegla={setRegla}
+          onCompra={(c) => caja.mutar((prev) => (prev ?? []).map((x) => (x.id === c.id ? c : x)))}
+          onRegla={reglaDatos.mutar}
         />
       ) : tab === "necesidades" ? (
         <TablaNecesidades necesidades={necesidades} procesando={procesando} onRuta={onRuta} onDividir={onDividir} />

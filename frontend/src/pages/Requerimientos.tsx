@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Inbox, Kanban, List, Plus, Search, X } from "lucide-react";
 import { obtenerBandeja, obtenerTablero } from "../api/requerimientos";
-import type { Bandeja, FilaBandeja, TableroRequerimientos } from "../api/types";
+import type { FilaBandeja } from "../api/types";
+import { invalidar } from "../api/cache";
+import { useDatos } from "../api/useDatos";
 import { useAuth } from "../auth/AuthContext";
 import { EMPRESAS } from "../components/empresas";
 import FilaRequerimiento, { GRID_FILA } from "../components/requerimientos/FilaRequerimiento";
@@ -87,13 +89,32 @@ export default function Requerimientos() {
   const enTablero = esGestor && params.get("modo") === "tablero";
 
   const [texto, setTexto] = useState(q);
-  const [datos, setDatos] = useState<Bandeja | null>(null);
-  const [filas, setFilas] = useState<FilaBandeja[]>([]);
-  const [cargando, setCargando] = useState(true);
   const [masCargando, setMasCargando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [tablero, setTablero] = useState<TableroRequerimientos | null>(null);
-  const consulta = useRef(0);
+  const [errorMas, setErrorMas] = useState<string | null>(null);
+
+  // Memoria de la pestana (DEC-L073): al volver se ve al instante lo ultimo y se
+  // actualiza por detras. La clave lleva los filtros.
+  const claveBandeja = enTablero ? null : `bandeja:${vista}|${empresa}|${q}`;
+  const bandeja = useDatos(claveBandeja, () => obtenerBandeja({ vista, empresa, q }));
+  const tableroDatos = useDatos(enTablero ? `tablero:${empresa}|${q}` : null, () => obtenerTablero({ empresa, q }));
+  const datos = bandeja.datos;
+  const tablero = tableroDatos.datos;
+  const cargando = enTablero ? tableroDatos.cargando : bandeja.cargando;
+  const error = (enTablero ? tableroDatos.error : bandeja.error) ?? errorMas;
+
+  // Paginas extra de "Mostrar mas": valen para la clave con que se pidieron.
+  const [extra, setExtra] = useState<{ clave: string | null; pagina: number; filas: FilaBandeja[] }>({
+    clave: null,
+    pagina: 1,
+    filas: [],
+  });
+  const extraVigente = extra.clave === claveBandeja ? extra : null;
+  const filas = useMemo(() => {
+    if (!datos) return [];
+    if (!extraVigente) return datos.filas;
+    const vistos = new Set(datos.filas.map((f) => f.id));
+    return [...datos.filas, ...extraVigente.filas.filter((f) => !vistos.has(f.id))];
+  }, [datos, extraVigente]);
 
   const cambiar = useCallback(
     (cambios: Record<string, string | null>) => {
@@ -128,41 +149,17 @@ export default function Requerimientos() {
     return () => clearTimeout(t);
   }, [texto, q, cambiar]);
 
-  const cargar = useCallback(() => {
-    const n = ++consulta.current;
-    if (enTablero) {
-      return obtenerTablero({ empresa, q }).then((res) => {
-        if (n !== consulta.current) return;
-        if (res.ok && res.result) {
-          setTablero(res.result);
-          setError(null);
-        } else setError(res.message);
-      });
-    }
-    return obtenerBandeja({ vista, empresa, q }).then((res) => {
-      if (n !== consulta.current) return;
-      if (res.ok && res.result) {
-        setDatos(res.result);
-        setFilas(res.result.filas);
-        setError(null);
-      } else setError(res.message);
-    });
-  }, [vista, empresa, q, enTablero]);
-
-  useEffect(() => {
-    cargar().finally(() => setCargando(false));
-  }, [cargar]);
-
   async function mostrarMas() {
     if (!datos) return;
     setMasCargando(true);
     try {
-      const res = await obtenerBandeja({ vista, empresa, q, pagina: datos.pagina + 1 });
-      const pagina = res.result;
-      if (res.ok && pagina) {
-        setDatos(pagina);
-        setFilas((prev) => [...prev, ...pagina.filas]);
-      } else setError(res.message);
+      const pagina = (extraVigente?.pagina ?? datos.pagina) + 1;
+      const res = await obtenerBandeja({ vista, empresa, q, pagina });
+      const resultado = res.result;
+      if (res.ok && resultado) {
+        setExtra({ clave: claveBandeja, pagina, filas: [...(extraVigente?.filas ?? []), ...resultado.filas] });
+        setErrorMas(null);
+      } else setErrorMas(res.message);
     } finally {
       setMasCargando(false);
     }
@@ -386,7 +383,7 @@ export default function Requerimientos() {
           fila={filaAbierta}
           esGestor={esGestor}
           onCerrar={() => cambiar({ req: null })}
-          onCambio={() => void cargar()}
+          onCambio={() => invalidar("bandeja", "tablero")}
         />
       )}
     </div>

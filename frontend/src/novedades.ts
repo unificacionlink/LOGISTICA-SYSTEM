@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.56.0",
+    titulo: "Pantallas más rápidas",
+    cambios: [
+      "Al volver a una pantalla ves al instante lo último que cargaste, y se pone al día sola en segundos.",
+      "Después de aprobar o guardar, la información ya no desaparece mientras se actualiza.",
+      "Guardar ya no oscurece toda la pantalla: solo verás el aviso si tarda más de un segundo.",
+      "Al pasar el mouse por un enlace, su pantalla se prepara para abrir sin esperas.",
+    ],
+  },
+  {
     version: "0.55.1",
     titulo: "Logística con su propio espacio de datos",
     cambios: [

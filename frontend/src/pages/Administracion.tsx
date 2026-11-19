@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useDatos } from "../api/useDatos";
 import { useSearchParams } from "react-router-dom";
 import { Building2, Contact, RefreshCw, ScrollText, Users } from "lucide-react";
 import { crearCeco, obtenerAdmin, sincronizarRrhh } from "../api/admin";
@@ -34,18 +35,17 @@ function fmtFechaHora(iso: string | null): string {
 export default function Administracion() {
   const [params, setParams] = useSearchParams();
   const tab = (PESTANAS.some((p) => p.id === params.get("tab")) ? params.get("tab") : "usuarios") as Pestana;
-  const [datos, setDatos] = useState<AdminDatos | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Memoria de la pestana (DEC-L073): las escrituras devuelven los datos completos.
+  const admin = useDatos("admin", obtenerAdmin);
+  const datos = admin.datos;
+  const setDatos = admin.mutar;
+  const [errorAccion, setError] = useState<string | null>(null);
+  const error = errorAccion ?? admin.error;
   const [exito, setExito] = useState<string | null>(null);
 
   function recargar() {
-    obtenerAdmin().then((res) => {
-      if (res.ok && res.result) setDatos(res.result);
-      else setError(res.message);
-    });
+    void admin.recargar();
   }
-
-  useEffect(recargar, []);
 
 
   /** Aplica la respuesta de una escritura (siempre devuelve los datos completos). */

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Search, UserPlus, Users } from "lucide-react";
 import type { AdminDatos, CecoAdmin, UsuarioAdmin } from "../../api/types";
 import { EMPRESAS } from "../empresas";
@@ -68,6 +68,8 @@ function ListaCecos({ ids, porId, vacio }: { ids: string[]; porId: Map<string, C
 export default function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar }) {
   const [grupo, setGrupo] = useState<Grupo>("todos");
   const [busqueda, setBusqueda] = useState("");
+  // Filtrar no traba el teclado: la lista se actualiza apenas haya un respiro.
+  const busquedaDiferido = useDeferredValue(busqueda);
   const [empresa, setEmpresa] = useState("");
   const [estado, setEstado] = useState<Estado>("");
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export default function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos;
 
   // Empresa, busqueda y estado; el grupo se aplica aparte para contar cada pestaña.
   const base = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
+    const q = busquedaDiferido.trim().toLowerCase();
     return datos.usuarios
       .filter(
         (u) =>
@@ -95,7 +97,7 @@ export default function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos;
       )
       // Activos primero, luego por nombre.
       .toSorted((a, b) => Number(!a.activo) - Number(!b.activo) || a.nombre.localeCompare(b.nombre));
-  }, [datos.usuarios, porId, busqueda, empresa, estado]);
+  }, [datos.usuarios, porId, busquedaDiferido, empresa, estado]);
 
   const conteo = useMemo(() => new Map(GRUPOS.map((g) => [g.id, base.filter((u) => enGrupo(u, g.id)).length])), [base]);
   const filtrados = base.filter((u) => enGrupo(u, grupo));

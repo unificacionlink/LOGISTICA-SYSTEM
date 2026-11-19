@@ -5,6 +5,39 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L073 — Pantallas con memoria: se ve lo último y se actualiza por detrás (2026-11-19, v0.56.0).**
+  Amplía DEC-L051 (cache de la pestaña) y cambia la regla de la capa de guardado.
+  - Problema: cada visita a una pantalla empezaba de cero con esqueletos; tras
+    guardar, varias pantallas volvían a los esqueletos y la capa "Guardando"
+    tapaba todo con desenfoque. La app ya era AJAX (fetch + JSON): lo lento era
+    la espera visible, no la técnica.
+  - `api/cache.ts` pasa a ser un store por clave (respuesta, hora, versión,
+    suscriptores) y `api/useDatos.ts` lo lee con `useSyncExternalStore`
+    (*stale-while-revalidate* propio, sin librería, por decisión del usuario):
+    - Al abrir, se muestra lo último que se vio (si hay) y **siempre** se vuelve
+      a pedir por detrás (`fresco = 0`): la memoria solo evita la pantalla
+      vacía, nunca reemplaza la lectura. Esqueletos solo si no hay nada.
+    - Claves `familia:filtros` (`bandeja:atencion|TDEM|`, `req:<id>`…);
+      `invalidar("familia")` alcanza todas sus variantes y, si una pantalla la
+      está mirando, la vuelve a pedir; si no, solo la marca vieja (sin
+      peticiones de más). `luegoInvalidar` y `enCache` siguen igual.
+    - Contador de versión: una respuesta vieja nunca pisa a una nueva ni a lo
+      que se fijó con `mutar` (el dato que devolvió el servidor al guardar).
+      `recargar` y `invalidar` descartan la lectura en curso.
+    - Privacidad igual que DEC-L051: solo memoria de la pestaña, `vaciarCache`
+      al entrar y salir, tope de 60 claves, API con `no-store`.
+  - Los avisos en tiempo real (`RealtimeProvider`) invalidan las familias que
+    cambian: bandeja, tablero, compras, órdenes, almacén.
+  - Capa de guardado (`CapaCarga`): bloqueo transparente desde el primer
+    instante (evita doble envío) y tarjeta "Guardando…" solo si pasa de 1 s,
+    sobre un velo tenue **sin desenfoque**. El botón muestra que está ocupado.
+  - Navegación: el `Suspense` del layout queda fijo (la `key` va adentro), así
+    la pantalla anterior sigue visible mientras baja la nueva (react-router ya
+    navega en transición); cualquier enlace interno precarga el código de su
+    pantalla al pasar el mouse o recibir el foco (`paginas.precargarPagina`).
+  - Filtros locales con `useDeferredValue` (Stock, Catálogo, Proveedores,
+    Padrón, Usuarios) para que escribir no se trabe.
+
 - **DEC-L072 — Logística en su propio proyecto Supabase (2026-11-19, v0.55.1).**
   Reemplaza DEC-L016 (BD en RRHH-SYSTEM) y la parte de DEC-L015 que usaba el
   Storage de RRHH.

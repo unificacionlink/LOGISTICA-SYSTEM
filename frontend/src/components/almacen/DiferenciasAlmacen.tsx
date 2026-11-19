@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
+import { useDatos } from "../../api/useDatos";
 import { Link } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
 import { listarDiferencias, recibirDevolucion } from "../../api/almacen";
@@ -21,16 +22,12 @@ const ENLACE = /^https?:\/\/\S+$/i;
  * que el almacen central recibe en cuarentena con enlace de evidencia.
  */
 export default function DiferenciasAlmacen() {
-  const [datos, setDatos] = useState<Datos | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const diferencias = useDatos("almacen-diferencias", listarDiferencias);
+  const datos = diferencias.datos;
+  const setDatos = diferencias.mutar;
+  const [errorAccion, setError] = useState<string | null>(null);
+  const error = errorAccion ?? diferencias.error;
   const [exito, setExito] = useState<string | null>(null);
-
-  useEffect(() => {
-    listarDiferencias().then((res) => {
-      if (res.ok && res.result) setDatos(res.result);
-      else setError(res.message);
-    });
-  }, []);
 
   if (!datos && !error) {
     return (

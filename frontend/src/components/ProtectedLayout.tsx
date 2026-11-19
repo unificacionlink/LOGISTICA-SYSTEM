@@ -12,6 +12,13 @@ import PantallaCarga from "./PantallaCarga";
 import Toast from "./Toast";
 import { iniciarRecorrido, recorridoInicial } from "./tutorial/recorridos";
 
+/** Un enlace interno bajo el mouse o con foco: su pantalla se descarga antes del clic. */
+function precargarEnlace(e: { target: EventTarget }) {
+  const enlace = e.target instanceof Element ? e.target.closest("a[href]") : null;
+  const href = enlace?.getAttribute("href");
+  if (href?.startsWith("/")) precargarPagina(href);
+}
+
 // Los textos del menu siempre estan; en escritorio los oculta/revela el recorte del sidebar.
 const ETIQUETA = "sidebar-texto whitespace-nowrap";
 
@@ -222,13 +229,20 @@ export default function ProtectedLayout() {
         </header>
 
         {/* Todas las pantallas usan todo el ancho, con un margen lateral minimo. */}
-        <main id="contenido" className="w-full flex-1 px-3 pb-10 pt-6 sm:px-4 lg:px-6 lg:pt-10">
-          {/* key: cada cambio de pantalla repite la entrada suave. */}
-          <div key={pathname} className="animate-pagina-in">
-            <Suspense fallback={<CargaPagina />}>
+        <main
+          id="contenido"
+          className="w-full flex-1 px-3 pb-10 pt-6 sm:px-4 lg:px-6 lg:pt-10"
+          onPointerOver={precargarEnlace}
+          onFocus={precargarEnlace}
+        >
+          {/* El Suspense queda fijo: al navegar (en transicion) sigue visible la
+              pantalla anterior hasta que baje la nueva, sin pasar por el
+              fallback. La key va adentro: cada pantalla repite la entrada suave. */}
+          <Suspense fallback={<CargaPagina />}>
+            <div key={pathname} className="animate-pagina-in">
               <Outlet />
-            </Suspense>
-          </div>
+            </div>
+          </Suspense>
         </main>
         <PieVersion />
       </div>

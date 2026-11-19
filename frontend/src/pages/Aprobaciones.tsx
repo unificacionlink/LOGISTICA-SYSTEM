@@ -4,6 +4,7 @@ import { CheckSquare } from "lucide-react";
 import { listarPendientes } from "../api/aprobaciones";
 import { listarOrdenesPorAprobar } from "../api/compras";
 import type { AprobacionPendiente, Orden } from "../api/types";
+import { useDatos } from "../api/useDatos";
 import { useAuth } from "../auth/AuthContext";
 import { etiquetaRequerimientos } from "../components/compras/formato";
 import { useRealtime } from "../realtime/useRealtime";
@@ -14,6 +15,9 @@ import { Card } from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
+
+const SIN_ITEMS: AprobacionPendiente[] = [];
+const SIN_ORDENES: Orden[] = [];
 
 function fmtFechaHora(iso: string | null): string {
   if (!iso) return "—";
@@ -26,46 +30,33 @@ export default function Aprobaciones() {
   // DEC-L061: las OC las deciden Gerencia y Logística (Admin de respaldo), no el aprobador de CECO.
   const decideOrdenes = tieneAlgunRol("GERENCIA", "LOGISTICA", "ADMIN");
   const decideReqs = tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN");
-  const [items, setItems] = useState<AprobacionPendiente[]>([]);
-  const [ordenes, setOrdenes] = useState<Orden[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
+  // Memoria de la pestana (DEC-L073); los avisos en vivo se suman a la misma lista.
+  const reqs = useDatos(decideReqs ? "aprobaciones-req" : null, listarPendientes);
+  const ocs = useDatos(decideOrdenes ? "aprobaciones-oc" : null, listarOrdenesPorAprobar);
+  const items = reqs.datos ?? SIN_ITEMS;
+  const ordenes = ocs.datos ?? SIN_ORDENES;
+  const setItems = reqs.mutar;
+  const setOrdenes = ocs.mutar;
+  const error = reqs.error ?? ocs.error;
+  const cargando = reqs.cargando || ocs.cargando;
   const [nuevos, setNuevos] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    Promise.all([
-      decideReqs
-        ? listarPendientes().then((res) => {
-            if (res.ok) setItems(res.result ?? []);
-            else setError(res.message);
-          })
-        : null,
-      decideOrdenes
-        ? listarOrdenesPorAprobar().then((res) => {
-            if (res.ok) setOrdenes(res.result ?? []);
-            else setError(res.message);
-          })
-        : null,
-    ]).finally(() => setCargando(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     return onOrdenDeCompra((o) => {
       setOrdenes((prev) => {
-        const resto = prev.filter((p) => p.orderId !== o.orderId);
+        const resto = (prev ?? []).filter((p) => p.orderId !== o.orderId);
         return o.status === "POR_APROBAR" && o.createdById !== usuario?.id ? [o, ...resto] : resto;
       });
       if (o.status === "POR_APROBAR") setNuevos((prev) => new Set(prev).add(o.orderId));
     });
-  }, [onOrdenDeCompra, usuario?.id]);
+  }, [onOrdenDeCompra, usuario?.id, setOrdenes]);
 
   useEffect(() => {
     return onNuevaAprobacion((pendiente) => {
-      setItems((prev) => [pendiente, ...prev.filter((p) => p.approvalId !== pendiente.approvalId)]);
+      setItems((prev) => [pendiente, ...(prev ?? []).filter((p) => p.approvalId !== pendiente.approvalId)]);
       setNuevos((prev) => new Set(prev).add(pendiente.approvalId));
     });
-  }, [onNuevaAprobacion]);
+  }, [onNuevaAprobacion, setItems]);
 
   return (
     <div>

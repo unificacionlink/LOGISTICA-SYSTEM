@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDatos } from "../api/useDatos";
 import { Link } from "react-router-dom";
 import { Check, Download, Route } from "lucide-react";
 import { descargarTrackingExcel, obtenerTracking } from "../api/tracking";
-import type { EntregaTracking, Tracking } from "../api/types";
+import type { EntregaTracking } from "../api/types";
 import { EnvioBadge } from "./AlmacenBadges";
 import { ETIQUETA_MODALIDAD, fmtCantidad, fmtDia, fmtFecha } from "./formato";
 import Alert from "./ui/Alert";
@@ -43,23 +44,13 @@ function Documentos({ e }: { e: EntregaTracking }) {
 
 /** RF-039/081/083: hitos, entregas por NI e historial del requerimiento. */
 export default function TrackingRequerimiento({ requestId, esGestor }: { requestId: string; esGestor: boolean }) {
-  const [tracking, setTracking] = useState<Tracking | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Misma clave que el panel lateral de la bandeja (DEC-L073).
+  const trackingDatos = useDatos(`tracking:${requestId}`, () => obtenerTracking(requestId));
+  const tracking = trackingDatos.datos;
+  const error = tracking ? null : trackingDatos.error;
   const [descargando, setDescargando] = useState(false);
   const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
   const [verHistorial, setVerHistorial] = useState(false);
-
-  useEffect(() => {
-    let vigente = true;
-    obtenerTracking(requestId).then((res) => {
-      if (!vigente) return;
-      if (res.ok) setTracking(res.result);
-      else setError(res.message);
-    });
-    return () => {
-      vigente = false;
-    };
-  }, [requestId]);
 
   async function onExcel() {
     if (!tracking) return;
