@@ -22,10 +22,13 @@ public class RequerimientoController {
 
     private final RequerimientoService service;
     private final BandejaService bandeja;
+    private final ResumenSolicitanteService resumen;
 
-    public RequerimientoController(RequerimientoService service, BandejaService bandeja) {
+    public RequerimientoController(RequerimientoService service, BandejaService bandeja,
+                                   ResumenSolicitanteService resumen) {
         this.service = service;
         this.bandeja = bandeja;
+        this.resumen = resumen;
     }
 
     @GetMapping
@@ -40,6 +43,12 @@ public class RequerimientoController {
                                            @RequestParam(required = false) String q,
                                            @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(bandeja.tablero(empresa, q, principal));
+    }
+
+    /** "Mis requerimientos" del Inicio (DEC-L076): siempre los de quien consulta. */
+    @GetMapping("/mi-resumen")
+    public ApiResponse<ResumenSolicitanteDto> miResumen(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(resumen.resumen(principal));
     }
 
     @GetMapping("/bandeja")

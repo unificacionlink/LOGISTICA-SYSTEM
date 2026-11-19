@@ -5,6 +5,31 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L076 — Resumen del solicitante y avisos solo por la plataforma (2026-11-19, v0.59.0).**
+  - Decisión del usuario: quien pide ve el resumen de todo lo que pidió, y se
+    entera de los cambios de estado de sus requerimientos **solo por la
+    plataforma**, ya no por correo.
+  - Resumen ("Mis requerimientos", Inicio de quien no tiene dashboard):
+    `GET /api/requerimientos/mi-resumen` (`ResumenSolicitanteService`, una
+    consulta JSON, siempre del usuario que consulta). Conteo por estado
+    agrupado (por corregir o enviar, por aprobar, en atención, entregados),
+    unidades entregadas de las pedidas (sin borradores ni rechazados;
+    entregado = aceptado en destino + caja chica del proyecto regularizada),
+    lo que más pide (top 5) y sus últimos 6 requerimientos con su avance.
+  - Avisos: tabla `notificacion` (V41) y `notificaciones/AvisosPlataforma`. Se
+    crea en la transacción de la acción y se envía en vivo
+    (`/user/queue/notificaciones`) después del commit; nunca a quien hizo la
+    acción. Eventos: aprobado, observado (con el motivo), rechazado, entrega
+    parcial, atendido por completo, despachado y recepción registrada.
+  - Campana en el menú (y en la barra del celular) con el número de no leídas
+    y un panel con los últimos 40; abrir uno lo marca como leído y abre el
+    requerimiento. El aviso en vivo (`Toast`) usa la misma notificación.
+    `GET /api/notificaciones`, `POST /{id}/leida` y `/leidas`, solo las
+    propias.
+  - `AvisosCorreo` deja de enviar al solicitante (decisión, despacho y
+    recepción). Siguen los correos a los aprobadores (por aprobar y
+    recordatorio de las 8:00, DEC-L066).
+
 - **DEC-L075 — Código de variante según el tipo de atributo (2026-11-19, v0.58.0).**
   - Decisión del usuario: al sugerir o crear un producto con atributo, el
     código de la variante sigue una nomenclatura por tipo (antes era el valor

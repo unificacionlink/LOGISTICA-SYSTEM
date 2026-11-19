@@ -3,6 +3,7 @@ package com.tdem.logistica.modules.cajachica;
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.Auditoria;
 import com.tdem.logistica.modules.almacen.AtencionCalculator;
+import com.tdem.logistica.modules.notificaciones.AvisosPlataforma;
 import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
 import com.tdem.logistica.common.AppConstants.PrioridadRequerimiento;
@@ -60,11 +61,14 @@ public class CajaChicaService {
     private final EmpresaRepository empresaRepository;
     private final Auditoria auditoria;
     private final RealtimeNotifier realtimeNotifier;
+    private final AvisosPlataforma avisosPlataforma;
     private final AtencionCalculator atencionCalculator;
 
     public CajaChicaService(JdbcTemplate jdbc, RequerimientoRepository requerimientoRepository,
                             RequerimientoItemRepository requerimientoItemRepository, EmpresaRepository empresaRepository,
-                            Auditoria auditoria, RealtimeNotifier realtimeNotifier, AtencionCalculator atencionCalculator) {
+                            Auditoria auditoria, RealtimeNotifier realtimeNotifier, AtencionCalculator atencionCalculator,
+                            AvisosPlataforma avisosPlataforma) {
+        this.avisosPlataforma = avisosPlataforma;
         this.jdbc = jdbc;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
@@ -551,6 +555,7 @@ public class CajaChicaService {
         if (!nuevo.equals(r.getStatus())) {
             r.setStatus(nuevo);
             requerimientoRepository.save(r);
+            avisosPlataforma.atencion(r.getRequestId(), nuevo, principal.userId());
         }
         avisar(r, "REGULARIZADA", null);
         return dto;

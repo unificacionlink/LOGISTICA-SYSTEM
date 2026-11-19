@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import Dashboard from "../components/Dashboard";
+import MiResumen from "../components/requerimientos/MiResumen";
 
 const MODULOS = [
   {
@@ -64,7 +65,7 @@ export default function Inicio() {
 
   return (
     <div>
-      <header className={conDashboard ? "mb-6" : "mb-12"}>
+      <header className={conDashboard ? "mb-6" : "mb-8"}>
         <p className="rotulo">
           {new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" })}
         </p>
@@ -77,6 +78,11 @@ export default function Inicio() {
       {conDashboard ? (
         <Dashboard />
       ) : (
+        <>
+        {/* DEC-L076: quien pide ve el resumen de todo lo que pidió. */}
+        <div className="mb-10">
+          <MiResumen />
+        </div>
         <nav aria-label="Módulos">
           <ol className="border-t border-slate-200">
             {modulos.map((m, i) => (
@@ -103,6 +109,7 @@ export default function Inicio() {
             ))}
           </ol>
         </nav>
+        </>
       )}
     </div>
   );

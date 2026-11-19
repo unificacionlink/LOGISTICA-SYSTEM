@@ -10,7 +10,7 @@ import com.tdem.logistica.modules.almacen.dto.RecepcionDestinoRequest;
 import com.tdem.logistica.modules.almacen.dto.ResolverObservadoRequest;
 import com.tdem.logistica.modules.requerimientos.RequerimientoMapper;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
-import com.tdem.logistica.modules.notificaciones.AvisosCorreo;
+import com.tdem.logistica.modules.notificaciones.AvisosPlataforma;
 import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -64,7 +64,7 @@ public class RecepcionDestinoService {
     private final DespachoService despachoService;
     private final Auditoria auditoria;
     private final RealtimeNotifier realtimeNotifier;
-    private final AvisosCorreo avisosCorreo;
+    private final AvisosPlataforma avisos;
 
     public RecepcionDestinoService(EnvioRepository envioRepository, SalidaItemRepository salidaItemRepository,
                                    SalidaRepository salidaRepository, NotaInventarioRepository notaRepository,
@@ -77,8 +77,8 @@ public class RecepcionDestinoService {
                                    AtencionCalculator atencionCalculator, RequerimientoService requerimientoService,
                                    DespachoService despachoService, Auditoria auditoria,
                                    RealtimeNotifier realtimeNotifier,
-                                   AvisosCorreo avisosCorreo) {
-        this.avisosCorreo = avisosCorreo;
+                                   AvisosPlataforma avisos) {
+        this.avisos = avisos;
         this.envioRepository = envioRepository;
         this.salidaItemRepository = salidaItemRepository;
         this.salidaRepository = salidaRepository;
@@ -212,12 +212,12 @@ public class RecepcionDestinoService {
             envio.setDeliveryObservation(observacion);
         }
         actualizarEstado(envio, nota, items.values(), false);
-        avisosCorreo.recepcionRegistrada(nota.getRequerimiento().getRequestId(), nota.getInventoryNoteCode(),
-                resultado, envio.getStatus(), observacion, principal.userId());
+        avisos.recepcion(nota.getRequerimiento().getRequestId(), nota.getInventoryNoteCode(), envio.getStatus(),
+                principal.userId());
         auditoria.registrar("ENVIO", shipmentId, "RECIBIR", Map.of("estado", antes),
                 Map.of("estado", envio.getStatus(), "recepcion", rec.getReceiptNumber(), "resultado", resultado),
                 principal.userId());
-        recalcularAtencion(nota.getRequerimiento());
+        recalcularAtencion(nota.getRequerimiento(), principal.userId());
         return despachoService.obtenerNota(nota.getInventoryNoteId(), principal);
     }
 
@@ -266,7 +266,7 @@ public class RecepcionDestinoService {
         auditoria.registrar("ENVIO", shipmentId, accion, Map.of("estado", antes),
                 Map.of("estado", envio.getStatus(), "resolucion", res.getResolutionId(), "cantidad", request.qty()),
                 principal.userId());
-        recalcularAtencion(nota.getRequerimiento());
+        recalcularAtencion(nota.getRequerimiento(), principal.userId());
         return despachoService.obtenerNota(nota.getInventoryNoteId(), principal);
     }
 
@@ -321,7 +321,7 @@ public class RecepcionDestinoService {
     }
 
     /** RF-079 / V38.7 updateRequestCompletionV37: la atencion se recalcula sola. */
-    private void recalcularAtencion(Requerimiento r) {
+    private void recalcularAtencion(Requerimiento r, UUID actor) {
         String nuevoEstado = atencionCalculator.calcular(r);
         if (!nuevoEstado.equals(r.getStatus())) {
             r.setStatus(nuevoEstado);
@@ -329,6 +329,7 @@ public class RecepcionDestinoService {
             if (r.getRequester() != null) {
                 realtimeNotifier.decisionTomada(r.getRequester().getUserId(), RequerimientoMapper.toDto(r));
             }
+            avisos.atencion(r.getRequestId(), nuevoEstado, actor);
         }
     }
 

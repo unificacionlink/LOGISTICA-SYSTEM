@@ -1,5 +1,6 @@
 package com.tdem.logistica.realtime;
 
+import com.tdem.logistica.modules.notificaciones.dto.NotificacionDto;
 import com.tdem.logistica.modules.aprobaciones.dto.AprobacionPendienteDto;
 import com.tdem.logistica.modules.compras.dto.OrdenDto;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
@@ -62,5 +63,10 @@ public class RealtimeNotifier {
 
     public void decisionTomada(UUID requesterUserId, RequerimientoDto dto) {
         messagingTemplate.convertAndSendToUser(requesterUserId.toString(), "/queue/mis-requerimientos", dto);
+    }
+
+    /** DEC-L076: aviso de la campana, solo al dueno del requerimiento. */
+    public void notificacion(UUID userId, NotificacionDto dto) {
+        messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/notificaciones", dto);
     }
 }

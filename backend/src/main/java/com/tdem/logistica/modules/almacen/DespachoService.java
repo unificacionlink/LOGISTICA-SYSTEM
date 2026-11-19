@@ -4,7 +4,7 @@ import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
 import com.tdem.logistica.entity.*;
 import com.tdem.logistica.modules.almacen.dto.*;
-import com.tdem.logistica.modules.notificaciones.AvisosCorreo;
+import com.tdem.logistica.modules.notificaciones.AvisosPlataforma;
 import com.tdem.logistica.modules.requerimientos.RequerimientoMapper;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.repository.*;
@@ -58,7 +58,7 @@ public class DespachoService {
     private final RecepcionDestinoItemRepository recepcionDestinoItemRepository;
     private final ResolucionDestinoRepository resolucionDestinoRepository;
     private final com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService;
-    private final AvisosCorreo avisosCorreo;
+    private final AvisosPlataforma avisos;
 
     public DespachoService(RequerimientoRepository requerimientoRepository,
                            RequerimientoItemRepository requerimientoItemRepository,
@@ -79,8 +79,8 @@ public class DespachoService {
                            RecepcionDestinoItemRepository recepcionDestinoItemRepository,
                            ResolucionDestinoRepository resolucionDestinoRepository,
                            com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService,
-                           AvisosCorreo avisosCorreo) {
-        this.avisosCorreo = avisosCorreo;
+                           AvisosPlataforma avisos) {
+        this.avisos = avisos;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
         this.reservaRepository = reservaRepository;
@@ -431,9 +431,8 @@ public class DespachoService {
         notaRepository.save(nota);
         nota.getSalida().setStatus("DESPACHADA");
         salidaRepository.save(nota.getSalida());
-        avisosCorreo.despachoEnviado(nota.getRequerimiento().getRequestId(), nota.getInventoryNoteCode(),
-                envio.getDeliveryMode(), envio.getCarrierName(), envio.getTrackingCode(), envio.getExpectedDate(),
-                principal.userId());
+        avisos.despachado(nota.getRequerimiento().getRequestId(), nota.getInventoryNoteCode(),
+                envio.getExpectedDate(), principal.userId());
 
         return obtenerNota(noteId, principal);
     }

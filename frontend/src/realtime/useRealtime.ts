@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import type { Notificacion } from "../api/notificaciones";
 import type { AprobacionPendiente, Orden, Requerimiento } from "../api/types";
 
 export type Listener<T> = (payload: T) => void;
@@ -25,6 +26,8 @@ export interface RealtimeContextValue {
   onCajaChica: (cb: Listener<AvisoCajaChica>) => () => void;
   /** OC emitida, aprobada o rechazada (DEC-L061); a Gerencia, Logística y Admin. */
   onOrdenDeCompra: (cb: Listener<Orden>) => () => void;
+  /** Aviso nuevo de la campana (DEC-L076); solo al dueño del requerimiento. */
+  onNotificacion: (cb: Listener<Notificacion>) => () => void;
 }
 
 export const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { invalidar } from "../api/cache";
 import { API_URL } from "../api/http";
+import type { Notificacion } from "../api/notificaciones";
 import type { AprobacionPendiente, Orden, Requerimiento } from "../api/types";
 import {
   RealtimeContext,
@@ -34,6 +35,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const busCotizacion = useRef(crearBus<CotizacionPorEnlace>()).current;
   const busCajaChica = useRef(crearBus<AvisoCajaChica>()).current;
   const busOrden = useRef(crearBus<Orden>()).current;
+  const busNotificacion = useRef(crearBus<Notificacion>()).current;
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
@@ -62,6 +64,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
             const req = JSON.parse(msg.body) as Requerimiento;
             invalidar("bandeja", "tablero", `avance:${req.id}`, `tracking:${req.id}`);
             busDecision.emit(req);
+          });
+          c.subscribe("/user/queue/notificaciones", (msg) => {
+            const aviso = JSON.parse(msg.body) as Notificacion;
+            invalidar("notificaciones", "mi-resumen", "bandeja");
+            if (aviso.requestId) invalidar(`req:${aviso.requestId}`, `avance:${aviso.requestId}`, `tracking:${aviso.requestId}`);
+            busNotificacion.emit(aviso);
           });
           c.subscribe("/user/queue/caja-chica", (msg) => {
             invalidar("cajachica-lista", "compras-necesidades");
@@ -113,8 +121,9 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       onCotizacionPorEnlace: busCotizacion.subscribe,
       onCajaChica: busCajaChica.subscribe,
       onOrdenDeCompra: busOrden.subscribe,
+      onNotificacion: busNotificacion.subscribe,
     }),
-    [busAprobacion, busDecision, busCotizacion, busCajaChica, busOrden],
+    [busAprobacion, busDecision, busCotizacion, busCajaChica, busOrden, busNotificacion],
   );
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

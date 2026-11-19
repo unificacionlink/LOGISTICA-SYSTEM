@@ -3,38 +3,28 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { BellRing, X } from "lucide-react";
 import { useRealtime } from "../realtime/useRealtime";
 import { useAuth } from "../auth/AuthContext";
-import type { Requerimiento } from "../api/types";
 import Button from "./ui/Button";
 import { Card, CardBody } from "./ui/Card";
 
 /**
- * Aviso discreto cuando llega un evento en vivo (decision de aprobacion) y
- * el usuario NO esta ya mirando ese requerimiento en pantalla (ahi el
- * propio RequerimientoDetalle.tsx ya lo refleja in-place).
+ * Aviso discreto cuando llega un evento en vivo (aviso de la campana, caja
+ * chica, aprobaciones u OC) y el usuario NO esta ya mirando esa pantalla.
  */
 export default function Toast() {
-  const { onMiRequerimientoDecidido, onNuevaAprobacion, onCajaChica, onOrdenDeCompra } = useRealtime();
+  const { onNotificacion, onNuevaAprobacion, onCajaChica, onOrdenDeCompra } = useRealtime();
   const { usuario, tieneAlgunRol } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mensaje, setMensaje] = useState<{ texto: string; ir: string } | null>(null);
 
+  // DEC-L076: cada aviso nuevo de la campana se muestra un momento, salvo que ya
+  // se este mirando ese requerimiento (la pantalla se actualiza sola).
   useEffect(() => {
-    return onMiRequerimientoDecidido((actualizado: Requerimiento) => {
-      if (location.pathname === `/requerimientos/${actualizado.id}`) return;
-      const texto =
-        actualizado.status === "RECHAZADO"
-          ? `Tu requerimiento ${actualizado.code} fue rechazado.`
-          : actualizado.status === "OBSERVADO"
-            ? `Tu requerimiento ${actualizado.code} fue observado: revisa el motivo y corrígelo.`
-          : actualizado.status === "ATENCION_COMPLETA"
-            ? `Tu requerimiento ${actualizado.code} fue entregado por completo.`
-            : actualizado.status === "ATENCION_PARCIAL"
-              ? `Llegó una entrega parcial de tu requerimiento ${actualizado.code}.`
-              : `Tu requerimiento ${actualizado.code} fue aprobado.`;
-      setMensaje({ texto, ir: `/requerimientos/${actualizado.id}` });
+    return onNotificacion((n) => {
+      if (n.requestId && location.pathname === `/requerimientos/${n.requestId}`) return;
+      setMensaje({ texto: n.detalle ? `${n.titulo}. ${n.detalle}` : `${n.titulo}.`, ir: n.requestId ? `/requerimientos?req=${n.requestId}` : "/requerimientos" });
     });
-  }, [onMiRequerimientoDecidido, location.pathname]);
+  }, [onNotificacion, location.pathname]);
 
   // DEC-L054: Logistica autorizo, observo o regularizo la compra con caja chica del proyecto.
   useEffect(() => {

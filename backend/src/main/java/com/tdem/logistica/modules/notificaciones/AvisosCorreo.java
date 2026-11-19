@@ -10,7 +10,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -25,9 +24,6 @@ import java.util.UUID;
 public class AvisosCorreo {
 
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final Map<String, String> MODALIDAD = Map.of(
-            "AGENCIA", "Agencia", "PROVEEDOR_ENTREGA", "Entrega del proveedor", "RECOJO", "Recojo",
-            "TERRESTRE_NORMAL", "Terrestre", "COURIER", "Courier", "PROPIO", "Movilidad propia");
 
     private final JdbcTemplate jdbc;
     private final UrlPublica url;
@@ -81,90 +77,8 @@ public class AvisosCorreo {
                 url.de("/aprobaciones"), "Revisar en la plataforma");
     }
 
-    // ---------------------------------------------------------------- decision
-
-    /** Aprobado, observado (RF-007) o rechazado: al solicitante. */
-    public void decision(UUID requestId, String decision, String motivo, UUID actor) {
-        Req r = req(requestId);
-        Destinatario d = r != null ? solicitante(r, actor) : null;
-        if (d == null) {
-            return;
-        }
-        String evento;
-        String titulo;
-        String parrafo;
-        switch (decision) {
-            case "APROBADO" -> {
-                evento = "REQ_APROBADO";
-                titulo = "Requerimiento aprobado";
-                parrafo = "Tu requerimiento fue aprobado. Logística ya empezó a atenderlo.";
-            }
-            case "OBSERVADO" -> {
-                evento = "REQ_OBSERVADO";
-                titulo = "Requerimiento observado";
-                parrafo = "Tu requerimiento fue observado. Revisa la observación, corrígelo y vuelve a enviarlo.";
-            }
-            case "RECHAZADO" -> {
-                evento = "REQ_RECHAZADO";
-                titulo = "Requerimiento rechazado";
-                parrafo = "Tu requerimiento fue rechazado.";
-            }
-            default -> {
-                return;
-            }
-        }
-        Map<String, String> datos = datosReq(r);
-        datos.put("Decidió", nombre(actor));
-        datos.put("Motivo", motivo);
-        encolar(evento, r.id(), d, titulo + ": " + r.codigo(),
-                PlantillasCorreo.correo(titulo, d.nombre(), parrafo, datos,
-                        url.de("/requerimientos/" + r.id()), "Ver requerimiento"), null);
-    }
-
-    // ---------------------------------------------------------------- despacho y recepcion
-
-    public void despachoEnviado(UUID requestId, String notaCodigo, String modalidad, String transportista,
-                                String seguimiento, LocalDate llegadaEstimada, UUID actor) {
-        Req r = req(requestId);
-        Destinatario d = r != null ? solicitante(r, actor) : null;
-        if (d == null) {
-            return;
-        }
-        Map<String, String> datos = datosReq(r);
-        datos.put("Nota de inventario", notaCodigo);
-        datos.put("Modalidad", MODALIDAD.getOrDefault(modalidad, modalidad));
-        datos.put("Transportista", transportista);
-        datos.put("Seguimiento", seguimiento);
-        datos.put("Llegada estimada", llegadaEstimada != null ? llegadaEstimada.format(FECHA) : null);
-        encolar("DESPACHO_ENVIADO", r.id(), d, "Tu pedido salió del almacén: " + r.codigo(),
-                PlantillasCorreo.correo("Pedido despachado", d.nombre(),
-                        "Tu pedido salió del almacén central. Al recibirlo, registra la recepción en la plataforma.",
-                        datos, url.de("/requerimientos/" + r.id()), "Ver requerimiento"), null);
-    }
-
-    /** {@code estadoEnvio}: RECEPCIONADO, RECEPCION_PARCIAL o RECEPCIONADO_OBSERVADO (DEC-L063). */
-    public void recepcionRegistrada(UUID requestId, String notaCodigo, String resultado, String estadoEnvio,
-                                    String observacion, UUID actor) {
-        Req r = req(requestId);
-        Destinatario d = r != null ? solicitante(r, actor) : null;
-        if (d == null) {
-            return;
-        }
-        Map<String, String> datos = datosReq(r);
-        datos.put("Nota de inventario", notaCodigo);
-        datos.put("Resultado", "CONFORME".equals(resultado) ? "Conforme" : "No conforme");
-        datos.put("Estado", switch (estadoEnvio) {
-            case "RECEPCION_PARCIAL" -> "Recepción parcial";
-            case "RECEPCIONADO_OBSERVADO" -> "Recibido con observaciones";
-            default -> "Recibido completo";
-        });
-        datos.put("Registró", nombre(actor));
-        datos.put("Observación", observacion);
-        encolar("RECEPCION_REGISTRADA", r.id(), d, "Recepción registrada: " + r.codigo(),
-                PlantillasCorreo.correo("Recepción en destino", d.nombre(),
-                        "Se registró la recepción de tu pedido en destino.",
-                        datos, url.de("/requerimientos/" + r.id()), "Ver requerimiento"), null);
-    }
+    // Decision, despacho y recepcion ya no van por correo al solicitante: son
+    // avisos de su campana en la plataforma (DEC-L076, AvisosPlataforma).
 
     // ---------------------------------------------------------------- utilidades
 
@@ -214,17 +128,6 @@ public class AvisosCorreo {
     }
 
     /** El solicitante, si tiene acceso y no es quien hizo la accion. */
-    private Destinatario solicitante(Req r, UUID actor) {
-        if (r.solicitanteId() == null || Objects.equals(r.solicitanteId(), actor)) {
-            return null;
-        }
-        return jdbc.query("""
-                select user_id, corporate_email, display_name from usuario
-                 where user_id = ? and active and password_hash is not null""",
-                (rs, n) -> new Destinatario(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)),
-                r.solicitanteId()).stream().findFirst().orElse(null);
-    }
-
     private String nombre(UUID userId) {
         if (userId == null) {
             return null;

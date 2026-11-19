@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.59.0",
+    titulo: "Tus requerimientos de un vistazo y avisos en la plataforma",
+    cambios: [
+      "En Inicio ves el resumen de todo lo que pediste: cuántos están por aprobar, en atención o entregados, cuánto ya te entregaron y lo que más pides.",
+      "La campana del menú te avisa cuando tu requerimiento se aprueba, se observa, se rechaza, sale del almacén o se entrega.",
+      "Esos avisos ya no llegan por correo: todo queda en la plataforma.",
+    ],
+  },
+  {
     version: "0.58.0",
     titulo: "Códigos de variantes según su atributo",
     cambios: [

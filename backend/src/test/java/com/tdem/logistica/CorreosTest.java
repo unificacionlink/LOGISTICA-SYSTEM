@@ -3,7 +3,7 @@ package com.tdem.logistica;
 import com.tdem.logistica.modules.aprobaciones.AprobacionService;
 import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
 import com.tdem.logistica.modules.identidad.AdminService;
-import com.tdem.logistica.modules.notificaciones.AvisosCorreo;
+import com.tdem.logistica.modules.notificaciones.AvisosPlataforma;
 import com.tdem.logistica.modules.notificaciones.DespachadorCorreos;
 import com.tdem.logistica.modules.notificaciones.EnvioCorreo;
 import com.tdem.logistica.modules.notificaciones.RecordatorioAprobaciones;
@@ -79,7 +79,7 @@ class CorreosTest {
 	@Autowired private RequerimientoService requerimientos;
 	@Autowired private AprobacionService aprobaciones;
 	@Autowired private AdminService admin;
-	@Autowired private AvisosCorreo avisos;
+	@Autowired private AvisosPlataforma avisosPlataforma;
 	@Autowired private DespachadorCorreos despachador;
 	@Autowired private RecordatorioAprobaciones recordatorio;
 	@Autowired private RegistroPlataforma registro;
@@ -123,10 +123,18 @@ class CorreosTest {
 				String.class, req.id());
 		assertTrue(html.contains("/aprobaciones"), "el boton lleva a la plataforma");
 
-		// --- Aprobar: al solicitante ---
+		// --- Aprobar: el solicitante se entera en su campana, no por correo (DEC-L076) ---
 		UUID aprobacion = requerimientos.obtener(req.id(), aprobador).pendingApprovalId();
 		aprobaciones.decidir(aprobacion, new DecidirAprobacionRequest("APROBADO", null, null), aprobador);
-		assertEquals(List.of(solicitante.userId()), destinatarios(req.id(), "REQ_APROBADO"));
+		assertEquals(List.of(), destinatarios(req.id(), "REQ_APROBADO"));
+		var bandeja = avisosPlataforma.bandeja(solicitante);
+		assertEquals(1, bandeja.noLeidas());
+		assertEquals("REQ_APROBADO", bandeja.items().get(0).tipo());
+		assertEquals(req.id(), bandeja.items().get(0).requestId());
+		assertEquals(0, avisosPlataforma.bandeja(aprobador).noLeidas(), "quien decide no se avisa a si mismo");
+		assertEquals(0, avisosPlataforma.marcarLeida(bandeja.items().get(0).id(), aprobador).noLeidas());
+		assertEquals(1, avisosPlataforma.bandeja(solicitante).noLeidas(), "nadie marca como leida la de otro");
+		assertEquals(0, avisosPlataforma.marcarLeida(bandeja.items().get(0).id(), solicitante).noLeidas());
 
 		// --- Observar (RF-007): con el motivo, escapado ---
 		RequerimientoDto otro = requerimientos.crear(solicitud(ceco), solicitante);
@@ -134,19 +142,18 @@ class CorreosTest {
 		UUID aprobacionOtro = requerimientos.obtener(otro.id(), aprobador).pendingApprovalId();
 		aprobaciones.decidir(aprobacionOtro,
 				new DecidirAprobacionRequest("OBSERVADO", null, "<b>Falta</b> el sustento & la cotizacion"), aprobador);
+		assertEquals(List.of(), destinatarios(otro.id(), "REQ_OBSERVADO"));
 		String observado = jdbc.queryForObject("""
-				select html from correo_saliente where entity_id = ? and event_type = 'REQ_OBSERVADO'""",
-				String.class, otro.id());
-		assertTrue(observado.contains("&lt;b&gt;Falta&lt;/b&gt; el sustento &amp; la cotizacion"), observado);
-		assertFalse(observado.contains("<b>Falta"), "el texto del usuario no se interpreta como HTML");
+				select body from notificacion where request_id = ? and kind = 'REQ_OBSERVADO'""", String.class, otro.id());
+		assertTrue(observado.contains("<b>Falta</b> el sustento & la cotizacion"), "el motivo va tal cual: la pantalla lo escapa");
 
-		// --- Si la accion se revierte, no sale correo ---
-		int antes = total();
+		// --- Si la accion se revierte, no queda aviso ---
+		int antes = contar("select count(*) from notificacion");
 		tx.executeWithoutResult(estado -> {
-			avisos.decision(req.id(), "RECHAZADO", "No procede", aprobador.userId());
+			avisosPlataforma.decision(req.id(), "RECHAZADO", "No procede", aprobador.userId());
 			estado.setRollbackOnly();
 		});
-		assertEquals(antes, total());
+		assertEquals(antes, contar("select count(*) from notificacion"));
 
 		// --- El despachador envia lo pendiente ---
 		int pendientes = total();

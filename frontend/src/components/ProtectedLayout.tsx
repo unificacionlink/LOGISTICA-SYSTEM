@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import CambiarPassword from "../pages/CambiarPassword";
 import { precargarPagina } from "../paginas";
 import CargaPagina from "./CargaPagina";
+import Notificaciones from "./Notificaciones";
 import BusquedaRapida from "./BusquedaRapida";
 import { abrirBusquedaRapida, NAV_GRUPOS } from "./navegacion";
 import PieVersion from "./Novedades";
@@ -113,6 +114,12 @@ export default function ProtectedLayout() {
             <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono text-[0.625rem] text-slate-400">Ctrl K</kbd>
           </span>
         </button>
+        <Notificaciones
+          conEtiqueta
+          etiquetaClase={ETIQUETA}
+          onAbrir={() => setMenuAbierto(false)}
+          claseBoton="-mt-6 flex h-9 shrink-0 items-center gap-3 rounded-md border border-transparent px-[0.6875rem] text-[0.8438rem] text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+        />
 
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto" aria-label="Principal">
           {grupos.map((g) => (
@@ -218,9 +225,10 @@ export default function ProtectedLayout() {
           <Link to="/inicio" className="text-sm font-semibold text-slate-900">
             Logística <span className="font-normal text-slate-500">· TDEM</span>
           </Link>
+          <Notificaciones claseBoton="ml-auto rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60" />
           <button
             type="button"
-            className="ml-auto rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60"
+            className="rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60"
             onClick={abrirBusquedaRapida}
             aria-label="Buscar"
           >

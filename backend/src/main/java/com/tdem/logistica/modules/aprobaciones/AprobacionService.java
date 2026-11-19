@@ -14,7 +14,7 @@ import com.tdem.logistica.modules.requerimientos.RequerimientoMapper;
 import com.tdem.logistica.modules.requerimientos.dto.RequerimientoDto;
 import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.realtime.RealtimeNotifier;
-import com.tdem.logistica.modules.notificaciones.AvisosCorreo;
+import com.tdem.logistica.modules.notificaciones.AvisosPlataforma;
 import com.tdem.logistica.repository.AprobacionRepository;
 import com.tdem.logistica.repository.RequerimientoRepository;
 import com.tdem.logistica.repository.UsuarioRepository;
@@ -39,7 +39,7 @@ public class AprobacionService {
     private final AprobacionRepository aprobacionRepository;
     private final RequerimientoRepository requerimientoRepository;
     private final RealtimeNotifier realtimeNotifier;
-    private final AvisosCorreo avisosCorreo;
+    private final AvisosPlataforma avisos;
     private final UsuarioRepository usuarioRepository;
     private final StockService stockService;
     private final AbastecimientoService abastecimientoService;
@@ -53,8 +53,8 @@ public class AprobacionService {
             StockService stockService,
             AbastecimientoService abastecimientoService,
             AmbitoAprobacion ambito,
-            AvisosCorreo avisosCorreo) {
-        this.avisosCorreo = avisosCorreo;
+            AvisosPlataforma avisos) {
+        this.avisos = avisos;
         this.aprobacionRepository = aprobacionRepository;
         this.requerimientoRepository = requerimientoRepository;
         this.realtimeNotifier = realtimeNotifier;
@@ -151,7 +151,8 @@ public class AprobacionService {
         if (requerimiento.getRequester() != null) {
             realtimeNotifier.decisionTomada(requerimiento.getRequester().getUserId(), dto);
         }
-        avisosCorreo.decision(requerimiento.getRequestId(), request.decision(), aprobacion.getDecisionReason(),
+        // DEC-L076: el aviso al solicitante va a su campana, no por correo.
+        avisos.decision(requerimiento.getRequestId(), request.decision(), aprobacion.getDecisionReason(),
                 principal.userId());
         return dto;
     }

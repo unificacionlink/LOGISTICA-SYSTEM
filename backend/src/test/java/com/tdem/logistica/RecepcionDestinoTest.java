@@ -53,6 +53,7 @@ class RecepcionDestinoTest {
 	@Autowired private RecepcionDestinoService destinoService;
 	@Autowired private DiferenciasDestinoService diferenciasService;
 	@Autowired private StockService stockService;
+	@Autowired private com.tdem.logistica.modules.requerimientos.ResumenSolicitanteService resumenService;
 	@MockitoBean private StorageClient storage;
 
 	@DynamicPropertySource
@@ -92,7 +93,8 @@ class RecepcionDestinoTest {
 		UUID envio = despachoService.registrarEnvio(noteId, new RegistrarEnvioRequest("PROPIO", null, null, null, null,
 				null, null, null, null, null), logistica).nota().envio().shipmentId();
 		UUID item = ni.items().get(0).issueItemId();
-		assertEquals(1, correos(requestId, "DESPACHO_ENVIADO"), "DEC-L066: el solicitante sabe que salio su pedido");
+		assertEquals(1, avisos(requestId, "DESPACHO_ENVIADO"), "DEC-L076: el solicitante sabe que salio su pedido");
+		assertEquals(0, correos(requestId, "DESPACHO_ENVIADO"), "ya no por correo");
 
 		// --- Validaciones de opSaveDelivery ---
 		assertThrows(ApiException.class, () -> recibir(envio, item, 6, "CONFORME", null, ENLACE, null, solicitante),
@@ -120,6 +122,16 @@ class RecepcionDestinoTest {
 		assertEquals("CONFORME", r1.nota().envio().conformityStatus());
 		assertEquals(0, new BigDecimal("6").compareTo(r1.items().get(0).destAceptado()));
 		assertEquals("ATENCION_PARCIAL", estado(requestId), "la atencion cuenta lo aceptado");
+		// DEC-L076: "Mis requerimientos" del solicitante refleja lo entregado.
+		var resumen = resumenService.resumen(solicitante);
+		assertEquals(1, resumen.total());
+		assertEquals(1, resumen.estados().get("ATENCION_PARCIAL"));
+		assertEquals(0, new BigDecimal("10").compareTo(resumen.unidadesPedidas()));
+		assertEquals(0, new BigDecimal("6").compareTo(resumen.unidadesEntregadas()));
+		assertEquals("AC01002", resumen.productos().get(0).sku());
+		assertEquals("REQ-TEST-DEST", resumen.recientes().get(0).codigo());
+		assertEquals(0.6, resumen.recientes().get(0).avance(), 0.001);
+		assertEquals(0, resumenService.resumen(logistica).total(), "cada uno ve solo lo suyo");
 		assertThrows(ApiException.class, () -> destinoService.registrar(envio, new RecepcionDestinoRequest(token,
 				List.of(new RecepcionDestinoRequest.Linea(item, new BigDecimal("1"))), "CONFORME", null, ENLACE), null,
 				logistica), "el mismo formulario no registra dos recepciones");
@@ -134,7 +146,9 @@ class RecepcionDestinoTest {
 		assertEquals("NO_CONFORME", r2.nota().envio().conformityStatus());
 		assertEquals(0, new BigDecimal("4").compareTo(r2.items().get(0).destObservado()));
 		assertEquals(2, r2.recepciones().size());
-		assertEquals(2, correos(requestId, "RECEPCION_REGISTRADA"), "un correo por recepcion al solicitante");
+		assertEquals(2, avisos(requestId, "RECEPCION_REGISTRADA"), "un aviso por recepcion al solicitante");
+		assertEquals(0, correos(requestId, "RECEPCION_REGISTRADA"), "ya no por correo");
+		assertEquals(1, avisos(requestId, "REQ_PARCIAL"), "la entrega parcial tambien se avisa");
 		assertEquals("https://storage.test/nota-firmada.pdf", r2.recepciones().get(1).documentoUrl());
 		assertEquals("ATENCION_PARCIAL", estado(requestId), "lo observado no cuenta como atendido");
 		assertThrows(ApiException.class, () -> recibir(envio, item, 1, "CONFORME", null, ENLACE, null, logistica),
@@ -198,6 +212,14 @@ class RecepcionDestinoTest {
 	private SaldoStockDto saldo() {
 		return stockService.listarSaldos(new UsuarioPrincipal(usuario("logistica@logistica.test"), List.of("LOGISTICA")))
 				.stream().filter(s -> s.codigoVariante().equals("AC01002-00")).findFirst().orElseThrow();
+	}
+
+	/** Avisos de la campana del solicitante (DEC-L076). */
+	private int avisos(UUID requestId, String tipo) {
+		return jdbc.queryForObject("""
+				select count(*) from notificacion n join usuario u on u.user_id = n.user_id
+				where n.request_id = ? and n.kind = ? and u.corporate_email = 'solicitante@logistica.test'""",
+				Integer.class, requestId, tipo);
 	}
 
 	private int correos(UUID requestId, String evento) {

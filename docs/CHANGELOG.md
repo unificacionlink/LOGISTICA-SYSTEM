@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.59.0 — 2026-11-19
+
+Resumen del solicitante y avisos dentro de la plataforma (DEC-L076).
+
+- `V41__notificacion.sql`: tabla `notificacion` (usuario, requerimiento, tipo, título, detalle, leída) con índices por usuario y no leídas.
+- `modules/notificaciones/AvisosPlataforma` + `NotificacionController` (`GET /api/notificaciones`, `POST /{id}/leida`, `POST /leidas`). Avisos de aprobado, observado, rechazado, entrega parcial, atendido completo, despachado y recepción registrada, desde `AprobacionService`, `RecepcionDestinoService`, `DespachoService` y `CajaChicaService`; envío en vivo tras el commit (`RealtimeNotifier.notificacion`).
+- `AvisosCorreo`: sin los correos al solicitante (`decision`, `despachoEnviado`, `recepcionRegistrada`).
+- `ResumenSolicitanteService` + `GET /api/requerimientos/mi-resumen`.
+- Frontend: campana `components/Notificaciones` en el menú y en la barra móvil; `Toast` muestra el aviso nuevo; `components/requerimientos/MiResumen` en el Inicio del solicitante; `RealtimeProvider` escucha `/user/queue/notificaciones` e invalida la campana, el resumen y la bandeja.
+- Tests: `CorreosTest` y `RecepcionDestinoTest` comprueban los avisos (y que ya no salen esos correos) y el resumen; `MigracionesFlywayTest` cuenta 41.
+
 ## 0.58.0 — 2026-11-19
 
 Nomenclatura de variantes por tipo de atributo (DEC-L075).

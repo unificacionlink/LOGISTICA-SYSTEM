@@ -101,3 +101,17 @@ export function subirImagenProducto(productId: string, file: File, enLote = fals
   const ruta = `/api/requerimientos/productos/${productId}/imagen`;
   return luegoInvalidar(enLote ? http.postFormEnLote<string>(ruta, form) : http.postForm<string>(ruta, form), "catalogo");
 }
+
+/** "Mis requerimientos" del Inicio (DEC-L076): siempre los de quien consulta. */
+export interface ResumenSolicitante {
+  total: number;
+  estados: Record<string, number>;
+  unidadesPedidas: number;
+  unidadesEntregadas: number;
+  productos: { sku: string; nombre: string; veces: number; pedidas: number; entregadas: number }[];
+  recientes: { id: string; codigo: string; estado: string; creado: string; items: number; resumen: string | null; avance: number }[];
+}
+
+export function obtenerMiResumen() {
+  return http.get<ResumenSolicitante>("/api/requerimientos/mi-resumen");
+}
