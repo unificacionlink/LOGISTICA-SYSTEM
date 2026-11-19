@@ -1,6 +1,8 @@
 package com.tdem.logistica;
 
 import com.tdem.logistica.common.ApiException;
+import com.tdem.logistica.entity.NecesidadCompra;
+import com.tdem.logistica.entity.ReservaStock;
 import com.tdem.logistica.modules.aprobaciones.AprobacionService;
 import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
 import com.tdem.logistica.modules.requerimientos.RequerimientoService;
@@ -9,6 +11,9 @@ import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.modules.stock.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.apache.poi.ss.usermodel.*;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -43,6 +48,7 @@ class StockCentralTest {
 	@Autowired private CargaStockService carga;
 	@Autowired private AprobacionService aprobacionService;
 	@Autowired private RequerimientoService requerimientos;
+	@Autowired private EntityManagerFactory emf;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -51,6 +57,8 @@ class StockCentralTest {
 		registry.add("spring.datasource.username", () -> BdRrhhSimulada.USUARIO_APP);
 		registry.add("spring.datasource.password", () -> BdRrhhSimulada.PASSWORD_APP);
 		registry.add("app.jwt.secret", () -> "clave-de-prueba-solo-para-tests-0123456789-abcdefghijklmnop");
+		// Para contar sentencias en la aprobacion por lotes (DEC-L074).
+		registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
 	}
 
 	@AfterAll
@@ -179,6 +187,81 @@ class StockCentralTest {
 		var soloEstado = requerimientos.stockDisponible(solicitante);
 		assertEquals(stock.keySet(), soloEstado.keySet());
 		assertTrue(soloEstado.values().stream().allMatch(q -> q.compareTo(BigDecimal.ONE) == 0));
+	}
+
+
+	/**
+	 * DEC-L074: aprobar un REQ de 10 items reserva y consolida por conjuntos.
+	 * Dos items del mismo SKU: el segundo ve lo que aparto el primero. Ninguna
+	 * alta hace el SELECT previo de merge y las sentencias no crecen por item.
+	 */
+	@Test
+	void aprobarDiezItemsReservaYConsolidaPorLotes() {
+		UsuarioPrincipal logistica = logistica();
+		List<UUID> variantes = jdbc.queryForList("""
+				select v.variant_id from producto_variante v join producto p on p.product_id = v.product_id
+				where p.active and v.internal_variant_code not in ('AC01005-00', 'AC01006-00', 'AC01007-00')
+				order by v.internal_variant_code limit 9""", UUID.class);
+		assertEquals(9, variantes.size());
+		UUID conStock = variantes.get(0);
+		stock.registrarAjuste(new AjusteStockRequest(conStock, new BigDecimal("8"), "Saldo inicial"), logistica);
+		stock.registrarAjuste(new AjusteStockRequest(variantes.get(1), new BigDecimal("2"), "Saldo inicial"), logistica);
+
+		UUID tdem = jdbc.queryForObject("select company_id from empresa where code = 'TDEMSRL'", UUID.class);
+		UUID ceco = jdbc.queryForObject("select ceco_id from ceco where company_id = ? and active limit 1", UUID.class, tdem);
+		UUID req = jdbc.queryForObject("""
+				insert into requerimiento (request_code, company_id, ceco_id, requester_user_id, requester_type,
+				  purpose, justification, status, priority)
+				values ('REQ-LOTE-10', ?, ?, ?, 'INTERNO', 'CONSUMO', 'prueba', 'PENDIENTE_APROBACION', 'APROVISIONAMIENTO')
+				returning request_id""", UUID.class, tdem, ceco, usuario("solicitante@logistica.test"));
+		// 10 items: el primer SKU dos veces (5 + 5 con 8 en stock), el resto una vez de 4.
+		List<UUID> items = new java.util.ArrayList<>();
+		for (int i = 0; i < 10; i++) {
+			UUID v = i < 2 ? conStock : variantes.get(i - 1);
+			items.add(jdbc.queryForObject("""
+					insert into requerimiento_item (request_id, product_id, variant_id, uom_id, qty_requested)
+					select ?, v.product_id, v.variant_id, p.base_uom_id, ?
+					from producto_variante v join producto p on p.product_id = v.product_id
+					where v.variant_id = ? returning request_item_id""", UUID.class, req, i < 2 ? 5 : 4, v));
+		}
+		UUID aprobacion = jdbc.queryForObject(
+				"insert into aprobacion (entity_type, entity_id) values ('REQUERIMIENTO', ?) returning approval_id",
+				UUID.class, req);
+
+		Statistics stats = emf.unwrap(SessionFactory.class).getStatistics();
+		stats.clear();
+		aprobacionService.decidir(aprobacion, new DecidirAprobacionRequest("APROBADO", null, null),
+				new UsuarioPrincipal(usuario("admin@logistica.test"), List.of("ADMIN")));
+
+		// Reservas: 5 + 3 del SKU con 8, 2 del SKU con 2.
+		assertEquals(0, new BigDecimal("5").compareTo(reservado(items.get(0))));
+		assertEquals(0, new BigDecimal("3").compareTo(reservado(items.get(1))));
+		assertEquals(0, new BigDecimal("2").compareTo(reservado(items.get(2))));
+		assertEquals(0, saldo(conStock, logistica).disponible().signum(), "no se aparta mas de lo que hay");
+		// Necesidades: 2 del segundo item + 2 del SKU con 2 + 4 de cada uno de los otros 7 = 32.
+		assertEquals(0, new BigDecimal("32").compareTo(jdbc.queryForObject("""
+				select sum(n.qty) from necesidad_compra n join requerimiento_item i on i.request_item_id = n.request_item_id
+				where i.request_id = ?""", BigDecimal.class, req)));
+		// Cada necesidad quedo en el consolidado abierto de su SKU, con su total.
+		assertEquals(0, jdbc.queryForObject("""
+				select count(*) from necesidad_compra n join requerimiento_item i on i.request_item_id = n.request_item_id
+				where i.request_id = ? and (n.consolidation_id is null or n.status <> 'COMPRA')""", Integer.class, req));
+		assertEquals(0, jdbc.queryForObject("""
+				select count(*) from consolidacion c
+				where c.status = 'ABIERTA' and c.total_qty <> (
+				  select coalesce(sum(n.qty), 0) from necesidad_compra n where n.consolidation_id = c.consolidation_id)""",
+				Integer.class));
+
+		// Sin el SELECT de merge antes de cada alta.
+		assertEquals(0, stats.getEntityStatistics(ReservaStock.class.getName()).getLoadCount());
+		assertEquals(0, stats.getEntityStatistics(NecesidadCompra.class.getName()).getLoadCount());
+		assertTrue(stats.getPrepareStatementCount() <= 25,
+				"sentencias JPA de la aprobacion: " + stats.getPrepareStatementCount());
+	}
+
+	private BigDecimal reservado(UUID item) {
+		return jdbc.queryForObject("select coalesce(sum(qty_reserved), 0) from reserva_stock where request_item_id = ?",
+				BigDecimal.class, item);
 	}
 
 	// ------------------------------------------------------------------

@@ -1,14 +1,13 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.RecepcionDestino;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.UUID;
 
-public interface RecepcionDestinoRepository extends JpaRepository<RecepcionDestino, UUID> {
+public interface RecepcionDestinoRepository extends RepositorioBase<RecepcionDestino, UUID> {
 
     boolean existsByClientToken(UUID clientToken);
 

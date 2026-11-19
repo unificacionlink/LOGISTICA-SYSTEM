@@ -262,7 +262,7 @@ public class DespachoService {
         salida.setStatus("EMITIDA");
         salida.setIssuedAt(Instant.now());
         salida.setCreatedBy(usuario);
-        salidaRepository.save(salida);
+        salidaRepository.insertar(salida);
 
         BigDecimal totalQty = BigDecimal.ZERO;
         BigDecimal totalValor = BigDecimal.ZERO;
@@ -279,7 +279,7 @@ public class DespachoService {
             si.setQty(in.qty());
             si.setRequerimientoItem(item);
             si.setPurchaseCostReference(costo);
-            salidaItemRepository.save(si);
+            salidaItemRepository.insertar(si);
 
             MovimientoInventario mov = new MovimientoInventario();
             mov.setInventoryMovementId(UUID.randomUUID());
@@ -293,7 +293,7 @@ public class DespachoService {
             mov.setReferenceType("SALIDA");
             mov.setReferenceId(salida.getIssueId());
             mov.setCreatedBy(usuario);
-            movimientoRepository.save(mov);
+            movimientoRepository.insertar(mov);
 
             totalQty = totalQty.add(in.qty());
             if (costo != null) {
@@ -323,7 +323,7 @@ public class DespachoService {
         nota.setStatus("EMITIDA");
         nota.setIssuedAt(Instant.now());
         nota.setCreatedBy(usuario);
-        notaRepository.save(nota);
+        notaRepository.insertar(nota);
 
         return obtenerNota(nota.getInventoryNoteId(), principal);
     }
@@ -372,7 +372,7 @@ public class DespachoService {
                 despachada.setOrigin(reserva.getOrigin());
                 despachada.setRecepcionItem(reserva.getRecepcionItem());
                 despachada.setPettyCashItemId(reserva.getPettyCashItemId());
-                reservaRepository.save(despachada);
+                reservaRepository.insertar(despachada);
             }
             restante = restante.subtract(tomar);
         }
@@ -425,7 +425,7 @@ public class DespachoService {
         envio.setExpectedDate(request.expectedDate());
         envio.setStatus("EN_TRANSITO");
         envio.setCreatedBy(usuario);
-        envioRepository.save(envio);
+        envioRepository.insertar(envio);
 
         nota.setStatus("DESPACHADA");
         notaRepository.save(nota);
@@ -472,7 +472,7 @@ public class DespachoService {
         rel.setDocumento(documento);
         rel.setEntityType("ENVIO");
         rel.setEntityId(envio.getShipmentId());
-        documentoRelacionRepository.save(rel);
+        documentoRelacionRepository.insertar(rel);
 
         return AlmacenMapper.toDto(documento);
     }

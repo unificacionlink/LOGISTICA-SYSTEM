@@ -192,7 +192,7 @@ public class RecepcionService {
         recepcion.setRegistrationSource(origen);
         recepcion.setObservation(blankToNull(request.observation()));
         recepcion.setReceivedBy(usuario);
-        recepcionRepository.save(recepcion);
+        recepcionRepository.insertar(recepcion);
 
         registrarGuia(request.guia(), orden, recepcion);
 
@@ -208,7 +208,7 @@ public class RecepcionService {
                 ri.setQtyReceived(in.qtyReceived());
                 ri.setConditionStatus(in.conditionStatus() != null ? in.conditionStatus() : "CONFORME");
                 ri.setObservation(blankToNull(in.observation()));
-                recepcionItemRepository.save(ri);
+                recepcionItemRepository.insertar(ri);
                 observada |= "OBSERVADO".equals(ri.getConditionStatus());
                 ingresarAStock(ri, oi, almacen, usuario, recepcion);
             }
@@ -281,7 +281,7 @@ public class RecepcionService {
         g.setSeries(serie);
         g.setNumber(numero);
         g.setIssueDate(guia.issueDate());
-        guiaRepository.save(g);
+        guiaRepository.insertar(g);
     }
 
     /**
@@ -306,7 +306,7 @@ public class RecepcionService {
         mov.setReferenceType("RECEPCION");
         mov.setReferenceId(recepcion.getReceiptId());
         mov.setCreatedBy(usuario);
-        movimientoRepository.save(mov);
+        movimientoRepository.insertar(mov);
 
         if (oi.getConsolidacion() == null) {
             // OC previa al Lote 16 sin consolidado (no deberia quedar ninguna tras V20).
@@ -349,7 +349,7 @@ public class RecepcionService {
         reserva.setStatus("RESERVADA");
         reserva.setOrigin(ReservaStock.ORIGEN_RECEPCION_OC);
         reserva.setRecepcionItem(ri);
-        reservaRepository.save(reserva);
+        reservaRepository.insertar(reserva);
     }
 
     private void crearIncidencia(IncidenciaInput in, Recepcion recepcion, OrdenItem oi, RecepcionItem ri, Usuario usuario) {
@@ -365,7 +365,7 @@ public class RecepcionService {
         inc.setStatus("ABIERTA");
         inc.setCreatedAt(Instant.now());
         inc.setCreatedBy(usuario);
-        incidenciaRepository.save(inc);
+        incidenciaRepository.insertar(inc);
     }
 
     private static boolean isBlank(String s) {

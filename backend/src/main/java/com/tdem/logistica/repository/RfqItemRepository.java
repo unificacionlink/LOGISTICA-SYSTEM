@@ -1,7 +1,6 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.RfqItem;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public interface RfqItemRepository extends JpaRepository<RfqItem, UUID> {
+public interface RfqItemRepository extends RepositorioBase<RfqItem, UUID> {
 
     @Query("select i from RfqItem i join fetch i.producto left join fetch i.variante join fetch i.uom " +
             "left join fetch i.consolidacion where i.rfq.rfqId = :rfqId")

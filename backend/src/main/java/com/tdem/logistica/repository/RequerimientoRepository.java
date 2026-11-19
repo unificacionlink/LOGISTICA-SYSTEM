@@ -1,13 +1,12 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.Requerimiento;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.UUID;
 
-public interface RequerimientoRepository extends JpaRepository<Requerimiento, UUID> {
+public interface RequerimientoRepository extends RepositorioBase<Requerimiento, UUID> {
 
     @Query("select r from Requerimiento r " +
             "join fetch r.empresa join fetch r.ceco c join fetch c.empresa " +

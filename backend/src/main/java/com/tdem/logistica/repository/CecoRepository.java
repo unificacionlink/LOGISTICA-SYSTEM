@@ -1,13 +1,12 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.Ceco;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.UUID;
 
-public interface CecoRepository extends JpaRepository<Ceco, UUID> {
+public interface CecoRepository extends RepositorioBase<Ceco, UUID> {
     java.util.Optional<Ceco> findByEmpresa_CompanyIdAndCode(UUID companyId, String code);
 
     List<Ceco> findByEmpresa_CompanyIdAndActiveTrue(UUID companyId);

@@ -1,7 +1,6 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.OrdenItem;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-public interface OrdenItemRepository extends JpaRepository<OrdenItem, UUID> {
+public interface OrdenItemRepository extends RepositorioBase<OrdenItem, UUID> {
 
     @Query("select i from OrdenItem i left join fetch i.producto left join fetch i.variante " +
             "left join fetch i.uom left join fetch i.consolidacion where i.orden.orderId = :orderId")

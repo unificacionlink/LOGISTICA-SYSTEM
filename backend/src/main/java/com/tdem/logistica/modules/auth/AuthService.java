@@ -4,10 +4,12 @@ import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.entity.Usuario;
 import com.tdem.logistica.repository.UsuarioRepository;
 import com.tdem.logistica.repository.UsuarioRolRepository;
+import com.tdem.logistica.security.AccesoVigente;
 import com.tdem.logistica.security.JwtService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -23,6 +25,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JdbcTemplate jdbc;
+    private final AccesoVigente accesoVigente;
 
     private static final Pattern CODIGO_TUTORIAL = Pattern.compile("^[a-z-]{1,40}$");
 
@@ -31,12 +34,14 @@ public class AuthService {
             UsuarioRolRepository usuarioRolRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            JdbcTemplate jdbc) {
+            JdbcTemplate jdbc,
+            AccesoVigente accesoVigente) {
         this.usuarioRepository = usuarioRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.jdbc = jdbc;
+        this.accesoVigente = accesoVigente;
     }
 
     public record LoginResult(String token, UsuarioDto usuario, int expirationSeconds) {
@@ -56,12 +61,34 @@ public class AuthService {
         return new LoginResult(token, toDto(usuario, roles), jwtService.expirationSeconds());
     }
 
+    /**
+     * Corre cada vez que se abre la app: una sola consulta (usuario, empresa y
+     * recorridos vistos), los roles vigentes de {@link AccesoVigente} (ya en
+     * memoria por el filtro JWT) y sin transaccion (sin ida y vuelta de COMMIT).
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public UsuarioDto me(UUID userId) {
-        Usuario usuario = usuarioRepository.findById(userId)
-                .filter(Usuario::isActive)
-                .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
-        List<String> roles = usuarioRolRepository.findCodigosRolPorUsuario(userId);
-        return toDto(usuario, roles);
+        AccesoVigente.Acceso acceso = accesoVigente.obtener(userId);
+        List<UsuarioDto> filas = jdbc.query("""
+                select u.user_id, u.display_name, u.corporate_email, e.company_id, e.code, u.must_change_password,
+                       array(select t.tutorial_code from usuario_tutorial t
+                              where t.user_id = u.user_id order by t.tutorial_code) tutoriales
+                  from usuario u left join empresa e on e.company_id = u.company_id
+                 where u.user_id = ? and u.active""",
+                (rs, i) -> new UsuarioDto(
+                        rs.getObject(1, UUID.class),
+                        rs.getString(2),
+                        rs.getString(3),
+                        rs.getObject(4, UUID.class),
+                        rs.getString(5),
+                        acceso.roles(),
+                        rs.getBoolean(6),
+                        List.of((String[]) rs.getArray(7).getArray())),
+                userId);
+        if (filas.isEmpty() || !acceso.activo()) {
+            throw ApiException.unauthorized("Sesion invalida.");
+        }
+        return filas.get(0);
     }
 
     private UsuarioDto toDto(Usuario usuario, List<String> roles) {

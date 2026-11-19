@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD propia en Supabase.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L073 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L074 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `docs/05_PLAN_PROVEEDORES.md` — plan y diagnóstico del Lote 19a (proveedores), con los indicadores pendientes de datos.
 - `docs/06_PLAN_MUDANZA_SUPABASE.md` — mudanza de RR-HH al proyecto propio (DEC-L072): bitácora del corte y retiro pendiente en RR-HH.
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
@@ -72,6 +72,7 @@ Scripts Python en `scripts/`: `seed_catalogo_sku.py` (regenera seed de 725 SKU d
 Reglas clave:
 - **La autorización vive 100% en los `*Service`** (no hay RLS de respaldo): validar rol/ownership al inicio de cada método con `UsuarioPrincipal`. Reutilizar `RequerimientoService.exigirAcceso` para la visibilidad de un REQ. El dueño solo puede pasar su REQ de `BORRADOR` a `PENDIENTE_APROBACION`; otras transiciones requieren LOGISTICA/ADMIN.
 - `spring.jpa.open-in-view=false`: servicios que tocan asociaciones LAZY necesitan `@Transactional` (o `readOnly = true`).
+- **Alta de una entidad nueva con `repo.insertar(e)`** (o `insertarTodos`), no `save`: los ids se asignan a mano y `save` haría un SELECT antes de cada INSERT (DEC-L074). `save` es para modificar. Los INSERT/UPDATE van en lotes de 50.
 - La BD está lejos (~150 ms por ida y vuelta): evitar N+1; preferir una consulta (el dashboard es una sola SQL que devuelve JSON).
 - **Stock: un solo almacén central, el de TDEM, para las tres empresas** (DEC-L045). Para reservas, recepciones y despachos usar `AlmacenCentral` / `almacenRepository.findCentralDelGrupo()`, nunca el almacén de la empresa del documento. Inventario por Excel en `CargaStockService` (stock contado → ajustes `CARGA_STOCK`).
 - El SOLICITANTE solo pide para sus CECOs asignados (`usuario_ceco`, de cualquier empresa); la empresa del REQ sale del CECO (DEC-L029). LOGISTICA/ADMIN, cualquier CECO activo.

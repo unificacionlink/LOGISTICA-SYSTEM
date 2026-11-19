@@ -93,7 +93,7 @@ public class OrdenCompraService {
         a.setEntityType(EntidadAprobacion.COMPRA);
         a.setEntityId(orden.getOrderId());
         a.setStatus(EstadoAprobacion.PENDIENTE);
-        aprobacionRepository.save(a);
+        aprobacionRepository.insertar(a);
         realtime.ordenDeCompra(dto);
     }
 

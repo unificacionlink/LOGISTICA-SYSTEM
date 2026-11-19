@@ -5,6 +5,33 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L074 — Guardados con menos idas a la BD (2026-11-19, v0.57.0).**
+  - Problema: los ids se asignan a mano (`UUID.randomUUID()`), así que
+    `save()` de Spring Data no sabía que la entidad era nueva y hacía `merge`:
+    un SELECT por id antes de cada INSERT. Y sin lotes, cada fila era su propia
+    ida y vuelta. Aprobar un REQ de 10 ítems costaba unas 105 idas a la BD
+    con el almacén central bloqueado.
+  - `repository/RepositorioBase` (base de todos los repositorios vía
+    `JpaConfig`): `insertar` / `insertarTodos` hacen `persist` directo. Se usa
+    **solo** al dar de alta una entidad recién creada con `new`; para
+    modificar, `save` sigue igual. Cambiados los 39 sitios de alta.
+  - `application.yml`: `hibernate.jdbc.batch_size: 50`, `order_inserts`,
+    `order_updates` y `reWriteBatchedInserts=true` en el driver (INSERT
+    multi-fila). Pool por defecto de 5 a 10 (proyecto propio, DEC-L072).
+  - Aprobación por conjuntos: `StockService.reservarDisponible` lee el saldo
+    de todos los SKU del REQ en una consulta (dos ítems del mismo SKU no
+    reservan dos veces lo mismo) e inserta las reservas en lote;
+    `AbastecimientoService.agregarAConsolidados` crea los consolidados que
+    falten con un `batchUpdate` `on conflict do nothing`, los bloquea con un
+    solo `for update` ordenado por id (sin interbloqueos entre aprobaciones) y
+    suma los totales en lote. Mismas reglas: almacén único (DEC-L045), caja
+    chica sin reserva (DEC-L054), PENDIENTE_RUTA (DEC-L039).
+  - `/api/auth/me` (cada vez que se abre la app): una consulta con usuario,
+    empresa y recorridos, roles de `AccesoVigente` y sin transacción.
+  - Ficha del proveedor: la selección se lee una vez (antes dos).
+  - `StockCentralTest.aprobarDiezItemsReservaYConsolidaPorLotes` fija el
+    resultado y el tope de sentencias.
+
 - **DEC-L073 — Pantallas con memoria: se ve lo último y se actualiza por detrás (2026-11-19, v0.56.0).**
   Amplía DEC-L051 (cache de la pestaña) y cambia la regla de la capa de guardado.
   - Problema: cada visita a una pantalla empezaba de cero con esqueletos; tras

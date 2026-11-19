@@ -121,7 +121,7 @@ public class EnlaceCotizacionService {
         e.setTokenHash(hash(token));
         e.setExpiresAt(Instant.now().plus(VIGENCIA));
         e.setCreatedBy(principal.userId());
-        enlaceRepository.save(e);
+        enlaceRepository.insertar(e);
         auditoria.registrar("RFQ", rfqId, "GENERAR_ENLACE", null,
                 Map.of("vence", e.getExpiresAt().toString()), principal.userId());
         return new EnlaceCotizacionDto(url(token), token, Instant.now(), e.getExpiresAt(), null, null, true);

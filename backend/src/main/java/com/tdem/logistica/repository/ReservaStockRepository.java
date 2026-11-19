@@ -2,7 +2,6 @@ package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.ReservaStock;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +10,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-public interface ReservaStockRepository extends JpaRepository<ReservaStock, UUID> {
+public interface ReservaStockRepository extends RepositorioBase<ReservaStock, UUID> {
 
     @Query("select coalesce(sum(r.qtyReserved), 0) from ReservaStock r " +
             "where r.almacen.warehouseId = :warehouseId and r.producto.productId = :productId " +

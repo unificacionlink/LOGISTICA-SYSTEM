@@ -67,6 +67,6 @@ class ArchivosAlmacen {
         documento.setUploadedBy(userId);
         documento.setUploadedAt(Instant.now());
         documento.setStatus("ACTIVO");
-        return documentoRepository.save(documento);
+        return documentoRepository.insertar(documento);
     }
 }

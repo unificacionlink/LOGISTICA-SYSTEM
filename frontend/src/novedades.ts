@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.57.0",
+    titulo: "Guardados más rápidos",
+    cambios: [
+      "Aprobar un requerimiento, registrar recepciones y despachos y emitir órdenes de compra responde más rápido.",
+      "La plataforma abre más rápido al iniciar sesión.",
+    ],
+  },
+  {
     version: "0.56.0",
     titulo: "Pantallas más rápidas",
     cambios: [

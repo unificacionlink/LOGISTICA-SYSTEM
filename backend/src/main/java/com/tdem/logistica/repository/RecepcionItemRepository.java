@@ -1,7 +1,6 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.RecepcionItem;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public interface RecepcionItemRepository extends JpaRepository<RecepcionItem, UUID> {
+public interface RecepcionItemRepository extends RepositorioBase<RecepcionItem, UUID> {
 
     /** Recibido por item de OC, en una sola consulta: filas [orderItemId, suma]. */
     @Query("select i.ordenItem.orderItemId, sum(i.qtyReceived) from RecepcionItem i " +

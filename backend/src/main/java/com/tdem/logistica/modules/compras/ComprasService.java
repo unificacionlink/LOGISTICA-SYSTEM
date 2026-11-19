@@ -231,7 +231,7 @@ public class ComprasService {
         documento.setUploadedBy(userId);
         documento.setUploadedAt(Instant.now());
         documento.setStatus("ACTIVO");
-        documentoRepository.save(documento);
+        documentoRepository.insertar(documento);
 
         return new DocumentoDto(documento.getDocumentId(), documento.getFileUrl(), documento.getFileName());
     }
@@ -348,11 +348,11 @@ public class ComprasService {
         cotizacion.setSource(source);
         cotizacion.setDocumento(documento);
         cotizacion.setStatus("RECIBIDA");
-        cotizacionRepository.save(cotizacion);
+        cotizacionRepository.insertar(cotizacion);
 
         for (CotizacionItem item : itemsNuevos) {
             item.setCotizacion(cotizacion);
-            cotizacionItemRepository.save(item);
+            cotizacionItemRepository.insertar(item);
         }
 
         if ("ENVIADA".equals(rfq.getStatus()) || "BORRADOR".equals(rfq.getStatus())) {

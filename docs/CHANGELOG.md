@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.57.0 — 2026-11-19
+
+Guardados más rápidos: altas sin SELECT previo, inserciones en lote y aprobación por conjuntos (DEC-L074).
+
+- `repository/RepositorioBase` + `RepositorioBaseImpl` + `config/JpaConfig`: `insertar`/`insertarTodos` con `persist`; los 39 repositorios heredan de la base. Las altas de Almacén, Compras, Requerimientos y Stock usan `insertar`.
+- `application.yml`: `hibernate.jdbc.batch_size: 50`, `order_inserts`, `order_updates`; Hikari `reWriteBatchedInserts=true`; `DB_POOL_SIZE` por defecto 10. Comentarios de BD/Storage actualizados a DEC-L072.
+- `StockService.reservarDisponible`: saldos de todos los SKU del REQ en una consulta y reservas en lote.
+- `AbastecimientoService.generarNecesidades`/`agregarAConsolidados`: consolidados por lote (alta `on conflict`, un `for update` ordenado, totales con `batchUpdate`) y necesidades con `insertarTodos`.
+- `AuthService.me`: una consulta, roles desde `AccesoVigente`, sin transacción.
+- `FichaProveedorService.ficha`: reutiliza la selección ya leída para las advertencias.
+- Test `StockCentralTest.aprobarDiezItemsReservaYConsolidaPorLotes`.
+
 ## 0.56.0 — 2026-11-19
 
 Pantallas más rápidas y fluidas: memoria de la pestaña y guardado sin bloqueo visible (DEC-L073).

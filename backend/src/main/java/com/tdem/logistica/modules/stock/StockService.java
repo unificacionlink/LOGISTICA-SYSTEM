@@ -130,7 +130,11 @@ public class StockService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void reservarDisponible(Requerimiento r) {
         Almacen almacen = almacenCentral.bloquear();
-        for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
+        List<RequerimientoItem> items = requerimientoItemRepository.findByRequerimiento(r.getRequestId());
+        // Saldo de todos los productos del REQ en una consulta (DEC-L074), no dos por item.
+        Map<String, BigDecimal> saldo = saldosDelRequerimiento(almacen, r.getRequestId());
+        List<ReservaStock> reservas = new ArrayList<>();
+        for (RequerimientoItem item : items) {
             // DEC-L054: las unidades que el solicitante sugirio para la caja chica del
             // proyecto no apartan stock; Logistica decide en Necesidades si usa el almacen.
             BigDecimal normal = item.getQtyRequested().subtract(item.getPettyCashQty());
@@ -138,11 +142,13 @@ public class StockService {
                 continue;
             }
             UUID variantId = item.getVariante() != null ? item.getVariante().getVariantId() : null;
-            BigDecimal aReservar = saldoDisponible(almacen, item.getProducto().getProductId(), variantId)
-                    .min(normal);
+            String clave = claveSaldo(item.getProducto().getProductId(), variantId);
+            BigDecimal aReservar = saldo.getOrDefault(clave, BigDecimal.ZERO).min(normal);
             if (aReservar.signum() <= 0) {
                 continue;
             }
+            // Dos items del mismo producto: el segundo ve lo que aparto el primero.
+            saldo.merge(clave, aReservar.negate(), BigDecimal::add);
             ReservaStock reserva = new ReservaStock();
             reserva.setReservationId(UUID.randomUUID());
             reserva.setRequerimientoItem(item);
@@ -151,8 +157,43 @@ public class StockService {
             reserva.setVariante(item.getVariante());
             reserva.setQtyReserved(aReservar);
             reserva.setStatus("RESERVADA");
-            reservaStockRepository.save(reserva);
+            reservas.add(reserva);
         }
+        reservaStockRepository.insertarTodos(reservas);
+    }
+
+    private static String claveSaldo(UUID productId, UUID variantId) {
+        return productId + "|" + (variantId != null ? variantId : "");
+    }
+
+    /**
+     * Disponible (kardex - reservado activo) en el almacen de cada producto +
+     * variante de los items del REQ, en una consulta. Mismo criterio que
+     * {@link #saldoDisponible}: la variante nula solo cuenta movimientos sin variante.
+     */
+    private Map<String, BigDecimal> saldosDelRequerimiento(Almacen almacen, UUID requestId) {
+        Map<String, BigDecimal> out = new HashMap<>();
+        jdbc.query("""
+                with clave as (
+                    select distinct product_id, variant_id from requerimiento_item where request_id = ?),
+                fis as (
+                    select m.product_id, m.variant_id, sum(m.qty) q
+                      from movimiento_inventario m
+                      join clave c on c.product_id = m.product_id and c.variant_id is not distinct from m.variant_id
+                     where m.warehouse_id = ? group by m.product_id, m.variant_id),
+                res as (
+                    select r.product_id, r.variant_id, sum(r.qty_reserved) q
+                      from reserva_stock r
+                      join clave c on c.product_id = r.product_id and c.variant_id is not distinct from r.variant_id
+                     where r.warehouse_id = ? and r.status = 'RESERVADA' group by r.product_id, r.variant_id)
+                select c.product_id, c.variant_id, coalesce(fis.q, 0) - coalesce(res.q, 0)
+                  from clave c
+                  left join fis on fis.product_id = c.product_id and fis.variant_id is not distinct from c.variant_id
+                  left join res on res.product_id = c.product_id and res.variant_id is not distinct from c.variant_id""",
+                rs -> {
+                    out.put(claveSaldo(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class)), rs.getBigDecimal(3));
+                }, requestId, almacen.getWarehouseId(), almacen.getWarehouseId());
+        return out;
     }
 
     /**
@@ -175,7 +216,7 @@ public class StockService {
         reserva.setVariante(item.getVariante());
         reserva.setQtyReserved(aReservar);
         reserva.setStatus("RESERVADA");
-        reservaStockRepository.save(reserva);
+        reservaStockRepository.insertar(reserva);
         return aReservar;
     }
 

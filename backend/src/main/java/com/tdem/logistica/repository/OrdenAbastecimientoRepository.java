@@ -2,7 +2,6 @@ package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.OrdenAbastecimiento;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface OrdenAbastecimientoRepository extends JpaRepository<OrdenAbastecimiento, UUID> {
+public interface OrdenAbastecimientoRepository extends RepositorioBase<OrdenAbastecimiento, UUID> {
 
     @Query("select o from OrdenAbastecimiento o join fetch o.proveedor join fetch o.moneda " +
             "join fetch o.cotizacion c join fetch o.empresa join fetch o.createdBy left join fetch o.constanciaPago " +

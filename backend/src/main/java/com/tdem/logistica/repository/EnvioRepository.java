@@ -2,7 +2,6 @@ package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.Envio;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface EnvioRepository extends JpaRepository<Envio, UUID> {
+public interface EnvioRepository extends RepositorioBase<Envio, UUID> {
 
     @Query("select e from Envio e left join fetch e.moneda left join fetch e.receivedBy " +
             "where e.notaInventario.inventoryNoteId = :noteId")

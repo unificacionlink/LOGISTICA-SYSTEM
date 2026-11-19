@@ -1,7 +1,6 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.MovimientoInventario;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-public interface MovimientoInventarioRepository extends JpaRepository<MovimientoInventario, UUID> {
+public interface MovimientoInventarioRepository extends RepositorioBase<MovimientoInventario, UUID> {
 
     @Query("select coalesce(sum(m.qty), 0) from MovimientoInventario m " +
             "where m.almacen.warehouseId = :warehouseId and m.producto.productId = :productId " +

@@ -1,14 +1,13 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.Usuario;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
+public interface UsuarioRepository extends RepositorioBase<Usuario, UUID> {
     Optional<Usuario> findByCorporateEmailIgnoreCase(String correo);
 
     Optional<Usuario> findByEmployeeExternalId(String employeeExternalId);

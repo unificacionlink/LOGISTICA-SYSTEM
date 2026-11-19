@@ -1,7 +1,6 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.DocumentoRelacion;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public interface DocumentoRelacionRepository extends JpaRepository<DocumentoRelacion, UUID> {
+public interface DocumentoRelacionRepository extends RepositorioBase<DocumentoRelacion, UUID> {
 
     @Query("select r from DocumentoRelacion r join fetch r.documento d " +
             "where r.entityType = :entityType and r.entityId = :entityId and d.status = 'ACTIVO' " +

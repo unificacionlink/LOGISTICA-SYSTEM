@@ -2,7 +2,6 @@ package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.Consolidacion;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface ConsolidacionRepository extends JpaRepository<Consolidacion, UUID> {
+public interface ConsolidacionRepository extends RepositorioBase<Consolidacion, UUID> {
 
     String DETALLE = "select c from Consolidacion c join fetch c.empresa join fetch c.producto " +
             "left join fetch c.variante join fetch c.uom left join fetch c.adjudicado a " +

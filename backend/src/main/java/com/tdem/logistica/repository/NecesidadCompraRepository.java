@@ -2,7 +2,6 @@ package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.NecesidadCompra;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface NecesidadCompraRepository extends JpaRepository<NecesidadCompra, UUID> {
+public interface NecesidadCompraRepository extends RepositorioBase<NecesidadCompra, UUID> {
 
     String DETALLE = "select n from NecesidadCompra n join fetch n.requerimientoItem ri join fetch ri.requerimiento r " +
             "join fetch r.ceco join fetch r.empresa join fetch n.producto left join fetch n.variante join fetch n.uom " +

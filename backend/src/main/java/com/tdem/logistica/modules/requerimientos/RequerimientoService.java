@@ -300,7 +300,7 @@ public class RequerimientoService {
         documento.setUploadedBy(principal.userId());
         documento.setUploadedAt(Instant.now());
         documento.setStatus("ACTIVO");
-        documentoRepository.save(documento);
+        documentoRepository.insertar(documento);
 
         ProductoImagen imagen = new ProductoImagen();
         imagen.setProductImageId(UUID.randomUUID());
@@ -311,7 +311,7 @@ public class RequerimientoService {
         imagen.setActive(true);
         imagen.setCreatedAt(Instant.now());
         imagen.setCreatedBy(principal.userId());
-        productoImagenRepository.save(imagen);
+        productoImagenRepository.insertar(imagen);
 
         return url;
     }
@@ -363,7 +363,7 @@ public class RequerimientoService {
         r.setRequiredDate(fechaTentativa(prioridad, null));
         r.setPettyCashSuggested(request.sugiereCajaChica());
         r.setPettyCashSuggestionNote(request.notaCajaChica());
-        requerimientoRepository.save(r);
+        requerimientoRepository.insertar(r);
 
         for (ItemRequerimientoRequest itemReq : request.items()) {
             ProductoVariante variante = porId.get(itemReq.variantId());
@@ -377,7 +377,7 @@ public class RequerimientoService {
             item.setTechnicalRequirement(itemReq.technicalRequirement());
             item.setObservation(itemReq.observation());
             item.setPettyCashQty(cajaChicaValida(request, itemReq, variante));
-            requerimientoItemRepository.save(item);
+            requerimientoItemRepository.insertar(item);
         }
 
         return RequerimientoMapper.toDto(r);
@@ -443,7 +443,7 @@ public class RequerimientoService {
             item.setTechnicalRequirement(itemReq.technicalRequirement());
             item.setObservation(itemReq.observation());
             item.setPettyCashQty(cajaChicaValida(request, itemReq, variante));
-            requerimientoItemRepository.save(item);
+            requerimientoItemRepository.insertar(item);
         }
 
         return RequerimientoMapper.toDto(r);
@@ -496,7 +496,7 @@ public class RequerimientoService {
         aprobacion.setEntityId(r.getRequestId());
         aprobacion.setStatus(EstadoAprobacion.PENDIENTE);
         aprobacion.setAssignedTo(aprobadorAsignado(r));
-        aprobacionRepository.save(aprobacion);
+        aprobacionRepository.insertar(aprobacion);
 
         RequerimientoDto dto = RequerimientoMapper.toDto(r);
         AprobacionPendienteDto pendiente = new AprobacionPendienteDto(aprobacion.getApprovalId(), dto);

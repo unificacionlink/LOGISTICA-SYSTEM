@@ -1,7 +1,6 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.SalidaItem;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-public interface SalidaItemRepository extends JpaRepository<SalidaItem, UUID> {
+public interface SalidaItemRepository extends RepositorioBase<SalidaItem, UUID> {
 
     @Query("select i from SalidaItem i join fetch i.producto left join fetch i.variante " +
             "where i.salida.issueId = :issueId")

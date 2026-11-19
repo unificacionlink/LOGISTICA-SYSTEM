@@ -7,9 +7,12 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      # La BD se comparte con RRHH-SYSTEM (DEC-L016): pool chico para no
-      # competir por las conexiones del pooler de Supabase.
-      maximum-pool-size: ${DB_POOL_SIZE:5}
+      # Proyecto Supabase propio (DEC-L072): ya no se comparte el pooler con
+      # RRHH-SYSTEM. 10 conexiones: las pantallas piden varias listas a la vez.
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      data-source-properties:
+        # Los INSERT en lote viajan como uno solo multi-fila (DEC-L074).
+        reWriteBatchedInserts: true
       # search_path de cada conexion = esquema de LOGISTICA, para que el SQL
       # sin calificar (JdbcTemplate, @Query nativas) tambien caiga en el.
       schema: ${DB_SCHEMA:logistica}
@@ -25,13 +28,18 @@ spring:
         # Asociaciones LAZY en lote (una consulta por cada 50 filas, no una por fila):
         # con la BD lejos, cada ida y vuelta cuesta ~150 ms desde local.
         default_batch_fetch_size: 50
+        # Altas y cambios en lote: varias filas por ida y vuelta (DEC-L074).
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
   flyway:
     # Sin baseline-on-migrate: el esquema nace vacio y Flyway aplica V1..Vn
     # completas. Con baseline activo, una tabla creada a mano antes del primer
     # arranque haria que V1 se saltara en silencio.
     locations: classpath:db/migration
-    # Esquema propio dentro de la BD de RRHH (DEC-L016). Lo crea una sola vez
+    # Esquema propio del proyecto LOGISTICA-TDEM (DEC-L072). Lo crea una sola vez
     # db_design_reference/setup/rrhh_db_esquema_logistica.sql con el rol
     # logistica_app como dueno; Flyway nunca crea esquemas.
     schemas: ${DB_SCHEMA:logistica}
@@ -68,8 +76,8 @@ app:
     intervalo-ms: ${CORREO_INTERVALO_MS:30000}
     recordatorio-cron: ${CORREO_RECORDATORIO_CRON:0 0 8 * * MON-SAT}
   cookie-secure: ${COOKIE_SECURE:true}
-  # Storage compatible con S3 (DEC-L015/DEC-L016). Hoy: Supabase Storage del
-  # proyecto de RRHH (endpoint https://<ref>.storage.supabase.co/storage/v1/s3,
+  # Storage compatible con S3 (DEC-L015/DEC-L072). Hoy: Supabase Storage del
+  # proyecto LOGISTICA-TDEM (endpoint https://<ref>.storage.supabase.co/storage/v1/s3,
   # region del proyecto, llaves de Storage -> S3 Connection). Opcional a
   # futuro: Cloudflare R2 (https://<account>.r2.cloudflarestorage.com, region auto).
   # Sincronizacion de identidad de solo lectura con RRHH-SYSTEM (DEC-L002/DEC-L024):

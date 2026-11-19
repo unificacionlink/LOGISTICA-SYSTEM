@@ -1,7 +1,6 @@
 package com.tdem.logistica.repository;
 
 import com.tdem.logistica.entity.Rfq;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface RfqRepository extends JpaRepository<Rfq, UUID> {
+public interface RfqRepository extends RepositorioBase<Rfq, UUID> {
 
     /** RFQ que cotizan algo del requerimiento: las previas al Lote 16 (request_id) o por sus necesidades. */
     @Query("select r from Rfq r join fetch r.proveedor where r.requerimiento.requestId = :requestId " +

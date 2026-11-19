@@ -142,7 +142,7 @@ public class FichaProveedorService {
         LocalDate proxima = vigente != null ? vigente.nextEvaluationDate() : null;
         return new FichaProveedorDto(ProveedorMapper.toDto(p), categorias, productos, seleccion, desempeno,
                 VigenciaEvaluacion.estado(proxima, VigenciaEvaluacion.hoy(), diasAviso()), proxima,
-                advertencias(id));
+                advertencias(id, seleccion));
     }
 
     /**
@@ -150,8 +150,12 @@ public class FichaProveedorService {
      * habilitar con advertencias exige escribir el motivo, que queda auditado.
      */
     List<String> advertencias(UUID supplierId) {
+        return advertencias(supplierId, ultima(supplierId, "SELECCION"));
+    }
+
+    /** Con la seleccion ya leida (la ficha la tiene): una consulta menos. */
+    private List<String> advertencias(UUID supplierId, EvaluacionResumenDto seleccion) {
         List<String> avisos = new ArrayList<>();
-        EvaluacionResumenDto seleccion = ultima(supplierId, "SELECCION");
         if (seleccion == null) {
             avisos.add("No tiene ficha de selección (F-LOG-03) registrada.");
         } else if (CalificacionProveedor.NO_APROBADO.equals(seleccion.result())) {

@@ -180,10 +180,10 @@ public class RecepcionDestinoService {
             rel.setDocumento(doc);
             rel.setEntityType("ENVIO");
             rel.setEntityId(shipmentId);
-            documentoRelacionRepository.save(rel);
+            documentoRelacionRepository.insertar(rel);
             rec.setDocumento(doc);
         }
-        recepcionRepository.save(rec);
+        recepcionRepository.insertar(rec);
 
         for (Map.Entry<UUID, BigDecimal> c : cantidades.entrySet()) {
             if (c.getValue().signum() == 0) {
@@ -202,7 +202,7 @@ public class RecepcionDestinoService {
             ri.setRecepcion(rec);
             ri.setSalidaItem(si);
             ri.setQty(c.getValue());
-            recepcionItemRepository.save(ri);
+            recepcionItemRepository.insertar(ri);
         }
 
         String antes = envio.getStatus();
@@ -259,7 +259,7 @@ public class RecepcionDestinoService {
         res.setEvidenceUrl(evidencia);
         res.setStatus("DEVOLVER".equals(accion) ? "EN_TRANSITO" : "RESUELTA");
         res.setCreatedBy(usuario(principal));
-        resolucionRepository.save(res);
+        resolucionRepository.insertar(res);
 
         String antes = envio.getStatus();
         actualizarEstado(envio, nota, items.values(), true);

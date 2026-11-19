@@ -296,7 +296,7 @@ public class ComparativoService {
                 li.setUom(c.getUom());
                 li.setQty(c.getTotalQty());
                 li.setTechnicalSpecification(especificaciones.get(c.getConsolidationId()));
-                rfqItemRepository.save(li);
+                rfqItemRepository.insertar(li);
                 lineaPorConsolidado.put(c.getConsolidationId(), li);
             }
         }

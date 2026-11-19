@@ -126,6 +126,8 @@ public class AbastecimientoService {
             cubierto.put((UUID) fila[0], (BigDecimal) fila[1]);
         }
         var sugerir = cajaChicaService.sugeridor(r);
+        List<NecesidadCompra> nuevas = new ArrayList<>();
+        List<NecesidadCompra> aConsolidar = new ArrayList<>();
         for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
             // DEC-L054: las unidades que el solicitante sugirio para la caja chica del
             // proyecto van aparte, por decidir; el resto sigue la via normal.
@@ -134,7 +136,7 @@ public class AbastecimientoService {
                 NecesidadCompra n = nuevaNecesidad(r, item, cajaChica);
                 n.setSuggestedReason(CajaChicaService.SOLICITANTE);
                 n.setStatus(NecesidadCompra.PENDIENTE_RUTA);
-                necesidadRepository.save(n);
+                nuevas.add(n);
             }
             BigDecimal faltante = item.getQtyRequested().subtract(cajaChica)
                     .subtract(cubierto.getOrDefault(item.getRequestItemId(), BigDecimal.ZERO));
@@ -145,12 +147,15 @@ public class AbastecimientoService {
             String motivo = sugerir.apply(item, faltante);
             n.setSuggestedReason(motivo);
             if (motivo == null) {
-                agregarAConsolidado(n);
+                aConsolidar.add(n);
             } else {
                 n.setStatus(NecesidadCompra.PENDIENTE_RUTA);
             }
-            necesidadRepository.save(n);
+            nuevas.add(n);
         }
+        // Todos los consolidados del REQ en tres idas a la BD, no tres por item (DEC-L074).
+        agregarAConsolidados(aConsolidar);
+        necesidadRepository.insertarTodos(nuevas);
     }
 
     private static NecesidadCompra nuevaNecesidad(Requerimiento r, RequerimientoItem item, BigDecimal qty) {
@@ -167,35 +172,72 @@ public class AbastecimientoService {
 
     /** Suma la necesidad al consolidado ABIERTO de su empresa + SKU + unidad (lo crea si no hay). */
     private void agregarAConsolidado(NecesidadCompra n) {
-        UUID id = consolidadoAbierto(n);
-        jdbc.update("update consolidacion set total_qty = total_qty + ? where consolidation_id = ?", n.getQty(), id);
-        n.setConsolidacion(consolidacionRepository.getReferenceById(id));
-        n.setStatus(NecesidadCompra.COMPRA);
+        agregarAConsolidados(List.of(n));
+    }
+
+    private static String claveConsolidado(UUID companyId, UUID productId, UUID variantId, UUID uomId) {
+        return companyId + "|" + productId + "|" + (variantId != null ? variantId : "") + "|" + uomId;
+    }
+
+    private static String claveConsolidado(NecesidadCompra n) {
+        return claveConsolidado(n.getEmpresa().getCompanyId(), n.getProducto().getProductId(),
+                n.getVariante() != null ? n.getVariante().getVariantId() : null, n.getUom().getUomId());
     }
 
     /**
+     * Suma cada necesidad al consolidado ABIERTO de su empresa + SKU + unidad (lo
+     * crea si no hay), en tres idas a la BD sea cual sea la cantidad (DEC-L074).
      * El indice unico parcial uq_consolidacion_abierta garantiza uno solo por
-     * clave; "on conflict do nothing" + "for update" lo hace seguro ante dos
-     * aprobaciones simultaneas.
+     * clave; "on conflict do nothing" + "for update" (en orden de id, sin
+     * interbloqueos) lo hace seguro ante dos aprobaciones simultaneas.
      */
-    private UUID consolidadoAbierto(NecesidadCompra n) {
-        UUID variantId = n.getVariante() != null ? n.getVariante().getVariantId() : null;
-        UUID companyId = n.getEmpresa().getCompanyId();
-        UUID productId = n.getProducto().getProductId();
-        UUID uomId = n.getUom().getUomId();
-        jdbc.update("""
+    private void agregarAConsolidados(List<NecesidadCompra> necesidades) {
+        if (necesidades.isEmpty()) {
+            return;
+        }
+        Map<String, NecesidadCompra> porClave = new LinkedHashMap<>();
+        for (NecesidadCompra n : necesidades) {
+            porClave.putIfAbsent(claveConsolidado(n), n);
+        }
+        List<Object[]> altas = new ArrayList<>();
+        for (NecesidadCompra n : porClave.values()) {
+            altas.add(new Object[] {UUID.randomUUID(), CodigoCompra.generar("CON", n.getEmpresa().getCode()),
+                    n.getEmpresa().getCompanyId(), n.getProducto().getProductId(),
+                    n.getVariante() != null ? n.getVariante().getVariantId() : null, n.getUom().getUomId()});
+        }
+        jdbc.batchUpdate("""
                 insert into consolidacion (consolidation_id, consolidation_code, company_id, product_id, variant_id,
                   uom_id, total_qty, status)
                 values (?, ?, ?, ?, cast(? as uuid), ?, 0, 'ABIERTA')
                 on conflict (company_id, product_id, (coalesce(variant_id, '00000000-0000-0000-0000-000000000000'::uuid)), uom_id)
-                  where status = 'ABIERTA' do nothing""",
-                UUID.randomUUID(), CodigoCompra.generar("CON", n.getEmpresa().getCode()), companyId, productId,
-                variantId, uomId);
-        return jdbc.queryForObject("""
-                select consolidation_id from consolidacion
-                where company_id = ? and product_id = ? and variant_id is not distinct from cast(? as uuid)
-                  and uom_id = ? and status = 'ABIERTA' for update""",
-                UUID.class, companyId, productId, variantId, uomId);
+                  where status = 'ABIERTA' do nothing""", altas);
+
+        List<UUID> empresas = porClave.values().stream().map(n -> n.getEmpresa().getCompanyId()).distinct().toList();
+        List<UUID> productos = porClave.values().stream().map(n -> n.getProducto().getProductId()).distinct().toList();
+        Map<String, UUID> abierto = new HashMap<>();
+        named.query("""
+                select consolidation_id, company_id, product_id, variant_id, uom_id from consolidacion
+                where status = 'ABIERTA' and company_id in (:empresas) and product_id in (:productos)
+                order by consolidation_id for update""",
+                new MapSqlParameterSource().addValue("empresas", empresas).addValue("productos", productos),
+                rs -> {
+                    abierto.put(claveConsolidado(rs.getObject(2, UUID.class), rs.getObject(3, UUID.class),
+                            rs.getObject(4, UUID.class), rs.getObject(5, UUID.class)), rs.getObject(1, UUID.class));
+                });
+
+        Map<UUID, BigDecimal> suma = new LinkedHashMap<>();
+        for (NecesidadCompra n : necesidades) {
+            UUID id = abierto.get(claveConsolidado(n));
+            if (id == null) {
+                throw new IllegalStateException("Sin consolidado abierto para " + claveConsolidado(n));
+            }
+            suma.merge(id, n.getQty(), BigDecimal::add);
+            n.setConsolidacion(consolidacionRepository.getReferenceById(id));
+            n.setStatus(NecesidadCompra.COMPRA);
+        }
+        List<Object[]> cambios = new ArrayList<>();
+        suma.forEach((id, qty) -> cambios.add(new Object[] {qty, id}));
+        jdbc.batchUpdate("update consolidacion set total_qty = total_qty + ? where consolidation_id = ?", cambios);
     }
 
     /** Por decidir ruta y en Caja Chica con algo aun por comprar. */
@@ -541,7 +583,7 @@ public class AbastecimientoService {
                 li.setUom(c.getUom());
                 li.setQty(c.getTotalQty());
                 li.setTechnicalSpecification(especificaciones.get(c.getConsolidationId()));
-                rfqItemRepository.save(li);
+                rfqItemRepository.insertar(li);
             }
             c.setStatus(Consolidacion.EN_COTIZACION);
             auditoria.registrar("CONSOLIDACION", c.getConsolidationId(), "PREPARAR_RFQ",
@@ -567,7 +609,7 @@ public class AbastecimientoService {
         rfq.setIssueDate(LocalDate.now());
         rfq.setStatus("BORRADOR");
         rfq.setCreatedBy(usuario);
-        return rfqRepository.save(rfq);
+        return rfqRepository.insertar(rfq);
     }
 
     /** Proveedores activos habilitados por producto. */
@@ -755,8 +797,8 @@ public class AbastecimientoService {
         subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
         orden.setSubtotal(subtotal);
         orden.setTotal(subtotal);
-        ordenRepository.save(orden);
-        ordenItemRepository.saveAll(items);
+        ordenRepository.insertar(orden);
+        ordenItemRepository.insertarTodos(items);
         cot.setStatus("SELECCIONADA");
         cotizacionRepository.save(cot);
 
@@ -821,7 +863,7 @@ public class AbastecimientoService {
             nueva.setQty(n.getQty());
             nueva.setStatus(NecesidadCompra.PENDIENTE_RUTA);
             nueva.setSuggestedReason("FALLA_PROVEEDOR");
-            necesidadRepository.save(nueva);
+            necesidadRepository.insertar(nueva);
         }
         necesidadRepository.flush();
         cerrarRfqsResueltas(List.of(id));
