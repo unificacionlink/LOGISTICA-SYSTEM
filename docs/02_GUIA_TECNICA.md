@@ -154,7 +154,10 @@ vacio = primer origen de `CORS_ALLOWED_ORIGINS`) y `PUBLICO_LIMITE_POR_MINUTO`
 (default 30, por IP en `/api/publico/**`).
 Storage S3 (DEC-L015/DEC-L016): `STORAGE_ENDPOINT`, `STORAGE_REGION`,
 `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_BUCKET`
-(default `logistica-productos`), `STORAGE_PUBLIC_URL`.
+(default `logistica-productos`), `STORAGE_PUBLIC_URL` y `STORAGE_PRIVATE_BUCKET`
+(default `logistica-privado`, DEC-L071): bucket **privado** del mismo Storage para
+los documentos de proveedores; el backend los lee con las mismas llaves S3 y el
+navegador nunca recibe su URL (`documento.file_url = 'privado:<clave>'`).
 - Supabase (actual): endpoint `https://<ref>.storage.supabase.co/storage/v1/s3`,
   region del proyecto (p. ej. `us-east-2`), llaves de *Storage -> S3
   Connection* (**no** la service_role key: esa da acceso total a la BD de

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.55.0 — 2026-11-18
+
+Módulo de Proveedores integral, Lote 19a (DEC-L069, DEC-L070, DEC-L071).
+
+- `V37__proveedor_ciclo_de_vida.sql`: ficha ampliada (nombre comercial, contacto y cargo, teléfono, web, dirección, ciudad, lo que ofrece, condición de pago, días de crédito, plazo de entrega, garantía), `status` (BORRADOR / PENDIENTE_REVISION / HABILITADO / OBSERVADO / RECHAZADO, los existentes quedan HABILITADO) con motivo y fechas, check `not active or status = 'HABILITADO'`, `proveedor_categoria` e índice de `log_cambios` por entidad.
+- `V38__evaluacion_proveedor.sql`: `plantilla_evaluacion` / `plantilla_criterio` (F-LOG-03 v7 y F-LOG-07 v2 sembradas con sus pesos y respuestas) y `evaluacion_proveedor` / `evaluacion_criterio` con la copia de cada criterio.
+- `V39__documentos_proveedor.sql`: `requisito_documento_proveedor` (6 sembrados), `proveedor_documento` con emisión, vencimiento y anulación, y tipo `DOC_PROVEEDOR`.
+- `storage`: `StorageClient.subirPrivado` / `leerPrivado` sobre el bucket privado `STORAGE_PRIVATE_BUCKET` (por defecto `logistica-privado`).
+- `modules/proveedores`: `ProveedorService` (alta como borrador, edición auditada, categorías y productos), `CicloProveedorService` (enviar, decidir con advertencias, reabrir, activar/desactivar), `FichaProveedorService` (panel con indicadores en una consulta, ficha, advertencias, historial desde `log_cambios`), `EvaluacionProveedorService`, `PlantillaEvaluacionService`, `DocumentoProveedorService`, `HistorialComercialService` (compras y desempeño leídos de Compras/Almacén), `CalificacionProveedor` y `VigenciaEvaluacion`. `GET /api/proveedores` no cambia (solo activos).
+- Frontend: Proveedores con indicadores que filtran (Registrados, Habilitados, En revisión, Por reevaluar), buscador por RUC, razón social, producto o categoría y filtros por estado; ficha `/proveedores/:id` con pestañas General, Documentos, Selección, Evaluaciones, Compras y Desempeño; paneles laterales para editar, categorías, productos, decidir, evaluar y configurar. Primitivas nuevas `ui/PanelLateral` y `ui/Pestanas`. `/proveedores/:id/editar` abre la ficha con el editor.
+- `ProveedoresTest` (ciclo completo, permisos, migrados habilitados, nota F-LOG-03, copia de pesos, anulación, vigencias, documentos privados, historial comercial, categorías y productos).
+
 ## 0.54.0 — 2026-11-18
 
 Prioridad con tiempo de atención y fecha tentativa automática (DEC-L068).

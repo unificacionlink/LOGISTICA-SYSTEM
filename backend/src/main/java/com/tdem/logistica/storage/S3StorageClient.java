@@ -14,8 +14,11 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.net.URI;
 import java.util.List;
@@ -31,7 +34,9 @@ import java.util.List;
  *       {@code https://<account>.r2.cloudflarestorage.com}, region {@code auto}.</li>
  * </ul>
  * Las lecturas no pasan por el backend: el navegador carga la imagen directo
- * desde la URL publica del bucket ({@code app.storage.public-url}).
+ * desde la URL publica del bucket ({@code app.storage.public-url}). Los
+ * documentos de proveedores van a un segundo bucket PRIVADO
+ * ({@code app.storage.private-bucket}, DEC-L071) que solo lee el backend.
  */
 @Component
 public class S3StorageClient implements StorageClient {
@@ -42,8 +47,10 @@ public class S3StorageClient implements StorageClient {
 
     private final S3Client s3;
     private final String bucket;
+    private final String bucketPrivado;
     private final String publicUrlBase;
     private final boolean configurado;
+    private final boolean conCredenciales;
 
     public S3StorageClient(
             @Value("${app.storage.endpoint:}") String endpoint,
@@ -51,12 +58,14 @@ public class S3StorageClient implements StorageClient {
             @Value("${app.storage.access-key-id:}") String accessKeyId,
             @Value("${app.storage.secret-access-key:}") String secretAccessKey,
             @Value("${app.storage.bucket:logistica-productos}") String bucket,
-            @Value("${app.storage.public-url:}") String publicUrl) {
-        this.configurado = !endpoint.isBlank() && !accessKeyId.isBlank()
-                && !secretAccessKey.isBlank() && !publicUrl.isBlank();
+            @Value("${app.storage.public-url:}") String publicUrl,
+            @Value("${app.storage.private-bucket:logistica-privado}") String bucketPrivado) {
+        this.conCredenciales = !endpoint.isBlank() && !accessKeyId.isBlank() && !secretAccessKey.isBlank();
+        this.configurado = conCredenciales && !publicUrl.isBlank();
         this.bucket = bucket;
+        this.bucketPrivado = bucketPrivado;
         this.publicUrlBase = publicUrl.endsWith("/") ? publicUrl : publicUrl + "/";
-        this.s3 = configurado
+        this.s3 = conCredenciales
                 ? S3Client.builder()
                         .endpointOverride(URI.create(endpoint))
                         .region(Region.of(region))
@@ -111,6 +120,49 @@ public class S3StorageClient implements StorageClient {
                 .contents().stream()
                 .map(o -> new Archivo(o.key(), publicUrlBase + o.key(), o.lastModified()))
                 .toList();
+    }
+
+    @Override
+    public String subirPrivado(String clave, byte[] contenido, String contentType) {
+        exigirPrivado();
+        try {
+            s3.putObject(PutObjectRequest.builder()
+                            .bucket(bucketPrivado)
+                            .key(clave)
+                            .contentType(contentType != null ? contentType : "application/octet-stream")
+                            .cacheControl("private, no-store")
+                            .build(),
+                    RequestBody.fromBytes(contenido));
+        } catch (S3Exception e) {
+            throw errorPrivado(e);
+        }
+        return clave;
+    }
+
+    @Override
+    public byte[] leerPrivado(String clave) {
+        exigirPrivado();
+        try {
+            return s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucketPrivado).key(clave).build())
+                    .asByteArray();
+        } catch (NoSuchKeyException e) {
+            throw ApiException.notFound("El archivo ya no esta en el almacenamiento.");
+        } catch (S3Exception e) {
+            throw errorPrivado(e);
+        }
+    }
+
+    private void exigirPrivado() {
+        if (!conCredenciales || bucketPrivado.isBlank()) {
+            throw ApiException.badRequest(
+                    "El almacenamiento privado no esta configurado (STORAGE_ENDPOINT / STORAGE_ACCESS_KEY_ID / "
+                            + "STORAGE_SECRET_ACCESS_KEY / STORAGE_PRIVATE_BUCKET).");
+        }
+    }
+
+    private ApiException errorPrivado(S3Exception e) {
+        return ApiException.badRequest("No se pudo usar el almacenamiento privado (" + bucketPrivado
+                + ", HTTP " + e.statusCode() + "): verifica que el bucket exista y sea privado.");
     }
 
     @PreDestroy

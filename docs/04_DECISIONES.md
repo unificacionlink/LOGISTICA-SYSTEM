@@ -5,6 +5,97 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L071 — Documentos del proveedor en un bucket privado (2026-11-18, v0.55.0).**
+  - Decisión del usuario: los documentos de proveedores (ficha RUC, F-LOG-06,
+    constancias, certificados, evidencias de evaluación) **no** van al bucket
+    público `logistica-productos` (DEC-L015): van a un bucket **privado**
+    (`app.storage.private-bucket`, `STORAGE_PRIVATE_BUCKET`, por defecto
+    `logistica-privado`) en el mismo Storage de RR.HH. y con las mismas llaves S3.
+  - El navegador nunca recibe una URL del bucket: `GET
+    /api/proveedores/documentos/{id}/archivo` lo lee en el backend
+    (`StorageClient.leerPrivado`) con sesión y rol LOGISTICA/ADMIN.
+    `documento.file_url` guarda `privado:<clave>` (tipo `DOC_PROVEEDOR`, con
+    hash SHA-256) para que nunca se confunda con una URL pública.
+  - Requisitos de documentos configurables (`requisito_documento_proveedor`):
+    nombre, obligatorio y si vence. "Obligatorio" solo **advierte** al habilitar
+    (DEC-L069). Si vence, la fecha es obligatoria al subir.
+  - Nada se borra: un documento se **anula con motivo** (queda en "Anulados" y
+    en `log_cambios`) y el archivo se conserva.
+  - Sin el bucket creado, solo la subida y la descarga fallan, con un mensaje claro.
+
+- **DEC-L070 — Selección F-LOG-03 y evaluación F-LOG-07 con plantillas configurables (2026-11-18, v0.55.0).**
+  - Decisión del usuario: se usan los **formatos corporativos de la V38.7**
+    (`proveedores-integrados.js`), no la tabla referencial del pedido:
+    - **F-LOG-03 v7 (selección)**: requisitos técnicos 50%, sistemas de gestión
+      7%, precio 15%, tiempo de atención 10%, tiempo en el mercado 3%,
+      condiciones de pago 4%, soporte y garantía 4%, reparto 3%, omisiones
+      SUNAT 4%.
+    - **F-LOG-07 v2 (desempeño)**: conformidad 60%, sin reclamos 10%, soporte
+      5%, entrega en plazo 5%, SST 3%, precio 8%, pago 3%, calidad 3%,
+      ambiental 3%.
+    - Cada criterio tiene sus respuestas con puntaje (0/10, 0/5/10, 0/3/7/10).
+  - Nota = Σ peso% × puntaje / 100 (2 decimales) en escala 0–10, nota
+    aprobatoria 6, próxima evaluación a 12 meses, aviso 30 días antes. Todo es
+    editable en Proveedores › Configurar (`plantilla_evaluacion`,
+    `plantilla_criterio`); los pesos deben sumar 100%. Guardar sube la versión.
+  - **Cada evaluación copia** formato, versión, escala, umbral y nombre, peso y
+    respuesta de cada criterio (`evaluacion_criterio`): editar la plantilla no
+    cambia el historial.
+  - Resultado: bajo la nota → No aprobado; con nota suficiente pero sin las dos
+    conformidades (Logística y área usuaria) → Conformidad pendiente; si no,
+    Aprobado. **Es informativo**: no habilita, no bloquea ni deshabilita.
+  - La selección se registra antes de habilitar (borrador, en revisión,
+    observado o habilitado); la de desempeño solo con el proveedor habilitado y
+    **sin exigir una OC recibida** (la V38.7 se contradice, PD-11). Fecha de
+    evaluación no futura; la próxima fecha se puede ajustar.
+  - **Vigencia** (calculada al leer, nunca guardada): última evaluación
+    registrada de cualquier tipo → Vigente / Por vencer (dentro de los días de
+    aviso) / Vencida / Sin evaluación. **Una evaluación vencida solo advierte**
+    (indicador "Por reevaluar"); no frena compras ni cambia el estado (PD-10).
+  - Una evaluación se **anula con motivo** (no se borra) y deja de contar para
+    la vigencia.
+
+- **DEC-L069 — Ciclo de incorporación y ficha única del proveedor (2026-11-18, v0.55.0).**
+  - Estados (`proveedor.status`, V37): **Borrador → Pendiente de revisión →
+    Habilitado / Observado / Rechazado**. Observado se corrige y se reenvía;
+    rechazado se puede reabrir a borrador con motivo (no se duplica el RUC). Un
+    rechazado no se edita ni se evalúa.
+  - **Compras no cambia**: sigue leyendo `active` (`GET /api/proveedores` con su
+    mismo contrato). Un check de la BD impide que un proveedor no habilitado
+    esté activo; habilitar lo activa y Activar/Desactivar (con motivo) sigue
+    para los habilitados. Los proveedores que ya existían quedan **Habilitados**
+    (con su activo/inactivo) y "Sin evaluación".
+  - Alta siempre como **Borrador** e inactivo. RUC único global, también contra
+    rechazados (el mensaje dice a quién pertenece y en qué estado). Enviar a
+    revisión exige un correo o teléfono.
+  - Decisión del usuario: habilitar **con advertencias** (sin selección, nota
+    bajo el umbral, conformidad pendiente, documento obligatorio faltante o
+    vencido) se permite **escribiendo el motivo** (`code =
+    HABILITAR_CON_ADVERTENCIAS`); las advertencias quedan en `log_cambios`.
+    Observar y rechazar siempre piden motivo.
+  - Decisión del usuario: habilitación y calificación **globales** (sirven a
+    TDEM, GOYDEL y METRIN), no por empresa como la V38.7 (PD-09).
+  - Solo LOGISTICA y ADMIN, como hasta ahora. La misma persona puede registrar
+    y habilitar (PD-13).
+  - Ficha: nombre comercial, contacto y cargo, teléfono, web, dirección,
+    ciudad, lo que ofrece, condición de pago, días de crédito, plazo de entrega
+    y garantía. **Categorías** (`proveedor_categoria`) con la clasificación del
+    catálogo (Familia o Familia/Subfamilia). **Productos que ofrece** = la misma
+    habilitación por producto de Compras (`proveedor_producto`, DEC-L039),
+    editable ahora también desde el proveedor.
+  - Toda acción va a `log_cambios` (entidad PROVEEDOR): crear, editar (solo lo
+    que cambió), categorías, productos, cada transición, evaluaciones y
+    documentos. El **historial de decisiones** de la ficha se lee de ahí.
+  - **Historial comercial y desempeño** se leen de Compras y Almacén sin copiar
+    datos: solicitudes respondidas y días de respuesta, cotizaciones, OC,
+    productos con su precio histórico (por moneda: no hay tipo de cambio),
+    cantidades atendidas (aceptado / ordenado), plazo real (liberación →
+    primera recepción), recepciones observadas, incidencias y tasa de
+    adjudicación. La "entrega en el plazo ofrecido" es **referencial**
+    (liberación + plazo de la cotización contra la primera recepción, solo en
+    las OC que tienen plazo): la OC no guarda una fecha comprometida (PD-14).
+    Lo que no se puede medir se muestra como pendiente, nunca inventado.
+
 - **DEC-L068 — Prioridad con tiempo de atención (SLA) y fecha que no se escribe (2026-11-18, v0.54.0).**
   - Decisión del usuario: tres prioridades con su plazo en **días hábiles**:
     **Urgente 2**, **Aprovisionamiento 10** e **Implementación 20**. Reemplazan
@@ -1684,6 +1775,21 @@ hardcodeadas), a validar antes de marchar en produccion:
   automatica via convenio.
 - PD-07 — Vida util de EPP (pendiente con SSOMA).
 - PD-08 — Si el solicitante externo tendra portal propio o solo tracking.
+- PD-09 — Habilitación y calificación de proveedores por empresa (hoy global,
+  DEC-L069; la V38.7 las maneja por proveedor + empresa).
+- PD-10 — Si una evaluación vencida debe frenar compras o deshabilitar al
+  proveedor (hoy solo advierte, DEC-L070).
+- PD-11 — Si la evaluación F-LOG-07 exige una OC recibida del proveedor (la
+  V38.7 lo exige en un lugar y lo hace opcional en otro).
+- PD-12 — Frecuencia de reevaluación según criticidad (hoy 12 meses para todos).
+- PD-13 — Separar quién registra de quién habilita un proveedor (hoy LOGISTICA
+  y ADMIN pueden hacer ambos).
+- PD-14 — Fecha de entrega comprometida en la OC; sin ella el cumplimiento de
+  plazo del proveedor es referencial.
+- PD-15 — Datos bancarios, cuenta de detracciones y consulta SUNAT automática
+  en la ficha del proveedor (fuera del Lote 19a).
+- PD-16 — Si el solicitante puede proponer proveedores nuevos (hoy solo
+  Logística/Admin los registran).
 - Pendiente adicional (RESUELTO por inspeccion directa del Excel, confirmar
   igual con Jonathan): la hoja `13_Catalogo_SKU` solo tiene 2 niveles de
   clasificacion antes del producto (`COD_FAMILIA`/`FAMILIA_FINAL` y

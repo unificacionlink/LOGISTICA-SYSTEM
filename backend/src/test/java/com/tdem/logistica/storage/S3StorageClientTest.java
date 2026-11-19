@@ -15,8 +15,10 @@ class S3StorageClientTest {
 
     @Test
     void sinCredencialesLaSubidaFallaConErrorDeValidacion() {
-        S3StorageClient client = new S3StorageClient("", "auto", "", "", "logistica-productos", "");
+        S3StorageClient client = new S3StorageClient("", "auto", "", "", "logistica-productos", "", "logistica-privado");
         assertThrows(ApiException.class, () -> client.subir("x/y.png", new byte[]{1}, "image/png"));
+        assertThrows(ApiException.class, () -> client.subirPrivado("proveedores/x.pdf", new byte[]{1}, "application/pdf"));
+        assertThrows(ApiException.class, () -> client.leerPrivado("proveedores/x.pdf"));
     }
 
     @Test
@@ -24,13 +26,13 @@ class S3StorageClientTest {
         assertDoesNotThrow(() -> new S3StorageClient(
                 "https://abcdefghij.storage.supabase.co/storage/v1/s3", "us-east-2", "key", "secret",
                 "logistica-productos",
-                "https://abcdefghij.supabase.co/storage/v1/object/public/logistica-productos").cerrar());
+                "https://abcdefghij.supabase.co/storage/v1/object/public/logistica-productos", "logistica-privado").cerrar());
     }
 
     @Test
     void construyeElClienteParaCloudflareR2() {
         assertDoesNotThrow(() -> new S3StorageClient(
                 "https://0123456789abcdef.r2.cloudflarestorage.com", "auto", "key", "secret",
-                "productos", "https://img.ejemplo.com").cerrar());
+                "productos", "https://img.ejemplo.com", "privado").cerrar());
     }
 }

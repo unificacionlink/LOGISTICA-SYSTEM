@@ -1,7 +1,9 @@
 package com.tdem.logistica.modules.proveedores.dto;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/** Proveedor completo. Compras sigue usando los mismos campos de siempre (los nuevos van al final). */
 public record ProveedorDto(
         UUID supplierId,
         String ruc,
@@ -11,5 +13,21 @@ public record ProveedorDto(
         String whatsappPhone,
         String supplierType,
         String preferredDeliveryMode,
-        boolean active) {
+        boolean active,
+        String tradeName,
+        String contactRole,
+        String phone,
+        String website,
+        String address,
+        String city,
+        String offeringDescription,
+        String paymentCondition,
+        Integer creditDays,
+        Integer leadDays,
+        String warrantyTerms,
+        String status,
+        String statusReason,
+        OffsetDateTime submittedAt,
+        OffsetDateTime decidedAt,
+        OffsetDateTime createdAt) {
 }

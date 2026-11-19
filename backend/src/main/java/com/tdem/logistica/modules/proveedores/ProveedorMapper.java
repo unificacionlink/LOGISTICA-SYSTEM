@@ -18,6 +18,22 @@ public final class ProveedorMapper {
                 p.getWhatsappPhone(),
                 p.getSupplierType(),
                 p.getPreferredDeliveryMode(),
-                p.isActive());
+                p.isActive(),
+                p.getTradeName(),
+                p.getContactRole(),
+                p.getPhone(),
+                p.getWebsite(),
+                p.getAddress(),
+                p.getCity(),
+                p.getOfferingDescription(),
+                p.getPaymentCondition(),
+                p.getCreditDays(),
+                p.getLeadDays(),
+                p.getWarrantyTerms(),
+                p.getStatus(),
+                p.getStatusReason(),
+                p.getSubmittedAt(),
+                p.getDecidedAt(),
+                p.getCreatedAt());
     }
 }

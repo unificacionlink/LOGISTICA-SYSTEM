@@ -54,6 +54,15 @@ public final class AppConstants {
         public static final String GERENCIA = "GERENCIA";
     }
 
+    /** Ciclo de incorporacion del proveedor (DEC-L069), fiel al check de proveedor.status. */
+    public static final class EstadoProveedor {
+        public static final String BORRADOR = "BORRADOR";
+        public static final String PENDIENTE_REVISION = "PENDIENTE_REVISION";
+        public static final String HABILITADO = "HABILITADO";
+        public static final String OBSERVADO = "OBSERVADO";
+        public static final String RECHAZADO = "RECHAZADO";
+    }
+
     public static final class EstadoAprobacion {
         public static final String PENDIENTE = "PENDIENTE";
         public static final String APROBADO = "APROBADO";

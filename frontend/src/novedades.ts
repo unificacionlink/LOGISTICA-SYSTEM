@@ -13,6 +13,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.55.0",
+    titulo: "Proveedores: incorporación, evaluación y desempeño",
+    cambios: [
+      "Proveedores muestra cuántos hay registrados, habilitados, en revisión y por reevaluar, y se busca por RUC, razón social, producto o categoría.",
+      "Un proveedor nuevo pasa por borrador, revisión y habilitación; solo los habilitados aparecen en Compras. Si falta algo para habilitarlo, el sistema lo advierte y pide el motivo.",
+      "Cada proveedor tiene su ficha con datos, documentos, selección (F-LOG-03), evaluaciones (F-LOG-07), compras y desempeño.",
+      "La nota se calcula sola con los criterios y pesos de los formatos, y avisa cuándo toca reevaluar. Una evaluación vencida solo advierte: no frena compras.",
+      "Los documentos del proveedor se guardan de forma privada y se descargan solo desde la plataforma.",
+    ],
+  },
+  {
     version: "0.54.0",
     titulo: "Prioridad con tiempo de atención",
     cambios: [

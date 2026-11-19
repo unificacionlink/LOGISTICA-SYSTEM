@@ -22,6 +22,7 @@ import {
   CatalogoProductos,
   Proveedores,
   ProveedorForm,
+  ProveedorFicha,
   Compras,
   ComprasCajaChica,
   ComprasConsolidado,
@@ -78,6 +79,7 @@ export default function App() {
               <Route path="/proveedores" element={<Proveedores />} />
               <Route path="/proveedores/nuevo" element={<ProveedorForm />} />
               <Route path="/proveedores/:id/editar" element={<ProveedorForm />} />
+              <Route path="/proveedores/:id" element={<ProveedorFicha />} />
               <Route path="/compras" element={<Compras />} />
               <Route path="/compras/requerimientos/:id/caja-chica" element={<ComprasCajaChica />} />
               <Route path="/compras/consolidados/:id" element={<ComprasConsolidado />} />

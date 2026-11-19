@@ -52,6 +52,11 @@ Variables de entorno a configurar en Render (nunca en el repo):
 un unico servicio, pero se deja definible), `COOKIE_SECURE=true` y las
 `STORAGE_*`.
 
+Documentos de proveedores (DEC-L071): crear en el Storage de RR.HH. un bucket
+**privado** (sin acceso público) llamado `logistica-privado`, o el nombre que se
+ponga en `STORAGE_PRIVATE_BUCKET`. Usa las mismas llaves S3; sin el bucket, solo
+la subida y descarga de documentos de proveedores falla.
+
 Pendiente (2026-09-24): el despliegue en Render se decide al acercarse la
 marcha blanca. Render cobra por servicio y no se puede compartir el de RRHH
 (es otra app, en Node).
@@ -163,7 +168,8 @@ pasa a tener su propio equipo o presupuesto.
    cambios de codigo.**
 5. Verificar (login + un requerimiento) y recien entonces, desde la BD de
    RRHH: `drop schema logistica cascade; drop role logistica_app;`.
-6. Storage: si tambien se muda, copiar el bucket `logistica-productos` (p.
+6. Storage: si tambien se muda, copiar los buckets `logistica-productos` y
+   `logistica-privado` (p.
    ej. con `rclone` sobre la API S3) y actualizar `documento.file_url` con un
    `update ... set file_url = replace(file_url, '<url_vieja>', '<url_nueva>')`.
 

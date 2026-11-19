@@ -232,6 +232,266 @@ export interface Proveedor {
   supplierType: "CRITICO" | "NO_CRITICO";
   preferredDeliveryMode: "AGENCIA" | "ALMACEN" | "RECOJO" | null;
   active: boolean;
+  tradeName: string | null;
+  contactRole: string | null;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  city: string | null;
+  offeringDescription: string | null;
+  paymentCondition: string | null;
+  creditDays: number | null;
+  leadDays: number | null;
+  warrantyTerms: string | null;
+  status: EstadoProveedor;
+  statusReason: string | null;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+}
+
+/** Ciclo de incorporacion del proveedor (DEC-L069). */
+export type EstadoProveedor = "BORRADOR" | "PENDIENTE_REVISION" | "HABILITADO" | "OBSERVADO" | "RECHAZADO";
+
+/** Vigencia de la calificacion o de un documento (DEC-L070). */
+export type Vigencia = "VIGENTE" | "PROXIMO_A_VENCER" | "VENCIDO" | "SIN_EVALUACION";
+
+export type TipoEvaluacion = "SELECCION" | "DESEMPENO";
+
+export type ResultadoEvaluacion = "APROBADO" | "NO_APROBADO" | "PENDIENTE_CONFORMIDAD";
+
+export interface FilaProveedor {
+  supplierId: string;
+  ruc: string;
+  legalName: string;
+  tradeName: string | null;
+  contacto: string | null;
+  supplierType: "CRITICO" | "NO_CRITICO";
+  status: EstadoProveedor;
+  active: boolean;
+  city: string | null;
+  productos: number;
+  categorias: string | null;
+  busqueda: string | null;
+  ultimaNota: number | null;
+  escala: number | null;
+  ultimoResultado: ResultadoEvaluacion | null;
+  ultimoTipo: TipoEvaluacion | null;
+  ultimaEvaluacion: string | null;
+  proximaEvaluacion: string | null;
+  vigencia: Vigencia;
+}
+
+export interface PanelProveedores {
+  hoy: string;
+  kpis: {
+    registrados: number;
+    habilitados: number;
+    enRevision: number;
+    porVencer: number;
+    vencidas: number;
+    sinEvaluacion: number;
+  };
+  proveedores: FilaProveedor[];
+}
+
+export interface EvaluacionResumen {
+  evaluationId: string;
+  kind: TipoEvaluacion;
+  templateCode: string;
+  evaluatedAt: string;
+  finalScore: number;
+  scaleMax: number;
+  threshold: number;
+  result: ResultadoEvaluacion;
+  nextEvaluationDate: string;
+}
+
+export interface FichaProveedor {
+  proveedor: Proveedor;
+  categorias: { productTypeId: string; familyId: string | null; tipo: string; familia: string | null }[];
+  productos: { productId: string; skuBase: string; nombre: string; tipo: string; familia: string }[];
+  ultimaSeleccion: EvaluacionResumen | null;
+  ultimaEvaluacion: EvaluacionResumen | null;
+  vigencia: Vigencia;
+  proximaEvaluacion: string | null;
+  advertencias: string[];
+}
+
+export interface EvaluacionProveedor {
+  evaluationId: string;
+  kind: TipoEvaluacion;
+  templateCode: string;
+  templateVersion: number;
+  evaluatedAt: string;
+  evaluador: string | null;
+  area: string | null;
+  scope: string | null;
+  userAreaReviewer: string | null;
+  logisticsConformity: "SI" | "NO" | null;
+  userAreaConformity: "SI" | "NO" | null;
+  finalScore: number;
+  scaleMax: number;
+  threshold: number;
+  result: ResultadoEvaluacion;
+  observations: string | null;
+  nextEvaluationDate: string;
+  status: "REGISTRADA" | "ANULADA";
+  voidReason: string | null;
+  voidedAt: string | null;
+  criterios: {
+    sortOrder: number;
+    criterionName: string;
+    weight: number;
+    score: number;
+    scoreLabel: string | null;
+    observation: string | null;
+  }[];
+}
+
+export interface PlantillaEvaluacion {
+  templateId: string;
+  kind: TipoEvaluacion;
+  code: string;
+  version: number;
+  name: string;
+  scaleMax: number;
+  approvalThreshold: number;
+  validityMonths: number;
+  alertDays: number;
+  criterios: {
+    criterionId: string;
+    sortOrder: number;
+    name: string;
+    weight: number;
+    opciones: { score: number; label: string }[];
+  }[];
+}
+
+export interface RequisitoDocumento {
+  requirementId: string;
+  name: string;
+  description: string | null;
+  required: boolean;
+  hasExpiry: boolean;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface ConfiguracionProveedores {
+  plantillas: PlantillaEvaluacion[];
+  requisitos: RequisitoDocumento[];
+}
+
+export interface DocumentosProveedor {
+  requisitos: {
+    requirementId: string;
+    name: string;
+    description: string | null;
+    required: boolean;
+    hasExpiry: boolean;
+    estado: "FALTA" | Vigencia;
+    supplierDocumentId: string | null;
+    expiresAt: string | null;
+  }[];
+  documentos: {
+    supplierDocumentId: string;
+    fileName: string;
+    mimeType: string | null;
+    requirementId: string | null;
+    requisito: string | null;
+    evaluationId: string | null;
+    issuedAt: string | null;
+    expiresAt: string | null;
+    notes: string | null;
+    status: "ACTIVO" | "ANULADO";
+    voidReason: string | null;
+    subidoPor: string | null;
+    createdAt: string;
+    vigencia: Vigencia;
+  }[];
+}
+
+export interface HistorialProveedor {
+  accion: string;
+  estadoAntes: string | null;
+  estadoDespues: string | null;
+  motivo: string | null;
+  usuario: string | null;
+  fecha: string;
+}
+
+export interface ProductoDisponible {
+  productId: string;
+  skuBase: string;
+  nombre: string;
+  tipo: string;
+  familia: string;
+}
+
+export interface ComprasProveedor {
+  rfqs: { enviadas: number; respondidas: number; diasRespuestaPromedio: number | null };
+  totales: { moneda: string; ordenes: number; total: number }[];
+  cotizaciones: {
+    quotationId: string;
+    rfqCode: string;
+    numero: string | null;
+    recibida: string | null;
+    moneda: string;
+    total: number;
+    plazoDias: number | null;
+    vigenteHasta: string | null;
+    status: string;
+  }[];
+  ordenes: {
+    orderId: string;
+    orderCode: string;
+    empresa: string;
+    emitida: string;
+    status: string;
+    moneda: string;
+    total: number;
+    pago: string;
+    aprobada: string | null;
+    liberada: string | null;
+    primeraRecepcion: string | null;
+  }[];
+  productos: {
+    productId: string;
+    skuBase: string;
+    nombre: string;
+    variante: string | null;
+    moneda: string;
+    ordenes: number;
+    cantidad: number;
+    ultimoPrecio: number;
+    precioMinimo: number;
+    precioMaximo: number;
+    ultimaCompra: string;
+    precios: { fecha: string; precio: number; orderCode: string }[];
+  }[];
+}
+
+export interface DesempenoProveedor {
+  ordenes: number;
+  ordenesConRecepcion: number;
+  cantidadOrdenada: number;
+  cantidadRecibida: number;
+  atencionPct: number | null;
+  recepciones: number;
+  recepcionesObservadas: number;
+  incidencias: {
+    total: number;
+    abiertas: number;
+    cerradas: number;
+    diasCierrePromedio: number | null;
+    porTipo: { tipo: string; cantidad: number }[];
+  };
+  plazoRealPromedioDias: number | null;
+  plazoOfrecido: { ordenesConPlazo: number; dentroDelPlazo: number };
+  cotizaciones: number;
+  cotizacionesAdjudicadas: number;
+  pendientes: { indicador: string; motivo: string }[];
 }
 
 export interface Moneda {

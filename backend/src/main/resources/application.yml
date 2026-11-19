@@ -86,3 +86,5 @@ app:
     secret-access-key: ${STORAGE_SECRET_ACCESS_KEY:}
     bucket: ${STORAGE_BUCKET:logistica-productos}
     public-url: ${STORAGE_PUBLIC_URL:}
+    # Bucket PRIVADO para documentos de proveedores (DEC-L071): solo lo lee el backend.
+    private-bucket: ${STORAGE_PRIVATE_BUCKET:logistica-privado}

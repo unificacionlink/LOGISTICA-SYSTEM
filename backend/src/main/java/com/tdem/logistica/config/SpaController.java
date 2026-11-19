@@ -35,6 +35,7 @@ public class SpaController {
             "/proveedores",
             "/proveedores/nuevo",
             "/proveedores/{id}/editar",
+            "/proveedores/{id}",
             "/compras",
             "/compras/requerimientos/{id}/caja-chica",
             "/compras/consolidados/{id}",
