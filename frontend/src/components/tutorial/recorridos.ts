@@ -122,7 +122,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/compras?tab=consolidados",
         ancla: "compras-acciones",
         titulo: "Cotizar y comparar",
-        texto: "Marca los productos y pide cotización a sus proveedores, o sube hasta 3 cotizaciones para compararlas y adjudicar.",
+        texto: "Marca los productos y pide cotización eligiendo a qué proveedores, o sube hasta 3 cotizaciones para compararlas y adjudicar.",
       },
       {
         ruta: "/compras?tab=solicitudes",

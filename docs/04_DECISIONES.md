@@ -5,6 +5,31 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L082 — Logística elige a qué proveedores pedir cada cotización (2026-11-20, v0.64.0).**
+  - Decisión del usuario: los proveedores se asocian a los productos por las
+    familias del catálogo que atienden (carga inicial desde las categorías de
+    los módulos de TDEM y GOYDEL), y al pedir cotización Logística marca a
+    cuáles. Antes se armaba una solicitud para cada proveedor habilitado del
+    producto, lo que con la asociación por familia serían decenas.
+  - `POST /api/compras/consolidados/candidatos` lista los habilitados de los
+    consolidados elegidos (primero los que cubren más productos, luego los
+    críticos); `PrepararSolicitudesRequest.supplierIds` restringe a los
+    elegidos y exige que cada producto quede con al menos uno. Sin
+    `supplierIds` se comporta como antes.
+  - Críticos (decisión del usuario): la hoja de categorías críticas del Excel
+    marca todas como "TRI NORMA", así que se tomaron las que tocan seguridad:
+    EPP, calzado, uniforme, arnés, herramienta, equipos eléctricos, equipo de
+    seguridad y servicios de calibración.
+
+- **DEC-L081 — Empresa del proveedor (2026-11-20, v0.64.0).**
+  - `proveedor.company_id` (V45): en qué empresa se registró. Filtra la
+    pantalla de Proveedores y sus indicadores; **no restringe compras**.
+  - Carga inicial (decisión del usuario): los repetidos en los módulos de TDEM
+    y GOYDEL quedan en TDEM, con los datos de TDEM (se revirtieron las
+    categorías de GOYDEL que se les habían sumado); solo los que venían
+    únicamente de GOYDEL son de GOYDEL. Un proveedor nuevo es de TDEM si no
+    se indica otra.
+
 - **DEC-L080 — Orden de compra directa (2026-11-20, v0.63.0).**
   - Decisión del usuario: Logística puede emitir una OC sin solicitud de
     cotización, con productos del catálogo y/o servicios (texto libre). Sale

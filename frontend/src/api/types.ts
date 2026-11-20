@@ -248,6 +248,8 @@ export interface Proveedor {
   submittedAt: string | null;
   decidedAt: string | null;
   createdAt: string;
+  /** Empresa en la que se registro (DEC-L081): solo clasifica, no restringe compras. */
+  empresaCode: string | null;
 }
 
 /** Ciclo de incorporacion del proveedor (DEC-L069). */
@@ -280,6 +282,7 @@ export interface FilaProveedor {
   ultimaEvaluacion: string | null;
   proximaEvaluacion: string | null;
   vigencia: Vigencia;
+  empresaCode: string | null;
 }
 
 export interface PanelProveedores {
@@ -663,6 +666,16 @@ export interface Adjudicacion {
   qty: number;
   unitCost: number;
   lineTotal: number;
+}
+
+/** Proveedor al que se le puede pedir cotizacion (DEC-L082); consolidados = los que cubre. */
+export interface CandidatoRfq {
+  supplierId: string;
+  nombre: string;
+  ruc: string;
+  critico: boolean;
+  empresaCode: string | null;
+  consolidados: string[];
 }
 
 export interface Consolidado {

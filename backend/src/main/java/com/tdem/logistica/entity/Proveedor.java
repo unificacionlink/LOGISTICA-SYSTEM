@@ -100,4 +100,9 @@ public class Proveedor {
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    /** Empresa en la que se registro (DEC-L081): solo clasifica, no restringe compras. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Empresa empresa;
 }

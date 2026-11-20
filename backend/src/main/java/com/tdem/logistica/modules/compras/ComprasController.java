@@ -138,11 +138,19 @@ public class ComprasController {
         return ApiResponse.ok(abastecimiento.obtenerConsolidado(id, principal));
     }
 
+    /** A quienes se les puede pedir cotizacion de los consolidados elegidos (DEC-L082). */
+    @PostMapping("/consolidados/candidatos")
+    public ApiResponse<List<CandidatoRfqDto>> candidatosRfq(
+            @Valid @RequestBody CandidatosRfqRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(abastecimiento.candidatos(request.consolidationIds(), principal));
+    }
+
     @PostMapping("/consolidados/solicitudes")
     public ApiResponse<List<RfqDto>> prepararSolicitudes(
             @Valid @RequestBody PrepararSolicitudesRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        List<RfqDto> rfqs = abastecimiento.prepararSolicitudes(request.consolidationIds(), principal);
+        List<RfqDto> rfqs = abastecimiento.prepararSolicitudes(request.consolidationIds(), request.supplierIds(), principal);
         return ApiResponse.ok(rfqs, rfqs.size() == 1 ? "1 solicitud de cotizacion preparada."
                 : rfqs.size() + " solicitudes de cotizacion preparadas.");
     }

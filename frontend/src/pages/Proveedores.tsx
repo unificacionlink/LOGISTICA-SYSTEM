@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Truck, UserPlus } from "lucide-react";
 import { obtenerPanelProveedores } from "../api/proveedores";
 import type { FilaProveedor } from "../api/types";
+import { EMPRESAS } from "../components/empresas";
 import { fmtDia } from "../components/formato";
 import { fmtNota } from "../components/proveedores/estados";
 import { EstadoProveedorBadge, VigenciaBadge } from "../components/proveedores/Insignias";
@@ -86,6 +87,8 @@ export default function Proveedores() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const filtro = (params.get("filtro") as Filtro | null) ?? "todos";
+  // DEC-L081: empresa en la que se registro el proveedor; "" = todas.
+  const empresa = params.get("empresa") ?? "";
   const panelDatos = useDatos("proveedores-panel", obtenerPanelProveedores);
   const panel = panelDatos.datos;
   const error = panelDatos.error;
@@ -94,21 +97,43 @@ export default function Proveedores() {
   const busquedaDiferido = useDeferredValue(busqueda);
   const [configurando, setConfigurando] = useState(false);
 
-  function filtrar(f: Filtro) {
-    setParams(f === "todos" ? {} : { filtro: f }, { replace: true });
+  function filtrar(f: Filtro, emp: string = empresa) {
+    const p: Record<string, string> = {};
+    if (f !== "todos") p.filtro = f;
+    if (emp) p.empresa = emp;
+    setParams(p, { replace: true });
   }
+
+  const deEmpresa = useMemo(
+    () => (panel ? panel.proveedores.filter((p) => !empresa || p.empresaCode === empresa) : []),
+    [panel, empresa],
+  );
+
+  // Los indicadores siguen a la empresa elegida (misma regla que el servidor).
+  const k = useMemo(() => {
+    if (!panel) return null;
+    if (!empresa) return panel.kpis;
+    const habil = deEmpresa.filter(operativo);
+    return {
+      registrados: deEmpresa.length,
+      habilitados: habil.length,
+      enRevision: deEmpresa.filter(CUMPLE.revision).length,
+      porVencer: habil.filter((p) => p.vigencia === "PROXIMO_A_VENCER").length,
+      vencidas: habil.filter((p) => p.vigencia === "VENCIDO").length,
+      sinEvaluacion: habil.filter((p) => p.vigencia === "SIN_EVALUACION").length,
+    };
+  }, [panel, empresa, deEmpresa]);
 
   const visibles = useMemo(() => {
     if (!panel) return [];
     const q = normal(busquedaDiferido.trim());
-    return panel.proveedores.filter((p) => {
+    return deEmpresa.filter((p) => {
       if (!(CUMPLE[filtro] ?? CUMPLE.todos)(p)) return false;
       if (!q) return true;
       return normal([p.ruc, p.legalName, p.tradeName, p.categorias, p.busqueda].filter(Boolean).join(" ")).includes(q);
     });
-  }, [panel, busquedaDiferido, filtro]);
+  }, [panel, deEmpresa, busquedaDiferido, filtro]);
 
-  const k = panel?.kpis;
   const filtroMas = FILTROS_MAS.find((f) => f.id === filtro);
 
   return (
@@ -165,6 +190,19 @@ export default function Proveedores() {
               aria-label="Buscar proveedor"
             />
           </div>
+          <select
+            className={`${inputClass} sm:w-44`}
+            value={empresa}
+            onChange={(e) => filtrar(filtro, e.target.value)}
+            aria-label="Empresa"
+          >
+            <option value="">Todas las empresas</option>
+            {EMPRESAS.map((e) => (
+              <option key={e.code} value={e.code}>
+                {e.label}
+              </option>
+            ))}
+          </select>
           <div className="flex items-center gap-1">
             {FILTROS_VISIBLES.map((f) => (
               <button
@@ -233,6 +271,11 @@ export default function Proveedores() {
                         {p.legalName}
                       </button>
                       <span className="font-mono text-xs text-slate-500">{p.ruc}</span>
+                      {!empresa && p.empresaCode && (
+                        <span className="ml-2 text-xs text-slate-400">
+                          {EMPRESAS.find((e) => e.code === p.empresaCode)?.label ?? p.empresaCode}
+                        </span>
+                      )}
                       {p.supplierType === "CRITICO" && <span className="ml-2 text-xs font-medium text-amber-700">Crítico</span>}
                     </td>
                     <td className="max-w-[16rem] truncate px-5 py-3 text-slate-600" title={p.categorias ?? undefined}>

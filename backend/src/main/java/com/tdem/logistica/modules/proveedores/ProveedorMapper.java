@@ -34,6 +34,7 @@ public final class ProveedorMapper {
                 p.getStatusReason(),
                 p.getSubmittedAt(),
                 p.getDecidedAt(),
-                p.getCreatedAt());
+                p.getCreatedAt(),
+                p.getEmpresa() != null ? p.getEmpresa().getCode() : null);
     }
 }

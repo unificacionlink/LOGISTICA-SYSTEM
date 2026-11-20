@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import CampoNumero from "../ui/CampoNumero";
 import Field, { inputClass } from "../ui/Field";
 import type { DatosProveedor } from "./datosProveedor";
+import { EMPRESAS } from "../empresas";
 
 /** Seccion plegable: el formulario no se ve largo de golpe (ley de Hick). */
 function Seccion({ titulo, abierta = false, children }: { titulo: string; abierta?: boolean; children: ReactNode }) {
@@ -63,6 +64,15 @@ export default function FormularioProveedor({
           <select className={`${inputClass} w-full`} value={datos.supplierType} onChange={(e) => set("supplierType")(e.target.value)}>
             <option value="NO_CRITICO">No crítico</option>
             <option value="CRITICO">Crítico</option>
+          </select>
+        </Field>
+        <Field label="Empresa">
+          <select className={`${inputClass} w-full`} value={datos.empresaCode} onChange={(e) => set("empresaCode")(e.target.value)}>
+            {EMPRESAS.map((e) => (
+              <option key={e.code} value={e.code}>
+                {e.label}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Razón social" required className="sm:col-span-2">

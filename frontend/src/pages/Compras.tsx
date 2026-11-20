@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useDatos } from "../api/useDatos";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import PanelPedirCotizacion from "../components/compras/PanelPedirCotizacion";
 import { ClipboardList, FileQuestion, Layers, ListTodo, Scale, Send, Wallet } from "lucide-react";
 import { listarCajaChica, obtenerReglaCajaChica } from "../api/cajachica";
 import {
@@ -126,13 +127,22 @@ export default function Compras() {
     return ejecutar(n.needId, () => dividirNecesidad(n.needId, unidades), ["necesidades"]);
   }
 
-  async function onPreparar() {
+  // DEC-L082: antes de pedir la cotizacion, Logistica elige a que proveedores.
+  const [eligiendo, setEligiendo] = useState(false);
+
+  async function onPreparar(supplierIds: string[]) {
     const ids = Array.from(seleccion);
-    const ok = await ejecutar("__preparar__", () => prepararSolicitudes(ids), ["necesidades", "consolidados", "rfqs"]);
+    const ok = await ejecutar(
+      "__preparar__",
+      () => prepararSolicitudes(ids, supplierIds),
+      ["necesidades", "consolidados", "rfqs"],
+    );
     if (ok) {
+      setEligiendo(false);
       setSeleccion(new Set());
       irA("solicitudes");
     }
+    return ok;
   }
 
   async function onEmitir(p: PorEmitir) {
@@ -220,10 +230,17 @@ export default function Compras() {
             consolidados={consolidados}
             seleccion={seleccion}
             onSeleccion={setSeleccion}
-            onPreparar={onPreparar}
+            onPreparar={() => setEligiendo(true)}
             preparando={procesando === "__preparar__"}
           />
         </div>
+      )}
+      {eligiendo && (
+        <PanelPedirCotizacion
+          consolidados={consolidados.filter((c) => seleccion.has(c.consolidationId))}
+          onCerrar={() => setEligiendo(false)}
+          onConfirmar={onPreparar}
+        />
       )}
     </div>
   );
@@ -530,7 +547,7 @@ function TablaConsolidados({
               disabled={!soloAbiertos}
               loading={preparando}
               onClick={onPreparar}
-              title="Crea una solicitud por cada proveedor habilitado"
+              title="Elige a qué proveedores pedir la cotización"
             >
               Pedir cotización
             </Button>

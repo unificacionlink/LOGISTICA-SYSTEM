@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.64.0",
+    titulo: "Proveedores por empresa y cotizaciones a quien elijas",
+    cambios: [
+      "En Proveedores se puede filtrar por empresa; los indicadores siguen al filtro. Cada proveedor indica en qué empresa se registró.",
+      "Al pedir cotización, Compras muestra los proveedores que atienden esos productos (primero los que cubren más) y tú marcas a cuáles pedirla.",
+      "Los proveedores ya están clasificados por las familias del catálogo y los de seguridad figuran como críticos.",
+    ],
+  },
+  {
     version: "0.63.0",
     titulo: "Orden de compra directa",
     cambios: [

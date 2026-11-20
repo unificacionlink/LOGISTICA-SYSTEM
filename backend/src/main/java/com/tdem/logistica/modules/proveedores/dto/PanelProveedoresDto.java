@@ -34,6 +34,8 @@ public record PanelProveedoresDto(LocalDate hoy, Kpis kpis, List<Fila> proveedor
             LocalDate ultimaEvaluacion,
             LocalDate proximaEvaluacion,
             /** VIGENTE, PROXIMO_A_VENCER, VENCIDO o SIN_EVALUACION. */
-            String vigencia) {
+            String vigencia,
+            /** Empresa en la que se registro (DEC-L081). */
+            String empresaCode) {
     }
 }

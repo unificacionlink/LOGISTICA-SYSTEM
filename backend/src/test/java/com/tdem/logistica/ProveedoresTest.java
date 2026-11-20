@@ -103,6 +103,19 @@ class ProveedoresTest {
 		// Un borrador no existe para Compras.
 		assertTrue(proveedores.listar(log).stream().noneMatch(x -> x.supplierId().equals(p.supplierId())));
 		assertTrue(fichas.panel(log).proveedores().stream().anyMatch(x -> x.supplierId().equals(p.supplierId())));
+		// DEC-L081: sin empresa indicada se registra en TDEM; al editar se puede cambiar.
+		assertEquals("TDEMSRL", p.empresaCode());
+		GuardarProveedorRequest base = solicitud("20600000001", "Nuevo SAC", null);
+		GuardarProveedorRequest goydel = new GuardarProveedorRequest(base.ruc(), base.legalName(), null, base.contactName(),
+				null, null, null, null, null, base.address(), base.city(), base.supplierType(), null,
+				base.offeringDescription(), base.paymentCondition(), base.creditDays(), base.leadDays(), base.warrantyTerms(),
+				"GOYDELSAC");
+		assertEquals("GOYDELSAC", proveedores.actualizar(p.supplierId(), goydel, log).empresaCode());
+		assertEquals("GOYDELSAC", fichas.panel(log).proveedores().stream()
+				.filter(x -> x.supplierId().equals(p.supplierId())).findFirst().orElseThrow().empresaCode());
+		assertThrows(ApiException.class, () -> proveedores.actualizar(p.supplierId(), new GuardarProveedorRequest(
+				base.ruc(), base.legalName(), null, null, null, null, null, null, null, null, null, null, null, null, null,
+				null, null, null, "NO-EXISTE"), log));
 
 		// RUC unico global, con el nombre y estado del que ya existe.
 		ApiException duplicado = assertThrows(ApiException.class,
@@ -402,7 +415,7 @@ class ProveedoresTest {
 
 	private static GuardarProveedorRequest solicitud(String ruc, String nombre, String correo) {
 		return new GuardarProveedorRequest(ruc, nombre, null, "Contacto", null, correo, null, null, null, "Av. Lima 1",
-				"Lima", "NO_CRITICO", null, "Ferreteria", "Credito 30 dias", 30, 3, "12 meses");
+				"Lima", "NO_CRITICO", null, "Ferreteria", "Credito 30 dias", 30, 3, "12 meses", null);
 	}
 
 	private static RegistrarEvaluacionRequest evaluacion(String kind, PlantillaDto t, Function<Integer, Number> nota,

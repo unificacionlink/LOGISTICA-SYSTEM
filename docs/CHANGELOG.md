@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.64.0 — 2026-11-20
+
+Empresa del proveedor y elección de proveedores al pedir cotización (DEC-L081, DEC-L082).
+
+- `V45__proveedor_empresa.sql`: `proveedor.company_id` (repetidos TDEM/GOYDEL → TDEM).
+- `ProveedorDto`/`GuardarProveedorRequest.empresaCode`; la lista de Compras trae la empresa en la misma consulta (`@EntityGraph`). Panel de Proveedores con `empresaCode`.
+- `AbastecimientoService.candidatos` + `POST /api/compras/consolidados/candidatos`; `prepararSolicitudes(..., supplierIds, ...)` restringe a los elegidos.
+- Frontend: filtro por empresa en Proveedores (indicadores incluidos) y campo Empresa en la ficha; panel "Pedir cotización" (`PanelPedirCotizacion`) para marcar proveedores; paso del recorrido actualizado.
+- Datos (2026-11-20): 22 contactos que eran números de contrato de alquiler vehicular pasan a "qué ofrece"; 77 proveedores clasificados en familias del catálogo y 55 críticos. Tras el deploy: `enlaces_producto.sql` (6 238 asociaciones proveedor-producto).
+- Tests: `ProveedoresTest` (empresa por defecto y edición), `ConsolidacionComprasTest.logisticaEligeAQuienPedirCotizacion`; `MigracionesFlywayTest` cuenta 45.
+
 ## 0.63.0 — 2026-11-20
 
 Orden de compra directa (DEC-L080).

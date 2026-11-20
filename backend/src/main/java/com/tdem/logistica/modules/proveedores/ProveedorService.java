@@ -3,11 +3,13 @@ package com.tdem.logistica.modules.proveedores;
 import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.common.AppConstants.EstadoProveedor;
 import com.tdem.logistica.common.Auditoria;
+import com.tdem.logistica.entity.Empresa;
 import com.tdem.logistica.entity.Proveedor;
 import com.tdem.logistica.modules.proveedores.dto.GuardarProveedorRequest;
 import com.tdem.logistica.modules.proveedores.dto.ProveedorDto;
 import com.tdem.logistica.modules.proveedores.dto.SolicitudesProveedor.CategoriaItem;
 import com.tdem.logistica.modules.proveedores.dto.SolicitudesProveedor.ProductoDisponible;
+import com.tdem.logistica.repository.EmpresaRepository;
 import com.tdem.logistica.repository.ProveedorRepository;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -43,12 +45,18 @@ public class ProveedorService {
             EstadoProveedor.OBSERVADO, "observado",
             EstadoProveedor.RECHAZADO, "rechazado");
 
+    /** Empresa por defecto de un proveedor nuevo (DEC-L081). */
+    static final String EMPRESA_POR_DEFECTO = "TDEMSRL";
+
     private final ProveedorRepository proveedorRepository;
+    private final EmpresaRepository empresaRepository;
     private final JdbcTemplate jdbc;
     private final Auditoria auditoria;
 
-    public ProveedorService(ProveedorRepository proveedorRepository, JdbcTemplate jdbc, Auditoria auditoria) {
+    public ProveedorService(ProveedorRepository proveedorRepository, EmpresaRepository empresaRepository,
+                            JdbcTemplate jdbc, Auditoria auditoria) {
         this.proveedorRepository = proveedorRepository;
+        this.empresaRepository = empresaRepository;
         this.jdbc = jdbc;
         this.auditoria = auditoria;
     }
@@ -74,6 +82,7 @@ public class ProveedorService {
         Proveedor p = new Proveedor();
         p.setSupplierId(UUID.randomUUID());
         aplicar(p, request);
+        p.setEmpresa(empresa(request.empresaCode() != null ? request.empresaCode() : EMPRESA_POR_DEFECTO));
         // Nace como solicitud: no aparece en Compras hasta que se habilite.
         p.setStatus(EstadoProveedor.BORRADOR);
         p.setActive(false);
@@ -98,6 +107,9 @@ public class ProveedorService {
         }
         Map<String, Object> antes = foto(p);
         aplicar(p, request);
+        if (request.empresaCode() != null) {
+            p.setEmpresa(empresa(request.empresaCode()));
+        }
         p.setUpdatedAt(OffsetDateTime.now());
         proveedorRepository.save(p);
         Map<String, Object> despues = foto(p);
@@ -224,6 +236,12 @@ public class ProveedorService {
         }
     }
 
+    private Empresa empresa(String code) {
+        return empresaRepository.findByCode(code.trim())
+                .filter(Empresa::isActive)
+                .orElseThrow(() -> ApiException.badRequest("Empresa no valida."));
+    }
+
     private static void aplicar(Proveedor p, GuardarProveedorRequest r) {
         p.setRuc(r.ruc().trim());
         p.setLegalName(r.legalName().trim());
@@ -249,6 +267,7 @@ public class ProveedorService {
     private static Map<String, Object> foto(Proveedor p) {
         Map<String, Object> m = new HashMap<>();
         m.put("ruc", p.getRuc());
+        m.put("empresa", p.getEmpresa() != null ? p.getEmpresa().getCode() : null);
         m.put("razonSocial", p.getLegalName());
         m.put("nombreComercial", p.getTradeName());
         m.put("contacto", p.getContactName());

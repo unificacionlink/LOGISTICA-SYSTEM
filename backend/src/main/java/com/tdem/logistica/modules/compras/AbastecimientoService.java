@@ -539,6 +539,49 @@ public class AbastecimientoService {
      */
     @Transactional
     public List<RfqDto> prepararSolicitudes(List<UUID> consolidationIds, UsuarioPrincipal principal) {
+        return prepararSolicitudes(consolidationIds, null, principal);
+    }
+
+    /**
+     * Proveedores habilitados para los consolidados elegidos (DEC-L082): Logistica
+     * marca a cuales pedir la cotizacion. Primero los que cubren mas productos.
+     */
+    public List<CandidatoRfqDto> candidatos(List<UUID> consolidationIds,
+                                                                                  UsuarioPrincipal principal) {
+        exigirLogistica(principal);
+        List<CandidatoRfqDto> out = new ArrayList<>();
+        Map<UUID, List<UUID>> porProveedor = new LinkedHashMap<>();
+        Map<UUID, Object[]> datos = new HashMap<>();
+        named.query("""
+                select pp.supplier_id, c.consolidation_id, p.legal_name, p.ruc, p.supplier_type, e.code
+                  from consolidacion c
+                  join proveedor_producto pp on pp.product_id = c.product_id
+                  join proveedor p on p.supplier_id = pp.supplier_id and p.active
+                  left join empresa e on e.company_id = p.company_id
+                 where c.consolidation_id in (:ids)
+                 order by p.legal_name""",
+                new MapSqlParameterSource("ids", consolidationIds),
+                rs -> {
+                    UUID s = rs.getObject(1, UUID.class);
+                    porProveedor.computeIfAbsent(s, k -> new ArrayList<>()).add(rs.getObject(2, UUID.class));
+                    datos.putIfAbsent(s, new Object[]{rs.getString(3), rs.getString(4),
+                            "CRITICO".equals(rs.getString(5)), rs.getString(6)});
+                });
+        porProveedor.forEach((s, cs) -> {
+            Object[] d = datos.get(s);
+            out.add(new CandidatoRfqDto(s, (String) d[0], (String) d[1],
+                    (Boolean) d[2], (String) d[3], List.copyOf(new LinkedHashSet<>(cs))));
+        });
+        out.sort(Comparator.comparingInt((CandidatoRfqDto c) -> -c.consolidados().size())
+                .thenComparing(c -> !c.critico())
+                .thenComparing(CandidatoRfqDto::nombre));
+        return out;
+    }
+
+    /** @param supplierIds a quienes pedirla (DEC-L082); null = a todos los habilitados de cada producto. */
+    @Transactional
+    public List<RfqDto> prepararSolicitudes(List<UUID> consolidationIds, Collection<UUID> supplierIds,
+                                            UsuarioPrincipal principal) {
         exigirLogistica(principal);
         Usuario usuario = usuarioRepository.findById(principal.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
@@ -558,6 +601,20 @@ public class AbastecimientoService {
             cs.add(c);
         }
         Map<UUID, List<Proveedor>> cobertura = cobertura(cs.stream().map(c -> c.getProducto().getProductId()).toList());
+        if (supplierIds != null) {
+            if (supplierIds.isEmpty()) {
+                throw ApiException.badRequest("Elige al menos un proveedor.");
+            }
+            Set<UUID> elegidosP = new HashSet<>(supplierIds);
+            cobertura.replaceAll((producto, lista) -> lista.stream()
+                    .filter(p -> elegidosP.contains(p.getSupplierId())).toList());
+            List<String> sinElegido = cs.stream()
+                    .filter(c -> cobertura.getOrDefault(c.getProducto().getProductId(), List.of()).isEmpty())
+                    .map(c -> c.getProducto().getSkuBase()).distinct().toList();
+            if (!sinElegido.isEmpty()) {
+                throw ApiException.badRequest("Elige un proveedor para: " + String.join(", ", sinElegido) + ".");
+            }
+        }
         List<String> sinProveedor = cs.stream()
                 .filter(c -> cobertura.getOrDefault(c.getProducto().getProductId(), List.of()).isEmpty())
                 .map(c -> c.getProducto().getSkuBase()).distinct().toList();

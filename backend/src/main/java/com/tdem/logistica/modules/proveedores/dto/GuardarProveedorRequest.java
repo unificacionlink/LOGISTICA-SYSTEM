@@ -28,5 +28,7 @@ public record GuardarProveedorRequest(
         @Size(max = 150) String paymentCondition,
         @Min(0) @Max(365) Integer creditDays,
         @Min(0) @Max(365) Integer leadDays,
-        @Size(max = 500) String warrantyTerms) {
+        @Size(max = 500) String warrantyTerms,
+        /** Empresa en la que se registra (DEC-L081); al crear, TDEM si no se indica. */
+        @Size(max = 20) String empresaCode) {
 }

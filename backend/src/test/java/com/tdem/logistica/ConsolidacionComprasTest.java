@@ -357,6 +357,37 @@ class ConsolidacionComprasTest {
 	}
 
 	@Test
+	void logisticaEligeAQuienPedirCotizacion() {
+		UsuarioPrincipal logistica = logistica();
+		UUID amplio = proveedor("20100000016");
+		UUID angosto = proveedor("20100000017");
+		abastecimiento.reemplazarCobertura(producto("AC01008"), List.of(amplio, angosto), logistica);
+		abastecimiento.reemplazarCobertura(producto("AC01009"), List.of(amplio), logistica);
+		Map<String, Integer> pedido = new LinkedHashMap<>();
+		pedido.put("AC01008-00", 2);
+		pedido.put("AC01009-00", 1);
+		aprobar(requerimiento("ADM", "APROVISIONAMIENTO", null, pedido));
+		List<UUID> ids = List.of(consolidado("AC01008-00").consolidationId(), consolidado("AC01009-00").consolidationId());
+
+		// DEC-L082: primero quien cubre mas productos.
+		List<CandidatoRfqDto> candidatos = abastecimiento.candidatos(ids, logistica);
+		assertEquals(List.of(amplio, angosto), candidatos.stream().map(CandidatoRfqDto::supplierId).toList());
+		assertEquals(2, candidatos.get(0).consolidados().size());
+		assertEquals(1, candidatos.get(1).consolidados().size());
+
+		assertThrows(ApiException.class, () -> abastecimiento.prepararSolicitudes(ids, List.of(), logistica));
+		ApiException falta = assertThrows(ApiException.class,
+				() -> abastecimiento.prepararSolicitudes(ids, List.of(angosto), logistica));
+		assertTrue(falta.getMessage().contains("AC01009"), falta.getMessage());
+
+		List<RfqDto> rfqs = abastecimiento.prepararSolicitudes(ids, List.of(amplio), logistica);
+		assertEquals(1, rfqs.size(), "solo al elegido, aunque el otro tambien cubra AC01008");
+		assertEquals(amplio, rfqs.get(0).supplierId());
+		assertThrows(ApiException.class, () -> abastecimiento.candidatos(ids,
+				new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"))));
+	}
+
+	@Test
 	void soloLogisticaGestionaCompras() {
 		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
 		assertThrows(ApiException.class, () -> abastecimiento.listarNecesidades(solicitante));

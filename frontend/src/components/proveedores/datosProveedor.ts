@@ -21,6 +21,7 @@ export interface DatosProveedor {
   creditDays: string;
   leadDays: string;
   warrantyTerms: string;
+  empresaCode: string;
 }
 
 export const DATOS_VACIOS: DatosProveedor = {
@@ -42,6 +43,7 @@ export const DATOS_VACIOS: DatosProveedor = {
   creditDays: "",
   leadDays: "",
   warrantyTerms: "",
+  empresaCode: "TDEMSRL",
 };
 
 export function datosDe(p: Proveedor): DatosProveedor {
@@ -64,6 +66,7 @@ export function datosDe(p: Proveedor): DatosProveedor {
     creditDays: p.creditDays != null ? String(p.creditDays) : "",
     leadDays: p.leadDays != null ? String(p.leadDays) : "",
     warrantyTerms: p.warrantyTerms ?? "",
+    empresaCode: p.empresaCode ?? "TDEMSRL",
   };
 }
 
@@ -90,6 +93,7 @@ export function aInput(d: DatosProveedor): GuardarProveedorInput {
     creditDays: numero(d.creditDays),
     leadDays: numero(d.leadDays),
     warrantyTerms: texto(d.warrantyTerms),
+    empresaCode: d.empresaCode,
   };
 }
 

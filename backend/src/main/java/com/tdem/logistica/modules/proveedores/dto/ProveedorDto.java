@@ -29,5 +29,7 @@ public record ProveedorDto(
         String statusReason,
         OffsetDateTime submittedAt,
         OffsetDateTime decidedAt,
-        OffsetDateTime createdAt) {
+        OffsetDateTime createdAt,
+        /** Empresa en la que se registro (DEC-L081). */
+        String empresaCode) {
 }

@@ -1,6 +1,7 @@
 import { enCache, MINUTO } from "./cache";
 import { http } from "./http";
 import type {
+  CandidatoRfq,
   Comparativo,
   EnlaceCotizacion,
   ComprasDetalle,
@@ -93,8 +94,14 @@ export function obtenerConsolidado(id: string) {
   return http.get<ConsolidadoDetalle>(`/api/compras/consolidados/${id}`);
 }
 
-export function prepararSolicitudes(consolidationIds: string[]) {
-  return http.post<Rfq[]>("/api/compras/consolidados/solicitudes", { consolidationIds });
+/** supplierIds: a quienes pedirla (DEC-L082); sin ellos, a todos los habilitados. */
+export function prepararSolicitudes(consolidationIds: string[], supplierIds?: string[]) {
+  return http.post<Rfq[]>("/api/compras/consolidados/solicitudes", { consolidationIds, supplierIds });
+}
+
+/** Proveedores habilitados para los consolidados elegidos, primero los que cubren mas. */
+export function candidatosRfq(consolidationIds: string[]) {
+  return http.post<CandidatoRfq[]>("/api/compras/consolidados/candidatos", { consolidationIds });
 }
 
 export function adjudicar(consolidationId: string, quotationItemId: string) {

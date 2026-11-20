@@ -36,6 +36,8 @@ export interface GuardarProveedorInput {
   creditDays?: number | null;
   leadDays?: number | null;
   warrantyTerms?: string;
+  /** Empresa en la que se registra (DEC-L081). */
+  empresaCode?: string;
 }
 
 const pedirProveedores = () => http.get<Proveedor[]>("/api/proveedores");

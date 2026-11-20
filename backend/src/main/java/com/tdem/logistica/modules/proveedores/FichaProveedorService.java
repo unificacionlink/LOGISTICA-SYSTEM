@@ -68,8 +68,10 @@ public class FichaProveedorService {
                        (select string_agg(pr.sku_base || ' ' || pr.name, ' | ')
                           from proveedor_producto pp join producto pr on pr.product_id = pp.product_id
                          where pp.supplier_id = p.supplier_id) as busqueda,
-                       e.final_score, e.scale_max, e.result, e.kind, e.evaluated_at, e.next_evaluation_date
+                       e.final_score, e.scale_max, e.result, e.kind, e.evaluated_at, e.next_evaluation_date,
+                       em.code as empresa
                   from proveedor p
+                  left join empresa em on em.company_id = p.company_id
                   left join lateral (
                         select ev.final_score, ev.scale_max, ev.result, ev.kind, ev.evaluated_at, ev.next_evaluation_date
                           from evaluacion_proveedor ev
@@ -86,7 +88,7 @@ public class FichaProveedorService {
                             rs.getInt("productos"), rs.getString("categorias"), rs.getString("busqueda"),
                             rs.getBigDecimal("final_score"), rs.getBigDecimal("scale_max"), rs.getString("result"),
                             rs.getString("kind"), fecha(rs, "evaluated_at"), proxima,
-                            VigenciaEvaluacion.estado(proxima, hoy, aviso));
+                            VigenciaEvaluacion.estado(proxima, hoy, aviso), rs.getString("empresa"));
                 });
 
         int habilitados = 0;
