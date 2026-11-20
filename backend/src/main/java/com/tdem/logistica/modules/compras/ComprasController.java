@@ -22,11 +22,13 @@ public class ComprasController {
     private final ComparativoService comparativo;
     private final EnlaceCotizacionService enlaces;
     private final OrdenCompraService ordenes;
+    private final OrdenDirectaService directas;
 
     public ComprasController(ComprasService service, AbastecimientoService abastecimiento,
                              ComparativoService comparativo, EnlaceCotizacionService enlaces,
-                             OrdenCompraService ordenes) {
+                             OrdenCompraService ordenes, OrdenDirectaService directas) {
         this.ordenes = ordenes;
+        this.directas = directas;
         this.service = service;
         this.abastecimiento = abastecimiento;
         this.comparativo = comparativo;
@@ -277,6 +279,14 @@ public class ComprasController {
         return ApiResponse.ok(orden, "ANULADA".equals(orden.status())
                 ? "Orden de compra " + orden.orderCode() + " rechazada."
                 : "Orden de compra " + orden.orderCode() + " aprobada.");
+    }
+
+    @PostMapping("/ordenes/directa")
+    public ApiResponse<OrdenDto> crearOrdenDirecta(
+            @Valid @RequestBody CrearOrdenDirectaRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        OrdenDto orden = directas.crear(request, principal);
+        return ApiResponse.ok(orden, "Orden de compra " + orden.orderCode() + " emitida.");
     }
 
     @PutMapping("/ordenes/{id}/condiciones")

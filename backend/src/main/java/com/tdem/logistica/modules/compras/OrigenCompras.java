@@ -30,7 +30,22 @@ public class OrigenCompras {
     }
 
     public Map<UUID, List<ReqRef>> deOrdenes(Collection<UUID> orderIds) {
-        return consultar("orden_item", "order_id", orderIds);
+        Map<UUID, List<ReqRef>> out = consultar("orden_item", "order_id", orderIds);
+        if (orderIds == null || orderIds.isEmpty()) {
+            return out;
+        }
+        // OC directa (DEC-L080): el requerimiento es una referencia de la cabecera.
+        jdbc.query("""
+                select o.order_id, r.request_id, r.request_code
+                  from orden_abastecimiento o join requerimiento r on r.request_id = o.request_id
+                 where o.order_id in (:ids)""", new MapSqlParameterSource("ids", orderIds), rs -> {
+            List<ReqRef> refs = out.computeIfAbsent(rs.getObject(1, UUID.class), k -> new ArrayList<>());
+            ReqRef ref = new ReqRef(rs.getObject(2, UUID.class), rs.getString(3));
+            if (!refs.contains(ref)) {
+                refs.add(ref);
+            }
+        });
+        return out;
     }
 
     public Map<UUID, List<ReqRef>> deRfqs(Collection<UUID> rfqIds) {

@@ -83,7 +83,10 @@ public class RecepcionService {
 
     public List<OrdenDto> listarPorRecibir(UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
-        List<OrdenAbastecimiento> ordenes = ordenRepository.findByStatusInConDetalle(ESTADOS_POR_RECIBIR);
+        // Las ordenes solo de servicios no pasan por el almacen (DEC-L080).
+        List<OrdenAbastecimiento> ordenes = ordenRepository.findByStatusInConDetalle(ESTADOS_POR_RECIBIR).stream()
+                .filter(o -> !o.isServicesOnly())
+                .toList();
         Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deOrdenes(
                 ordenes.stream().map(OrdenAbastecimiento::getOrderId).toList());
         return ordenes.stream()
@@ -96,7 +99,10 @@ public class RecepcionService {
         OrdenAbastecimiento orden = ordenRepository.findDetalleById(orderId)
                 .orElseThrow(() -> ApiException.notFound("Orden de compra no encontrada."));
 
-        List<OrdenItem> itemsOc = ordenItemRepository.findByOrden(orderId);
+        // Solo productos: las lineas de servicio no se reciben en almacen (DEC-L080).
+        List<OrdenItem> itemsOc = ordenItemRepository.findByOrden(orderId).stream()
+                .filter(i -> i.getProducto() != null)
+                .toList();
         // Una consulta para lo recibido de todos los items (antes una por item).
         Map<UUID, BigDecimal> recibido = recepcionItemRepository.recibidoPorItem(
                 itemsOc.stream().map(OrdenItem::getOrderItemId).toList());
@@ -150,6 +156,7 @@ public class RecepcionService {
                 .orElseThrow(() -> ApiException.badRequest("No hay un almacen central del grupo configurado."));
 
         Map<UUID, OrdenItem> itemsOrden = ordenItemRepository.findByOrden(orderId).stream()
+                .filter(i -> i.getProducto() != null)
                 .collect(Collectors.toMap(OrdenItem::getOrderItemId, Function.identity()));
         Map<UUID, BigDecimal> recibidoPrevio = recepcionItemRepository.recibidoPorItem(itemsOrden.keySet());
         Set<UUID> vistos = new HashSet<>();
@@ -291,7 +298,7 @@ public class RecepcionService {
      */
     private void ingresarAStock(RecepcionItem ri, OrdenItem oi, Almacen almacen, Usuario usuario, Recepcion recepcion) {
         if (oi.getProducto() == null) {
-            // Todas las lineas de OC de este backend son producto fisico (V7); defensa por si cambia.
+            // Las lineas de servicio (DEC-L080) se filtran antes; defensa por si cambia.
             throw ApiException.badRequest("Solo se reciben en almacen productos fisicos.");
         }
         MovimientoInventario mov = new MovimientoInventario();
@@ -309,6 +316,10 @@ public class RecepcionService {
         movimientoRepository.insertar(mov);
 
         if (oi.getConsolidacion() == null) {
+            // OC directa (DEC-L080): no compra para un requerimiento; entra como stock libre.
+            if (oi.getRequerimientoItem() == null) {
+                return;
+            }
             // OC previa al Lote 16 sin consolidado (no deberia quedar ninguna tras V20).
             reservar(ri, oi, almacen, oi.getRequerimientoItem(), null, ri.getQtyReceived());
             return;

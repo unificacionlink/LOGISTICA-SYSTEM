@@ -130,7 +130,10 @@ public final class ComprasMapper {
                 o.getSubtotal(),
                 o.getTaxAmount(),
                 o.getDeliveryTerm(),
-                o.getAdditionalSpecs());
+                o.getAdditionalSpecs(),
+                o.getCeco() != null ? o.getCeco().getCode() : null,
+                o.getCeco() != null ? o.getCeco().getName() : null,
+                o.isServicesOnly());
     }
 
     public static OrdenItemDto toDto(OrdenItem i) {

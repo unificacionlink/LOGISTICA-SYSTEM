@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.63.0",
+    titulo: "Orden de compra directa",
+    cambios: [
+      "Logística puede emitir una orden de compra sin pedir cotizaciones, desde Órdenes de compra › Orden directa.",
+      "La orden puede llevar productos del catálogo y servicios descritos a mano; sale aprobada y con el formato F-LOG-09.",
+      "Los productos se reciben en el almacén como siempre; una orden solo de servicios no pasa por el almacén y se cierra al registrar su pago.",
+      "Se puede indicar un CECO y un requerimiento como referencia.",
+    ],
+  },
+  {
     version: "0.62.0",
     titulo: "Orden de compra con el formato F-LOG-09",
     cambios: [

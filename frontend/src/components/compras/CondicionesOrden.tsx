@@ -94,7 +94,7 @@ export default function CondicionesOrden({
                 <input className={`${inputClass} w-full`} value={plazo} maxLength={120} onChange={(e) => setPlazo(e.target.value)} />
               </Field>
               <Field label="Lugar de entrega">
-                <input className={`${inputClass} w-full`} value={lugar} maxLength={250} onChange={(e) => setLugar(e.target.value)} />
+                <input className={`${inputClass} w-full`} value={lugar} maxLength={220} onChange={(e) => setLugar(e.target.value)} />
               </Field>
             </div>
             <Field label="Especificaciones adicionales">

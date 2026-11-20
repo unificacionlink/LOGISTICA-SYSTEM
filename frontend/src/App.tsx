@@ -30,6 +30,7 @@ import {
   ComprasRfqDetalle,
   ComprasOrdenes,
   ComprasOrdenDetalle,
+  ComprasOrdenNueva,
   Almacen,
   AlmacenRecepcion,
   AlmacenCargaMasiva,
@@ -86,6 +87,7 @@ export default function App() {
               <Route path="/compras/comparativo" element={<ComprasComparativo />} />
               <Route path="/compras/rfq/:id" element={<ComprasRfqDetalle />} />
               <Route path="/compras/ordenes" element={<ComprasOrdenes />} />
+              <Route path="/compras/ordenes/nueva" element={<ComprasOrdenNueva />} />
               <Route path="/compras/ordenes/:id" element={<ComprasOrdenDetalle />} />
               <Route path="/almacen" element={<Almacen />} />
               <Route path="/almacen/carga-masiva" element={<AlmacenCargaMasiva />} />

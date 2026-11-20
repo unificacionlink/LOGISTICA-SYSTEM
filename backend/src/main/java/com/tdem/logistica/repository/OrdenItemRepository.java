@@ -16,10 +16,11 @@ public interface OrdenItemRepository extends RepositorioBase<OrdenItem, UUID> {
 
     /**
      * RF-031: items de todas las OC que aun admiten recepcion (plantilla y validacion de la carga masiva).
-     * Solo OC liberadas (DEC-L061).
+     * Solo OC liberadas (DEC-L061) y solo productos: los servicios no pasan por el almacen (DEC-L080).
      */
     @Query("select i from OrdenItem i join fetch i.orden o join fetch o.proveedor join fetch o.empresa " +
             "left join fetch i.producto left join fetch i.variante left join fetch i.uom " +
-            "where o.status in :statuses and o.releasedAt is not null order by o.createdAt, i.orderItemId")
+            "where o.status in :statuses and o.releasedAt is not null and i.producto is not null " +
+            "order by o.createdAt, i.orderItemId")
     List<OrdenItem> findPorRecibir(@Param("statuses") List<String> statuses);
 }

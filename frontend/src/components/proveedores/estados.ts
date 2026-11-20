@@ -59,6 +59,7 @@ export const ESTADO_OC: Record<string, string> = {
   RECEPCION_COMPLETA: "Recepción completa",
   PEND_VERIFICACION: "Por verificar",
   VERIFICADA: "Verificada",
+  CERRADA: "Cerrada",
   ANULADA: "Anulada",
 };
 

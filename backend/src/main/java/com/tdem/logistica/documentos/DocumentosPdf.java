@@ -146,8 +146,11 @@ final class DocumentosPdf {
             if (i.referenciaProveedor() != null && !i.referenciaProveedor().isBlank()) {
                 descripcion += "\nRef. proveedor: " + i.referenciaProveedor();
             }
-            lineas.add(new PdfOrdenCompra.Linea(sku(i.skuBase(), i.codigoVariante()), descripcion,
-                    texto(i.unidadMedida()), cantidad(i.qtyOrdered()), monto(i.unitCost()), monto(i.lineTotal())));
+            // Linea de servicio de una OC directa (DEC-L080): sin SKU ni unidad del catalogo.
+            boolean servicio = i.nombreProducto() == null;
+            lineas.add(new PdfOrdenCompra.Linea(servicio ? "-" : sku(i.skuBase(), i.codigoVariante()), descripcion,
+                    servicio ? "SERV" : texto(i.unidadMedida()), cantidad(i.qtyOrdered()), monto(i.unitCost()),
+                    monto(i.lineTotal())));
         }
         boolean noAfecto = "NO_AFECTO".equals(o.taxMode());
         String notaIgv = "IGV_INCLUIDO".equals(o.taxMode()) ? "Los precios unitarios incluyen IGV." : null;

@@ -9,6 +9,7 @@ const TONO: Record<EstadoOrden, BadgeTone> = {
   RECEPCION_COMPLETA: "verde",
   PEND_VERIFICACION: "amarillo",
   VERIFICADA: "verde",
+  CERRADA: "verde",
   ANULADA: "rojo",
 };
 
@@ -20,6 +21,7 @@ const ETIQUETA: Record<EstadoOrden, string> = {
   RECEPCION_COMPLETA: "Recepción completa",
   PEND_VERIFICACION: "Pend. verificación",
   VERIFICADA: "Verificada",
+  CERRADA: "Cerrada",
   ANULADA: "Anulada",
 };
 

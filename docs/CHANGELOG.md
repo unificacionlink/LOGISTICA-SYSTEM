@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.63.0 — 2026-11-20
+
+Orden de compra directa (DEC-L080).
+
+- `V44__orden_directa.sql`: `OC_DIRECTA` en `order_type`, `quotation_id` nulo (check para `OC_NORMAL`), `ceco_id`, `request_id`, `services_only` y estado `CERRADA`.
+- `OrdenDirectaService` + `POST /api/compras/ordenes/directa`: productos (variante activa) y servicios (texto), sale `EMITIDA` y aprobada, valida empresa/proveedor habilitado/moneda/CECO/REQ por código; auditado (`EMITIR_DIRECTA`).
+- Las consultas de OC usan `left join fetch o.cotizacion` (si no, la OC directa no aparecía en las listas). `OrigenCompras` agrega el requerimiento de referencia de la cabecera.
+- Recepción: solo líneas con producto; un producto sin consolidado ni ítem de REQ entra como stock libre. Orden solo de servicios: no se libera, no aparece por recibir y se cierra al pagarse.
+- Corrección: el lugar de entrega de las condiciones de la OC admitía 250 caracteres y la columna 220.
+- Frontend: `ComprasOrdenNueva` (`/compras/ordenes/nueva`), botón "Orden directa" en Órdenes de compra, ciclo de la OC sin liberación para servicios, estado "Cerrada".
+- Tests: `OrdenDirectaTest` (producto + servicio, solo servicios, validaciones); `MigracionesFlywayTest` cuenta 44.
+
 ## 0.62.0 — 2026-11-20
 
 Orden de compra con el formato F-LOG-09 (DEC-L079).

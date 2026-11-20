@@ -230,6 +230,27 @@ export function liberarOrden(orderId: string, nota?: string) {
   return http.post<Orden>(`/api/compras/ordenes/${orderId}/liberar`, { nota: nota || null });
 }
 
+export interface OrdenDirectaInput {
+  empresaCode: string;
+  supplierId: string;
+  currencyCode: string;
+  paymentCondition: string;
+  deliveryMode: string;
+  deliveryLocation: string | null;
+  deliveryTerm: string | null;
+  taxMode: ModoIgv;
+  additionalSpecs: string | null;
+  cecoId: string | null;
+  requestCode: string | null;
+  /** variantId = producto del catalogo; sin variantId, descripcion = servicio. */
+  lineas: { variantId: string | null; descripcion: string | null; cantidad: number; precioUnitario: number }[];
+}
+
+/** OC directa sin cotizacion (DEC-L080): sale aprobada. */
+export function crearOrdenDirecta(input: OrdenDirectaInput) {
+  return http.post<Orden>("/api/compras/ordenes/directa", input);
+}
+
 export interface CondicionesOrden {
   taxMode: ModoIgv;
   deliveryTerm: string | null;

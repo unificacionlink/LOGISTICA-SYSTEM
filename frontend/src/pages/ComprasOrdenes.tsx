@@ -1,6 +1,8 @@
 import { useDatos } from "../api/useDatos";
 import { Link } from "react-router-dom";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, Plus } from "lucide-react";
+import { useAuth } from "../auth/AuthContext";
+import Button from "../components/ui/Button";
 import { listarOrdenes } from "../api/compras";
 import type { Orden } from "../api/types";
 import OrdenEstadoBadge from "../components/OrdenEstadoBadge";
@@ -22,10 +24,22 @@ export default function ComprasOrdenes() {
   const lista = useDatos("compras-ordenes", listarOrdenes);
   const ordenes = lista.datos ?? SIN_ORDENES;
   const { error, cargando } = lista;
+  const { tieneAlgunRol } = useAuth();
 
   return (
     <div>
-      <PageHeader title="Órdenes de compra" backTo="/compras" backLabel="Compras" />
+      <PageHeader
+        title="Órdenes de compra"
+        backTo="/compras"
+        backLabel="Compras"
+        actions={
+          tieneAlgunRol("LOGISTICA", "ADMIN") && (
+            <Button href="/compras/ordenes/nueva" icon={<Plus className="size-4" />}>
+              Orden directa
+            </Button>
+          )
+        }
+      />
 
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
 
@@ -66,7 +80,7 @@ export default function ComprasOrdenes() {
                     </td>
                     <td className="px-5 py-3">
                       <OrdenEstadoBadge estado={o.status} />
-                      {o.status === "EMITIDA" && !o.releasedAt && (
+                      {o.status === "EMITIDA" && !o.releasedAt && !o.servicesOnly && (
                         <span className="ml-2 text-xs text-amber-700">Por liberar</span>
                       )}
                     </td>

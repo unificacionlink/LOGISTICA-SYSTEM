@@ -45,7 +45,9 @@ export default function CicloOrden({
   const puedeDecidir = tieneAlgunRol("GERENCIA", "LOGISTICA", "ADMIN") && !emitidaPorMi;
   const porAprobar = orden.status === "POR_APROBAR";
   const anulada = orden.status === "ANULADA";
-  const porLiberar = orden.status === "EMITIDA" && !orden.releasedAt;
+  // DEC-L080: la orden solo de servicios no pasa por el almacen; se cierra al pagarse.
+  const servicios = orden.servicesOnly;
+  const porLiberar = orden.status === "EMITIDA" && !orden.releasedAt && !servicios;
   const puedePagar = gestiona && !porAprobar && !anulada && orden.paymentStatus !== "PAGADO";
 
   async function ejecutar(clave: string, accion: () => Promise<{ ok: boolean; result?: Orden | null; message: string }>) {
@@ -94,12 +96,18 @@ export default function CicloOrden({
       ok: orden.paymentStatus === "PAGADO",
       enlace: orden.paymentProofUrl,
     },
-    {
-      label: "Liberación",
-      valor: orden.releasedAt ? `Liberada ${fecha(orden.releasedAt)}` : "Pendiente",
-      ok: !!orden.releasedAt,
-      detalle: orden.releaseNote,
-    },
+    servicios
+      ? {
+          label: "Servicio",
+          valor: orden.status === "CERRADA" ? "Cerrada al pagar" : "Se cierra al registrar el pago",
+          ok: orden.status === "CERRADA",
+        }
+      : {
+          label: "Liberación",
+          valor: orden.releasedAt ? `Liberada ${fecha(orden.releasedAt)}` : "Pendiente",
+          ok: !!orden.releasedAt,
+          detalle: orden.releaseNote,
+        },
   ];
 
   return (

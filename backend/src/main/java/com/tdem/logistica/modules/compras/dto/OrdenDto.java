@@ -39,5 +39,9 @@ public record OrdenDto(
         BigDecimal subtotal,
         BigDecimal taxAmount,
         String deliveryTerm,
-        String additionalSpecs) {
+        String additionalSpecs,
+        // OC directa (DEC-L080)
+        String cecoCode,
+        String cecoNombre,
+        boolean servicesOnly) {
 }

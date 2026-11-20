@@ -61,6 +61,7 @@ const c = {
   comprasRfqDetalle: conRecarga(() => import("./pages/ComprasRfqDetalle")),
   comprasOrdenes: conRecarga(() => import("./pages/ComprasOrdenes")),
   comprasOrdenDetalle: conRecarga(() => import("./pages/ComprasOrdenDetalle")),
+  comprasOrdenNueva: conRecarga(() => import("./pages/ComprasOrdenNueva")),
   almacen: conRecarga(() => import("./pages/Almacen")),
   almacenRecepcion: conRecarga(() => import("./pages/AlmacenRecepcion")),
   almacenCargaMasiva: conRecarga(() => import("./pages/AlmacenCargaMasiva")),
@@ -90,6 +91,7 @@ export const ComprasComparativo = lazy(c.comprasComparativo);
 export const ComprasRfqDetalle = lazy(c.comprasRfqDetalle);
 export const ComprasOrdenes = lazy(c.comprasOrdenes);
 export const ComprasOrdenDetalle = lazy(c.comprasOrdenDetalle);
+export const ComprasOrdenNueva = lazy(c.comprasOrdenNueva);
 export const Almacen = lazy(c.almacen);
 export const AlmacenRecepcion = lazy(c.almacenRecepcion);
 export const AlmacenCargaMasiva = lazy(c.almacenCargaMasiva);
@@ -126,6 +128,7 @@ const DETALLES: [RegExp, Carga][] = [
   [/^\/compras\/comparativo$/, c.comprasComparativo],
   [/^\/compras\/rfq\/[^/]+$/, c.comprasRfqDetalle],
   [/^\/compras\/ordenes$/, c.comprasOrdenes],
+  [/^\/compras\/ordenes\/nueva$/, c.comprasOrdenNueva],
   [/^\/compras\/ordenes\/[^/]+$/, c.comprasOrdenDetalle],
   [/^\/almacen\/ordenes\/[^/]+\/recepcion$/, c.almacenRecepcion],
   [/^\/almacen\/requerimientos\/[^/]+\/despacho$/, c.almacenDespacho],

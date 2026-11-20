@@ -83,7 +83,16 @@ public final class AppConstants {
         public static final String EN_ATENCION = "EN_ATENCION";
         public static final String RECEPCION_PARCIAL = "RECEPCION_PARCIAL";
         public static final String RECEPCION_COMPLETA = "RECEPCION_COMPLETA";
+        /** Orden solo de servicios pagada (DEC-L080). */
+        public static final String CERRADA = "CERRADA";
         public static final String ANULADA = "ANULADA";
+    }
+
+    /** orden_abastecimiento.order_type. */
+    public static final class TipoOrden {
+        public static final String OC_NORMAL = "OC_NORMAL";
+        /** Sin cotizacion, con productos y/o servicios (DEC-L080). */
+        public static final String OC_DIRECTA = "OC_DIRECTA";
     }
 
     /** orden_abastecimiento.payment_status (V31, DEC-L061): control, no frena la recepcion. */

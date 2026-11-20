@@ -505,7 +505,8 @@ public class ComprasService {
             }
         }
         Cotizacion cot = orden.getCotizacion();
-        if ("SELECCIONADA".equals(cot.getStatus())) {
+        // La OC directa (DEC-L080) no tiene cotizacion que devolver.
+        if (cot != null && "SELECCIONADA".equals(cot.getStatus())) {
             cot.setStatus("RECIBIDA");
         }
         auditoria.registrar("ORDEN_ABASTECIMIENTO", orderId, accion, Map.of("estado", anterior),

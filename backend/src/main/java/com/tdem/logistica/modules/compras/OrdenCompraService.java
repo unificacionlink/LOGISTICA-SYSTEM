@@ -237,9 +237,17 @@ public class OrdenCompraService {
         orden.setConstanciaPago(constancia);
         orden.setPaidAt(Instant.now());
         orden.setPaidBy(principal.userId());
+        Map<String, Object> despues = new HashMap<>();
+        despues.put("pago", estado);
+        despues.put("constancia", constancia.getDocumentId());
+        // DEC-L080: la orden solo de servicios no tiene recepcion; pagada, queda cerrada.
+        if (orden.isServicesOnly() && EstadoPagoOrden.PAGADO.equals(estado)) {
+            antes.put("estado", orden.getStatus());
+            orden.setStatus(EstadoOrden.CERRADA);
+            despues.put("estado", EstadoOrden.CERRADA);
+        }
         ordenRepository.save(orden);
-        auditoria.registrar(ENTIDAD_AUDITORIA, orderId, "PAGO", antes,
-                Map.of("pago", estado, "constancia", constancia.getDocumentId()), principal.userId());
+        auditoria.registrar(ENTIDAD_AUDITORIA, orderId, "PAGO", antes, despues, principal.userId());
         return ComprasMapper.toDto(orden, origen.deOrden(orderId));
     }
 
@@ -253,6 +261,9 @@ public class OrdenCompraService {
         }
         if (!EstadoOrden.EMITIDA.equals(orden.getStatus())) {
             throw ApiException.badRequest("Esta orden no se puede liberar (estado " + orden.getStatus() + ").");
+        }
+        if (orden.isServicesOnly()) {
+            throw ApiException.badRequest("Es una orden de servicios: no pasa por el almacén.");
         }
         if (orden.getReleasedAt() != null) {
             throw ApiException.badRequest("Esta orden ya esta liberada.");

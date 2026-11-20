@@ -507,6 +507,7 @@ export type EstadoOrden =
   | "EN_ATENCION"
   | "RECEPCION_PARCIAL"
   | "RECEPCION_COMPLETA"
+  | "CERRADA"
   | "PEND_VERIFICACION"
   | "VERIFICADA"
   | "ANULADA";
@@ -773,6 +774,10 @@ export interface Orden {
   taxAmount: number;
   deliveryTerm: string | null;
   additionalSpecs: string | null;
+  /** OC directa (DEC-L080): referencias opcionales y si solo trae servicios. */
+  cecoCode: string | null;
+  cecoNombre: string | null;
+  servicesOnly: boolean;
 }
 
 export type ModoIgv = "MAS_IGV" | "IGV_INCLUIDO" | "NO_AFECTO";

@@ -11,9 +11,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Orden de compra. En este lote quotation_id es siempre no-nulo (order_type
- * siempre OC_NORMAL): las rutas CONVENIO/CAJA_CHICA no existen todavia
- * (ver DEC-L013).
+ * Orden de compra. OC_NORMAL sale de una cotizacion; OC_DIRECTA (DEC-L080) no
+ * tiene cotizacion y puede llevar lineas de servicio (orden_item sin producto).
  */
 @Entity
 @Table(name = "orden_abastecimiento")
@@ -41,7 +40,7 @@ public class OrdenAbastecimiento {
     private String orderType;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "quotation_id", nullable = false)
+    @JoinColumn(name = "quotation_id")
     private Cotizacion cotizacion;
 
     @Column(name = "issue_date", nullable = false)
@@ -125,4 +124,18 @@ public class OrdenAbastecimiento {
 
     @Column(name = "additional_specs")
     private String additionalSpecs;
+
+    // ---- OC directa (DEC-L080): referencias opcionales
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ceco_id")
+    private Ceco ceco;
+
+    /** Requerimiento de referencia; solo informativo (no reserva ni atiende). */
+    @Column(name = "request_id")
+    private UUID requestId;
+
+    /** Solo lineas de servicio: no pasa por el almacen y se cierra al pagarse. */
+    @Column(name = "services_only", nullable = false)
+    private boolean servicesOnly;
 }

@@ -42,6 +42,7 @@ public class SpaController {
             "/compras/comparativo",
             "/compras/rfq/{id}",
             "/compras/ordenes",
+            "/compras/ordenes/nueva",
             "/compras/ordenes/{id}",
             "/almacen",
             "/almacen/carga-masiva",

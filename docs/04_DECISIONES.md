@@ -5,6 +5,24 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L080 — Orden de compra directa (2026-11-20, v0.63.0).**
+  - Decisión del usuario: Logística puede emitir una OC sin solicitud de
+    cotización, con productos del catálogo y/o servicios (texto libre). Sale
+    aprobada, sin pasar por Gerencia: la emite quien decide compras. CECO y
+    requerimiento son referencias opcionales.
+  - `order_type = 'OC_DIRECTA'`, `quotation_id` nulo (V44; un check exige
+    cotización a la `OC_NORMAL`). Una línea de servicio es un `orden_item` sin
+    producto. `services_only` marca la orden que solo trae servicios.
+  - Los productos siguen el camino de siempre (liberar → recepción en el
+    almacén central) y entran como **stock libre**: no reservan para el
+    requerimiento de referencia, que es solo informativo (aparece en la orden
+    por `OrigenCompras`, no en el tracking ni en la atención del REQ).
+  - Los servicios nunca pasan por el almacén (recepción, carga masiva y "por
+    recibir" los excluyen). Una orden solo de servicios no se libera y queda
+    `CERRADA` al registrar su pago `PAGADO`.
+  - El PDF es el mismo F-LOG-09 (DEC-L079); las líneas de servicio salen con
+    UM "SERV". Las condiciones se fijan al emitir (no pasa por `POR_APROBAR`).
+
 - **DEC-L079 — Orden de compra con el formato F-LOG-09 (2026-11-20, v0.62.0).**
   - Decisión del usuario: la OC sale idéntica al formato F-LOG-09 v1 del sistema
     de gestión (código, versión 1, aprobado el 29/01/2024): cabecera con logo,

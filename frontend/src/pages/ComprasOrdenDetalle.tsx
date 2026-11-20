@@ -87,7 +87,14 @@ export default function ComprasOrdenDetalle() {
     <div>
       <PageHeader
         title={<span className="font-mono">{orden.orderCode}</span>}
-        subtitle={`${orden.proveedorNombre} · ${etiquetaRequerimientos(orden.requestCode)}`}
+        subtitle={[
+          orden.proveedorNombre,
+          orden.orderType === "OC_DIRECTA" ? "Orden directa" : null,
+          orden.requestCode ? etiquetaRequerimientos(orden.requestCode) : null,
+          orden.cecoCode ? `CECO ${orden.cecoCode}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         backTo="/compras/ordenes"
         backLabel="Órdenes de compra"
         actions={
@@ -139,7 +146,9 @@ export default function ComprasOrdenDetalle() {
             <tbody className="divide-y divide-slate-100">
               {items.map((it) => (
                 <tr key={it.orderItemId}>
-                  <td className="px-5 py-2.5 font-mono text-xs text-slate-600">{it.codigoVariante}</td>
+                  <td className="px-5 py-2.5 font-mono text-xs text-slate-600">
+                    {it.codigoVariante ?? <span className="font-sans text-slate-400">Servicio</span>}
+                  </td>
                   <td className="col-flex px-5 py-2.5 text-slate-700" title={String(it.description)}>
                     {it.description}
                     {it.referenciaProveedor && (
