@@ -5,6 +5,19 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L077 — PYC trabaja sobre todos los CECOs de las 3 empresas (2026-11-20, v0.60.0).**
+  - Decisión del usuario: PYC no necesita CECOs asignados; ve todos los CECOs
+    y presupuestos de TDEM, GOYDEL y METRIN.
+  - `PresupuestoService`: PYC (sin Logística) lista todos los periodos y
+    presupuestos, habilita, cierra y fija el control de cualquier CECO activo,
+    y redacta en cualquiera. El Excel de cumplimiento también vale en todos.
+  - **Decidir no cambia**: aprobar, observar y anular un presupuesto siguen
+    siendo del aprobador copiado y de la Gerencia en su ámbito real. Una
+    cuenta con PYC y Gerencia no aprueba todos los presupuestos por ser PYC.
+  - `PrecioPlazoService`: PYC registra precios de venta en las 3 empresas.
+  - Los CECOs asignados a un PYC solo le sirven para pedir, si además es
+    Solicitante. En Administración, la pestaña PYC muestra "Todos los CECOs".
+
 - **DEC-L076 — Resumen del solicitante y avisos solo por la plataforma (2026-11-19, v0.59.0).**
   - Decisión del usuario: quien pide ve el resumen de todo lo que pidió, y se
     entera de los cambios de estado de sus requerimientos **solo por la

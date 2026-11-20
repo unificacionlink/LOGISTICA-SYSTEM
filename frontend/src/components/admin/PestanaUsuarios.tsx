@@ -132,11 +132,15 @@ export default function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos;
       : grupo === "APROBADOR" || grupo === "GERENCIA"
         ? "Aprueba"
         : grupo === "PYC"
-          ? "Ámbito"
+          ? "Presupuestos"
           : "Roles";
 
   function celdaExtra(u: UsuarioAdmin) {
-    if (grupo === "SOLICITANTE" || grupo === "PYC") {
+    // DEC-L077: PYC trabaja sobre todos los CECOs, no necesita asignarlos.
+    if (grupo === "PYC") {
+      return <span className="text-xs text-slate-600">Todos los CECOs</span>;
+    }
+    if (grupo === "SOLICITANTE") {
       return (
         <ListaCecos
           ids={u.cecoIds}

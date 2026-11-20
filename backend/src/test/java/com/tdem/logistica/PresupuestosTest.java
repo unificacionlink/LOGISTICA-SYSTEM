@@ -168,8 +168,11 @@ class PresupuestosTest {
 				insert into ceco (company_id, code, name) select company_id, 'G-PRUEBA', 'CECO AJENO' from empresa
 				where code = 'GOYDELSAC' returning ceco_id""", UUID.class);
 
-		// PYC solo habilita periodos de sus CECOs.
-		assertThrows(ApiException.class, () -> service.crearPeriodo(new CrearPeriodoRequest(ajeno, 2028, 2), pyc));
+		// DEC-L077: PYC trabaja sobre todos los CECOs de las 3 empresas, sin asignarselos.
+		PeriodoDto deOtraEmpresa = service.crearPeriodo(new CrearPeriodoRequest(ajeno, 2028, 2), pyc);
+		var vistaPyc = service.listarPeriodos(pyc);
+		assertTrue(vistaPyc.cecosConfigurables().stream().anyMatch(c -> c.cecoId().equals(ajeno)));
+		assertTrue(vistaPyc.periodos().stream().anyMatch(p -> p.periodId().equals(deOtraEmpresa.periodId())));
 		PeriodoDto periodo = service.crearPeriodo(new CrearPeriodoRequest(ceco, 2028, 2), pyc);
 
 		// El APROBADOR sin el CECO ni asignacion no lo ve ni redacta.

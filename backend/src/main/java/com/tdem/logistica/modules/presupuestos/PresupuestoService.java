@@ -25,6 +25,9 @@ import static com.tdem.logistica.common.AppConstants.EstadoPresupuesto.*;
  * <ul>
  *   <li>Ambito de un usuario: sus CECOs (usuario_ceco) y los CECOs donde es el
  *       aprobador asignado. LOGISTICA y ADMIN ven todo, sin editar ni decidir.</li>
+ *   <li>PYC trabaja sobre TODOS los CECOs de las 3 empresas (DEC-L077): ve,
+ *       habilita periodos y redacta en cualquiera, sin asignarselos. Decidir
+ *       (aprobar) sigue siendo del aprobador y de la Gerencia en su ambito real.</li>
  *   <li>Periodos: los habilita y cierra PYC en su ambito. Cerrado = solo consulta.</li>
  *   <li>Redactan (crear, programar, emitir, modificar): PYC, GERENCIA y el
  *       APROBADOR del CECO en su ambito; el SOLICITANTE solo los suyos.</li>
@@ -101,17 +104,17 @@ public class PresupuestoService {
                 join ceco c on c.ceco_id = pp.ceco_id
                 join empresa e on e.company_id = c.company_id
                 left join presupuesto b on b.budget_period_id = pp.budget_period_id and b.status <> 'ANULADO'
-                """ + (veTodo(principal) ? "" : "where pp.ceco_id in (" + AMBITO + ")\n")
+                """ + (veTodo(principal) || esPyc(principal) ? "" : "where pp.ceco_id in (" + AMBITO + ")\n")
                 + "order by pp.year desc, pp.semester desc, e.code, c.code";
-        Object[] args = veTodo(principal) ? new Object[0] : new Object[]{yo, yo};
+        Object[] args = veTodo(principal) || esPyc(principal) ? new Object[0] : new Object[]{yo, yo};
         List<PeriodoDto> periodos = jdbc.query(sql, (rs, i) -> mapearPeriodo(rs), args);
 
         List<CecoOpcionDto> cecos = esPyc(principal)
                 ? jdbc.query("""
                         select c.ceco_id, e.code, c.code, c.name from ceco c join empresa e on e.company_id = c.company_id
-                        where c.active and c.ceco_id in (""" + AMBITO + ") order by e.code, c.code",
+                        where c.active order by e.code, c.code""",
                 (rs, i) -> new CecoOpcionDto(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                        rs.getString(4)), yo, yo)
+                        rs.getString(4)))
                 : List.of();
         return new PeriodosDto(periodos, cecos, esRedactor(principal));
     }
@@ -220,7 +223,7 @@ public class PresupuestoService {
                   where l.budget_id = b.budget_id) t on true
                 where true""");
         List<Object> args = new ArrayList<>(List.of(yo, yo));
-        if (!veTodo(principal)) {
+        if (!veTodo(principal) && !esPyc(principal)) {
             sql.append(" and (pp.ceco_id in (").append(AMBITO).append(") or b.approver_user_id = ? or b.requester_user_id = ?)");
             args.addAll(List.of(yo, yo, yo, yo));
         }
@@ -370,7 +373,7 @@ public class PresupuestoService {
         if ((Boolean) periodo.get("closed")) {
             throw ApiException.badRequest("El periodo esta cerrado: solo consulta.");
         }
-        boolean redacta = (Boolean) periodo.get("en_ambito") && (principal.tieneAlgunRol(Roles.PYC, Roles.GERENCIA,
+        boolean redacta = esPyc(principal) || (Boolean) periodo.get("en_ambito") && (principal.tieneAlgunRol(Roles.PYC, Roles.GERENCIA,
                 Roles.SOLICITANTE) || (principal.tieneAlgunRol(Roles.APROBADOR) && yo.equals(periodo.get("approver_user_id"))));
         if (!redacta) {
             throw ApiException.forbidden("El CECO no esta en tu ambito.");
@@ -701,7 +704,7 @@ public class PresupuestoService {
         resumen.add(resumir("TOTAL", filas, conCompra));
         return new CumplimientoDto(c.id(), c.codigo(), (String) cab.get("empresa"), (String) cab.get("ceco_code"),
                 (String) cab.get("ceco_nombre"), anio + "-S" + semestre, ((Number) cab.get("version_no")).intValue(),
-                Instant.now(), conCompra, esPyc(principal) && c.enAmbito(), filas, resumen);
+                Instant.now(), conCompra, esPyc(principal), filas, resumen);
     }
 
     /** Excel de cumplimiento: exclusivo de PYC en su ambito (bcExportCompliance). */
@@ -808,12 +811,19 @@ public class PresupuestoService {
     }
 
     private static boolean puedeVer(Ctx c, UsuarioPrincipal p) {
-        return veTodo(p) || c.enAmbito() || p.userId().equals(c.approverId()) || p.userId().equals(c.requesterId());
+        return veTodo(p) || esPyc(p) || c.enAmbito() || p.userId().equals(c.approverId())
+                || p.userId().equals(c.requesterId());
     }
 
     /** Redacta: PYC/GERENCIA y el APROBADOR del CECO en su ambito; el SOLICITANTE solo lo suyo. */
     private static boolean puedeEscribir(Ctx c, UsuarioPrincipal p) {
-        if (c.cerrado() || !c.enAmbito() || p.tieneAlgunRol(Roles.LOGISTICA)) {
+        if (c.cerrado() || p.tieneAlgunRol(Roles.LOGISTICA)) {
+            return false;
+        }
+        if (esPyc(p)) {
+            return true;
+        }
+        if (!c.enAmbito()) {
             return false;
         }
         UUID yo = p.userId();
@@ -845,6 +855,13 @@ public class PresupuestoService {
     }
 
     private void exigirCecoEnAmbito(UUID cecoId, UsuarioPrincipal p) {
+        if (esPyc(p)) {
+            Integer existe = jdbc.queryForObject("select count(*) from ceco where ceco_id = ? and active", Integer.class, cecoId);
+            if (existe == null || existe == 0) {
+                throw ApiException.badRequest("CECO no encontrado o inactivo.");
+            }
+            return;
+        }
         Integer n = jdbc.queryForObject("select count(*) from (" + AMBITO + ") a where a.ceco_id = ?",
                 Integer.class, p.userId(), p.userId(), cecoId);
         if (n == null || n == 0) {

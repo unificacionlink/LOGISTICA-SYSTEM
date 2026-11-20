@@ -60,10 +60,10 @@ class PreciosPlazosTest {
 		UUID goydel = empresa("GOYDELSAC");
 		UUID producto = producto("AC01001");
 
-		// --- PYC ve solo su empresa; el solicitante no ve precios ---
+		// --- PYC trabaja con las 3 empresas (DEC-L077); el solicitante no ve precios ---
 		PreciosVentaDto inicial = service.listarPrecios(null, pyc);
-		assertEquals(tdem, inicial.companyId());
-		assertEquals(List.of("TDEMSRL"), inicial.empresas().stream().map(e -> e.code()).toList());
+		assertEquals(tdem, inicial.companyId(), "abre en su propia empresa");
+		assertEquals(List.of("GOYDELSAC", "METRIN", "TDEMSRL"), inicial.empresas().stream().map(e -> e.code()).toList());
 		assertThrows(ApiException.class, () -> service.listarPrecios(null, solicitante));
 		assertThrows(ApiException.class, () -> service.registrarPrecio(producto, tdem, BigDecimal.TEN, solicitante));
 
@@ -84,10 +84,9 @@ class PreciosPlazosTest {
 		assertEquals(0, new BigDecimal("18.5").compareTo(service.listarPrecios(tdem, pyc).precios().getFirst().precio()));
 		assertEquals(2, auditorias(producto, "PRECIO_VENTA"));
 
-		// --- Validaciones: precio positivo, empresa del ambito, SKU activo ---
+		// --- Validaciones: precio positivo y SKU activo; PYC abre cualquier empresa ---
 		assertThrows(ApiException.class, () -> service.registrarPrecio(producto, tdem, BigDecimal.ZERO, pyc));
-		assertThrows(ApiException.class, () -> service.registrarPrecio(producto, goydel, BigDecimal.TEN, pyc));
-		assertThrows(ApiException.class, () -> service.listarPrecios(goydel, pyc));
+		assertEquals(goydel, service.listarPrecios(goydel, pyc).companyId());
 		UUID inactivo = producto("AC01002");
 		jdbc.update("update producto set active = false where product_id = ?", inactivo);
 		assertThrows(ApiException.class, () -> service.registrarPrecio(inactivo, tdem, BigDecimal.TEN, pyc));

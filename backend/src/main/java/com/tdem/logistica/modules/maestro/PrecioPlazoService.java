@@ -90,7 +90,8 @@ public class PrecioPlazoService {
         if (!principal.tieneAlgunRol(Roles.PYC, Roles.GERENCIA, Roles.LOGISTICA, Roles.ADMIN)) {
             throw ApiException.forbidden("Sin permiso para ver precios de venta.");
         }
-        if (principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN)) {
+        // PYC trabaja con las 3 empresas (DEC-L077), como Logistica y Admin.
+        if (principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN, Roles.PYC)) {
             return jdbc.query("select company_id, code from empresa where active order by code",
                     (rs, i) -> new EmpresaDto(rs.getObject(1, UUID.class), rs.getString(2)));
         }

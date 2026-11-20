@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.60.0 — 2026-11-20
+
+PYC trabaja sobre todos los CECOs de las 3 empresas (DEC-L077).
+
+- `PresupuestoService`: sin filtro de ámbito para PYC en periodos, presupuestos y CECOs configurables; `exigirCecoEnAmbito` solo exige CECO activo para PYC; redactar y ver en cualquier CECO. Decidir sigue en el ámbito real.
+- `PrecioPlazoService.empresas`: PYC ve y registra precios en las 3 empresas.
+- Administración: la pestaña PYC muestra "Todos los CECOs"; la ficha indica que PYC ve los presupuestos de todos los CECOs y ya no marca "Sin CECOs" por eso.
+- Tests: `PresupuestosTest` (periodo en un CECO de otra empresa sin asignación) y `PreciosPlazosTest` (3 empresas).
+
 ## 0.59.2 — 2026-11-20
 
 Administración › Usuarios: cada usuario en una sola pestaña.

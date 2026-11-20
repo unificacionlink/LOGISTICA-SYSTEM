@@ -13,6 +13,13 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.60.0",
+    titulo: "PYC con todos los CECOs",
+    cambios: [
+      "PYC ve y gestiona los presupuestos y precios de venta de todos los CECOs de las 3 empresas, sin tener que asignárselos.",
+    ],
+  },
+  {
     version: "0.59.2",
     titulo: "Usuarios sin repetirse",
     cambios: [

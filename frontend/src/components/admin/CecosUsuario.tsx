@@ -31,13 +31,15 @@ export default function CecosUsuario({
   const [busqueda, setBusqueda] = useState("");
   const [guardando, setGuardando] = useState(false);
   const porId = useMemo(() => new Map(cecos.map((c) => [c.id, c])), [cecos]);
-  // PYC y Gerencia usan estos CECOs como ambito de presupuestos (DEC-L036), y
-  // Gerencia ademas decide los requerimientos de estos CECOs (DEC-L030). El
-  // rotulo dice para que le sirven segun sus roles.
-  const gestiona = u.roles.includes("PYC") || u.roles.includes("GERENCIA");
+  // Gerencia usa estos CECOs como su ambito: decide sus requerimientos
+  // (DEC-L030) y sus presupuestos (DEC-L036). PYC no los necesita: trabaja
+  // sobre todos los CECOs de las 3 empresas (DEC-L077). El rotulo dice para
+  // que le sirven segun sus roles.
+  const gestiona = u.roles.includes("GERENCIA");
+  const esPyc = u.roles.includes("PYC");
   const usos = [
     u.roles.includes("SOLICITANTE") && "pide",
-    u.roles.includes("GERENCIA") && "aprueba como Gerencia",
+    gestiona && "aprueba como Gerencia",
     gestiona && "presupuestos",
   ].filter(Boolean);
   const cambiaron = seleccion.toSorted().join() !== u.cecoIds.toSorted().join();
@@ -70,10 +72,17 @@ export default function CecosUsuario({
         <span className="rotulo">{gestiona ? "CECOs de su ámbito" : "CECOs para los que puede pedir"}</span>
         {gestiona && usos.length > 0 && <span className="text-xs text-slate-500">{usos.join(" · ")}</span>}
       </div>
+      {esPyc && <p className="mb-2 text-xs text-slate-500">Como PYC ve los presupuestos de todos los CECOs.</p>}
       {seleccion.length === 0 ? (
-        <p className={`text-xs ${u.roles.includes("SOLICITANTE") ? "text-amber-700" : "text-slate-500"}`}>
-          {gestiona ? "Sin CECOs: no gestiona presupuestos." : "Sin CECOs: no puede crear requerimientos."}
-        </p>
+        !esPyc || u.roles.includes("SOLICITANTE") || gestiona ? (
+          <p className={`text-xs ${u.roles.includes("SOLICITANTE") ? "text-amber-700" : "text-slate-500"}`}>
+            {u.roles.includes("SOLICITANTE")
+              ? "Sin CECOs: no puede crear requerimientos."
+              : gestiona
+                ? "Sin CECOs: como Gerencia no aprueba por ámbito."
+                : "Sin CECOs asignados."}
+          </p>
+        ) : null
       ) : (
         <ul className="flex flex-wrap gap-1.5">
           {seleccion.map((id) => {
