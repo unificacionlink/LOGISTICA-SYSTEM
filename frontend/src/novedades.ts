@@ -13,6 +13,13 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.59.2",
+    titulo: "Usuarios sin repetirse",
+    cambios: [
+      "En Administración › Usuarios, cada persona aparece una sola vez, en la pestaña de su rol principal, y debajo de su correo se ven sus otros roles.",
+    ],
+  },
+  {
     version: "0.59.1",
     titulo: "Ficha del usuario más clara",
     cambios: [

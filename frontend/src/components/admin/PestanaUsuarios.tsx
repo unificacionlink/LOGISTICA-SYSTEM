@@ -34,10 +34,30 @@ function estadoDe(u: UsuarioAdmin): Estado {
   return "activo";
 }
 
+/**
+ * Rol principal: cada usuario aparece en una sola pestaña, la de su rol de
+ * mayor alcance (quien tiene todos los roles no se repite en cada una). Sus
+ * otros roles se muestran debajo de su correo.
+ */
+const JERARQUIA = ["ADMIN", "LOGISTICA", "GERENCIA", "PYC", "APROBADOR", "SOLICITANTE"] as const;
+const TOTAL_ROLES = JERARQUIA.length;
+
+function rolPrincipal(u: UsuarioAdmin): string | null {
+  return JERARQUIA.find((r) => u.roles.includes(r)) ?? null;
+}
+
+function otrosRoles(u: UsuarioAdmin): string | null {
+  const principal = rolPrincipal(u);
+  const otros = u.roles.filter((r) => r !== principal);
+  if (otros.length === 0) return null;
+  if (u.roles.length >= TOTAL_ROLES) return "+ todos los roles";
+  return "+ " + otros.map((r) => ETIQUETA_ROL[r] ?? r).join(" · ");
+}
+
 function enGrupo(u: UsuarioAdmin, g: Grupo): boolean {
   if (g === "todos") return true;
   if (g === "sin-rol") return u.roles.length === 0;
-  return u.roles.includes(g);
+  return rolPrincipal(u) === g;
 }
 
 /** Codigos de CECO como chips cortos: los primeros y "+n". */
@@ -61,7 +81,8 @@ function ListaCecos({ ids, porId, vacio }: { ids: string[]; porId: Map<string, C
 }
 
 /**
- * Usuarios por rol (Administracion): una pestaña por rol con su conteo y
+ * Usuarios por rol (Administracion): una pestaña por rol principal (cada
+ * usuario en una sola) con su conteo y
  * columnas segun lo que importa de ese rol (CECOs para pedir, CECOs que
  * aprueba); la ficha completa se edita en un panel lateral.
  */
@@ -132,6 +153,9 @@ export default function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos;
           vacio={<span className="text-xs text-slate-400">Ninguno asignado</span>}
         />
       );
+    }
+    if (u.roles.length >= TOTAL_ROLES) {
+      return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.6875rem] text-slate-700">Todos los roles</span>;
     }
     return u.roles.length ? (
       <span className="flex flex-wrap gap-1">
@@ -249,6 +273,9 @@ export default function PestanaUsuarios({ datos, aplicar }: { datos: AdminDatos;
                     <td className="col-flex px-5 py-3" title={u.nombre}>
                       <p className="truncate text-sm text-slate-800">{u.nombre}</p>
                       <p className="truncate text-xs text-slate-500">{u.correo}</p>
+                      {grupo !== "todos" && otrosRoles(u) && (
+                        <p className="truncate text-[0.6875rem] text-slate-400">{otrosRoles(u)}</p>
+                      )}
                     </td>
                     <td className="col-sec px-5 py-3 text-xs text-slate-600">
                       <span className="flex items-center gap-1.5">

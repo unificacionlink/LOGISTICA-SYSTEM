@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.59.2 — 2026-11-20
+
+Administración › Usuarios: cada usuario en una sola pestaña.
+
+- `PestanaUsuarios`: las pestañas agrupan por **rol principal** (Administrador → Logística → Gerencia → PYC → Aprobador → Solicitante), así quien tiene varios roles no se repite en cada una y los conteos suman el total. Debajo del correo se indican sus otros roles ("+ Aprobador · Gerencia" o "+ todos los roles"); en "Todos", quien tiene los 6 roles muestra "Todos los roles".
+
 ## 0.59.1 — 2026-11-20
 
 Ficha del usuario más clara sobre qué aprueba cada quien (sin cambiar la regla, DEC-L030).
