@@ -5,6 +5,35 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L079 — Orden de compra con el formato F-LOG-09 (2026-11-20, v0.62.0).**
+  - Decisión del usuario: la OC sale idéntica al formato F-LOG-09 v1 del sistema
+    de gestión (código, versión 1, aprobado el 29/01/2024): cabecera con logo,
+    RUC/dirección/teléfono de la empresa, proveedor y condiciones, detalle
+    CÓDIGO/DESCRIPCIÓN/UM/CANTIDAD/VALOR UNITARIO/SUBTOTAL, VALOR TOTAL + IGV +
+    PRECIO TOTAL, cuentas de depósito y de detracción del proveedor (DEC-L078),
+    especificaciones adicionales, las dos condiciones adicionales fijas y los
+    V°B° de Gerencia (Gerente General) y Logística (Gestor de Compras).
+    GOYDEL y METRIN usan el mismo formato con sus propios datos.
+  - IGV elegido en cada OC (`orden_abastecimiento.tax_mode`, V43): `MAS_IGV`
+    (precios sin IGV, +18%; por defecto), `IGV_INCLUIDO` (se desglosa hacia
+    atrás) o `NO_AFECTO`. `subtotal` = VALOR TOTAL, `tax_amount` = IGV,
+    `total` = PRECIO TOTAL (`ImpuestoOrden`). Las OC previas quedan
+    `NO_AFECTO` para no cambiar sus totales. El historial comercial del
+    proveedor suma `total`, es decir, con IGV.
+  - Logística edita IGV, plazo de entrega (sale del plazo de la cotización),
+    lugar de entrega y especificaciones solo mientras la OC está
+    `POR_APROBAR`: Gerencia aprueba el documento final.
+  - Firmas escaneadas por empresa (no por usuario): el formato nombra cargos
+    fijos. Se suben en Administración › Empresas junto con razón social,
+    RUC, dirección, teléfono y logo; las imágenes van al bucket **privado**
+    (DEC-L071) y la BD guarda solo la clave. Las firmas se estampan **solo si
+    la OC está aprobada**; por aprobar dice "BORRADOR - PENDIENTE DE
+    APROBACIÓN" y anulada "ORDEN ANULADA - SIN VALIDEZ". TDEM tiene además el
+    logo del formato incluido en la aplicación como respaldo.
+  - Maqueta propia (`documentos/PdfOrdenCompra`), no la corporativa: el formato
+    es una grilla con bordes; la tabla salta de página repitiendo la cabecera.
+  - Pendiente (v0.63.0): OC directa (servicios y productos sin RFQ).
+
 - **DEC-L078 — Cuentas bancarias del proveedor (2026-11-20, v0.61.0).**
   - Decisión del usuario: el sistema guarda las cuentas bancarias de cada
     proveedor (para pagar y para la detracción), y se cargan las que ya tenía

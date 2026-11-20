@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.62.0 — 2026-11-20
+
+Orden de compra con el formato F-LOG-09 (DEC-L079).
+
+- `V43__orden_formato_flog09.sql`: `empresa.address/phone/logo_key/signature_manager_key/signature_buyer_key` (+ check del RUC, datos de TDEM); `orden_abastecimiento.tax_mode/delivery_term/additional_specs` (previas `NO_AFECTO`).
+- `ImpuestoOrden` (MAS_IGV, IGV_INCLUIDO, NO_AFECTO): VALOR TOTAL, IGV y PRECIO TOTAL. La emisión aplica `MAS_IGV` y toma el plazo de la cotización.
+- `OrdenCompraService.editarCondiciones` + `PUT /api/compras/ordenes/{id}/condiciones`: solo Logística/Admin y solo `POR_APROBAR`; auditado.
+- PDF: `documentos/PdfOrdenCompra` (maqueta F-LOG-09) armado en `DocumentosService.orden` con datos de la empresa, contacto y cuentas del proveedor, logo y firmas del bucket privado (solo con la OC aprobada).
+- `EmpresaAdminService` + `/api/admin/empresas` (listar, editar, subir/quitar/ver logo y firmas; PNG/JPG hasta 2 MB; auditado). Solo ADMIN.
+- Frontend: tarjeta `CondicionesOrden` en el detalle de la OC (editable mientras espera aprobación) y pestaña Administración › Empresas (`PestanaEmpresas`).
+- Tests: `ConsolidacionComprasTest` (IGV, condiciones, PDF por aprobar/aprobada, datos de empresa), `PdfOrdenCompraTest` (varias páginas, anulada); `ProveedoresTest` suma con IGV; `MigracionesFlywayTest` cuenta 43.
+
 ## 0.61.0 — 2026-11-20
 
 Cuentas bancarias del proveedor (DEC-L078).

@@ -25,9 +25,12 @@ public class AdminController {
     private final AdminService service;
     private final PersonalManualService personal;
     private final PadronPersonalService padron;
+    private final EmpresaAdminService empresas;
 
-    public AdminController(AdminService service, PersonalManualService personal, PadronPersonalService padron) {
+    public AdminController(AdminService service, PersonalManualService personal, PadronPersonalService padron,
+                           EmpresaAdminService empresas) {
         this.service = service;
+        this.empresas = empresas;
         this.personal = personal;
         this.padron = padron;
     }
@@ -158,6 +161,41 @@ public class AdminController {
         return ApiResponse.ok(service.crearCeco(request, principal), "CECO creado.");
     }
 
+
+    // ---------- Empresas: datos, logo y firmas del formato F-LOG-09 (DEC-L079) ----------
+
+    @GetMapping("/empresas")
+    public ApiResponse<List<EmpresaDatosDto>> empresas(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(empresas.listar(principal));
+    }
+
+    @PutMapping("/empresas/{id}")
+    public ApiResponse<List<EmpresaDatosDto>> editarEmpresa(@PathVariable UUID id,
+                                                            @Valid @RequestBody EditarEmpresaRequest request,
+                                                            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(empresas.editar(id, request, principal), "Datos de la empresa guardados.");
+    }
+
+    @PostMapping(value = "/empresas/{id}/imagen/{tipo}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<List<EmpresaDatosDto>> subirImagenEmpresa(@PathVariable UUID id, @PathVariable String tipo,
+                                                                 @RequestParam("file") MultipartFile file,
+                                                                 @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(empresas.subirImagen(id, tipo, file, principal), "Imagen guardada.");
+    }
+
+    @DeleteMapping("/empresas/{id}/imagen/{tipo}")
+    public ApiResponse<List<EmpresaDatosDto>> quitarImagenEmpresa(@PathVariable UUID id, @PathVariable String tipo,
+                                                                  @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(empresas.quitarImagen(id, tipo, principal), "Imagen quitada.");
+    }
+
+    @GetMapping("/empresas/{id}/imagen/{tipo}")
+    public ResponseEntity<byte[]> imagenEmpresa(@PathVariable UUID id, @PathVariable String tipo,
+                                                @AuthenticationPrincipal UsuarioPrincipal principal) {
+        EmpresaAdminService.Imagen img = empresas.leerImagen(id, tipo, principal);
+        return Descargas.archivo(img.contenido(), tipo + (img.tipo().endsWith("png") ? ".png" : ".jpg"),
+                MediaType.parseMediaType(img.tipo()));
+    }
 
     @PostMapping("/sincronizar-rrhh")
     public ApiResponse<AdminDatosDto> sincronizar(@AuthenticationPrincipal UsuarioPrincipal principal) {

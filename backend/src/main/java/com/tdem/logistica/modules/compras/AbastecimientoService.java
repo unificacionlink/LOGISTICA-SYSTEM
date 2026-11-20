@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
@@ -768,7 +767,10 @@ public class AbastecimientoService {
         orden.setDeliveryMode(cot.getDeliveryMode());
         orden.setDeliveryLocation(rfq.getDeliveryLocation());
         orden.setMoneda(cot.getMoneda());
-        orden.setTaxAmount(BigDecimal.ZERO);
+        // DEC-L079: por defecto los precios cotizados son sin IGV; Logistica lo ajusta antes de aprobar.
+        orden.setTaxMode(ImpuestoOrden.MAS_IGV);
+        orden.setDeliveryTerm(cot.getLeadDays() != null
+                ? cot.getLeadDays() + (cot.getLeadDays() == 1 ? " día" : " días") : null);
         // DEC-L061: nace por aprobar; Gerencia o Logistica la aprueba antes de enviarla al proveedor.
         orden.setStatus(AppConstants.EstadoOrden.POR_APROBAR);
         orden.setCreatedBy(usuario);
@@ -794,9 +796,7 @@ public class AbastecimientoService {
             subtotal = subtotal.add(ci.getLineTotal());
             c.setStatus(Consolidacion.ORDENADA);
         }
-        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
-        orden.setSubtotal(subtotal);
-        orden.setTotal(subtotal);
+        ImpuestoOrden.aplicar(orden, subtotal);
         ordenRepository.insertar(orden);
         ordenItemRepository.insertarTodos(items);
         cot.setStatus("SELECCIONADA");

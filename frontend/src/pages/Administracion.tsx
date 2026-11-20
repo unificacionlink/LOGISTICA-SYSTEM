@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useDatos } from "../api/useDatos";
 import { useSearchParams } from "react-router-dom";
-import { Building2, Contact, RefreshCw, ScrollText, Users } from "lucide-react";
+import { Building2, Contact, Landmark, RefreshCw, ScrollText, Users } from "lucide-react";
 import { crearCeco, obtenerAdmin, sincronizarRrhh } from "../api/admin";
 import type { AdminDatos } from "../api/types";
 import Alert from "../components/ui/Alert";
@@ -11,16 +11,18 @@ import EmptyState from "../components/ui/EmptyState";
 import Field, { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
+import PestanaEmpresas from "../components/admin/PestanaEmpresas";
 import PestanaPadron from "../components/admin/PestanaPadron";
 import PestanaRegistro from "../components/admin/PestanaRegistro";
 import PestanaUsuarios from "../components/admin/PestanaUsuarios";
 
-type Pestana = "usuarios" | "personal" | "cecos" | "rrhh" | "registro";
+type Pestana = "usuarios" | "personal" | "cecos" | "empresas" | "rrhh" | "registro";
 
 const PESTANAS: { id: Pestana; label: string; icon: typeof Users }[] = [
   { id: "usuarios", label: "Usuarios", icon: Users },
   { id: "personal", label: "Personal", icon: Contact },
   { id: "cecos", label: "CECOs", icon: Building2 },
+  { id: "empresas", label: "Empresas", icon: Landmark },
   { id: "rrhh", label: "RR.HH.", icon: RefreshCw },
   { id: "registro", label: "Registro", icon: ScrollText },
 ];
@@ -93,6 +95,9 @@ export default function Administracion() {
       {tab === "registro" ? (
         // DEC-L060: no depende de los datos de usuarios; carga lo suyo.
         <PestanaRegistro />
+      ) : tab === "empresas" ? (
+        // DEC-L079: datos, logo y firmas de la OC F-LOG-09; carga lo suyo.
+        <PestanaEmpresas />
       ) : !datos ? (
         !error && (
           <Card className="overflow-hidden">

@@ -766,6 +766,28 @@ export interface Orden {
   releaseNote: string | null;
   /** Por que el almacen todavia no puede recibirla; null si puede o ya no aplica. */
   bloqueoRecepcion: string | null;
+  /** Formato F-LOG-09 (DEC-L079): como se aplica el IGV; total = PRECIO TOTAL. */
+  taxMode: ModoIgv;
+  /** VALOR TOTAL (sin IGV). */
+  subtotal: number;
+  taxAmount: number;
+  deliveryTerm: string | null;
+  additionalSpecs: string | null;
+}
+
+export type ModoIgv = "MAS_IGV" | "IGV_INCLUIDO" | "NO_AFECTO";
+
+/** Datos de la empresa para la cabecera de la OC (F-LOG-09, DEC-L079). */
+export interface EmpresaDatos {
+  id: string;
+  code: string;
+  nombre: string;
+  ruc: string | null;
+  direccion: string | null;
+  telefono: string | null;
+  tieneLogo: boolean;
+  tieneFirmaGerencia: boolean;
+  tieneFirmaLogistica: boolean;
 }
 
 export type EstadoPagoOrden = "PENDIENTE" | "ANTICIPO" | "PAGADO";

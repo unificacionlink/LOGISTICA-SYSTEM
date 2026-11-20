@@ -1,5 +1,5 @@
-import { http } from "./http";
-import type { AdminDatos, DarAccesoResultado, PersonalAdmin, PersonalCarga } from "./types";
+import { API_URL, http } from "./http";
+import type { AdminDatos, EmpresaDatos, DarAccesoResultado, PersonalAdmin, PersonalCarga } from "./types";
 
 // Administracion de identidad (solo ADMIN, DEC-L024). Cada escritura devuelve
 // los datos completos de la pantalla: una sola ida y vuelta.
@@ -122,4 +122,34 @@ export function asignarCecosAprobados(userId: string, cecoIds: string[]) {
 
 export function sincronizarRrhh() {
   return http.post<AdminDatos>("/api/admin/sincronizar-rrhh");
+}
+
+// ---------------------------------------------------------------- Empresas (F-LOG-09, DEC-L079)
+
+export type ImagenEmpresa = "logo" | "firma-gerencia" | "firma-logistica";
+
+export function listarEmpresas() {
+  return http.get<EmpresaDatos[]>("/api/admin/empresas");
+}
+
+export function editarEmpresa(id: string, datos: { nombre: string; ruc: string; direccion: string; telefono: string }) {
+  return http.put<EmpresaDatos[]>(`/api/admin/empresas/${id}`, datos);
+}
+
+export function subirImagenEmpresa(id: string, tipo: ImagenEmpresa, file: File) {
+  return http.postForm<EmpresaDatos[]>(`/api/admin/empresas/${id}/imagen/${tipo}`, formArchivo(file));
+}
+
+export function quitarImagenEmpresa(id: string, tipo: ImagenEmpresa) {
+  return http.delete<EmpresaDatos[]>(`/api/admin/empresas/${id}/imagen/${tipo}`);
+}
+
+/** Vista previa de una imagen del bucket privado: URL local del navegador, o null. */
+export async function verImagenEmpresa(id: string, tipo: ImagenEmpresa): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/admin/empresas/${id}/imagen/${tipo}`, { credentials: "include" });
+    return res.ok ? URL.createObjectURL(await res.blob()) : null;
+  } catch {
+    return null;
+  }
 }

@@ -13,6 +13,7 @@ import { descargarPdfOrden } from "../api/documentos";
 import { useConfirmar } from "../components/ui/Confirmacion";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import CicloOrden from "../components/compras/CicloOrden";
+import CondicionesOrden from "../components/compras/CondicionesOrden";
 import { useAuth } from "../auth/AuthContext";
 
 export default function ComprasOrdenDetalle() {
@@ -111,30 +112,14 @@ export default function ComprasOrdenDetalle() {
         onError={setError}
       />
 
-      <Card className="mb-4">
-        <CardBody>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <div className="rotulo">Condición de pago</div>
-              <div className="mt-1 text-sm text-slate-700">{orden.paymentCondition}</div>
-            </div>
-            <div>
-              <div className="rotulo">Modalidad de entrega</div>
-              <div className="mt-1 text-sm text-slate-700">{orden.deliveryMode}</div>
-            </div>
-            <div>
-              <div className="rotulo">Lugar de entrega</div>
-              <div className="mt-1 text-sm text-slate-700">{orden.deliveryLocation ?? "—"}</div>
-            </div>
-            <div>
-              <div className="rotulo">Total</div>
-              <div className="mt-1 text-sm text-slate-700">
-                {orden.total} {orden.currencyCode}
-              </div>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
+      <CondicionesOrden
+        orden={orden}
+        onCambio={(o) => {
+          setError(null);
+          setDetalle({ ...detalle, orden: o });
+        }}
+        onError={setError}
+      />
 
       <Card className="mb-4 overflow-hidden">
         <CardBody className="pb-3">

@@ -33,5 +33,11 @@ public record OrdenDto(
         Instant paidAt,
         Instant releasedAt,
         String releaseNote,
-        String bloqueoRecepcion) {
+        String bloqueoRecepcion,
+        // Formato F-LOG-09 (DEC-L079): VALOR TOTAL, IGV y PRECIO TOTAL (= total).
+        String taxMode,
+        BigDecimal subtotal,
+        BigDecimal taxAmount,
+        String deliveryTerm,
+        String additionalSpecs) {
 }

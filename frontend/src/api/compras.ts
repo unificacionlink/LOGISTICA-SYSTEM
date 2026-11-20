@@ -12,6 +12,7 @@ import type {
   Necesidad,
   OcrComparativo,
   OcrCotizacion,
+  ModoIgv,
   Orden,
   OrdenDetalle,
   PorEmitir,
@@ -227,6 +228,18 @@ export function registrarPagoOrden(orderId: string, estado: "ANTICIPO" | "PAGADO
 
 export function liberarOrden(orderId: string, nota?: string) {
   return http.post<Orden>(`/api/compras/ordenes/${orderId}/liberar`, { nota: nota || null });
+}
+
+export interface CondicionesOrden {
+  taxMode: ModoIgv;
+  deliveryTerm: string | null;
+  deliveryLocation: string | null;
+  additionalSpecs: string | null;
+}
+
+/** Solo mientras la OC espera aprobacion (DEC-L079). */
+export function editarCondicionesOrden(orderId: string, c: CondicionesOrden) {
+  return http.put<Orden>(`/api/compras/ordenes/${orderId}/condiciones`, c);
 }
 
 export function anularOrden(orderId: string, motivo: string) {

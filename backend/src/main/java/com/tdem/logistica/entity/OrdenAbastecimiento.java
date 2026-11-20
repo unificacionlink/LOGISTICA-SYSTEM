@@ -113,4 +113,16 @@ public class OrdenAbastecimiento {
 
     @Column(name = "release_note")
     private String releaseNote;
+
+    // ---- Formato F-LOG-09 (DEC-L079)
+
+    /** MAS_IGV, IGV_INCLUIDO o NO_AFECTO: ver {@code ImpuestoOrden}. */
+    @Column(name = "tax_mode", nullable = false)
+    private String taxMode = "MAS_IGV";
+
+    @Column(name = "delivery_term")
+    private String deliveryTerm;
+
+    @Column(name = "additional_specs")
+    private String additionalSpecs;
 }

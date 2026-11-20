@@ -10,6 +10,7 @@ import com.tdem.logistica.common.Auditoria;
 import com.tdem.logistica.entity.Aprobacion;
 import com.tdem.logistica.entity.Documento;
 import com.tdem.logistica.entity.OrdenAbastecimiento;
+import com.tdem.logistica.modules.compras.dto.CondicionesOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.DecidirOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.OrdenDto;
@@ -18,10 +19,12 @@ import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.AprobacionRepository;
 import com.tdem.logistica.repository.DocumentoRepository;
 import com.tdem.logistica.repository.OrdenAbastecimientoRepository;
+import com.tdem.logistica.repository.OrdenItemRepository;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -45,6 +48,7 @@ public class OrdenCompraService {
     private static final String ENTIDAD_AUDITORIA = "ORDEN_ABASTECIMIENTO";
 
     private final OrdenAbastecimientoRepository ordenRepository;
+    private final OrdenItemRepository ordenItemRepository;
     private final AprobacionRepository aprobacionRepository;
     private final DocumentoRepository documentoRepository;
     private final ComprasService comprasService;
@@ -53,6 +57,7 @@ public class OrdenCompraService {
     private final RealtimeNotifier realtime;
 
     public OrdenCompraService(OrdenAbastecimientoRepository ordenRepository,
+                              OrdenItemRepository ordenItemRepository,
                               AprobacionRepository aprobacionRepository,
                               DocumentoRepository documentoRepository,
                               ComprasService comprasService,
@@ -60,6 +65,7 @@ public class OrdenCompraService {
                               Auditoria auditoria,
                               RealtimeNotifier realtime) {
         this.ordenRepository = ordenRepository;
+        this.ordenItemRepository = ordenItemRepository;
         this.aprobacionRepository = aprobacionRepository;
         this.documentoRepository = documentoRepository;
         this.comprasService = comprasService;
@@ -157,6 +163,47 @@ public class OrdenCompraService {
         OrdenDto dto = ComprasMapper.toDto(orden, origen.deOrden(orderId));
         realtime.ordenDeCompra(dto);
         return dto;
+    }
+
+    /**
+     * Condiciones del formato F-LOG-09 (DEC-L079): IGV, plazo y lugar de entrega y
+     * especificaciones adicionales. Solo mientras espera aprobacion: lo que Gerencia
+     * aprueba es el documento que recibe el proveedor.
+     */
+    @Transactional
+    public OrdenDto editarCondiciones(UUID orderId, CondicionesOrdenRequest request, UsuarioPrincipal principal) {
+        exigirLogisticaOAdmin(principal);
+        String modo = ImpuestoOrden.validarModo(request.taxMode());
+        OrdenAbastecimiento orden = bloquearConDetalle(orderId);
+        if (!EstadoOrden.POR_APROBAR.equals(orden.getStatus())) {
+            throw ApiException.badRequest("Solo se editan las condiciones de una orden pendiente de aprobacion.");
+        }
+        Map<String, Object> antes = condiciones(orden);
+        orden.setTaxMode(modo);
+        orden.setDeliveryTerm(limpio(request.deliveryTerm()));
+        orden.setDeliveryLocation(limpio(request.deliveryLocation()));
+        orden.setAdditionalSpecs(limpio(request.additionalSpecs()));
+        BigDecimal suma = ordenItemRepository.findByOrden(orderId).stream()
+                .map(i -> i.getLineSubtotal())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        ImpuestoOrden.aplicar(orden, suma);
+        ordenRepository.save(orden);
+        auditoria.registrar(ENTIDAD_AUDITORIA, orderId, "CONDICIONES", antes, condiciones(orden), principal.userId());
+        return ComprasMapper.toDto(orden, origen.deOrden(orderId));
+    }
+
+    private static Map<String, Object> condiciones(OrdenAbastecimiento o) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("igv", o.getTaxMode());
+        m.put("total", o.getTotal());
+        m.put("plazo", o.getDeliveryTerm());
+        m.put("lugar", o.getDeliveryLocation());
+        m.put("especificaciones", o.getAdditionalSpecs());
+        return m;
+    }
+
+    private static String limpio(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 
     /** Anticipo o pago con su constancia. No se vuelve a PENDIENTE: lo entregado no se deshace. */

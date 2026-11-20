@@ -125,7 +125,12 @@ public final class ComprasMapper {
                 o.getPaidAt(),
                 o.getReleasedAt(),
                 o.getReleaseNote(),
-                FlujoOrden.bloqueoRecepcion(o));
+                FlujoOrden.bloqueoRecepcion(o),
+                o.getTaxMode(),
+                o.getSubtotal(),
+                o.getTaxAmount(),
+                o.getDeliveryTerm(),
+                o.getAdditionalSpecs());
     }
 
     public static OrdenItemDto toDto(OrdenItem i) {

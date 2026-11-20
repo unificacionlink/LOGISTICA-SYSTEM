@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.62.0",
+    titulo: "Orden de compra con el formato F-LOG-09",
+    cambios: [
+      "El PDF de la orden de compra sale con el formato F-LOG-09: logo y datos de la empresa, cuentas del proveedor, IGV, especificaciones y los V° B° de Gerencia y Logística.",
+      "En cada orden se elige si los precios son sin IGV, con IGV incluido o no afectos, y se indican el plazo de entrega y las especificaciones mientras espera aprobación.",
+      "Las firmas solo aparecen cuando la orden está aprobada.",
+      "Administración tiene una pestaña Empresas para registrar RUC, dirección, teléfono, logo y firmas de cada empresa.",
+    ],
+  },
+  {
     version: "0.61.0",
     titulo: "Cuentas bancarias de los proveedores",
     cambios: [

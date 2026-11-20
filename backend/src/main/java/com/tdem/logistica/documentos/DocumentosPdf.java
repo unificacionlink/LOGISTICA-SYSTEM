@@ -44,7 +44,7 @@ final class DocumentosPdf {
 
     static final String PLANTILLA_REQ = "PLT-REQ v1";
     static final String PLANTILLA_RFQ = "PLT-RFQ v1";
-    static final String PLANTILLA_OC = "PLT-OC v1";
+    static final String PLANTILLA_OC = "F-LOG-09 v1";
     static final String PLANTILLA_NI = "PLT-NI v1";
     static final String PLANTILLA_TRACKING = "PLT-TRK v1";
 
@@ -131,43 +131,37 @@ final class DocumentosPdf {
         return pdf.terminar();
     }
 
-    static byte[] orden(OrdenDetalleDto d, String pie) {
-        OrdenDto o = d.orden();
-        PdfCorporativo pdf = new PdfCorporativo("ORDEN DE COMPRA", o.orderCode(), d.empresaCode(), PLANTILLA_OC, pie);
-        pdf.seccion("Proveedor y condiciones");
-        pdf.campos(List.of(
-                Campo.de("Proveedor", o.proveedorNombre()),
-                Campo.de("RUC", d.proveedorRuc()),
-                Campo.de("Fecha de emisión", fecha(o.issueDate())),
-                Campo.de("Requerimiento", o.requestCode()),
-                Campo.de("Estado", etiqueta(o.status())),
-                Campo.de("Moneda", o.currencyCode()),
-                Campo.de("Condición de pago", etiqueta(o.paymentCondition())),
-                Campo.de("Pago", etiqueta(o.paymentStatus())),
-                Campo.de("Modalidad de entrega", etiqueta(o.deliveryMode())),
-                Campo.de("Lugar de entrega", o.deliveryLocation())));
+    /** Lo que la OC necesita fuera de su DTO: empresa, contacto y cuentas del proveedor, imagenes. */
+    record ExtrasOrden(String empresaNombreCorto, String empresaRuc, String empresaDireccion, String empresaTelefono,
+                       byte[] logo, String contacto, String telefonoContacto, List<String> cuentasDeposito,
+                       List<String> cuentasDetraccion, byte[] firmaGerencia, byte[] firmaLogistica) {
+    }
 
-        pdf.seccion("Detalle");
-        List<List<String>> filas = new ArrayList<>();
-        int n = 1;
+    /** Formato F-LOG-09 (DEC-L079). */
+    static byte[] orden(OrdenDetalleDto d, ExtrasOrden e, String pie) {
+        OrdenDto o = d.orden();
+        List<PdfOrdenCompra.Linea> lineas = new ArrayList<>();
         for (OrdenItemDto i : d.items()) {
             String descripcion = i.nombreProducto() != null ? producto(i.nombreProducto(), i.atributo()) : texto(i.description());
             if (i.referenciaProveedor() != null && !i.referenciaProveedor().isBlank()) {
                 descripcion += "\nRef. proveedor: " + i.referenciaProveedor();
             }
-            filas.add(List.of(String.valueOf(n++), sku(i.skuBase(), i.codigoVariante()), descripcion,
+            lineas.add(new PdfOrdenCompra.Linea(sku(i.skuBase(), i.codigoVariante()), descripcion,
                     texto(i.unidadMedida()), cantidad(i.qtyOrdered()), monto(i.unitCost()), monto(i.lineTotal())));
         }
-        pdf.tabla(List.of(
-                Columna.numero("#", 0.5f),
-                Columna.texto("SKU", 1.6f),
-                Columna.texto("Descripción", 4.4f),
-                Columna.texto("Unidad", 1f),
-                Columna.numero("Cantidad", 1.1f),
-                Columna.numero("Costo unit.", 1.4f),
-                Columna.numero("Total", 1.5f)), filas);
-        pdf.totales(List.<String[]>of(new String[]{"Total " + texto(o.currencyCode()), monto(o.total())}));
-        return pdf.terminar();
+        boolean noAfecto = "NO_AFECTO".equals(o.taxMode());
+        String notaIgv = "IGV_INCLUIDO".equals(o.taxMode()) ? "Los precios unitarios incluyen IGV." : null;
+        boolean aprobada = o.approvedAt() != null && !"ANULADA".equals(o.status()) && !"POR_APROBAR".equals(o.status());
+        return PdfOrdenCompra.generar(new PdfOrdenCompra.Datos(
+                o.orderCode(), o.status(), aprobada,
+                e.empresaNombreCorto(), e.empresaRuc(), e.empresaDireccion(), e.empresaTelefono(), e.logo(),
+                o.proveedorNombre(), d.proveedorRuc(), fecha(o.issueDate()), o.deliveryTerm(),
+                e.contacto(), e.telefonoContacto(), o.deliveryLocation(), etiqueta(o.paymentCondition()),
+                o.currencyCode(), lineas,
+                monto(o.subtotal()), noAfecto ? "NO AFECTO" : "18%", monto(o.taxAmount()), monto(o.total()), notaIgv,
+                e.cuentasDeposito(), e.cuentasDetraccion(), o.additionalSpecs(),
+                aprobada ? e.firmaGerencia() : null, aprobada ? e.firmaLogistica() : null,
+                PLANTILLA_OC + " · " + pie));
     }
 
     static byte[] notaInventario(NotaInventarioDetalleDto d, String pie) {

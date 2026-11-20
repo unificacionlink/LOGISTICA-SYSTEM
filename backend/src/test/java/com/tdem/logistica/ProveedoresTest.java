@@ -316,7 +316,7 @@ class ProveedoresTest {
 		assertEquals(1, compras.ordenes().size());
 		assertEquals(1, compras.cotizaciones().size());
 		assertEquals("PEN", compras.totales().get(0).moneda());
-		assertEquals(0, new BigDecimal("60").compareTo(compras.totales().get(0).total()));
+		assertEquals(0, new BigDecimal("70.80").compareTo(compras.totales().get(0).total()), "3 x 20 + IGV 18%");
 		assertEquals(1, compras.productos().size());
 		assertEquals(0, new BigDecimal("20").compareTo(compras.productos().get(0).ultimoPrecio()));
 		assertNotNull(compras.ordenes().get(0).primeraRecepcion());

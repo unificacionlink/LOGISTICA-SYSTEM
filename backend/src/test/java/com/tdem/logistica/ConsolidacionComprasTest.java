@@ -14,6 +14,13 @@ import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.modules.compras.OrdenCompraService;
 import com.tdem.logistica.modules.compras.dto.DecidirOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest;
+import com.tdem.logistica.documentos.DocumentosService;
+import com.tdem.logistica.modules.identidad.EmpresaAdminService;
+import com.tdem.logistica.modules.identidad.dto.EditarEmpresaRequest;
+import com.tdem.logistica.modules.identidad.dto.EmpresaDatosDto;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.mock.web.MockMultipartFile;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
@@ -59,6 +66,8 @@ class ConsolidacionComprasTest {
 	@Autowired private ComprasService compras;
 	@Autowired private RecepcionService recepcion;
 	@Autowired private CajaChicaService cajaChica;
+	@Autowired private DocumentosService documentos;
+	@Autowired private EmpresaAdminService empresas;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -183,12 +192,13 @@ class ConsolidacionComprasTest {
 
 		// --- OC por cotizacion ---
 		OrdenDto oc2 = abastecimiento.emitirOrden(cot2.quotationId(), logistica);
-		assertEquals(0, oc2.total().compareTo(new BigDecimal("56.00")));
+		assertEquals(0, oc2.subtotal().compareTo(new BigDecimal("56.00")));
+		assertEquals(0, oc2.total().compareTo(new BigDecimal("66.08")), "por defecto, precios sin IGV + 18%");
 		assertNull(oc2.requestId());
 		assertTrue(oc2.requestCode().contains(a.codigo) && oc2.requestCode().contains(b.codigo), oc2.requestCode());
 		assertThrows(ApiException.class, () -> abastecimiento.emitirOrden(cot2.quotationId(), logistica));
 		OrdenDto oc1 = abastecimiento.emitirOrden(cot1.quotationId(), logistica);
-		assertEquals(0, oc1.total().compareTo(new BigDecimal("10.00")), "solo lo adjudicado a S1");
+		assertEquals(0, oc1.subtotal().compareTo(new BigDecimal("10.00")), "solo lo adjudicado a S1");
 		assertEquals("CERRADA", estadoRfq(r1.rfqId()));
 		assertEquals("CERRADA", estadoRfq(r2.rfqId()));
 		assertEquals(1, jdbc.queryForObject("select count(*) from proveedor_producto where supplier_id = ? and product_id = ?",
@@ -257,6 +267,93 @@ class ConsolidacionComprasTest {
 		assertEquals("FALLA_PROVEEDOR", nueva.get("suggested_reason"));
 		EvaluacionCajaChicaDto ev = cajaChica.evaluar(req.id, logistica);
 		assertTrue(ev.motivos().stream().anyMatch(m -> m.codigo().equals("FALLA_PROVEEDOR")), ev.toString());
+	}
+
+	@Test
+	void ordenConFormatoFlog09IgvElegidoYCondicionesHastaAprobar() throws IOException {
+		UsuarioPrincipal logistica = logistica();
+		UUID prov = proveedor("20100000015");
+		jdbc.update("update proveedor set contact_name = 'Rosa Diaz', phone = '987654321' where supplier_id = ?", prov);
+		jdbc.update("""
+				insert into proveedor_cuenta_bancaria (supplier_id, bank_name, account_type, currency_code, account_number, cci, is_primary)
+				values (?, 'BCP', 'CORRIENTE', 'PEN', '191-1234567-0-11', '00219100123456701155', true),
+				       (?, 'Banco de la Nacion', 'DETRACCION', 'PEN', '00-000-123456', null, false)""", prov, prov);
+		abastecimiento.reemplazarCobertura(producto("AC01005"), List.of(prov), logistica);
+		aprobar(requerimiento("ADM", "APROVISIONAMIENTO", null, Map.of("AC01005-00", 4)));
+		ConsolidadoDto c = consolidado("AC01005-00");
+		RfqDto rfq = abastecimiento.prepararSolicitudes(List.of(c.consolidationId()), logistica).get(0);
+		abastecimiento.confirmarEnvio(rfq.rfqId(), "CORREO", logistica);
+		CotizacionDto cot = cotizar(rfq.rfqId(), Map.of("AC01005", "25"));
+		abastecimiento.adjudicar(c.consolidationId(), linea(cot, "AC01005"), logistica);
+
+		// Por defecto los precios son sin IGV: 4 x 25 = 100 + 18 = 118; el plazo sale de la cotizacion.
+		OrdenDto oc = abastecimiento.emitirOrden(cot.quotationId(), logistica);
+		assertEquals("MAS_IGV", oc.taxMode());
+		assertEquals(0, oc.subtotal().compareTo(new BigDecimal("100.00")));
+		assertEquals(0, oc.taxAmount().compareTo(new BigDecimal("18.00")));
+		assertEquals(0, oc.total().compareTo(new BigDecimal("118.00")));
+		assertEquals("5 días", oc.deliveryTerm());
+
+		// Precios con IGV incluido: se desglosa hacia atras.
+		OrdenDto incluido = ordenCompra.editarCondiciones(oc.orderId(),
+				new CondicionesOrdenRequest("IGV_INCLUIDO", "7 días hábiles", "Almacén central", "Entregar con guía"), logistica);
+		assertEquals(0, incluido.total().compareTo(new BigDecimal("100.00")));
+		assertEquals(0, incluido.subtotal().compareTo(new BigDecimal("84.75")));
+		assertEquals(0, incluido.taxAmount().compareTo(new BigDecimal("15.25")));
+		assertEquals("Entregar con guía", incluido.additionalSpecs());
+		OrdenDto noAfecto = ordenCompra.editarCondiciones(oc.orderId(),
+				new CondicionesOrdenRequest("NO_AFECTO", "7 días hábiles", "Almacén central", null), logistica);
+		assertEquals(0, noAfecto.taxAmount().signum());
+		assertEquals(0, noAfecto.total().compareTo(new BigDecimal("100.00")));
+		assertThrows(ApiException.class, () -> ordenCompra.editarCondiciones(oc.orderId(),
+				new CondicionesOrdenRequest("IVA", null, null, null), logistica));
+		UsuarioPrincipal gerencia = new UsuarioPrincipal(usuario("gerencia@logistica.test"), List.of("GERENCIA"));
+		assertThrows(ApiException.class, () -> ordenCompra.editarCondiciones(oc.orderId(),
+				new CondicionesOrdenRequest("MAS_IGV", null, null, null), gerencia), "solo Logistica las edita");
+		ordenCompra.editarCondiciones(oc.orderId(),
+				new CondicionesOrdenRequest("MAS_IGV", "7 días hábiles", "Almacén central", "Entregar con guía"), logistica);
+
+		// PDF F-LOG-09: por aprobar lo dice y no lleva firmas.
+		String borrador = textoPdf(documentos.orden(oc.orderId(), logistica).contenido());
+		assertTrue(borrador.contains("F-LOG-09"), borrador);
+		assertTrue(borrador.contains("20522095797"), "RUC de TDEM en la cabecera");
+		assertTrue(borrador.contains("PENDIENTE DE APROBACIÓN"), borrador);
+		assertTrue(borrador.contains("Rosa Diaz") && borrador.contains("987654321"));
+		assertTrue(borrador.contains("191-1234567-0-11") && borrador.contains("00-000-123456"));
+		assertTrue(borrador.contains("118.00") && borrador.contains("Entregar con guía"), borrador);
+
+		// Aprobada: ya no se editan las condiciones y el PDF deja de ser borrador.
+		ordenCompra.decidir(oc.orderId(), new DecidirOrdenRequest("APROBADO", null), gerencia);
+		assertThrows(ApiException.class, () -> ordenCompra.editarCondiciones(oc.orderId(),
+				new CondicionesOrdenRequest("NO_AFECTO", null, null, null), logistica));
+		String aprobada = textoPdf(documentos.orden(oc.orderId(), gerencia).contenido());
+		assertFalse(aprobada.contains("PENDIENTE DE APROBACIÓN"), aprobada);
+		assertThrows(ApiException.class, () -> documentos.orden(oc.orderId(),
+				new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"))));
+	}
+
+	@Test
+	void datosDeEmpresaParaElFormatoSoloAdmin() {
+		UsuarioPrincipal admin = new UsuarioPrincipal(usuario("admin@logistica.test"), List.of("ADMIN"));
+		EmpresaDatosDto metrin = empresas.listar(admin).stream().filter(e -> "METRIN".equals(e.code())).findFirst().orElseThrow();
+		assertNull(metrin.ruc());
+		EmpresaDatosDto editada = empresas.editar(metrin.id(),
+				new EditarEmpresaRequest("METRIN S.A.C.", "20123456789", "Av. Lima 123", "01 555 5555"), admin)
+				.stream().filter(e -> "METRIN".equals(e.code())).findFirst().orElseThrow();
+		assertEquals("20123456789", editada.ruc());
+		assertEquals("METRIN S.A.C.", editada.nombre());
+		assertFalse(editada.tieneFirmaGerencia());
+		assertThrows(ApiException.class, () -> empresas.listar(logistica()));
+		assertThrows(ApiException.class, () -> empresas.subirImagen(metrin.id(), "firma-gerencia",
+				new MockMultipartFile("file", "firma.png", "image/png", new byte[]{1, 2, 3}), admin), "no es una imagen");
+		assertThrows(ApiException.class, () -> empresas.subirImagen(metrin.id(), "sello",
+				new MockMultipartFile("file", "x.png", "image/png", new byte[]{1}), admin));
+	}
+
+	private static String textoPdf(byte[] pdf) throws IOException {
+		try (var doc = Loader.loadPDF(pdf)) {
+			return new PDFTextStripper().getText(doc);
+		}
 	}
 
 	@Test

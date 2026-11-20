@@ -279,6 +279,14 @@ public class ComprasController {
                 : "Orden de compra " + orden.orderCode() + " aprobada.");
     }
 
+    @PutMapping("/ordenes/{id}/condiciones")
+    public ApiResponse<OrdenDto> editarCondicionesOrden(
+            @PathVariable UUID id,
+            @Valid @RequestBody CondicionesOrdenRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(ordenes.editarCondiciones(id, request, principal), "Condiciones de la orden guardadas.");
+    }
+
     @PostMapping("/ordenes/{id}/pago")
     public ApiResponse<OrdenDto> registrarPago(
             @PathVariable UUID id,
