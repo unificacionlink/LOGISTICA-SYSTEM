@@ -13,6 +13,13 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.59.1",
+    titulo: "Ficha del usuario más clara",
+    cambios: [
+      "En Administración, la ficha de cada usuario indica para qué le sirven sus CECOs: pedir, aprobar como Gerencia o presupuestos.",
+    ],
+  },
+  {
     version: "0.59.0",
     titulo: "Tus requerimientos de un vistazo y avisos en la plataforma",
     cambios: [

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.59.1 — 2026-11-20
+
+Ficha del usuario más clara sobre qué aprueba cada quien (sin cambiar la regla, DEC-L030).
+
+- `CecosUsuario`: con Gerencia o PYC, junto a "CECOs de su ámbito" se indica para qué sirven según sus roles (pide · aprueba como Gerencia · presupuestos).
+- `CecosAprobados`: la sección pasa a "Aprobador asignado de"; si está vacía y el usuario tiene Gerencia, aclara que igual aprueba los CECOs de su ámbito.
+
 ## 0.59.0 — 2026-11-19
 
 Resumen del solicitante y avisos dentro de la plataforma (DEC-L076).

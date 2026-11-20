@@ -65,9 +65,13 @@ export default function CecosAprobados({
 
   return (
     <div className="mt-4">
-      <div className="rotulo mb-2">CECOs que aprueba</div>
+      <div className="rotulo mb-2">Aprobador asignado de</div>
       {seleccion.length === 0 ? (
-        <p className="text-xs text-slate-500">No es aprobador asignado de ningún CECO.</p>
+        <p className="text-xs text-slate-500">
+          {u.roles.includes("GERENCIA")
+            ? "De ningún CECO. Como Gerencia igual aprueba los CECOs de su ámbito."
+            : "No es aprobador asignado de ningún CECO."}
+        </p>
       ) : (
         <ul className="flex flex-wrap gap-1.5">
           {seleccion.map((id) => {
@@ -149,7 +153,7 @@ export default function CecosAprobados({
       {cambiaron && (
         <div className="mt-3 flex gap-2">
           <Button size="sm" loading={guardando} onClick={onGuardar}>
-            Guardar CECOs que aprueba
+            Guardar asignación
           </Button>
           <Button size="sm" variant="ghost" disabled={guardando} onClick={() => setSeleccion(actuales)}>
             Descartar
