@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { BarChart3, ClipboardCheck, FileText, Info, ShoppingCart, Star } from "lucide-react";
+import { BarChart3, ClipboardCheck, FileText, Info, Landmark, ShoppingCart, Star } from "lucide-react";
 import {
   actualizarProveedor,
   cambiarActivoProveedor,
@@ -16,6 +16,7 @@ import { fmtNota } from "../components/proveedores/estados";
 import FormularioProveedor from "../components/proveedores/FormularioProveedor";
 import { EstadoProveedorBadge, ResultadoBadge, VigenciaBadge } from "../components/proveedores/Insignias";
 import PanelDecision from "../components/proveedores/PanelDecision";
+import PestanaCuentas from "../components/proveedores/PestanaCuentas";
 import PanelEvaluacion from "../components/proveedores/PanelEvaluacion";
 import { PanelCategorias, PanelProductos } from "../components/proveedores/PanelesClasificacion";
 import PestanaCompras from "../components/proveedores/PestanaCompras";
@@ -33,7 +34,7 @@ import PanelLateral from "../components/ui/PanelLateral";
 import Pestanas, { type Pestana } from "../components/ui/Pestanas";
 import { Skeleton } from "../components/ui/Skeleton";
 
-type Tab = "general" | "documentos" | "seleccion" | "evaluaciones" | "compras" | "desempeno";
+type Tab = "general" | "documentos" | "cuentas" | "seleccion" | "evaluaciones" | "compras" | "desempeno";
 type Panel = "editar" | "categorias" | "productos" | "decidir" | TipoEvaluacion | null;
 
 function Resumen({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -107,7 +108,7 @@ export default function ProveedorFicha() {
   const [panel, setPanel] = useState<Panel>(params.get("editar") ? "editar" : null);
   const [ocupado, setOcupado] = useState(false);
 
-  const tabs: Tab[] = ["general", "documentos", "seleccion", "evaluaciones", "compras", "desempeno"];
+  const tabs: Tab[] = ["general", "documentos", "cuentas", "seleccion", "evaluaciones", "compras", "desempeno"];
   const tab = (tabs.includes(params.get("tab") as Tab) ? params.get("tab") : "general") as Tab;
 
   const cargar = useCallback(() => {
@@ -229,6 +230,7 @@ export default function ProveedorFicha() {
   const pestanas: Pestana<Tab>[] = [
     { id: "general", label: "General", icon: Info },
     { id: "documentos", label: "Documentos", icon: FileText, marca: faltan || null },
+    { id: "cuentas", label: "Cuentas bancarias", icon: Landmark },
     { id: "seleccion", label: "Selección", icon: Star },
     { id: "evaluaciones", label: "Evaluaciones", icon: ClipboardCheck },
     { id: "compras", label: "Compras", icon: ShoppingCart },
@@ -307,6 +309,7 @@ export default function ProveedorFicha() {
         />
       )}
       {tab === "documentos" && <PestanaDocumentos supplierId={id} onCambio={cargar} />}
+      {tab === "cuentas" && <PestanaCuentas supplierId={id} />}
       {tab === "seleccion" && (
         <PestanaEvaluaciones
           kind="SELECCION"

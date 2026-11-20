@@ -5,6 +5,21 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L078 — Cuentas bancarias del proveedor (2026-11-20, v0.61.0).**
+  - Decisión del usuario: el sistema guarda las cuentas bancarias de cada
+    proveedor (para pagar y para la detracción), y se cargan las que ya tenía
+    TDEM en su módulo de proveedores de Google Sheets.
+  - Tabla `proveedor_cuenta_bancaria` (V42): banco, tipo (ahorros, corriente,
+    detracción u otra), moneda, número, CCI y si es la principal (una sola por
+    proveedor). Única por proveedor + banco + número.
+  - **Dato sensible:** solo Logística y Admin (`AccesoProveedores`). No sale en
+    `GET /api/proveedores`, ni en la ficha general, las cotizaciones o el enlace
+    público. La auditoría (`log_cambios`) guarda el número y el CCI
+    **enmascarados** (`****1234`), nunca completos.
+  - Ficha del proveedor → pestaña "Cuentas bancarias" (agregar, editar,
+    quitar con confirmación). Endpoints `/api/proveedores/{id}/cuentas-bancarias`
+    y `/api/proveedores/cuentas-bancarias/{cuentaId}`.
+
 - **DEC-L077 — PYC trabaja sobre todos los CECOs de las 3 empresas (2026-11-20, v0.60.0).**
   - Decisión del usuario: PYC no necesita CECOs asignados; ve todos los CECOs
     y presupuestos de TDEM, GOYDEL y METRIN.

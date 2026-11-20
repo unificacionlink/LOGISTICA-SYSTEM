@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.61.0 — 2026-11-20
+
+Cuentas bancarias del proveedor (DEC-L078).
+
+- `V42__proveedor_cuenta_bancaria.sql`: tabla `proveedor_cuenta_bancaria` con índice único por proveedor + banco + número.
+- `CuentaBancariaService` (listar, crear, editar, quitar; una principal por proveedor; auditoría con número y CCI enmascarados) y endpoints en `ProveedorController`. Solo Logística y Admin.
+- Frontend: pestaña "Cuentas bancarias" en la ficha del proveedor (`components/proveedores/PestanaCuentas`), con panel lateral para agregar o editar.
+- Test `ProveedoresTest.cuentasBancariasSoloLogisticaYAuditoriaEnmascarada`; `MigracionesFlywayTest` cuenta 42.
+
 ## 0.60.0 — 2026-11-20
 
 PYC trabaja sobre todos los CECOs de las 3 empresas (DEC-L077).

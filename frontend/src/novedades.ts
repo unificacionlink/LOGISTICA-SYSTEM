@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.61.0",
+    titulo: "Cuentas bancarias de los proveedores",
+    cambios: [
+      "En la ficha de cada proveedor hay una pestaña nueva con sus cuentas bancarias: banco, tipo, moneda, número, CCI y la cuenta de detracción.",
+      "Solo Logística y Administración pueden verlas y editarlas.",
+    ],
+  },
+  {
     version: "0.60.0",
     titulo: "PYC con todos los CECOs",
     cambios: [

@@ -19,6 +19,7 @@ import com.tdem.logistica.modules.proveedores.HistorialComercialService;
 import com.tdem.logistica.modules.proveedores.PlantillaEvaluacionService;
 import com.tdem.logistica.modules.proveedores.ProveedorService;
 import com.tdem.logistica.modules.proveedores.VigenciaEvaluacion;
+import com.tdem.logistica.modules.proveedores.dto.GuardarCuentaBancariaRequest;
 import com.tdem.logistica.modules.proveedores.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import com.tdem.logistica.storage.StorageClient;
@@ -74,6 +75,7 @@ class ProveedoresTest {
 	@Autowired private ComparativoService comparativo;
 	@Autowired private OrdenCompraService ordenCompra;
 	@Autowired private RecepcionService recepcion;
+	@Autowired private com.tdem.logistica.modules.proveedores.CuentaBancariaService cuentas;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -355,6 +357,45 @@ class ProveedoresTest {
 		proveedores.guardarProductos(id, List.of(), log);
 		assertEquals(0, fichas.ficha(id, log).productos().size());
 		assertThrows(ApiException.class, () -> proveedores.guardarProductos(id, List.of(UUID.randomUUID()), log));
+	}
+
+	/** DEC-L078: cuentas bancarias solo para Logistica/Admin, con el numero enmascarado en la auditoria. */
+	@Test
+	void cuentasBancariasSoloLogisticaYAuditoriaEnmascarada() {
+		UsuarioPrincipal log = logistica();
+		UUID id = proveedores.crear(solicitud("20600000007", "Con Cuentas SAC", "b@b.pe"), log).supplierId();
+		var bcp = new GuardarCuentaBancariaRequest("bcp", "CORRIENTE", "PEN", "191-2561841-0-80", "00219100256184108054", true);
+		var lista = cuentas.crear(id, bcp, log);
+		assertEquals(1, lista.size());
+		assertEquals("BCP", lista.get(0).banco());
+		assertTrue(lista.get(0).principal());
+
+		// La segunda principal desplaza a la primera; la misma cuenta no se repite.
+		var bn = new GuardarCuentaBancariaRequest("Banco de la Nacion", "DETRACCION", "PEN", "00-058-101214", null, true);
+		lista = cuentas.crear(id, bn, log);
+		assertEquals(1, lista.stream().filter(c -> c.principal()).count());
+		assertThrows(ApiException.class, () -> cuentas.crear(id, bcp, log), "duplicada");
+		assertThrows(ApiException.class, () -> cuentas.crear(id,
+				new GuardarCuentaBancariaRequest("BBVA", "AHORROS", "XYZ", "0011-0317", null, false), log), "moneda");
+
+		// Nadie mas las ve.
+		assertThrows(ApiException.class, () -> cuentas.listar(id, gerencia()));
+		assertThrows(ApiException.class, () -> cuentas.listar(id, solicitante()));
+		assertEquals(2, cuentas.listar(id, admin()).size());
+
+		// Editar y quitar; la auditoria nunca guarda el numero completo.
+		UUID cuenta = lista.stream().filter(c -> c.banco().equals("BCP")).findFirst().orElseThrow().id();
+		cuentas.actualizar(cuenta, new GuardarCuentaBancariaRequest("BCP", "AHORROS", "USD", "191-2561841-0-80",
+				null, false), log);
+		assertEquals("USD", cuentas.listar(id, log).stream().filter(c -> c.id().equals(cuenta)).findFirst()
+				.orElseThrow().moneda());
+		assertEquals(1, cuentas.eliminar(cuenta, log).size());
+		String auditoria = String.join(" | ", jdbc.queryForList(
+				"select coalesce(antes::text, '') || coalesce(despues::text, '') from log_cambios where entidad_id = ? "
+						+ "and accion like '%CUENTA_BANCARIA'", String.class, id));
+		assertTrue(auditoria.contains("****1080"), auditoria);
+		assertFalse(auditoria.contains("2561841"), "el numero completo no queda en la auditoria");
+		assertFalse(auditoria.contains("00219100256184108054"));
 	}
 
 	// ---------------------------------------------------------------- apoyo

@@ -209,3 +209,35 @@ export function listarEquivalencias(supplierId: string) {
 export function quitarEquivalencia(equivalenceId: string) {
   return http.delete<null>(`/api/proveedores/equivalencias/${equivalenceId}`);
 }
+
+// ---------------------------------------------------------------- cuentas bancarias (DEC-L078)
+
+/** Cuenta bancaria del proveedor; solo la ven Logística y Administración. */
+export interface CuentaBancaria {
+  id: string;
+  banco: string;
+  tipo: "AHORROS" | "CORRIENTE" | "DETRACCION" | "OTRA";
+  moneda: string;
+  numero: string;
+  cci: string | null;
+  principal: boolean;
+  registradaEn: string;
+}
+
+export type GuardarCuentaBancaria = Omit<CuentaBancaria, "id" | "registradaEn">;
+
+export function listarCuentasBancarias(supplierId: string) {
+  return http.get<CuentaBancaria[]>(`/api/proveedores/${supplierId}/cuentas-bancarias`);
+}
+
+export function agregarCuentaBancaria(supplierId: string, cuenta: GuardarCuentaBancaria) {
+  return http.post<CuentaBancaria[]>(`/api/proveedores/${supplierId}/cuentas-bancarias`, cuenta);
+}
+
+export function editarCuentaBancaria(cuentaId: string, cuenta: GuardarCuentaBancaria) {
+  return http.put<CuentaBancaria[]>(`/api/proveedores/cuentas-bancarias/${cuentaId}`, cuenta);
+}
+
+export function quitarCuentaBancaria(cuentaId: string) {
+  return http.delete<CuentaBancaria[]>(`/api/proveedores/cuentas-bancarias/${cuentaId}`);
+}

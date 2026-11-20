@@ -4,11 +4,13 @@ import com.tdem.logistica.common.ApiResponse;
 import com.tdem.logistica.documentos.Descargas;
 import com.tdem.logistica.modules.proveedores.dto.ComprasProveedorDto;
 import com.tdem.logistica.modules.proveedores.dto.ConfiguracionProveedores;
+import com.tdem.logistica.modules.proveedores.dto.CuentaBancariaDto;
 import com.tdem.logistica.modules.proveedores.dto.DesempenoProveedorDto;
 import com.tdem.logistica.modules.proveedores.dto.DocumentosProveedorDto;
 import com.tdem.logistica.modules.proveedores.dto.EquivalenciaDto;
 import com.tdem.logistica.modules.proveedores.dto.EvaluacionDto;
 import com.tdem.logistica.modules.proveedores.dto.FichaProveedorDto;
+import com.tdem.logistica.modules.proveedores.dto.GuardarCuentaBancariaRequest;
 import com.tdem.logistica.modules.proveedores.dto.GuardarProveedorRequest;
 import com.tdem.logistica.modules.proveedores.dto.PanelProveedoresDto;
 import com.tdem.logistica.modules.proveedores.dto.PlantillaDto;
@@ -41,11 +43,13 @@ public class ProveedorController {
     private final PlantillaEvaluacionService plantillas;
     private final DocumentoProveedorService documentos;
     private final HistorialComercialService historial;
+    private final CuentaBancariaService cuentas;
 
     public ProveedorController(ProveedorService service, EquivalenciaService equivalencias,
                                FichaProveedorService fichas, CicloProveedorService ciclo,
                                EvaluacionProveedorService evaluaciones, PlantillaEvaluacionService plantillas,
-                               DocumentoProveedorService documentos, HistorialComercialService historial) {
+                               DocumentoProveedorService documentos, HistorialComercialService historial,
+                               CuentaBancariaService cuentas) {
         this.service = service;
         this.equivalencias = equivalencias;
         this.fichas = fichas;
@@ -54,6 +58,35 @@ public class ProveedorController {
         this.plantillas = plantillas;
         this.documentos = documentos;
         this.historial = historial;
+        this.cuentas = cuentas;
+    }
+
+    // ---------------------------------------------------------------- cuentas bancarias (DEC-L078)
+
+    @GetMapping("/{id}/cuentas-bancarias")
+    public ApiResponse<List<CuentaBancariaDto>> cuentasBancarias(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(cuentas.listar(id, principal));
+    }
+
+    @PostMapping("/{id}/cuentas-bancarias")
+    public ApiResponse<List<CuentaBancariaDto>> agregarCuentaBancaria(
+            @PathVariable UUID id, @Valid @RequestBody GuardarCuentaBancariaRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(cuentas.crear(id, request, principal), "Cuenta bancaria registrada.");
+    }
+
+    @PutMapping("/cuentas-bancarias/{cuentaId}")
+    public ApiResponse<List<CuentaBancariaDto>> editarCuentaBancaria(
+            @PathVariable UUID cuentaId, @Valid @RequestBody GuardarCuentaBancariaRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(cuentas.actualizar(cuentaId, request, principal), "Cuenta bancaria actualizada.");
+    }
+
+    @DeleteMapping("/cuentas-bancarias/{cuentaId}")
+    public ApiResponse<List<CuentaBancariaDto>> quitarCuentaBancaria(
+            @PathVariable UUID cuentaId, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(cuentas.eliminar(cuentaId, principal), "Cuenta bancaria eliminada.");
     }
 
     /** Como llama este proveedor a nuestros productos (DEC-L053). */
