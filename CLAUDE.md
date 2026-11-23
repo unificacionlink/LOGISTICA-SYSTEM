@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD propia en Supabase.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L084 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L085 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `docs/05_PLAN_PROVEEDORES.md` — plan y diagnóstico del Lote 19a (proveedores), con los indicadores pendientes de datos.
 - `docs/06_PLAN_MUDANZA_SUPABASE.md` — mudanza de RR-HH al proyecto propio (DEC-L072): bitácora del corte y retiro pendiente en RR-HH.
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
@@ -52,7 +52,7 @@ npm run lint      # oxlint
 
 Usuarios de prueba (password `Logistica2026!`): `solicitante@`, `logistica@`, `aprobador@`, `gerencia@`, `pyc@`, `admin@` + `logistica.test`.
 
-Scripts Python en `scripts/`: `seed_catalogo_sku.py` (regenera seed de 725 SKU desde el Excel) y `cargar_imagenes.py` (carga masiva de fotos a S3).
+Scripts Python en `scripts/`: `seed_catalogo_sku.py` (regenera seed de 725 SKU desde el Excel), `cargar_imagenes.py` (carga masiva de fotos a S3) y `carga_inicial_stock.py` (inventario inicial y catálogo desde el reporte del sistema anterior, DEC-L085).
 
 ## Arquitectura backend (`backend/src/main/java/com/tdem/logistica/`)
 

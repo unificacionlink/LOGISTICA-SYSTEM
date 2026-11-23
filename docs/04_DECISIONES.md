@@ -5,7 +5,36 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
-- **DEC-L084 — Entrega directa del proveedor al CECO (2026-11-23, v0.66.0, ALM-04 de la V38.7).**
+- **DEC-L085 — Carga inicial del almacén y del catálogo desde el sistema anterior (2026-11-23).**
+  - Fuente: el reporte de Logística `stock_minimo_TDEM_GOYDEL_2026-01-01_2026-11-20.csv`
+    (917 filas, códigos antiguos A0xxx de TDEM y GOYDEL). Lo procesa
+    `scripts/carga_inicial_stock.py` (no toca la BD: genera la propuesta, la
+    plantilla de Stock › Carga y un SQL idempotente de alta y precios).
+  - Reglas del usuario: **un solo almacén** (TDEM y GOYDEL se consolidan en un
+    producto); stock actual = stock contado; **cantidad a pedir = stock
+    mínimo**; **precio unitario = precio de venta del catálogo** para TDEM,
+    GOYDEL y METRIN, el mayor si las tallas o filas de un producto difieren
+    (no es costo de compra: los presupuestos siguen con la última OC);
+    costo de compra se ignora; **cada logo es otro producto**; **la marca
+    no cambia el producto**.
+  - Cruce: (1) correlativo, el código TDEM (o GOYDEL si coincide) contra el
+    `legacySku` de la base de la V38.7, verificando la descripción (el mismo
+    código puede ser otro artículo en cada empresa); (2) nombre, cuando todas
+    las palabras del producto del catálogo están y lo que sobra es solo la
+    marca o el modelo al final (sin números ni logo). Medida, color y logo
+    distintos nunca cruzan.
+  - El maestro de Jonathan llegaba hasta el A0833: lo demás se creó como
+    **producto nuevo** (341, nombre sin marca ni modelo, tallas como
+    variantes TALLA, subfamilia del producto más parecido o de la familia
+    del Excel, SKU con el correlativo de la subfamilia como
+    `MaestroService`, unidad UND/PAR del Excel y ND en el resto), más 2
+    tallas en productos existentes. Altas auditadas `ALTA_CARGA_INICIAL`;
+    precios auditados `PRECIO_VENTA` a nombre de Logística.
+  - Resultado en producción: 931 productos, 1.176 variantes, 616 precios por
+    empresa. El stock y los mínimos (839 variantes) los sube Logística en
+    Stock › Carga con `CARGA_STOCK.xlsx` (INV-1).
+
+ — Entrega directa del proveedor al CECO (2026-11-23, v0.66.0, ALM-04 de la V38.7).**
   - La V38.7 solo la deja "pendiente", sin diseño. Decisiones del usuario:
     **no pasa por el kardex** (el stock central no se mueve, como la caja
     chica del proyecto); registran la recepción **Logística, Gerencia, Admin
