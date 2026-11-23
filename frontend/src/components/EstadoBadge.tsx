@@ -1,5 +1,6 @@
 import type { EstadoRequerimiento } from "../api/types";
 import Badge, { type BadgeTone } from "./ui/Badge";
+import { ETIQUETA_ESTADO } from "./formato";
 
 const TONO: Record<EstadoRequerimiento, BadgeTone> = {
   BORRADOR: "gris",
@@ -12,17 +13,6 @@ const TONO: Record<EstadoRequerimiento, BadgeTone> = {
   RECHAZADO: "rojo",
 };
 
-const ETIQUETA: Record<EstadoRequerimiento, string> = {
-  BORRADOR: "Borrador",
-  PENDIENTE_APROBACION: "Pendiente de aprobación",
-  OBSERVADO: "Observado",
-  VERIFICACION_STOCK: "Verificación de stock",
-  EN_ATENCION: "En atención",
-  ATENCION_PARCIAL: "Atención parcial",
-  ATENCION_COMPLETA: "Atención completa",
-  RECHAZADO: "Rechazado",
-};
-
 export default function EstadoBadge({ estado }: { estado: EstadoRequerimiento }) {
-  return <Badge tone={TONO[estado]}>{ETIQUETA[estado]}</Badge>;
+  return <Badge tone={TONO[estado]}>{ETIQUETA_ESTADO[estado]}</Badge>;
 }

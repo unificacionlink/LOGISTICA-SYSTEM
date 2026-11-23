@@ -1,7 +1,25 @@
-import type { AccionProveedor, ModalidadEntrega, TipoAdjuntoEnvio, TipoIncidencia } from "../api/types";
+import type {
+  AccionProveedor,
+  EstadoRequerimiento,
+  ModalidadEntrega,
+  TipoAdjuntoEnvio,
+  TipoIncidencia,
+} from "../api/types";
 
-// Etiquetas y formatos de Almacen; separados de los badges para que el archivo
+// Etiquetas y formatos de Almacen y Requerimientos; separados de los badges para que el archivo
 // de componentes solo exporte componentes (recarga en caliente).
+
+/** Estado del requerimiento en lenguaje de usuario (badge, dashboard). */
+export const ETIQUETA_ESTADO: Record<EstadoRequerimiento, string> = {
+  BORRADOR: "Borrador",
+  PENDIENTE_APROBACION: "Pendiente de aprobación",
+  OBSERVADO: "Observado",
+  VERIFICACION_STOCK: "Verificación de stock",
+  EN_ATENCION: "En atención",
+  ATENCION_PARCIAL: "Atención parcial",
+  ATENCION_COMPLETA: "Atención completa",
+  RECHAZADO: "Rechazado",
+};
 
 export const ETIQUETA_TIPO_INCIDENCIA: Record<TipoIncidencia, string> = {
   FALTANTE: "Faltante",

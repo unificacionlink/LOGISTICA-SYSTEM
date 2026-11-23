@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.65.0",
+    titulo: "Dashboard con Proceso, Demanda y Gasto",
+    cambios: [
+      "Inicio tiene tres pestañas: Proceso, Demanda y Gasto. El período y la empresa sirven para las tres.",
+      "Proceso muestra qué porcentaje de requerimientos se entregó a tiempo (desde stock y con compra) y cuántos abiertos ya pasaron su fecha.",
+      "Demanda muestra qué se pide por familia, mes, producto y estado, la matriz ABC de lo despachado y el detalle de líneas, con descarga en Excel.",
+      "Gasto muestra lo comprado sin IGV por empresa, mes, CECO, familia y proveedor.",
+    ],
+  },
+  {
     version: "0.64.0",
     titulo: "Proveedores por empresa y cotizaciones a quien elijas",
     cambios: [

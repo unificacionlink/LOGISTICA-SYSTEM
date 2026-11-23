@@ -1,15 +1,27 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Activity, ClipboardList, Wallet } from "lucide-react";
+import { descargarDemanda, obtenerDashboard, obtenerDemanda, obtenerGasto } from "../api/dashboard";
+import { obtenerClasificacion } from "../api/maestro";
+import type { Familia } from "../api/types";
 import { useDatos } from "../api/useDatos";
-import { Link } from "react-router-dom";
-import { obtenerDashboard } from "../api/dashboard";
-import type { CodigoEtapa, Dashboard as DashboardData } from "../api/types";
+import BotonDescarga from "./BotonDescarga";
+import PestanaDemanda from "./dashboard/PestanaDemanda";
+import PestanaGasto from "./dashboard/PestanaGasto";
+import PestanaProceso from "./dashboard/PestanaProceso";
 import { EMPRESAS } from "./empresas";
+import FiltroFamilia from "./FiltroFamilia";
 import Alert from "./ui/Alert";
+import Pestanas, { type Pestana } from "./ui/Pestanas";
 import { Skeleton } from "./ui/Skeleton";
 
-// Un solo tono para todas las marcas de datos (series unicas: no hay identidad
-// que codificar). El azul TDEM ya es el acento de la app.
-const MARCA = "bg-brand-500";
+type Vista = "proceso" | "demanda" | "gasto";
+
+const PESTANAS: Pestana<Vista>[] = [
+  { id: "proceso", label: "Proceso", icon: Activity },
+  { id: "demanda", label: "Demanda", icon: ClipboardList },
+  { id: "gasto", label: "Gasto", icon: Wallet },
+];
 
 const PERIODOS = [
   { dias: 30, label: "30 días" },
@@ -17,277 +29,95 @@ const PERIODOS = [
   { dias: 365, label: "1 año" },
 ];
 
-const ETAPAS: Record<CodigoEtapa, { label: string; to: string }> = {
-  POR_APROBAR: { label: "Por aprobar", to: "/aprobaciones" },
-  EN_COTIZACION: { label: "En cotización", to: "/compras" },
-  OC_EN_CURSO: { label: "OC en curso", to: "/compras/ordenes" },
-  POR_DESPACHAR: { label: "Por despachar", to: "/almacen" },
-  EN_TRANSITO: { label: "En tránsito", to: "/almacen" },
-};
-
-function fmtNum(n: number | null | undefined, decimales = 1): string {
-  if (n === null || n === undefined) return "—";
-  return Number(n).toLocaleString("es-PE", { maximumFractionDigits: decimales });
-}
-
-function fmtMonto(moneda: string, n: number): string {
-  const simbolo = moneda === "PEN" ? "S/" : moneda === "USD" ? "US$" : moneda;
-  return `${simbolo} ${Number(n).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-/** Horas si es menos de 2 dias; si no, dias (48 h se lee peor que 2 d). */
-function duracionHoras(horas: number | null): { valor: string; unidad: string } {
-  if (horas === null) return { valor: "—", unidad: "" };
-  if (horas < 48) return { valor: fmtNum(horas), unidad: "h" };
-  return { valor: fmtNum(horas / 24), unidad: "días" };
-}
-
-function fmtSemana(iso: string): string {
-  const [, m, d] = iso.split("-");
-  return `${d}/${m}`;
-}
-
-// ---------------------------------------------------------------------------
-
-function Tile({
-  rotulo,
-  valor,
-  unidad,
-  detalle,
-  children,
-}: {
-  rotulo: string;
-  valor: ReactNode;
-  unidad?: string;
-  detalle?: ReactNode;
-  children?: ReactNode;
-}) {
+function Esqueleto({ tiles }: { tiles: number }) {
+  const columnas = tiles === 6 ? "md:grid-cols-3 xl:grid-cols-6" : tiles === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3";
   return (
-    <div className="flex flex-col rounded-lg border border-slate-200 bg-white px-4 py-4">
-      <span className="rotulo">{rotulo}</span>
-      <span className="mt-2.5 flex items-baseline gap-1.5">
-        <span className="text-[1.75rem] font-semibold leading-none tracking-[-0.02em] text-slate-950">{valor}</span>
-        {unidad && <span className="text-sm text-slate-500">{unidad}</span>}
-      </span>
-      {children}
-      {detalle && <span className="mt-auto pt-2.5 text-xs text-slate-500">{detalle}</span>}
-    </div>
-  );
-}
-
-function Panel({ titulo, nota, children }: { titulo: string; nota?: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white">
-      <header className="border-b border-slate-200 px-5 py-3.5">
-        <h2 className="text-[0.9375rem] font-semibold text-slate-900">{titulo}</h2>
-        {nota && <p className="mt-0.5 text-xs text-slate-500">{nota}</p>}
-      </header>
-      <div className="p-5">{children}</div>
-    </section>
-  );
-}
-
-/** Barras horizontales: una por etapa, cada fila lleva al modulo donde se resuelve. */
-function BarrasEtapas({ etapas }: { etapas: DashboardData["etapas"] }) {
-  const max = Math.max(1, ...etapas.map((e) => e.cantidad));
-  return (
-    <ul className="flex flex-col gap-1">
-      {etapas.map((e) => {
-        const meta = ETAPAS[e.codigo];
-        return (
-          <li key={e.codigo}>
-            <Link
-              to={meta.to}
-              className="group grid grid-cols-[7.5rem_1fr_2.5rem] items-center gap-3 rounded-md px-1.5 py-2 transition-colors hover:bg-slate-50"
-              title={`${meta.label}: ${e.cantidad} requerimiento(s)`}
-            >
-              <span className="text-sm text-slate-700 group-hover:text-slate-950">{meta.label}</span>
-              <span className="h-3.5">
-                {e.cantidad > 0 && (
-                  <span
-                    className={`block h-full rounded-r-[4px] ${MARCA} transition-[width] duration-500 ease-(--ease-suave)`}
-                    style={{ width: `${Math.max(2, (e.cantidad / max) * 100)}%` }}
-                  />
-                )}
-              </span>
-              <span className="text-right text-sm font-medium tabular-nums text-slate-900">{e.cantidad}</span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** Columnas por semana con tooltip; eje con solo 0 y el maximo (grilla tenue). */
-function ColumnasSemanales({ semanas }: { semanas: DashboardData["semanas"] }) {
-  const [activa, setActiva] = useState<number | null>(null);
-  const max = Math.max(1, ...semanas.map((s) => s.creados));
-  const total = semanas.reduce((a, s) => a + s.creados, 0);
-  if (total === 0) {
-    return <p className="py-12 text-center text-sm text-slate-400">No se crearon requerimientos en el período.</p>;
-  }
-  // Etiquetas del eje X espaciadas: ~6 visibles como maximo.
-  const paso = Math.max(1, Math.ceil(semanas.length / 6));
-  const sel = activa !== null ? semanas[activa] : null;
-
-  return (
-    <div>
-      <div className="mb-3 flex h-5 items-baseline gap-2 text-sm">
-        {sel ? (
-          <>
-            <span className="text-slate-500">Semana del {fmtSemana(sel.semana)}</span>
-            <span className="font-semibold text-slate-900">{sel.creados} creados</span>
-          </>
-        ) : (
-          <span className="text-slate-500">
-            <span className="font-semibold text-slate-900">{total}</span> en el período
-          </span>
-        )}
-      </div>
-      <div className="relative">
-        {/* Grilla: linea del maximo y linea base, hairlines solidas. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-slate-100">
-          <span className="absolute -top-2.5 right-0 bg-white pl-1 text-[0.625rem] tabular-nums text-slate-400">{max}</span>
-        </div>
-        <div
-          className="flex h-44 items-end gap-0.5 border-b border-slate-200"
-          onMouseLeave={() => setActiva(null)}
-          role="img"
-          aria-label={`Requerimientos creados por semana: ${total} en total, máximo ${max} en una semana`}
-        >
-          {semanas.map((s, i) => (
-            <button
-              key={s.semana}
-              type="button"
-              aria-label={`Semana del ${fmtSemana(s.semana)}: ${s.creados}`}
-              onMouseEnter={() => setActiva(i)}
-              onFocus={() => setActiva(i)}
-              onBlur={() => setActiva(null)}
-              className="flex h-full flex-1 items-end justify-center focus-visible:outline-none"
-            >
-              <span
-                className={`block w-[68%] max-w-10 rounded-t-[4px] transition-[height,opacity] duration-500 ease-(--ease-suave) ${MARCA} ${
-                  activa !== null && activa !== i ? "opacity-40" : ""
-                }`}
-                style={{ height: s.creados > 0 ? `${Math.max(2, (s.creados / max) * 100)}%` : "0" }}
-              />
-            </button>
-          ))}
-        </div>
-        <div className="mt-1.5 flex gap-0.5">
-          {semanas.map((s, i) => (
-            <span key={s.semana} className="flex-1 text-center text-[0.625rem] tabular-nums text-slate-400">
-              {i % paso === 0 ? fmtSemana(s.semana) : ""}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TablaProveedores({ filas }: { filas: DashboardData["proveedores"] }) {
-  if (filas.length === 0) {
-    return <p className="py-6 text-center text-sm text-slate-400">No se enviaron RFQ en el período.</p>;
-  }
-  return (
-    <table className="tabla -mx-1 w-[calc(100%+0.5rem)]">
-      <thead>
-        <tr className="cabecera-tabla bg-transparent">
-          <th className="px-1 pb-2">Proveedor</th>
-          <th className="px-2 pb-2 text-right">RFQ</th>
-          <th className="px-2 pb-2">Respuesta</th>
-          <th className="px-2 pb-2 text-right">Días</th>
-          <th className="px-1 pb-2 text-right">Elegido</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {filas.map((p) => {
-          const pct = p.enviadas > 0 ? Math.round((p.respondidas / p.enviadas) * 100) : 0;
-          return (
-            <tr key={p.proveedor}>
-              <td className="col-flex px-1 py-2.5 text-slate-800" title={p.proveedor}>{p.proveedor}</td>
-              <td className="px-2 py-2.5 text-right text-slate-600">{p.enviadas}</td>
-              <td className="px-2 py-2.5">
-                {/* Medidor: pista y relleno del mismo tono. */}
-                <span className="flex items-center gap-2" title={`${p.respondidas} de ${p.enviadas} respondidas`}>
-                  <span className="h-1.5 w-16 overflow-hidden rounded-full bg-brand-100">
-                    <span className={`block h-full rounded-full ${MARCA}`} style={{ width: `${pct}%` }} />
-                  </span>
-                  <span className="w-9 text-right text-xs text-slate-700">{pct}%</span>
-                </span>
-              </td>
-              <td className="px-2 py-2.5 text-right text-slate-600">{fmtNum(p.diasRespuesta)}</td>
-              <td className="px-1 py-2.5 text-right text-slate-600">{p.elegidas}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
-function TablaComparativos({ filas }: { filas: DashboardData["comparativos"] }) {
-  if (filas.length === 0) {
-    return (
-      <p className="py-6 text-center text-sm text-slate-400">
-        Aún no hay compras con dos o más cotizaciones en el período.
-      </p>
-    );
-  }
-  return (
-    <table className="tabla -mx-1 w-[calc(100%+0.5rem)]">
-      <thead>
-        <tr className="cabecera-tabla bg-transparent">
-          <th className="px-1 pb-2">Requerimiento</th>
-          <th className="px-2 pb-2">Proveedor elegido</th>
-          <th className="px-2 pb-2 text-right">Elegida vs mayor</th>
-          <th className="px-1 pb-2 text-right">Ahorro</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {filas.map((c) => (
-          <tr key={`${c.codigo}-${c.fecha}`}>
-            <td className="px-1 py-2.5">
-              <span className="block font-mono text-xs text-slate-800">{c.codigo}</span>
-              <span className="text-[0.6875rem] text-slate-400">{c.cotizaciones} cotizaciones</span>
-            </td>
-            <td className="col-flex px-2 py-2.5 text-slate-700" title={c.proveedor}>{c.proveedor}</td>
-            <td className="px-2 py-2.5 text-right text-slate-600">
-              {fmtMonto(c.moneda, c.elegido)}
-              <span className="block text-[0.6875rem] text-slate-400">vs {fmtMonto(c.moneda, c.mayor)}</span>
-            </td>
-            <td className="px-1 py-2.5 text-right font-medium text-slate-900">{fmtMonto(c.moneda, c.ahorro)}</td>
-          </tr>
+    <div className="flex flex-col gap-4">
+      <div className={`grid grid-cols-2 gap-3 ${columnas}`}>
+        {Array.from({ length: tiles }).map((_, i) => (
+          <Skeleton key={i} className="h-28 rounded-lg" />
         ))}
-      </tbody>
-    </table>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Skeleton className="h-64 rounded-lg lg:col-span-2" />
+        <Skeleton className="h-64 rounded-lg lg:col-span-3" />
+      </div>
+    </div>
   );
 }
 
-// ---------------------------------------------------------------------------
+/** Familia › subfamilia del maestro para el filtro de Demanda (DEC-L034). */
+function useFamilias(activo: boolean): Familia[] {
+  const [familias, setFamilias] = useState<Familia[]>([]);
+  useEffect(() => {
+    if (!activo || familias.length > 0) return;
+    let vigente = true;
+    void obtenerClasificacion().then((res) => {
+      if (!vigente || !res.ok || !res.result) return;
+      setFamilias(
+        res.result.tipos.flatMap((t) =>
+          t.familias.map((f) => ({
+            familyId: f.id,
+            code: f.code,
+            nombre: f.nombre,
+            tipoId: t.id,
+            tipoCode: t.code,
+            tipoNombre: t.nombre,
+          })),
+        ),
+      );
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [activo, familias.length]);
+  return familias;
+}
 
+/**
+ * Dashboard del Inicio (DEC-L020, DEC-L083): Proceso, Demanda (dashboard
+ * operativo de la V38.7) y Gasto. Periodo y empresa valen para las tres; solo
+ * se pide la pestana visible.
+ */
 export default function Dashboard() {
+  const [params, setParams] = useSearchParams();
+  const vista = (PESTANAS.some((p) => p.id === params.get("tab")) ? params.get("tab") : "proceso") as Vista;
   const [dias, setDias] = useState(90);
   const [empresa, setEmpresa] = useState<string | null>(null);
+  const [familia, setFamilia] = useState("");
+  const familias = useFamilias(vista === "demanda");
+  const filtros = useMemo(() => ({ dias, empresa, familia }), [dias, empresa, familia]);
+
   // Al cambiar un filtro sigue lo anterior (atenuado) hasta que llegue lo nuevo (DEC-L073).
-  const tablero = useDatos(`dashboard:${dias}|${empresa ?? ""}`, () => obtenerDashboard(dias, empresa), {
+  const filtroClave = `${dias}|${empresa ?? ""}`;
+  const proceso = useDatos(vista === "proceso" ? `dashboard:${filtroClave}` : null, () => obtenerDashboard(dias, empresa), {
     conservar: true,
   });
-  const data = tablero.datos;
-  const error = tablero.error;
-  // Atenuado solo mientras se ve lo del filtro anterior, no al refrescar por detras.
-  const actualizando = tablero.previo;
+  const demanda = useDatos(vista === "demanda" ? `dashboard-demanda:${filtroClave}|${familia}` : null, () => obtenerDemanda(filtros), {
+    conservar: true,
+  });
+  const gasto = useDatos(vista === "gasto" ? `dashboard-gasto:${filtroClave}` : null, () => obtenerGasto(dias, empresa), {
+    conservar: true,
+  });
+  const activa = vista === "proceso" ? proceso : vista === "demanda" ? demanda : gasto;
 
-  const pctRespuesta = data && data.rfqEnviadas > 0 ? Math.round((data.rfqRespondidas / data.rfqEnviadas) * 100) : null;
-  const aprobacion = duracionHoras(data?.horasAprobacion ?? null);
-  const ahorroPen = data?.ahorro.find((a) => a.moneda === "PEN");
-  const ahorroOtras = data?.ahorro.filter((a) => a.moneda !== "PEN") ?? [];
+  function cambiarVista(id: Vista) {
+    setParams(
+      (p) => {
+        const sig = new URLSearchParams(p);
+        if (id === "proceso") sig.delete("tab");
+        else sig.set("tab", id);
+        return sig;
+      },
+      { replace: true },
+    );
+  }
 
   return (
     <div>
-      {/* Filtros: una sola fila, afectan a todo el tablero. */}
+      <Pestanas pestanas={PESTANAS} activa={vista} onCambiar={cambiarVista} />
+
+      {/* Filtros: una sola fila, afectan a toda la pestana. */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div role="radiogroup" aria-label="Período" className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
           {PERIODOS.map((p) => (
@@ -318,88 +148,31 @@ export default function Dashboard() {
             </option>
           ))}
         </select>
+        {vista === "demanda" && (
+          <>
+            <FiltroFamilia
+              familias={familias}
+              value={familia}
+              onChange={setFamilia}
+              className="w-full py-1.5! text-[0.8125rem]! shadow-none! sm:w-64"
+            />
+            <span className="sm:ml-auto">
+              <BotonDescarga tipo="excel" etiqueta="Excel" descargar={() => descargarDemanda(filtros)} />
+            </span>
+          </>
+        )}
       </div>
 
-      {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
+      {activa.error && <Alert tone="danger" className="mb-4">{activa.error}</Alert>}
 
-      {!data ? (
-        !error && (
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-28 rounded-lg" />
-              ))}
-            </div>
-            <Skeleton className="h-64 rounded-lg" />
-          </div>
-        )
+      {!activa.datos ? (
+        !activa.error && <Esqueleto tiles={vista === "proceso" ? 6 : vista === "demanda" ? 4 : 3} />
       ) : (
         // Al cambiar filtros se conserva lo anterior atenuado (sin parpadeo de skeletons).
-        <div className={`flex flex-col gap-4 transition-opacity duration-200 ${actualizando ? "opacity-60" : ""}`}>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <Tile
-              rotulo="Abiertos"
-              valor={data.abiertos}
-              detalle={`${data.creados} creados · ${data.completados} completados en el período`}
-            />
-            <Tile rotulo="Aprobación" valor={aprobacion.valor} unidad={aprobacion.unidad} detalle="Promedio hasta aprobarse" />
-            <Tile
-              rotulo="Ciclo completo"
-              valor={fmtNum(data.diasCiclo)}
-              unidad={data.diasCiclo !== null ? "días" : undefined}
-              detalle="De creado a entregado en destino"
-            />
-            <Tile
-              rotulo="Respuesta proveedores"
-              valor={pctRespuesta !== null ? pctRespuesta : "—"}
-              unidad={pctRespuesta !== null ? "%" : undefined}
-              detalle={`${data.rfqRespondidas} de ${data.rfqEnviadas} RFQ respondidas`}
-            >
-              <span className="mt-3 h-1.5 overflow-hidden rounded-full bg-brand-100">
-                <span className={`block h-full rounded-full ${MARCA}`} style={{ width: `${pctRespuesta ?? 0}%` }} />
-              </span>
-            </Tile>
-            <Tile
-              rotulo="Tiempo de respuesta"
-              valor={fmtNum(data.diasRespuesta)}
-              unidad={data.diasRespuesta !== null ? "días" : undefined}
-              detalle="Promedio de RFQ a cotización"
-            />
-            <Tile
-              rotulo="Ahorro por comparar"
-              valor={ahorroPen ? fmtMonto("PEN", ahorroPen.monto) : "—"}
-              detalle={
-                <>
-                  {ahorroOtras.map((a) => (
-                    <span key={a.moneda} className="block text-slate-700">+ {fmtMonto(a.moneda, a.monto)}</span>
-                  ))}
-                  {data.comprasConComparativo} de {data.comprasTotal} compras con 2+ cotizaciones
-                </>
-              }
-            />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-5">
-            <div className="lg:col-span-2">
-              <Panel titulo="Trabajo pendiente por etapa" nota="Hoy. Un requerimiento puede estar en más de una etapa.">
-                <BarrasEtapas etapas={data.etapas} />
-              </Panel>
-            </div>
-            <div className="lg:col-span-3">
-              <Panel titulo="Requerimientos creados por semana">
-                <ColumnasSemanales semanas={data.semanas} />
-              </Panel>
-            </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Panel titulo="Desempeño de proveedores" nota="RFQ recibidas, % respondidas, días en responder y veces elegido.">
-              <TablaProveedores filas={data.proveedores} />
-            </Panel>
-            <Panel titulo="Comparativo de cotizaciones" nota="Oferta adjudicada frente a la más cara del mismo consolidado.">
-              <TablaComparativos filas={data.comparativos} />
-            </Panel>
-          </div>
+        <div className={`transition-opacity duration-200 ${activa.previo ? "opacity-60" : ""}`}>
+          {vista === "proceso" && proceso.datos && <PestanaProceso data={proceso.datos} />}
+          {vista === "demanda" && demanda.datos && <PestanaDemanda data={demanda.datos} />}
+          {vista === "gasto" && gasto.datos && <PestanaGasto data={gasto.datos} />}
         </div>
       )}
     </div>

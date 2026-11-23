@@ -5,6 +5,45 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L083 — Dashboard con pestañas Proceso, Demanda y Gasto (2026-11-23, v0.65.0).**
+  - Cierra el Lote 19 (dashboard). Decisiones del usuario: el dashboard
+    operativo de la V38.7 (`dashboard-operativo.js`) va como pestaña de Inicio
+    junto al de DEC-L020, no como entrada nueva del menú; se agregan los
+    indicadores que la V38.7 dejaba "pendientes de información" que sí se
+    pueden calcular (cumplimiento del plazo, gasto por empresa/CECO, matriz
+    ABC); lo ven los mismos roles de antes (LOGISTICA, ADMIN, APROBADOR,
+    GERENCIA, todas las empresas).
+  - Período (30/90/365 días) y empresa valen para las tres pestañas; la familia
+    del maestro solo para Demanda. La V38.7 filtra por fechas desde/hasta: se
+    mantienen los períodos del Inicio. El filtro "Origen" (REAL/DEMO) de la
+    V38.7 no aplica: aquí todo es dato real. Cada pestaña es una consulta que
+    devuelve JSON (`DashboardService`, `DemandaService`, `GastoService`) y solo
+    se pide la visible; `FiltrosDashboard` valida rol y filtros.
+  - **Proceso**: "A tiempo" = REQ completados en el período cuya entrega llegó
+    a su fecha requerida (`required_date`, DEC-L068), separado en "desde
+    stock" (sin necesidad de compra) y "con compra"; la entrega es el último
+    envío recibido en destino **o la caja chica del proyecto regularizada**
+    (como `AtencionCalculator`; también cambia el ciclo completo). "Fuera de
+    plazo" = abiertos con la fecha requerida vencida. El tiempo de respuesta de
+    proveedores pasa al detalle de su tarjeta.
+  - **Demanda** (V38.7): líneas de REQ enviados (no BORRADOR) por fecha de
+    envío; por familia, mes, top 10 productos y estado; detalle con las
+    últimas 100 líneas y Excel con todas (`GET /api/dashboard/demanda/excel`,
+    columnas de la V38.7 + CECO). Matriz ABC de **lo despachado del almacén**
+    en el período, valorizado al último costo neto (sin IGV) de una OC en soles
+    aprobada de cada producto: A hasta el 80% del valor acumulado, B hasta el
+    95%, C el resto (se decide por lo acumulado antes del producto). Los
+    productos sin compra en soles quedan fuera y se cuentan aparte; la caja
+    chica del proyecto no entra (no pasa por el almacén).
+  - **Gasto**: OC aprobadas en el período (`approved_at`), no anuladas, sin
+    IGV (VALOR TOTAL, DEC-L079) y siempre por moneda. Por empresa, mes, CECO
+    (top 10), familia (top 10; líneas sin producto = "Servicios") y
+    proveedor (top 8). El CECO de una línea es el de su REQ; si viene de un
+    consolidado se reparte en proporción a sus necesidades de compra; si no,
+    el CECO de la OC directa o "Para stock".
+  - Gráficos en un solo tono de la marca (magnitud); la matriz ABC usa el
+    mismo azul de oscuro a claro porque es un orden, no tres identidades.
+
 - **DEC-L082 — Logística elige a qué proveedores pedir cada cotización (2026-11-20, v0.64.0).**
   - Decisión del usuario: los proveedores se asocian a los productos por las
     familias del catálogo que atienden (carga inicial desde las categorías de

@@ -1145,12 +1145,22 @@ export interface Tracking {
   eventos: EventoTracking[];
 }
 
-// ---- Dashboard del Inicio (DEC-L020) ----
+// ---- Dashboard del Inicio (DEC-L020, DEC-L083) ----
 
 export type CodigoEtapa = "POR_APROBAR" | "EN_COTIZACION" | "OC_EN_CURSO" | "POR_DESPACHAR" | "EN_TRANSITO";
 
 export interface Dashboard {
   abiertos: number;
+  /** Abiertos con la fecha requerida ya pasada. */
+  vencidos: number;
+  cumplimiento: {
+    entregados: number;
+    aTiempo: number;
+    desdeStock: number;
+    desdeStockATiempo: number;
+    conCompra: number;
+    conCompraATiempo: number;
+  };
   creados: number;
   completados: number;
   horasAprobacion: number | null;
@@ -1180,6 +1190,64 @@ export interface Dashboard {
     ahorro: number;
     fecha: string;
   }[];
+}
+
+/** Barra de la pestaña Demanda: clave = familia, mes (YYYY-MM) o estado. */
+export interface GrupoDemanda {
+  clave: string;
+  lineas: number;
+  unidades: number | null;
+}
+
+export type ClaseAbc = "A" | "B" | "C";
+
+export interface DemandaDashboard {
+  requerimientos: number;
+  lineas: number;
+  skus: number;
+  familias: number;
+  porFamilia: GrupoDemanda[];
+  porMes: GrupoDemanda[];
+  productos: { sku: string; nombre: string; lineas: number; unidades: number }[];
+  porEstado: GrupoDemanda[];
+  abc: {
+    total: number;
+    clases: { clase: ClaseAbc; productos: number; valor: number }[];
+    productos: { sku: string; nombre: string; unidades: number; valor: number; pct: number; clase: ClaseAbc }[];
+    sinCosto: number;
+  };
+  totalDetalle: number;
+  detalle: {
+    requerimiento: string;
+    empresa: string;
+    ceco: string | null;
+    fecha: string;
+    estado: EstadoRequerimiento;
+    familia: string;
+    subfamilia: string;
+    sku: string;
+    producto: string;
+    cantidad: number;
+  }[];
+}
+
+/** Monto de la pestaña Gasto (sin IGV); clave null en CECO = compra para stock. */
+export interface MontoGasto {
+  clave: string | null;
+  detalle: string | null;
+  moneda: string;
+  monto: number;
+  ordenes: number | null;
+}
+
+export interface GastoDashboard {
+  monedas: { moneda: string; monto: number; ordenes: number; proveedores: number }[];
+  meses: string[];
+  porEmpresa: MontoGasto[];
+  porMes: MontoGasto[];
+  porCeco: MontoGasto[];
+  porFamilia: MontoGasto[];
+  proveedores: MontoGasto[];
 }
 
 // ---------- Carga masiva de ingresos (RF-031) ----------

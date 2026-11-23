@@ -8,7 +8,12 @@ import com.tdem.logistica.modules.almacen.RecepcionService;
 import com.tdem.logistica.modules.almacen.dto.*;
 import com.tdem.logistica.modules.compras.ComprasService;
 import com.tdem.logistica.modules.dashboard.DashboardDto;
+import com.tdem.logistica.modules.dashboard.DashboardController;
 import com.tdem.logistica.modules.dashboard.DashboardService;
+import com.tdem.logistica.modules.dashboard.DemandaDto;
+import com.tdem.logistica.modules.dashboard.DemandaService;
+import com.tdem.logistica.modules.dashboard.GastoDto;
+import com.tdem.logistica.modules.dashboard.GastoService;
 import com.tdem.logistica.modules.tracking.TrackingService;
 import com.tdem.logistica.modules.tracking.dto.EventoDto;
 import com.tdem.logistica.modules.tracking.dto.HitoDto;
@@ -57,6 +62,9 @@ class AlmacenFlujoTest {
 	@Autowired private ComprasService comprasService;
 	@Autowired private TrackingService trackingService;
 	@Autowired private DashboardService dashboardService;
+	@Autowired private DemandaService demandaService;
+	@Autowired private GastoService gastoService;
+	@Autowired private DashboardController dashboardController;
 	@Autowired private com.tdem.logistica.modules.tracking.TrackingController trackingController;
 
 	@DynamicPropertySource
@@ -235,7 +243,11 @@ class AlmacenFlujoTest {
 		}
 
 		// --- Dashboard (DEC-L020): el REQ completo y el comparativo 50 vs 70 ---
+		// La fecha requerida la fija el servidor al enviar; el fixture inserta el REQ directo.
+		jdbc.update("update requerimiento set required_date = current_date + 5 where request_id = ?", f.requestId);
 		DashboardDto d = dashboardService.obtener(30, "TDEMSRL", logistica);
+		assertTrue(d.cumplimiento().entregados() >= 1 && d.cumplimiento().aTiempo() >= 1, d.cumplimiento().toString());
+		assertTrue(d.cumplimiento().conCompra() >= 1, "tuvo una necesidad de compra (DEC-L083)");
 		assertTrue(d.completados() >= 1);
 		assertNotNull(d.diasCiclo());
 		assertTrue(d.rfqEnviadas() >= 2 && d.rfqRespondidas() >= 2, d.toString());
@@ -249,6 +261,44 @@ class AlmacenFlujoTest {
 				.noneMatch(c -> c.codigo().equals("CON-TEST-ALM")), "el filtro de empresa excluye a TDEM");
 		assertThrows(ApiException.class, () -> dashboardService.obtener(30, null, solicitante),
 				"el solicitante no ve el dashboard");
+
+		// --- Demanda (DEC-L083): la linea del REQ, la matriz ABC de lo despachado y el Excel ---
+		DemandaDto dem = demandaService.obtener(30, "TDEMSRL", null, logistica);
+		assertTrue(dem.lineas() >= 1 && dem.requerimientos() >= 1);
+		assertTrue(dem.detalle().stream().anyMatch(l -> l.requerimiento().equals("REQ-TEST-ALM")
+				&& l.sku().equals("AC01001-00") && l.cantidad().compareTo(new BigDecimal("12")) == 0));
+		assertTrue(dem.productos().stream().anyMatch(p -> p.sku().equals("AC01001")));
+		DemandaDto.ProductoAbc abc = dem.abc().productos().stream()
+				.filter(p -> p.sku().equals("AC01001")).findFirst().orElseThrow();
+		assertEquals(0, abc.unidades().compareTo(new BigDecimal("12")), "9 + 3 despachadas");
+		assertEquals(0, abc.valor().compareTo(new BigDecimal("60")), "12 u. x S/ 5 de la ultima OC");
+		assertEquals("A", abc.clase());
+		assertEquals(3, dem.abc().clases().size());
+		UUID tipo = jdbc.queryForObject("select product_type_id from producto where sku_base = 'AC01001'", UUID.class);
+		assertTrue(demandaService.obtener(30, "TDEMSRL", "t:" + tipo, logistica).lineas() >= 1, "su familia la incluye");
+		assertEquals(0, demandaService.obtener(30, "TDEMSRL", "f:" + UUID.randomUUID(), logistica).lineas());
+		assertThrows(ApiException.class, () -> demandaService.obtener(30, null, "x:1", logistica));
+		assertThrows(ApiException.class, () -> demandaService.obtener(30, null, null, solicitante));
+		byte[] demandaXlsx = dashboardController.demandaExcel(30, "TDEMSRL", null, logistica).getBody();
+		try (var wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(demandaXlsx))) {
+			var hoja = wb.getSheet("DEMANDA");
+			assertEquals(10, hoja.getRow(0).getLastCellNum());
+			assertTrue(hoja.getLastRowNum() >= 1);
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+
+		// --- Gasto (DEC-L083): la OC de S/ 50 sin IGV, al CECO del REQ via el consolidado ---
+		GastoDto g = gastoService.obtener(30, "TDEMSRL", logistica);
+		assertTrue(g.monedas().stream().anyMatch(m -> m.moneda().equals("PEN") && m.monto().compareTo(new BigDecimal("50")) >= 0));
+		assertTrue(g.porCeco().stream().anyMatch(c -> "ADM".equals(c.clave()) && c.monto().compareTo(new BigDecimal("50")) >= 0),
+				g.porCeco().toString());
+		assertTrue(g.porEmpresa().stream().anyMatch(e -> e.clave().equals("TDEMSRL")));
+		assertFalse(g.porFamilia().isEmpty());
+		assertFalse(g.meses().isEmpty());
+		assertTrue(gastoService.obtener(30, "METRIN", logistica).porEmpresa().stream()
+				.noneMatch(e -> e.clave().equals("TDEMSRL")), "el filtro de empresa excluye a TDEM");
+		assertThrows(ApiException.class, () -> gastoService.obtener(30, null, solicitante));
 
 		// Otro solicitante no ve el Tracking ajeno.
 		UsuarioPrincipal ajeno = new UsuarioPrincipal(UUID.randomUUID(), List.of("SOLICITANTE"));

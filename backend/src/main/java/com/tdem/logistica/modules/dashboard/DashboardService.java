@@ -1,16 +1,10 @@
 package com.tdem.logistica.modules.dashboard;
 
-import com.tdem.logistica.common.ApiException;
-import com.tdem.logistica.common.AppConstants.Roles;
 import com.tdem.logistica.security.UsuarioPrincipal;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
-
-import java.time.OffsetDateTime;
-import java.util.regex.Pattern;
 
 /**
  * Dashboard del Inicio (DEC-L020): avance del proceso, respuesta de
@@ -21,27 +15,43 @@ import java.util.regex.Pattern;
 @Transactional(readOnly = true)
 public class DashboardService {
 
-    private static final Pattern CODIGO_EMPRESA = Pattern.compile("[A-Z0-9]{2,20}");
-
     /*
      * reqs    = requerimientos de la empresa filtrada (todas si :empresa es null).
-     * entrega = cuando se completo cada REQ (ultimo envio recibido en destino).
+     * entrega = cuando se completo cada REQ: ultimo envio recibido en destino o caja chica del proyecto
+     *           regularizada (lo mismo que cuenta AtencionCalculator).
+     * plazo   = REQ completados en el periodo: si llegaron a su fecha requerida (SlaAtencion, DEC-L068)
+     *           y si necesitaron compra o salieron solo del stock (DEC-L083).
      * rfqs    = RFQ enviadas del periodo (por empresa) con su primera respuesta y si alguna se eligio.
      * comp    = por consolidado adjudicado: cuantas ofertas hubo en la misma moneda y la mas cara
      *           (a la cantidad adjudicada), DEC-L039.
      */
     private static final String SQL = """
             with reqs as (
-              select r.request_id, r.request_code, r.status, r.created_at
+              select r.request_id, r.request_code, r.status, r.created_at, r.required_date
                 from requerimiento r join empresa e on e.company_id = r.company_id
                where cast(:empresa as text) is null or e.code = cast(:empresa as text)
             ),
             entrega as (
-              select v.request_id, max(v.received_at) as entregado_en
-                from envio v
-               where v.status in ('RECEPCION_PARCIAL','RECEPCIONADO','RECEPCIONADO_OBSERVADO','CERRADO')
-                 and v.request_id is not null
-               group by v.request_id
+              select request_id, max(en) as entregado_en
+                from (select v.request_id, v.received_at as en
+                        from envio v
+                       where v.status in ('RECEPCION_PARCIAL','RECEPCIONADO','RECEPCIONADO_OBSERVADO','CERRADO')
+                         and v.request_id is not null
+                      union all
+                      select f.request_id, f.regularized_at
+                        from caja_chica_ref f
+                       where f.destination = 'PROYECTO' and f.regularization_status = 'REGULARIZADO'
+                         and f.request_id is not null) e
+               group by request_id
+            ),
+            plazo as (
+              select (entrega.entregado_en at time zone 'America/Lima')::date <= reqs.required_date as a_tiempo,
+                     exists (select 1 from necesidad_compra n
+                               join requerimiento_item ri on ri.request_item_id = n.request_item_id
+                              where ri.request_id = reqs.request_id and n.status <> 'ANULADA') as con_compra
+                from reqs join entrega using (request_id)
+               where reqs.status = 'ATENCION_COMPLETA' and entrega.entregado_en >= :desde
+                 and reqs.required_date is not null
             ),
             aprob as (
               select a.created_at, a.decided_at
@@ -83,6 +93,17 @@ public class DashboardService {
             select json_build_object(
               'abiertos', (select count(*) from reqs
                             where status in ('PENDIENTE_APROBACION','OBSERVADO','VERIFICACION_STOCK','EN_ATENCION','ATENCION_PARCIAL')),
+              'vencidos', (select count(*) from reqs
+                            where status in ('PENDIENTE_APROBACION','OBSERVADO','VERIFICACION_STOCK','EN_ATENCION','ATENCION_PARCIAL')
+                              and required_date < (now() at time zone 'America/Lima')::date),
+              'cumplimiento', (select json_build_object(
+                                 'entregados', count(*),
+                                 'aTiempo', count(*) filter (where a_tiempo),
+                                 'desdeStock', count(*) filter (where not con_compra),
+                                 'desdeStockATiempo', count(*) filter (where not con_compra and a_tiempo),
+                                 'conCompra', count(*) filter (where con_compra),
+                                 'conCompraATiempo', count(*) filter (where con_compra and a_tiempo))
+                                 from plazo),
               'creados', (select count(*) from reqs where created_at >= :desde and status <> 'BORRADOR'),
               'completados', (select count(*) from reqs join entrega using (request_id)
                                where reqs.status = 'ATENCION_COMPLETA' and entrega.entregado_en >= :desde),
@@ -169,20 +190,8 @@ public class DashboardService {
     }
 
     public DashboardDto obtener(int dias, String empresa, UsuarioPrincipal principal) {
-        if (!principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN, Roles.APROBADOR, Roles.GERENCIA)) {
-            throw ApiException.forbidden("No tienes permiso para ver el dashboard.");
-        }
-        if (dias < 7 || dias > 730) {
-            throw ApiException.badRequest("El periodo debe estar entre 7 y 730 dias.");
-        }
-        String codigo = empresa == null || empresa.isBlank() ? null : empresa.trim().toUpperCase();
-        if (codigo != null && !CODIGO_EMPRESA.matcher(codigo).matches()) {
-            throw ApiException.badRequest("Empresa invalida.");
-        }
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("desde", OffsetDateTime.now().minusDays(dias))
-                .addValue("empresa", codigo, java.sql.Types.VARCHAR);
-        String json = jdbc.queryForObject(SQL, params, String.class);
+        FiltrosDashboard filtros = FiltrosDashboard.de(dias, empresa, null, principal);
+        String json = jdbc.queryForObject(SQL, filtros.parametros(), String.class);
         return objectMapper.readValue(json, DashboardDto.class);
     }
 }

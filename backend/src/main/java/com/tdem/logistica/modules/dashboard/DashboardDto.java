@@ -5,12 +5,14 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * Indicadores del Inicio (DEC-L020). Lo arma una sola consulta SQL que devuelve
+ * Indicadores del Inicio, pestana Proceso (DEC-L020, DEC-L083). Lo arma una sola consulta SQL que devuelve
  * JSON con estas mismas claves, asi el dashboard cuesta una ida y vuelta a la BD.
  * Los promedios vienen null cuando no hay datos en el periodo.
  */
 public record DashboardDto(
         long abiertos,
+        long vencidos,
+        Cumplimiento cumplimiento,
         long creados,
         long completados,
         BigDecimal horasAprobacion,
@@ -25,6 +27,14 @@ public record DashboardDto(
         List<Semana> semanas,
         List<Proveedor> proveedores,
         List<Comparativo> comparativos) {
+
+    /**
+     * REQ completados en el periodo con fecha requerida, y cuantos llegaron a tiempo
+     * (DEC-L083). "Desde stock" = sin necesidad de compra; "con compra" = alguna linea se compro.
+     */
+    public record Cumplimiento(long entregados, long aTiempo, long desdeStock, long desdeStockATiempo,
+                               long conCompra, long conCompraATiempo) {
+    }
 
     /** Monto mayor cotizado - monto elegido, por moneda (no se mezclan PEN y USD). */
     public record Ahorro(String moneda, BigDecimal monto, long compras) {

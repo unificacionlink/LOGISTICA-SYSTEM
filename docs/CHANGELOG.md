@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.65.0 — 2026-11-23
+
+Dashboard con pestañas Proceso, Demanda y Gasto (DEC-L083). Cierra el Lote 19.
+
+- `FiltrosDashboard`: rol, período, empresa y familia (`t:`/`f:`) comunes a las pestañas.
+- `DashboardService` (Proceso): `vencidos` y `cumplimiento` (a tiempo, desde stock / con compra); la entrega cuenta la caja chica del proyecto regularizada.
+- `DemandaService` + `GET /api/dashboard/demanda` (familia, mes, productos, estado, matriz ABC, últimas 100 líneas) y `GET /api/dashboard/demanda/excel` (`DemandaExcel`).
+- `GastoService` + `GET /api/dashboard/gasto`: OC aprobadas sin IGV por moneda, empresa, mes, CECO (reparto por necesidades del consolidado), familia y proveedor.
+- Frontend: `Dashboard` con pestañas (`?tab=`) y filtros comunes; `components/dashboard/` (`PestanaProceso`, `PestanaDemanda`, `PestanaGasto`, `comunes`, `formato`). Etiquetas de estado del REQ en `components/formato.ts` (`ETIQUETA_ESTADO`). El comparativo de cotizaciones rotula la columna como Consolidado.
+- Tests: `AlmacenFlujoTest` (a tiempo con compra, demanda, ABC 12 u. × S/ 5 = clase A, filtros de familia, Excel, gasto al CECO por el consolidado, permisos).
+
 ## 0.64.0 — 2026-11-20
 
 Empresa del proveedor y elección de proveedores al pedir cotización (DEC-L081, DEC-L082).
