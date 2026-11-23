@@ -382,6 +382,32 @@ select 'PRODUCTO', product_id, 'PRECIO_VENTA', jsonb_build_object('empresa', com
     sql.append("commit;")
     (salida / 'alta_productos_y_precios.sql').write_text("\n".join(sql), encoding='utf8')
 
+    # ---- Unidad de los productos que ya existian: la del Excel (UND/PAR, la mas frecuente), solo si hoy es ND.
+    por_producto = collections.defaultdict(collections.Counter)
+    for f in filas:
+        if f['como'] != 'producto nuevo' and f['um'] in UNIDADES:
+            por_producto[f['codigo'].split('-')[0]][UNIDADES[f['um']]] += 1
+    unidad = {sb: c.most_common(1)[0][0] for sb, c in por_producto.items()}
+    valores = ",".join(f"({sql_txt(sb)}, {sql_txt(u)})" for sb, u in sorted(unidad.items()))
+    (salida / 'unidades_existentes.sql').write_text(f"""-- Unidad del reporte de Logistica para productos del catalogo que estaban en ND (DEC-L085).
+begin;
+create temp table _u on commit drop as select '{a.usuario}'::uuid as id;
+create temp table _c on commit drop as
+select p.product_id, v.sku, u.uom_id
+  from (values {valores}) v(sku, unidad)
+  join logistica.producto p on p.sku_base = v.sku
+  join logistica.unidad_medida u on u.code = v.unidad
+ where p.base_uom_id = (select uom_id from logistica.unidad_medida where code = 'ND');
+update logistica.producto p set base_uom_id = _c.uom_id from _c where p.product_id = _c.product_id;
+insert into logistica.log_cambios (entidad, entidad_id, accion, antes, despues, usuario_id)
+select 'PRODUCTO', product_id, 'UNIDAD_CARGA_INICIAL', jsonb_build_object('unidad', 'ND'),
+       jsonb_build_object('unidad', (select code from logistica.unidad_medida where uom_id = _c.uom_id),
+                          'origen', 'stock_minimo_TDEM_GOYDEL 2026-11-20'), (select id from _u)
+  from _c;
+commit;
+""", encoding='utf8')
+    print(f"unidades de productos existentes: {len(unidad)} ({collections.Counter(unidad.values())})")
+
     pend = [f for f in filas if not f['codigo']]
     wb = Workbook()
     hoja(wb.active, ['Cód. TDEM', 'Cód. GOYDEL', 'Descripción', 'Stock', 'Precio', 'Mínimo'],

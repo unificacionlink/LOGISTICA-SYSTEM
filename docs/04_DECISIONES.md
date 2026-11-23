@@ -31,8 +31,22 @@ actualizar esta lista y el CHANGELOG.
     tallas en productos existentes. Altas auditadas `ALTA_CARGA_INICIAL`;
     precios auditados `PRECIO_VENTA` a nombre de Logística.
   - Resultado en producción: 931 productos, 1.176 variantes, 616 precios por
-    empresa. El stock y los mínimos (839 variantes) los sube Logística en
-    Stock › Carga con `CARGA_STOCK.xlsx` (INV-1).
+    empresa. El stock y los mínimos (839 variantes) los subió Logística en
+    Stock › Carga con `CARGA_STOCK.xlsx` (INV-1: 316 ajustes, 757 mínimos).
+  - Unidad de medida (`unidades_existentes.sql`): los productos del catálogo
+    que estaban en ND toman la del reporte (UND/PAR, la más frecuente); 305
+    actualizados, auditados `UNIDAD_CARGA_INICIAL`. Quedan en ND los que el
+    reporte no trae y los de unidades que el sistema no tiene (KIT, PZA...).
+  - Proveedores por producto: los productos nuevos se asocian a los
+    proveedores habilitados por las familias del catálogo que atienden
+    (`proveedor_categoria`, mismo criterio que la carga del 2026-11-20).
+    762 de 931 productos tienen proveedor; los 169 restantes son de rubros
+    sin proveedor registrado (oficina, construcción, aseo, muebles,
+    vehicular, agregados): no se asocian proveedores de servicios.
+  - Antes de arrancar se borraron los datos de prueba (7 requerimientos, 5
+    OC, sus RFQ, cotizaciones, consolidados, aprobaciones y documentos),
+    con respaldo en `.logistica-migracion/respaldo_datos_prueba_2026-11-23.json`.
+    Se conservó el presupuesto PRE-00001 (borrador de un usuario real).
 
  — Entrega directa del proveedor al CECO (2026-11-23, v0.66.0, ALM-04 de la V38.7).**
   - La V38.7 solo la deja "pendiente", sin diseño. Decisiones del usuario:
