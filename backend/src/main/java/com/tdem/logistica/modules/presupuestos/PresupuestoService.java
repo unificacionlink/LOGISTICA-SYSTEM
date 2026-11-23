@@ -659,10 +659,17 @@ public class PresupuestoService {
                   from requerimiento_item ri join reqs on reqs.request_id = ri.request_id
                   group by ri.product_id),
                 recibido as (
-                  select si.product_id, sum(si.dest_accepted_qty) as qty
-                  from salida s join reqs on reqs.request_id = s.request_id
-                  join salida_item si on si.issue_id = s.issue_id
-                  group by si.product_id),
+                  select product_id, sum(qty) as qty from (
+                    select si.product_id, si.dest_accepted_qty as qty
+                    from salida s join reqs on reqs.request_id = s.request_id
+                    join salida_item si on si.issue_id = s.issue_id
+                    union all
+                    -- entrega directa del proveedor al CECO (DEC-L084)
+                    select ri.product_id, rci.qty_received
+                    from recepcion_item rci
+                    join requerimiento_item ri on ri.request_item_id = rci.request_item_id
+                    join reqs on reqs.request_id = ri.request_id) x
+                  group by product_id),
                 base as (
                   select vl.product_id, vl.qty_m1 + vl.qty_m2 + vl.qty_m3 + vl.qty_m4 + vl.qty_m5 + vl.qty_m6 as programado,
                          vl.sale_price, vl.purchase_price, false as sin_presupuesto

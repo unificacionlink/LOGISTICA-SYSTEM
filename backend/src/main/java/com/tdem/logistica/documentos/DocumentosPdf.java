@@ -159,7 +159,7 @@ final class DocumentosPdf {
                 o.orderCode(), o.status(), aprobada,
                 e.empresaNombreCorto(), e.empresaRuc(), e.empresaDireccion(), e.empresaTelefono(), e.logo(),
                 o.proveedorNombre(), d.proveedorRuc(), fecha(o.issueDate()), o.deliveryTerm(),
-                e.contacto(), e.telefonoContacto(), o.deliveryLocation(), etiqueta(o.paymentCondition()),
+                e.contacto(), e.telefonoContacto(), lugarEntrega(o), etiqueta(o.paymentCondition()),
                 o.currencyCode(), lineas,
                 monto(o.subtotal()), noAfecto ? "NO AFECTO" : "18%", monto(o.taxAmount()), monto(o.total()), notaIgv,
                 e.cuentasDeposito(), e.cuentasDetraccion(), o.additionalSpecs(),
@@ -313,6 +313,15 @@ final class DocumentosPdf {
     }
 
     /** Codigos de estado/catalogo (EN_ATENCION) como texto legible (En atencion). */
+    /** Entrega directa (DEC-L084): el proveedor lleva los productos a la obra del CECO. */
+    private static String lugarEntrega(com.tdem.logistica.modules.compras.dto.OrdenDto o) {
+        if (!o.entregaDirecta()) {
+            return o.deliveryLocation();
+        }
+        String lugar = o.deliveryLocation() == null || o.deliveryLocation().isBlank() ? "" : ": " + o.deliveryLocation();
+        return "Entrega directa en obra" + lugar;
+    }
+
     private static String etiqueta(String codigo) {
         if (codigo == null || codigo.isBlank()) {
             return "";

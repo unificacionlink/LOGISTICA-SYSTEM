@@ -296,22 +296,22 @@ class ConsolidacionComprasTest {
 
 		// Precios con IGV incluido: se desglosa hacia atras.
 		OrdenDto incluido = ordenCompra.editarCondiciones(oc.orderId(),
-				new CondicionesOrdenRequest("IGV_INCLUIDO", "7 días hábiles", "Almacén central", "Entregar con guía"), logistica);
+				new CondicionesOrdenRequest("IGV_INCLUIDO", "7 días hábiles", "Almacén central", "Entregar con guía", null), logistica);
 		assertEquals(0, incluido.total().compareTo(new BigDecimal("100.00")));
 		assertEquals(0, incluido.subtotal().compareTo(new BigDecimal("84.75")));
 		assertEquals(0, incluido.taxAmount().compareTo(new BigDecimal("15.25")));
 		assertEquals("Entregar con guía", incluido.additionalSpecs());
 		OrdenDto noAfecto = ordenCompra.editarCondiciones(oc.orderId(),
-				new CondicionesOrdenRequest("NO_AFECTO", "7 días hábiles", "Almacén central", null), logistica);
+				new CondicionesOrdenRequest("NO_AFECTO", "7 días hábiles", "Almacén central", null, null), logistica);
 		assertEquals(0, noAfecto.taxAmount().signum());
 		assertEquals(0, noAfecto.total().compareTo(new BigDecimal("100.00")));
 		assertThrows(ApiException.class, () -> ordenCompra.editarCondiciones(oc.orderId(),
-				new CondicionesOrdenRequest("IVA", null, null, null), logistica));
+				new CondicionesOrdenRequest("IVA", null, null, null, null), logistica));
 		UsuarioPrincipal gerencia = new UsuarioPrincipal(usuario("gerencia@logistica.test"), List.of("GERENCIA"));
 		assertThrows(ApiException.class, () -> ordenCompra.editarCondiciones(oc.orderId(),
-				new CondicionesOrdenRequest("MAS_IGV", null, null, null), gerencia), "solo Logistica las edita");
+				new CondicionesOrdenRequest("MAS_IGV", null, null, null, null), gerencia), "solo Logistica las edita");
 		ordenCompra.editarCondiciones(oc.orderId(),
-				new CondicionesOrdenRequest("MAS_IGV", "7 días hábiles", "Almacén central", "Entregar con guía"), logistica);
+				new CondicionesOrdenRequest("MAS_IGV", "7 días hábiles", "Almacén central", "Entregar con guía", null), logistica);
 
 		// PDF F-LOG-09: por aprobar lo dice y no lleva firmas.
 		String borrador = textoPdf(documentos.orden(oc.orderId(), logistica).contenido());
@@ -325,7 +325,7 @@ class ConsolidacionComprasTest {
 		// Aprobada: ya no se editan las condiciones y el PDF deja de ser borrador.
 		ordenCompra.decidir(oc.orderId(), new DecidirOrdenRequest("APROBADO", null), gerencia);
 		assertThrows(ApiException.class, () -> ordenCompra.editarCondiciones(oc.orderId(),
-				new CondicionesOrdenRequest("NO_AFECTO", null, null, null), logistica));
+				new CondicionesOrdenRequest("NO_AFECTO", null, null, null, null), logistica));
 		String aprobada = textoPdf(documentos.orden(oc.orderId(), gerencia).contenido());
 		assertFalse(aprobada.contains("PENDIENTE DE APROBACIÓN"), aprobada);
 		assertThrows(ApiException.class, () -> documentos.orden(oc.orderId(),

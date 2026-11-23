@@ -8,7 +8,10 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Recepcion de una OC en almacen (RF-030/032). Solo cantidades aceptadas. */
+/**
+ * Recepcion de una OC (RF-030/032), solo cantidades aceptadas: en el almacen
+ * central o, si la OC es de entrega directa, en un CECO de destino (DEC-L084).
+ */
 @Entity
 @Table(name = "recepcion")
 @Getter
@@ -25,8 +28,21 @@ public class Recepcion {
     private OrdenAbastecimiento orden;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "warehouse_id", nullable = false)
+    @JoinColumn(name = "warehouse_id")
     private Almacen almacen;
+
+    /** CECO donde el proveedor entrego (entrega directa); null si fue en el almacen. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "destination_ceco_id")
+    private Ceco cecoDestino;
+
+    /** Constancia de la entrega directa: enlace o archivo firmado. */
+    @Column(name = "conformity_url")
+    private String conformityUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "document_id")
+    private Documento documento;
 
     @Column(name = "receipt_number", nullable = false)
     private Integer receiptNumber;

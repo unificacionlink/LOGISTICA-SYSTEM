@@ -138,4 +138,8 @@ public class OrdenAbastecimiento {
     /** Solo lineas de servicio: no pasa por el almacen y se cierra al pagarse. */
     @Column(name = "services_only", nullable = false)
     private boolean servicesOnly;
+
+    /** El proveedor entrega en los CECO de destino; no se recibe en el almacen (DEC-L084). */
+    @Column(name = "direct_delivery", nullable = false)
+    private boolean directDelivery;
 }

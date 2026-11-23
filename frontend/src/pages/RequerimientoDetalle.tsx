@@ -15,6 +15,7 @@ import EstadoBadge from "../components/EstadoBadge";
 import Badge from "../components/ui/Badge";
 import RfqEstadoBadge from "../components/RfqEstadoBadge";
 import TrackingRequerimiento from "../components/TrackingRequerimiento";
+import { EntregasDirectasRequerimiento } from "../components/almacen/EntregaDirecta";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
@@ -491,6 +492,11 @@ export default function RequerimientoDetalle() {
           </table>
         </div>
       </Card>
+
+      {/* DEC-L084: lo que el proveedor entrega directo en la obra; no aparece si no hay. */}
+      {id && ["EN_ATENCION", "ATENCION_PARCIAL", "ATENCION_COMPLETA"].includes(requerimiento.status) && (
+        <EntregasDirectasRequerimiento requestId={id} />
+      )}
 
       {requerimiento.status !== "BORRADOR" && id && (
         // key: si el estado cambia en vivo, el Tracking se vuelve a pedir.

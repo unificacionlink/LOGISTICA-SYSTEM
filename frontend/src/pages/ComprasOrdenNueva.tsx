@@ -74,6 +74,7 @@ export default function ComprasOrdenNueva() {
   const [lugar, setLugar] = useState("");
   const [especificaciones, setEspecificaciones] = useState("");
   const [cecoId, setCecoId] = useState("");
+  const [directa, setDirecta] = useState(false);
   const [codigoReq, setCodigoReq] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [siguiente, setSiguiente] = useState(1);
@@ -134,6 +135,7 @@ export default function ComprasOrdenNueva() {
         additionalSpecs: especificaciones.trim() || null,
         cecoId: cecoId || null,
         requestCode: codigoReq.trim() || null,
+        entregaDirecta: directa && !!cecoId,
         lineas: lineas.map((l) => ({
           variantId: l.servicio === null ? l.variante!.variantId : null,
           descripcion: l.servicio,
@@ -255,7 +257,14 @@ export default function ComprasOrdenNueva() {
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
                   <Field label="CECO">
-                    <select className={`${inputClass} w-full`} value={cecoId} onChange={(e) => setCecoId(e.target.value)}>
+                    <select
+                      className={`${inputClass} w-full`}
+                      value={cecoId}
+                      onChange={(e) => {
+                        setCecoId(e.target.value);
+                        if (!e.target.value) setDirecta(false);
+                      }}
+                    >
                       <option value="">Sin CECO</option>
                       {cecos.map((c) => (
                         <option key={c.cecoId} value={c.cecoId}>
@@ -273,6 +282,19 @@ export default function ComprasOrdenNueva() {
                       onChange={(e) => setCodigoReq(e.target.value)}
                     />
                   </Field>
+                  {/* DEC-L084: los productos van a la obra del CECO, no al almacén. */}
+                  <label
+                    className={`flex items-center gap-2 text-sm sm:col-span-3 ${cecoId ? "text-slate-700" : "text-slate-400"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={directa}
+                      disabled={!cecoId}
+                      onChange={(e) => setDirecta(e.target.checked)}
+                      className="size-4 accent-brand-700"
+                    />
+                    Entrega directa en la obra del CECO
+                  </label>
                   <Field label="Especificaciones adicionales" className="sm:col-span-3">
                     <textarea
                       className={`${inputClass} w-full`}

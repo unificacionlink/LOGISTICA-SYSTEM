@@ -36,4 +36,13 @@ public class RecepcionItem {
 
     @Column(name = "observation")
     private String observation;
+
+    /** Entrega directa (DEC-L084): item de requerimiento al que se entrego. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "request_item_id")
+    private RequerimientoItem requerimientoItem;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "need_id")
+    private NecesidadCompra necesidad;
 }

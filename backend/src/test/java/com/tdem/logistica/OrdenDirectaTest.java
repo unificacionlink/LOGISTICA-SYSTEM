@@ -152,7 +152,7 @@ class OrdenDirectaTest {
 
 	private static CrearOrdenDirectaRequest request(UUID prov, String empresa, UUID ceco, String req, List<Linea> lineas) {
 		return new CrearOrdenDirectaRequest(empresa, prov, "PEN", "CONTADO", "ALMACEN_CLIENTE", "Almacén central",
-				"3 días", "MAS_IGV", null, ceco, req, lineas);
+				"3 días", "MAS_IGV", null, ceco, req, lineas, null);
 	}
 
 	private UUID proveedor(String ruc) {

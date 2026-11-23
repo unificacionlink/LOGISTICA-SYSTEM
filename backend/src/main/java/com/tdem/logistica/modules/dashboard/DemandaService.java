@@ -45,7 +45,7 @@ public class DemandaService {
     /*
      * costo   = ultimo costo unitario NETO (sin IGV: el subtotal de la OC repartido entre sus lineas,
      *           DEC-L079) de cada producto en una OC en soles aprobada.
-     * consumo = unidades despachadas en el periodo (salidas emitidas del almacen), con los mismos filtros.
+     * consumo = unidades despachadas del almacen o entregadas directo por el proveedor en el periodo.
      * abc     = consumo valorizado y acumulado de mayor a menor; la clase se decide por lo acumulado
      *           ANTES del producto (el que cruza el 80% todavia es A).
      */
@@ -62,16 +62,25 @@ public class DemandaService {
                order by product_id, approved_at desc
             ),
             consumo as (
-              select si.product_id, sum(si.qty) as unidades
-                from salida_item si
-                join salida s on s.issue_id = si.issue_id
-                join empresa e on e.company_id = s.company_id
-                join producto p on p.product_id = si.product_id
-               where s.status <> 'BORRADOR' and s.issued_at >= :desde
-                 and (cast(:empresa as text) is null or e.code = cast(:empresa as text))
+              select x.product_id, sum(x.qty) as unidades
+                from (select si.product_id, si.qty, s.company_id
+                        from salida_item si
+                        join salida s on s.issue_id = si.issue_id
+                       where s.status <> 'BORRADOR' and s.issued_at >= :desde
+                      union all
+                      -- entrega directa del proveedor al CECO (DEC-L084): tambien es consumo
+                      select oi.product_id, rci.qty_received, o.company_id
+                        from recepcion_item rci
+                        join recepcion rc on rc.receipt_id = rci.receipt_id
+                        join orden_item oi on oi.order_item_id = rci.order_item_id
+                        join orden_abastecimiento o on o.order_id = rc.order_id
+                       where rc.destination_ceco_id is not null and rc.receipt_date >= :desde) x
+                join empresa e on e.company_id = x.company_id
+                join producto p on p.product_id = x.product_id
+               where (cast(:empresa as text) is null or e.code = cast(:empresa as text))
                  and (cast(:tipo as uuid) is null or p.product_type_id = cast(:tipo as uuid))
                  and (cast(:familia as uuid) is null or p.family_id = cast(:familia as uuid))
-               group by si.product_id
+               group by x.product_id
             ),
             valorizado as (
               select p.sku_base as sku, p.name as nombre, c.unidades, round(c.unidades * k.unit_neto, 2) as valor

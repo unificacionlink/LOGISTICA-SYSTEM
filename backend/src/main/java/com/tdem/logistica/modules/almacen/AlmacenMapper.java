@@ -40,8 +40,13 @@ final class AlmacenMapper {
                                 i.getOrdenItem().getDescription(),
                                 i.getQtyReceived(),
                                 i.getConditionStatus(),
-                                i.getObservation()))
-                        .toList());
+                                i.getObservation(),
+                                i.getRequerimientoItem() != null
+                                        ? i.getRequerimientoItem().getRequerimiento().getRequestCode() : null))
+                        .toList(),
+                r.getCecoDestino() != null ? r.getCecoDestino().getCode() + " · " + r.getCecoDestino().getName() : null,
+                r.getConformityUrl() != null ? r.getConformityUrl()
+                        : r.getDocumento() != null ? r.getDocumento().getFileUrl() : null);
     }
 
     static IncidenciaDto toDto(IncidenciaRecepcion i) {

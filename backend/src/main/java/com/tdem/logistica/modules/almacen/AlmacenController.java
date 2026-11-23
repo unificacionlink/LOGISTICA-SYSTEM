@@ -26,16 +26,19 @@ public class AlmacenController {
     private final PreparacionNotaService preparacionService;
     private final RecepcionDestinoService destinoService;
     private final DiferenciasDestinoService diferenciasService;
+    private final EntregaDirectaService entregaDirectaService;
 
     public AlmacenController(RecepcionService recepcionService, DespachoService despachoService,
                              CargaMasivaService cargaMasivaService, PreparacionNotaService preparacionService,
-                             RecepcionDestinoService destinoService, DiferenciasDestinoService diferenciasService) {
+                             RecepcionDestinoService destinoService, DiferenciasDestinoService diferenciasService,
+                             EntregaDirectaService entregaDirectaService) {
         this.recepcionService = recepcionService;
         this.despachoService = despachoService;
         this.cargaMasivaService = cargaMasivaService;
         this.preparacionService = preparacionService;
         this.destinoService = destinoService;
         this.diferenciasService = diferenciasService;
+        this.entregaDirectaService = entregaDirectaService;
     }
 
     // ---------- Carga masiva de ingresos (RF-031) ----------
@@ -86,6 +89,30 @@ public class AlmacenController {
             @Valid @RequestBody ActualizarIncidenciaRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(recepcionService.actualizarIncidencia(id, request, principal), "Incidencia actualizada.");
+    }
+
+    // ---------- Entrega directa del proveedor al CECO (ALM-04, DEC-L084) ----------
+
+    @GetMapping("/ordenes/{id}/entrega-directa")
+    public ApiResponse<EntregaDirectaDto> entregaDirecta(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(entregaDirectaService.obtener(id, principal));
+    }
+
+    @PostMapping(value = "/ordenes/{id}/entrega-directa", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<EntregaDirectaDto> registrarEntregaDirecta(
+            @PathVariable UUID id,
+            @Valid @RequestPart("datos") RegistrarEntregaDirectaRequest datos,
+            @RequestPart(value = "file", required = false) MultipartFile constancia,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(entregaDirectaService.registrar(id, datos, constancia, principal), "Recepcion registrada.");
+    }
+
+    /** Lo que el proveedor entrega directo para este requerimiento (dueno, Logistica, aprobador, Gerencia). */
+    @GetMapping("/requerimientos/{id}/entregas-directas")
+    public ApiResponse<List<EntregaDirectaDto>> entregasDirectasDelRequerimiento(
+            @PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(entregaDirectaService.delRequerimiento(id, principal));
     }
 
     // ---------- Despacho / Nota de Inventario ----------

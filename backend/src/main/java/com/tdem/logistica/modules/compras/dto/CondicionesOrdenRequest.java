@@ -11,5 +11,7 @@ public record CondicionesOrdenRequest(
         @NotBlank(message = "Indica como se aplica el IGV.") String taxMode,
         @Size(max = 120, message = "El plazo de entrega admite hasta 120 caracteres.") String deliveryTerm,
         @Size(max = 220, message = "El lugar de entrega admite hasta 220 caracteres.") String deliveryLocation,
-        @Size(max = 2000, message = "Las especificaciones admiten hasta 2000 caracteres.") String additionalSpecs) {
+        @Size(max = 2000, message = "Las especificaciones admiten hasta 2000 caracteres.") String additionalSpecs,
+        /** Entrega directa del proveedor al CECO (DEC-L084); null = no cambia. */
+        Boolean entregaDirecta) {
 }

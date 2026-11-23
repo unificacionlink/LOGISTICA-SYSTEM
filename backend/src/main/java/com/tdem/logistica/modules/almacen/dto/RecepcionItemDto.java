@@ -8,5 +8,7 @@ public record RecepcionItemDto(
         String description,
         BigDecimal qtyReceived,
         String conditionStatus,
-        String observation) {
+        String observation,
+        /** Entrega directa: requerimiento al que se entrego. */
+        String requestCode) {
 }

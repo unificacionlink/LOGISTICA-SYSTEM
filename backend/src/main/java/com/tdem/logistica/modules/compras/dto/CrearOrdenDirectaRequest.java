@@ -32,7 +32,9 @@ public record CrearOrdenDirectaRequest(
         @Size(max = 50, message = "El codigo del requerimiento admite hasta 50 caracteres.") String requestCode,
         @NotEmpty(message = "Agrega al menos una linea.")
         @Size(max = 100, message = "Una orden admite hasta 100 lineas.")
-        @Valid List<Linea> lineas) {
+        @Valid List<Linea> lineas,
+        /** Entrega directa del proveedor al CECO de la orden (DEC-L084); exige el CECO. */
+        Boolean entregaDirecta) {
 
     public record Linea(
             UUID variantId,

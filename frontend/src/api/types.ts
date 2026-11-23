@@ -791,6 +791,8 @@ export interface Orden {
   cecoCode: string | null;
   cecoNombre: string | null;
   servicesOnly: boolean;
+  /** El proveedor entrega en el CECO; no se recibe en el almacén (DEC-L084). */
+  entregaDirecta: boolean;
 }
 
 export type ModoIgv = "MAS_IGV" | "IGV_INCLUIDO" | "NO_AFECTO";
@@ -896,6 +898,8 @@ export interface RecepcionItemRegistrado {
   qtyReceived: number;
   conditionStatus: CondicionRecepcion;
   observation: string | null;
+  /** Entrega directa: requerimiento al que se entrego. */
+  requestCode: string | null;
 }
 
 export interface Recepcion {
@@ -907,6 +911,47 @@ export interface Recepcion {
   observation: string | null;
   guia: string | null;
   items: RecepcionItemRegistrado[];
+  /** Entrega directa (DEC-L084): CECO que recibio y su constancia; null si fue en el almacén. */
+  cecoDestino: string | null;
+  constanciaUrl: string | null;
+}
+
+/** Entrega directa del proveedor al CECO de una OC (DEC-L084). */
+export interface EntregaDirecta {
+  orderId: string;
+  orderCode: string;
+  proveedor: string;
+  proveedorRuc: string;
+  estado: EstadoOrden;
+  /** Por qué todavía no se puede recibir (falta aprobar o liberar). */
+  bloqueo: string | null;
+  destinos: DestinoEntrega[];
+  recepciones: Recepcion[];
+  incidencias: Incidencia[];
+}
+
+export interface DestinoEntrega {
+  cecoId: string;
+  cecoCode: string;
+  cecoNombre: string;
+  empresaCode: string | null;
+  lineas: LineaEntrega[];
+}
+
+export interface LineaEntrega {
+  orderItemId: string;
+  needId: string | null;
+  requestItemId: string | null;
+  requestId: string | null;
+  requestCode: string | null;
+  solicitante: string | null;
+  sku: string;
+  descripcion: string;
+  unidad: string | null;
+  asignado: number;
+  recibido: number;
+  pendiente: number;
+  puedeRegistrar: boolean;
 }
 
 export interface Incidencia {
@@ -1104,7 +1149,8 @@ export interface HitoTracking {
 
 export interface EntregaTracking {
   posicion: number;
-  inventoryNoteId: string;
+  /** null en una entrega directa del proveedor (DEC-L084), que trae orderId. */
+  inventoryNoteId: string | null;
   notaCodigo: string;
   emitidaEn: string | null;
   itemsDespachados: string;
@@ -1121,6 +1167,7 @@ export interface EntregaTracking {
   urlGuia: string | null;
   urlTicket: string | null;
   urlConformidad: string | null;
+  orderId: string | null;
 }
 
 export interface EventoTracking {
@@ -1757,6 +1804,7 @@ export type CodigoAccion =
   | "ADJUDICAR"
   | "REGISTRAR_CAJA_CHICA"
   | "CORREGIR_CAJA_CHICA"
+  | "RECIBIR_EN_OBRA"
   | "REGULARIZAR_CAJA_CHICA"
   | "DECIDIR_RUTA"
   | "PEDIR_COTIZACION"

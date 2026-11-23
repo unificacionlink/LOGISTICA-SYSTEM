@@ -59,6 +59,7 @@ public class DespachoService {
     private final ResolucionDestinoRepository resolucionDestinoRepository;
     private final com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService;
     private final AvisosPlataforma avisos;
+    private final com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository;
 
     public DespachoService(RequerimientoRepository requerimientoRepository,
                            RequerimientoItemRepository requerimientoItemRepository,
@@ -79,8 +80,10 @@ public class DespachoService {
                            RecepcionDestinoItemRepository recepcionDestinoItemRepository,
                            ResolucionDestinoRepository resolucionDestinoRepository,
                            com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService,
-                           AvisosPlataforma avisos) {
+                           AvisosPlataforma avisos,
+                           com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository) {
         this.avisos = avisos;
+        this.recepcionItemRepository = recepcionItemRepository;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
         this.reservaRepository = reservaRepository;
@@ -126,6 +129,9 @@ public class DespachoService {
         // Tres consultas por REQ (no tres por item): con la BD lejos, cada ida y vuelta cuesta.
         Map<UUID, BigDecimal> despachado = porItem(salidaItemRepository.sumarDespachadoPorItem(requestId));
         Map<UUID, BigDecimal> entregado = porItem(salidaItemRepository.sumarEntregadoPorItem(requestId));
+        // Lo que el proveedor entrego directo en el CECO tambien esta entregado (DEC-L084).
+        porItem(recepcionItemRepository.sumarEntregadoDirectoPorItem(requestId))
+                .forEach((k, v) -> entregado.merge(k, v, BigDecimal::add));
         Map<UUID, BigDecimal> reservado = porItem(reservaRepository.sumarReservadoPorRequerimiento(requestId));
         List<ItemPorDespacharDto> items = requerimientoItemRepository.findByRequerimiento(requestId).stream()
                 .map(i -> new ItemPorDespacharDto(

@@ -56,6 +56,7 @@ public class TrackingService {
     private final SalidaItemRepository salidaItemRepository;
     private final DocumentoRelacionRepository documentoRelacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public TrackingService(RequerimientoRepository requerimientoRepository,
@@ -71,7 +72,9 @@ public class TrackingService {
                            SalidaItemRepository salidaItemRepository,
                            DocumentoRelacionRepository documentoRelacionRepository,
                            UsuarioRepository usuarioRepository,
-                           org.springframework.jdbc.core.JdbcTemplate jdbc) {
+                           org.springframework.jdbc.core.JdbcTemplate jdbc,
+                           com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository) {
+        this.recepcionItemRepository = recepcionItemRepository;
         this.requerimientoRepository = requerimientoRepository;
         this.requerimientoItemRepository = requerimientoItemRepository;
         this.requerimientoService = requerimientoService;
@@ -104,8 +107,13 @@ public class TrackingService {
         Map<UUID, List<SalidaItem>> itemsPorSalida = salidaItemRepository.findByRequerimiento(requestId).stream()
                 .collect(Collectors.groupingBy(i -> i.getSalida().getIssueId()));
 
+        // Entregas directas del proveedor al CECO (DEC-L084), agrupadas por recepcion.
+        Map<UUID, List<RecepcionItem>> directas = recepcionItemRepository.findDirectosPorRequerimiento(requestId).stream()
+                .collect(Collectors.groupingBy(i -> i.getRecepcion().getReceiptId(), LinkedHashMap::new, Collectors.toList()));
+
         List<EntregaDto> entregas = entregas(notas, envioPorNota, itemsPorSalida);
-        Atencion atencion = calcularAtencion(items, envioPorNota.values(), itemsPorSalida);
+        entregasDirectas(directas, entregas);
+        Atencion atencion = calcularAtencion(items, envioPorNota.values(), itemsPorSalida, directas.values());
 
         BigDecimal valorPedido = r.getTotalValueNetSnapshot() != null
                 ? r.getTotalValueNetSnapshot()
@@ -121,7 +129,7 @@ public class TrackingService {
                 atencion.solicitadas,
                 atencion.entregadas,
                 atencion.porcentaje(),
-                hitos(r, aprobaciones, envioPorNota.values(), atencion),
+                hitos(r, aprobaciones, envioPorNota.values(), atencion, directas.values()),
                 entregas,
                 eventos(r, aprobaciones, notas, envioPorNota));
     }
@@ -165,9 +173,47 @@ public class TrackingService {
                     e != null ? e.getReceivedAt() : null,
                     docs.get("GUIA"),
                     docs.get("TICKET_ENVIO"),
-                    docs.get("CONFORMIDAD_ENTREGA")));
+                    docs.get("CONFORMIDAD_ENTREGA"),
+                    null));
         }
         return filas;
+    }
+
+    /** Una fila por recepcion de entrega directa: sin NI ni transportista; el proveedor entrego en obra. */
+    private static void entregasDirectas(Map<UUID, List<RecepcionItem>> directas, List<EntregaDto> filas) {
+        for (List<RecepcionItem> lineas : directas.values()) {
+            Recepcion rc = lineas.get(0).getRecepcion();
+            String texto = lineas.stream()
+                    .map(i -> {
+                        OrdenItem oi = i.getOrdenItem();
+                        String codigo = oi.getVariante() != null ? oi.getVariante().getInternalVariantCode()
+                                : oi.getProducto() != null ? oi.getProducto().getSkuBase() : "";
+                        return (codigo + " " + oi.getDescription()).trim() + " x " + cantidad(i.getQtyReceived());
+                    })
+                    .collect(Collectors.joining("; "));
+            String constancia = rc.getConformityUrl() != null ? rc.getConformityUrl()
+                    : rc.getDocumento() != null ? rc.getDocumento().getFileUrl() : null;
+            filas.add(new EntregaDto(
+                    filas.size() + 1,
+                    null,
+                    rc.getOrden().getOrderCode() + " · R" + rc.getReceiptNumber(),
+                    rc.getReceiptDate(),
+                    texto,
+                    null,
+                    null,
+                    "PROVEEDOR_ENTREGA",
+                    rc.getOrden().getProveedor().getLegalName(),
+                    null,
+                    rc.getReceiptDate().atZone(java.time.ZoneId.of("America/Lima")).toLocalDate(),
+                    null,
+                    null,
+                    "OBSERVADA".equals(rc.getStatus()) ? "RECEPCIONADO_OBSERVADO" : "RECEPCIONADO",
+                    rc.getReceiptDate(),
+                    null,
+                    null,
+                    constancia,
+                    rc.getOrden().getOrderId()));
+        }
     }
 
     private static String textoItems(List<SalidaItem> items) {
@@ -203,33 +249,50 @@ public class TrackingService {
         }
     }
 
+    /** Una entrega recibida: un envio en destino o una recepcion de entrega directa (DEC-L084). */
+    private record Llegada(Instant fecha, Map<UUID, BigDecimal> porItem) {
+    }
+
     private static Atencion calcularAtencion(List<RequerimientoItem> items, Collection<Envio> envios,
-                                             Map<UUID, List<SalidaItem>> itemsPorSalida) {
+                                             Map<UUID, List<SalidaItem>> itemsPorSalida,
+                                             Collection<List<RecepcionItem>> directas) {
         Map<UUID, BigDecimal> solicitado = new HashMap<>();
         for (RequerimientoItem i : items) {
             solicitado.put(i.getRequestItemId(), i.getQtyRequested());
         }
-        List<Envio> entregados = envios.stream()
+        List<Llegada> llegadas = new ArrayList<>();
+        envios.stream()
                 .filter(e -> ENVIO_ENTREGADO.contains(e.getStatus()) && e.getReceivedAt() != null)
-                .sorted(Comparator.comparing(Envio::getReceivedAt))
-                .toList();
+                .forEach(e -> {
+                    Map<UUID, BigDecimal> m = new HashMap<>();
+                    for (SalidaItem si : itemsPorSalida.getOrDefault(e.getSalida().getIssueId(), List.of())) {
+                        m.merge(si.getRequerimientoItem().getRequestItemId(), si.getDestAcceptedQty(), BigDecimal::add);
+                    }
+                    llegadas.add(new Llegada(e.getReceivedAt(), m));
+                });
+        for (List<RecepcionItem> lineas : directas) {
+            Map<UUID, BigDecimal> m = new HashMap<>();
+            for (RecepcionItem i : lineas) {
+                m.merge(i.getRequerimientoItem().getRequestItemId(), i.getQtyReceived(), BigDecimal::add);
+            }
+            llegadas.add(new Llegada(lineas.get(0).getRecepcion().getReceiptDate(), m));
+        }
+        llegadas.sort(Comparator.comparing(Llegada::fecha));
 
         Map<UUID, BigDecimal> entregado = new HashMap<>();
         Instant primera = null;
         Instant completa = null;
         int entregasHastaCompletar = 0;
-        for (Envio e : entregados) {
-            for (SalidaItem si : itemsPorSalida.getOrDefault(e.getSalida().getIssueId(), List.of())) {
-                entregado.merge(si.getRequerimientoItem().getRequestItemId(), si.getDestAcceptedQty(), BigDecimal::add);
-            }
+        for (Llegada l : llegadas) {
+            l.porItem().forEach((k, v) -> entregado.merge(k, v, BigDecimal::add));
             if (primera == null) {
-                primera = e.getReceivedAt();
+                primera = l.fecha();
             }
             if (completa == null) {
                 entregasHastaCompletar++;
-                if (!solicitado.isEmpty() && solicitado.entrySet().stream().allMatch(s ->
-                        entregado.getOrDefault(s.getKey(), BigDecimal.ZERO).compareTo(s.getValue()) >= 0)) {
-                    completa = e.getReceivedAt();
+                if (!solicitado.isEmpty() && solicitado.entrySet().stream().allMatch(x ->
+                        entregado.getOrDefault(x.getKey(), BigDecimal.ZERO).compareTo(x.getValue()) >= 0)) {
+                    completa = l.fecha();
                 }
             }
         }
@@ -250,7 +313,7 @@ public class TrackingService {
     // ------------------------------------------------------------------
 
     private List<HitoDto> hitos(Requerimiento r, List<Aprobacion> aprobaciones, Collection<Envio> envios,
-                                Atencion a) {
+                                Atencion a, Collection<List<RecepcionItem>> directas) {
         boolean enviado = !EstadoRequerimiento.BORRADOR.equals(r.getStatus());
         Instant emitidoEn = aprobaciones.isEmpty() ? instant(r.getCreatedAt())
                 : instant(aprobaciones.get(0).getCreatedAt());
@@ -274,9 +337,10 @@ public class TrackingService {
             detalleAprobacion = enviado ? "Pendiente de aprobación" : "Aún no enviado";
         }
 
-        Instant primeraRecepcion = envios.stream()
-                .filter(e -> ENVIO_ENTREGADO.contains(e.getStatus()))
-                .map(Envio::getReceivedAt).filter(Objects::nonNull)
+        Instant primeraRecepcion = java.util.stream.Stream.concat(
+                        envios.stream().filter(e -> ENVIO_ENTREGADO.contains(e.getStatus())).map(Envio::getReceivedAt),
+                        directas.stream().map(l -> l.get(0).getRecepcion().getReceiptDate()))
+                .filter(Objects::nonNull)
                 .min(Comparator.naturalOrder()).orElse(null);
         String unidades = cantidad(a.entregadas) + "/" + cantidad(a.solicitadas) + " u.";
         boolean parcial = a.primeraEntrega != null && !a.completaEnUnaEntrega;
@@ -361,6 +425,13 @@ public class TrackingService {
         if (!ordenes.isEmpty()) {
             for (Recepcion rc : recepcionRepository.findByOrdenes(
                     ordenes.stream().map(OrdenAbastecimiento::getOrderId).toList())) {
+                if (rc.getCecoDestino() != null) {
+                    ev.add(new EventoDto(rc.getReceiptDate(), "Entrega",
+                            "Entregado por el proveedor en " + rc.getCecoDestino().getCode()
+                                    + ("OBSERVADA".equals(rc.getStatus()) ? " (con incidencia)" : ""),
+                            rc.getReceivedBy().getDisplayName(), rc.getOrden().getOrderCode()));
+                    continue;
+                }
                 ev.add(new EventoDto(rc.getReceiptDate(), "Almacén",
                         "Recepción " + rc.getReceiptNumber() + " de la OC (" + rc.getStatus() + ")",
                         rc.getReceivedBy().getDisplayName(), rc.getOrden().getOrderCode()));

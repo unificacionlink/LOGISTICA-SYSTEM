@@ -12,5 +12,8 @@ public record RecepcionDto(
         String receivedByName,
         String observation,
         String guia,
-        List<RecepcionItemDto> items) {
+        List<RecepcionItemDto> items,
+        // Entrega directa (DEC-L084): CECO que recibio y su constancia; null si fue en el almacen.
+        String cecoDestino,
+        String constanciaUrl) {
 }

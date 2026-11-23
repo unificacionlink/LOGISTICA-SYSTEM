@@ -249,6 +249,8 @@ export interface OrdenDirectaInput {
   additionalSpecs: string | null;
   cecoId: string | null;
   requestCode: string | null;
+  /** El proveedor entrega en el CECO de la orden (DEC-L084). */
+  entregaDirecta: boolean;
   /** variantId = producto del catalogo; sin variantId, descripcion = servicio. */
   lineas: { variantId: string | null; descripcion: string | null; cantidad: number; precioUnitario: number }[];
 }
@@ -263,6 +265,8 @@ export interface CondicionesOrden {
   deliveryTerm: string | null;
   deliveryLocation: string | null;
   additionalSpecs: string | null;
+  /** Entrega directa del proveedor al CECO (DEC-L084). */
+  entregaDirecta: boolean;
 }
 
 /** Solo mientras la OC espera aprobacion (DEC-L079). */

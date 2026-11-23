@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.66.0",
+    titulo: "Entrega directa del proveedor en obra",
+    cambios: [
+      "Una orden de compra se puede marcar como entrega directa en obra: el proveedor lleva cada parte al CECO de su requerimiento y no pasa por el almacén.",
+      "Cada CECO registra lo que recibió con la guía del proveedor y la constancia firmada; lo que llega mal queda como incidencia para que el proveedor lo reponga.",
+      "El solicitante ve la entrega en su requerimiento y puede registrar lo que le llegó; la atención se actualiza sola.",
+    ],
+  },
+  {
     version: "0.65.0",
     titulo: "Dashboard con Proceso, Demanda y Gasto",
     cambios: [

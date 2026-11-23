@@ -43,5 +43,7 @@ public record OrdenDto(
         // OC directa (DEC-L080)
         String cecoCode,
         String cecoNombre,
-        boolean servicesOnly) {
+        boolean servicesOnly,
+        // Entrega directa del proveedor al CECO (DEC-L084): no se recibe en el almacen.
+        boolean entregaDirecta) {
 }

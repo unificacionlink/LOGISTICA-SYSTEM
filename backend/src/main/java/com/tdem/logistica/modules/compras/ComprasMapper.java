@@ -133,7 +133,8 @@ public final class ComprasMapper {
                 o.getAdditionalSpecs(),
                 o.getCeco() != null ? o.getCeco().getCode() : null,
                 o.getCeco() != null ? o.getCeco().getName() : null,
-                o.isServicesOnly());
+                o.isServicesOnly(),
+                o.isDirectDelivery());
     }
 
     public static OrdenItemDto toDto(OrdenItem i) {

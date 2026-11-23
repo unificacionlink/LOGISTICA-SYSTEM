@@ -91,6 +91,12 @@ public class AvisosPlataforma {
         avisar(requestId, RECIBIDO, "%s: se registró la recepción", "Nota " + notaCodigo + ": " + estado + ".", actor);
     }
 
+    /** El proveedor entrego directo en el CECO y alguien registro la recepcion (DEC-L084). */
+    public void entregaDirecta(UUID requestId, String ordenCodigo, String cecoCodigo, UUID actor) {
+        avisar(requestId, RECIBIDO, "%s: el proveedor entregó en obra",
+                "Orden " + ordenCodigo + ": recepción registrada en " + cecoCodigo + ".", actor);
+    }
+
     // ---------------------------------------------------------------- bandeja del usuario
 
     @Transactional(readOnly = true)

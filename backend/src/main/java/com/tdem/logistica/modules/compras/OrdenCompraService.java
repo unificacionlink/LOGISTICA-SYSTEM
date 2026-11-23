@@ -10,6 +10,8 @@ import com.tdem.logistica.common.Auditoria;
 import com.tdem.logistica.entity.Aprobacion;
 import com.tdem.logistica.entity.Documento;
 import com.tdem.logistica.entity.OrdenAbastecimiento;
+import com.tdem.logistica.entity.OrdenItem;
+import com.tdem.logistica.modules.almacen.DestinosEntrega;
 import com.tdem.logistica.modules.compras.dto.CondicionesOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.DecidirOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest;
@@ -55,6 +57,7 @@ public class OrdenCompraService {
     private final OrigenCompras origen;
     private final Auditoria auditoria;
     private final RealtimeNotifier realtime;
+    private final DestinosEntrega destinosEntrega;
 
     public OrdenCompraService(OrdenAbastecimientoRepository ordenRepository,
                               OrdenItemRepository ordenItemRepository,
@@ -63,7 +66,8 @@ public class OrdenCompraService {
                               ComprasService comprasService,
                               OrigenCompras origen,
                               Auditoria auditoria,
-                              RealtimeNotifier realtime) {
+                              RealtimeNotifier realtime,
+                              DestinosEntrega destinosEntrega) {
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.aprobacionRepository = aprobacionRepository;
@@ -72,6 +76,7 @@ public class OrdenCompraService {
         this.origen = origen;
         this.auditoria = auditoria;
         this.realtime = realtime;
+        this.destinosEntrega = destinosEntrega;
     }
 
     /** Quien puede aprobar o rechazar una OC. */
@@ -183,7 +188,15 @@ public class OrdenCompraService {
         orden.setDeliveryTerm(limpio(request.deliveryTerm()));
         orden.setDeliveryLocation(limpio(request.deliveryLocation()));
         orden.setAdditionalSpecs(limpio(request.additionalSpecs()));
-        BigDecimal suma = ordenItemRepository.findByOrden(orderId).stream()
+        List<OrdenItem> items = ordenItemRepository.findByOrden(orderId);
+        if (request.entregaDirecta() != null) {
+            if (request.entregaDirecta()) {
+                // Cada unidad tiene que tener a que CECO ir (lanza si no, DEC-L084).
+                destinosEntrega.destinos(orden, items);
+            }
+            orden.setDirectDelivery(request.entregaDirecta());
+        }
+        BigDecimal suma = items.stream()
                 .map(i -> i.getLineSubtotal())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         ImpuestoOrden.aplicar(orden, suma);
@@ -199,6 +212,7 @@ public class OrdenCompraService {
         m.put("plazo", o.getDeliveryTerm());
         m.put("lugar", o.getDeliveryLocation());
         m.put("especificaciones", o.getAdditionalSpecs());
+        m.put("entregaDirecta", o.isDirectDelivery());
         return m;
     }
 

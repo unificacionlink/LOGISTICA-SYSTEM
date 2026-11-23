@@ -31,6 +31,8 @@ public class ResumenSolicitanteService {
               select it.request_item_id,
                      coalesce((select sum(si.dest_accepted_qty) from salida_item si
                                 where si.request_item_id = it.request_item_id), 0)
+                   + coalesce((select sum(rci.qty_received) from recepcion_item rci
+                                where rci.request_item_id = it.request_item_id), 0)
                    + coalesce((select sum(cci.quantity) from caja_chica_item cci
                                  join caja_chica_ref cr on cr.petty_cash_ref_id = cci.petty_cash_ref_id
                                 where cci.request_item_id = it.request_item_id and cr.destination = 'PROYECTO'

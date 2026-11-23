@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.66.0 — 2026-11-23
+
+Entrega directa del proveedor al CECO (DEC-L084, ALM-04 de la V38.7).
+
+- `V46__entrega_directa_ceco.sql`: `orden_abastecimiento.direct_delivery`; `recepcion.warehouse_id` opcional + `destination_ceco_id`, `conformity_url`, `document_id` (check: almacén o CECO); `recepcion_item.request_item_id` y `need_id`.
+- `DestinosEntrega` (reparto de cada línea por necesidad/CECO) y `EntregaDirectaService`: `GET/POST /api/almacen/ordenes/{id}/entrega-directa` (multipart `datos` + `file`) y `GET /api/almacen/requerimientos/{id}/entregas-directas`. Guía obligatoria, constancia, incidencias; recalcula la atención y avisa al dueño (`AvisosPlataforma.entregaDirecta`); auditado `ENTREGA_DIRECTA`.
+- Marca en `CondicionesOrdenRequest.entregaDirecta` y `CrearOrdenDirectaRequest.entregaDirecta`; `OrdenDto.entregaDirecta`; el PDF F-LOG-09 dice "Entrega directa en obra". `RecepcionService` rechaza las OC de entrega directa.
+- Lo entregado directo cuenta en `AtencionCalculator`, `BandejaService` (+ acción `RECIBIR_EN_OBRA`), `ResumenSolicitanteService`, `PresupuestoService` (cumplimiento), `DespachoService`, `TrackingService` (`EntregaDto.orderId`), `DashboardService` y `DemandaService`.
+- Frontend: `components/almacen/EntregaDirecta.tsx` (formulario por CECO, historial y tarjeta del REQ), opción en Condiciones de la OC y en la OC directa, "Recibir en obra" en Almacén y en la Bandeja, filas de entrega directa en el Tracking.
+- Tests: `EntregaDirectaTest` (reparto por CECO, sobrante, validaciones, permisos del solicitante, guía única, incidencia, atención parcial/completa, sin kardex, Tracking; OC directa con CECO); `MigracionesFlywayTest` cuenta 46.
+
 ## 0.65.0 — 2026-11-23
 
 Dashboard con pestañas Proceso, Demanda y Gasto (DEC-L083). Cierra el Lote 19.

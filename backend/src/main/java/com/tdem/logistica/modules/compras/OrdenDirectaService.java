@@ -145,6 +145,16 @@ public class OrdenDirectaService {
 
         List<OrdenItem> items = lineas(r.lineas(), orden);
         orden.setServicesOnly(items.stream().allMatch(i -> i.getProducto() == null));
+        if (Boolean.TRUE.equals(r.entregaDirecta())) {
+            // DEC-L084: los productos van al CECO de la orden, no al almacen.
+            if (ceco == null) {
+                throw ApiException.badRequest("Indica el CECO que recibe la entrega directa.");
+            }
+            if (orden.isServicesOnly()) {
+                throw ApiException.badRequest("Una orden solo de servicios no tiene entrega que recibir.");
+            }
+            orden.setDirectDelivery(true);
+        }
         BigDecimal suma = items.stream().map(OrdenItem::getLineSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         ImpuestoOrden.aplicar(orden, suma);
         ordenRepository.insertar(orden);
@@ -169,6 +179,7 @@ public class OrdenDirectaService {
         despues.put("total", orden.getTotal());
         despues.put("ceco", ceco != null ? ceco.getCode() : null);
         despues.put("requerimiento", requestId);
+        despues.put("entregaDirecta", orden.isDirectDelivery());
         auditoria.registrar("ORDEN_ABASTECIMIENTO", orden.getOrderId(), "EMITIR_DIRECTA", null, despues,
                 principal.userId());
         OrdenDto dto = ComprasMapper.toDto(orden, origen.deOrden(orden.getOrderId()));

@@ -149,6 +149,9 @@ public class RecepcionService {
         if (!FlujoOrden.recibible(orden)) {
             throw ApiException.badRequest("Esta orden no admite recepciones (estado " + orden.getStatus() + ").");
         }
+        if (orden.isDirectDelivery()) {
+            throw ApiException.badRequest("Esta orden se entrega directo en el CECO: registra la entrega directa.");
+        }
         Usuario usuario = usuarioRepository.findById(principal.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
         // DEC-L045: un solo almacen central (TDEM) para todas las empresas.
@@ -256,7 +259,7 @@ public class RecepcionService {
         return AlmacenMapper.toDto(inc);
     }
 
-    private void validarIncidencia(IncidenciaInput inc, OrdenItem oi) {
+    void validarIncidencia(IncidenciaInput inc, OrdenItem oi) {
         if (!TIPOS_INCIDENCIA.contains(inc.issueType())) {
             throw ApiException.badRequest("Tipo de incidencia invalido para \"" + oi.getDescription() + "\".");
         }
@@ -266,7 +269,7 @@ public class RecepcionService {
         }
     }
 
-    private void registrarGuia(GuiaInput guia, OrdenAbastecimiento orden, Recepcion recepcion) {
+    void registrarGuia(GuiaInput guia, OrdenAbastecimiento orden, Recepcion recepcion) {
         if (guia == null || (isBlank(guia.series()) && isBlank(guia.number()))) {
             return;
         }
@@ -363,7 +366,7 @@ public class RecepcionService {
         reservaRepository.insertar(reserva);
     }
 
-    private void crearIncidencia(IncidenciaInput in, Recepcion recepcion, OrdenItem oi, RecepcionItem ri, Usuario usuario) {
+    void crearIncidencia(IncidenciaInput in, Recepcion recepcion, OrdenItem oi, RecepcionItem ri, Usuario usuario) {
         IncidenciaRecepcion inc = new IncidenciaRecepcion();
         inc.setReceiptIssueId(UUID.randomUUID());
         inc.setRecepcion(recepcion);

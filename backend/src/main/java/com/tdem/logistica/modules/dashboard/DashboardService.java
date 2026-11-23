@@ -17,8 +17,8 @@ public class DashboardService {
 
     /*
      * reqs    = requerimientos de la empresa filtrada (todas si :empresa es null).
-     * entrega = cuando se completo cada REQ: ultimo envio recibido en destino o caja chica del proyecto
-     *           regularizada (lo mismo que cuenta AtencionCalculator).
+     * entrega = cuando se completo cada REQ: ultimo envio recibido en destino, caja chica del proyecto
+     *           regularizada o entrega directa del proveedor (lo mismo que cuenta AtencionCalculator).
      * plazo   = REQ completados en el periodo: si llegaron a su fecha requerida (SlaAtencion, DEC-L068)
      *           y si necesitaron compra o salieron solo del stock (DEC-L083).
      * rfqs    = RFQ enviadas del periodo (por empresa) con su primera respuesta y si alguna se eligio.
@@ -41,7 +41,13 @@ public class DashboardService {
                       select f.request_id, f.regularized_at
                         from caja_chica_ref f
                        where f.destination = 'PROYECTO' and f.regularization_status = 'REGULARIZADO'
-                         and f.request_id is not null) e
+                         and f.request_id is not null
+                      union all
+                      select ri.request_id, rc.receipt_date
+                        from recepcion rc
+                        join recepcion_item rci on rci.receipt_id = rc.receipt_id
+                        join requerimiento_item ri on ri.request_item_id = rci.request_item_id
+                       where rc.destination_ceco_id is not null) e
                group by request_id
             ),
             plazo as (

@@ -5,6 +5,38 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L084 — Entrega directa del proveedor al CECO (2026-11-23, v0.66.0, ALM-04 de la V38.7).**
+  - La V38.7 solo la deja "pendiente", sin diseño. Decisiones del usuario:
+    **no pasa por el kardex** (el stock central no se mueve, como la caja
+    chica del proyecto); registran la recepción **Logística, Gerencia, Admin
+    y también el dueño del requerimiento**; **una recepción por CECO**
+    repartiendo según los requerimientos; **guía de remisión obligatoria**
+    (resuelve PD-02 solo para la entrega directa).
+  - La OC lleva `orden_abastecimiento.direct_delivery` (V46). Se marca en las
+    condiciones mientras espera aprobación (DEC-L079) o al crear una OC
+    directa (DEC-L080, exige CECO); aprobada, ya no cambia. Al marcarla,
+    `DestinosEntrega` reparte cada línea de producto entre las necesidades de
+    compra de su consolidado (mismo orden que la recepción en almacén); si
+    sobran unidades sin requerimiento, no puede ser de entrega directa. Una
+    OC directa sin requerimiento va entera al CECO de la orden.
+  - La recepción reutiliza `recepcion`/`recepcion_item`: sin almacén y con
+    `destination_ceco_id`, constancia (`conformity_url` o `document_id`) y,
+    por línea, `request_item_id` + `need_id`. Así el saldo de la OC, la guía
+    única (proveedor + serie + número) y las incidencias son las mismas. Sigue
+    exigiendo la OC aprobada y liberada (DEC-L061). El almacén y la carga
+    masiva rechazan una OC de entrega directa.
+  - **Solo cuenta lo aceptado**: lo que llega mal se registra como incidencia
+    (faltante, daño, producto errado) y queda pendiente para que el
+    proveedor lo reponga; no hay cuarentena porque no hay almacén.
+  - Lo entregado directo suma en la atención del REQ (`AtencionCalculator`),
+    la Bandeja (avance, compra pendiente y la acción "Recibir en obra" del
+    dueño), Mi resumen, el cumplimiento del presupuesto, el despacho, el
+    Tracking (hitos, una fila por recepción y su historial) y el dashboard
+    (A tiempo y la matriz ABC, que pasa a ser "despachado o entregado directo").
+  - Pantallas: la recepción de la OC muestra el formulario por CECO; el
+    detalle del REQ trae la tarjeta "Entrega directa en obra" con el avance,
+    el formulario (lo que el usuario puede recibir) y el historial.
+
 - **DEC-L083 — Dashboard con pestañas Proceso, Demanda y Gasto (2026-11-23, v0.65.0).**
   - Cierra el Lote 19 (dashboard). Decisiones del usuario: el dashboard
     operativo de la V38.7 (`dashboard-operativo.js`) va como pestaña de Inicio
@@ -2035,7 +2067,7 @@ Implementados como filas CONFIGURABLES en las tablas `REGLA_*` (nunca
 hardcodeadas), a validar antes de marchar en produccion:
 
 - PD-01 — Visibilidad de costo de compra para el rol COMPRAS/LOGISTICA.
-- PD-02 — Umbral/obligatoriedad de guia de remision.
+- PD-02 — Umbral/obligatoriedad de guia de remision (en la entrega directa al CECO ya es obligatoria, DEC-L084; falta decidirlo para la recepcion en almacen).
 - PD-03 — Porcentaje de penalidad y cuando aplica.
 - PD-04 — Rangos de aprobacion monetaria y excepciones por tipo de compra/proveedor.
   **Resuelto en DEC-L061**: todas las OC se aprueban (Gerencia o Logística),

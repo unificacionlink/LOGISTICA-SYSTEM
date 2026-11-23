@@ -7,6 +7,7 @@ import type {
   DiferenciasAlmacen,
   DespachoRequerimiento,
   DocumentoAdjunto,
+  EntregaDirecta,
   EstadoBien,
   EstadoIncidencia,
   Incidencia,
@@ -134,6 +135,43 @@ export interface RecepcionDestinoInput {
   resultado: ResultadoRecepcion;
   observacion?: string;
   enlaceConformidad?: string;
+}
+
+// ---------- Entrega directa del proveedor al CECO (ALM-04, DEC-L084) ----------
+
+export function obtenerEntregaDirecta(orderId: string) {
+  return http.get<EntregaDirecta>(`/api/almacen/ordenes/${orderId}/entrega-directa`);
+}
+
+export function entregasDirectasDelRequerimiento(requestId: string) {
+  return http.get<EntregaDirecta[]>(`/api/almacen/requerimientos/${requestId}/entregas-directas`);
+}
+
+export interface EntregaDirectaInput {
+  cecoId: string;
+  guia: { series: string; number: string; issueDate: string };
+  enlaceConformidad?: string;
+  observation?: string;
+  lineas: {
+    orderItemId: string;
+    needId: string | null;
+    requestItemId: string | null;
+    qty: number;
+    incidencia: {
+      issueType: TipoIncidencia;
+      qtyAffected: number | null;
+      description: string;
+      supplierAction: AccionProveedor | null;
+    } | null;
+  }[];
+}
+
+/** La constancia firmada va como archivo; si no hay archivo, su enlace. */
+export function registrarEntregaDirecta(orderId: string, datos: EntregaDirectaInput, constancia: File | null) {
+  const form = new FormData();
+  form.append("datos", new Blob([JSON.stringify(datos)], { type: "application/json" }));
+  if (constancia) form.append("file", constancia);
+  return http.postForm<EntregaDirecta>(`/api/almacen/ordenes/${orderId}/entrega-directa`, form);
 }
 
 /** La nota firmada va como archivo; si no hay archivo, el enlace de la conformidad firmada. */

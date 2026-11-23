@@ -177,10 +177,14 @@ export default function TrackingRequerimiento({ requestId, esGestor }: { request
                   </tr>
                 ) : (
                   tracking.entregas.map((e) => (
-                    <tr key={e.inventoryNoteId}>
+                    <tr key={e.inventoryNoteId ?? `${e.orderId}-${e.posicion}`}>
                       <td className="px-5 py-2.5 font-mono text-xs">
                         {esGestor ? (
-                          <Link to={`/almacen/notas/${e.inventoryNoteId}`} className="font-medium text-brand-600 hover:text-brand-700">
+                          // Entrega directa del proveedor (DEC-L084): sin NI, lleva a la recepción de la OC.
+                          <Link
+                            to={e.inventoryNoteId ? `/almacen/notas/${e.inventoryNoteId}` : `/almacen/ordenes/${e.orderId}/recepcion`}
+                            className="font-medium text-brand-600 hover:text-brand-700"
+                          >
                             {e.notaCodigo}
                           </Link>
                         ) : (

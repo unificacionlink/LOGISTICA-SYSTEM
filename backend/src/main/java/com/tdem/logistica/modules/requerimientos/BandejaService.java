@@ -54,7 +54,7 @@ public class BandejaService {
             "PEDIR_COTIZACION", "ESPERA_COTIZACION", "APROBAR_OC", "LIBERAR_OC", "RECIBIR_OC");
     /** Acciones del solicitante que lo dejan en "Pendientes mios" (DEC-L054). */
     private static final Set<String> DEL_SOLICITANTE = Set.of(
-            "ENVIAR", "CORREGIR", "REGISTRAR_CAJA_CHICA", "CORREGIR_CAJA_CHICA");
+            "ENVIAR", "CORREGIR", "REGISTRAR_CAJA_CHICA", "CORREGIR_CAJA_CHICA", "RECIBIR_EN_OBRA");
     private static final Map<String, Integer> PESO_PRIORIDAD = Map.of("URGENTE", 0, "APROVISIONAMIENTO", 1, "IMPLEMENTACION", 2);
 
     private static final String SQL = """
@@ -80,6 +80,11 @@ public class BandejaService {
                      sum(si.dest_accepted_qty) as entregado
                 from salida_item si join it on it.request_item_id = si.request_item_id
                group by si.request_item_id
+            ),
+            dir as (
+              select rci.request_item_id, sum(rci.qty_received) as entregado
+                from recepcion_item rci join it on it.request_item_id = rci.request_item_id
+               group by rci.request_item_id
             ),
             res as (
               select rs.request_item_id, sum(rs.qty_reserved) as listo
@@ -111,6 +116,8 @@ public class BandejaService {
                                   where cci.request_item_id = n.request_item_id and cr.regularization_status <> 'ANULADO'), 0)
                      else coalesce((select sum(rs.qty_reserved) from reserva_stock rs
                                      where rs.need_id = n.need_id and rs.status in ('RESERVADA','DESPACHADA')), 0)
+                        -- entrega directa del proveedor al CECO (DEC-L084)
+                        + coalesce((select sum(rci.qty_received) from recepcion_item rci where rci.need_id = n.need_id), 0)
                      end as recibido,
                      exists (select 1 from rfq_item q
                                join cotizacion_item ci on ci.rfq_item_id = q.rfq_item_id
@@ -123,7 +130,7 @@ public class BandejaService {
             ),
             por_item as (
               select it.request_id, it.q,
-                     coalesce(s.entregado, 0) + coalesce(cp.regularizado, 0) as entregado,
+                     coalesce(s.entregado, 0) + coalesce(cp.regularizado, 0) + coalesce(d.entregado, 0) as entregado,
                      coalesce(s.despachado, 0) - coalesce(s.entregado, 0) as camino,
                      coalesce(r.listo, 0) as listo,
                      coalesce((select sum(greatest(nc.qty - nc.recibido, 0)) from nec nc
@@ -132,6 +139,7 @@ public class BandejaService {
                 left join sal s on s.request_item_id = it.request_item_id
                 left join res r on r.request_item_id = it.request_item_id
                 left join ccp cp on cp.request_item_id = it.request_item_id
+                left join dir d on d.request_item_id = it.request_item_id
             ),
             avance as (
               select request_id,
@@ -168,6 +176,15 @@ public class BandejaService {
                where o.status in ('POR_APROBAR','EMITIDA','EN_ATENCION','RECEPCION_PARCIAL')
                order by nc.request_id, (o.status = 'POR_APROBAR' or o.released_at is null) desc, o.created_at
             ),
+            en_obra as (
+              select distinct nc.request_id
+                from nec nc
+                join orden_item oi on oi.consolidation_id = nc.consolidation_id
+                join orden_abastecimiento o on o.order_id = oi.order_id
+               where o.direct_delivery and o.released_at is not null
+                 and o.status in ('EMITIDA','EN_ATENCION','RECEPCION_PARCIAL')
+                 and nc.status = 'COMPRA' and nc.qty > nc.recibido
+            ),
             prep as (
               select n.request_id,
                      bool_or(n.picked_at is null) as por_piquear,
@@ -197,7 +214,8 @@ public class BandejaService {
                    env.inventory_note_id,
                    coalesce(cc.por_revisar, false) as cc_por_revisar, coalesce(cc.observada, false) as cc_observada,
                    coalesce(pr.por_piquear, false) as por_piquear, coalesce(pr.por_embalar, false) as por_embalar,
-                   coalesce(pr.por_enviar, false) as por_enviar, coalesce(ob.observado, 0) as observado
+                   coalesce(pr.por_enviar, false) as por_enviar, coalesce(ob.observado, 0) as observado,
+                   exists (select 1 from en_obra eo where eo.request_id = b.request_id) as en_obra
               from base b
               left join items i on i.request_id = b.request_id
               left join avance a on a.request_id = b.request_id
@@ -399,6 +417,10 @@ public class BandejaService {
         if (propio && rs.getBoolean("cc_observada")) {
             acciones.add(new BandejaDto.Accion("CORREGIR_CAJA_CHICA", false, id.toString()));
         }
+        // DEC-L084: el proveedor entrega en la obra; el solicitante registra lo que le llego.
+        if (propio && aprobado && rs.getBoolean("en_obra")) {
+            acciones.add(new BandejaDto.Accion("RECIBIR_EN_OBRA", false, id.toString()));
+        }
         if (gestor && aprobado) {
             UUID orden = rs.getObject("order_id", UUID.class);
             UUID nota = rs.getObject("inventory_note_id", UUID.class);
@@ -526,6 +548,8 @@ public class BandejaService {
                                   where cci.request_item_id = n.request_item_id and cr.regularization_status <> 'ANULADO'), 0)
                      else coalesce((select sum(rs.qty_reserved) from reserva_stock rs
                                      where rs.need_id = n.need_id and rs.status in ('RESERVADA','DESPACHADA')), 0)
+                        -- entrega directa del proveedor al CECO (DEC-L084)
+                        + coalesce((select sum(rci.qty_received) from recepcion_item rci where rci.need_id = n.need_id), 0)
                      end as recibido,
                      (select count(distinct co.quotation_id) from rfq_item q
                         join cotizacion_item ci on ci.rfq_item_id = q.rfq_item_id
@@ -542,7 +566,9 @@ public class BandejaService {
             select it.*,
                    coalesce((select sum(si.qty) from salida_item si where si.request_item_id = it.request_item_id), 0) as despachado,
                    coalesce((select sum(si.dest_accepted_qty) from salida_item si
-                              where si.request_item_id = it.request_item_id), 0) as entregado,
+                              where si.request_item_id = it.request_item_id), 0)
+                     + coalesce((select sum(rci.qty_received) from recepcion_item rci
+                                  where rci.request_item_id = it.request_item_id), 0) as entregado,
                    coalesce((select sum(cci.quantity) from caja_chica_item cci
                                join caja_chica_ref cr on cr.petty_cash_ref_id = cci.petty_cash_ref_id
                               where cci.request_item_id = it.request_item_id and cr.destination = 'PROYECTO'

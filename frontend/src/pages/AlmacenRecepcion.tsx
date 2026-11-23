@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { AlertTriangle, PackageOpen } from "lucide-react";
 import {
   actualizarIncidencia,
+  obtenerEntregaDirecta,
   obtenerRecepcionOrden,
   registrarRecepcion,
   type RecepcionItemInput,
@@ -11,6 +12,7 @@ import {
 import type {
   AccionProveedor,
   CondicionRecepcion,
+  EntregaDirecta,
   EstadoIncidencia,
   Incidencia,
   RecepcionOrden,
@@ -27,6 +29,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
 import CampoNumero from "../components/ui/CampoNumero";
+import { FormEntregaDirecta } from "../components/almacen/EntregaDirecta";
 interface FilaForm {
   qty: string;
   // Condicion, observacion e incidencia solo se muestran si hay un problema (ley de Hick).
@@ -69,6 +72,8 @@ export default function AlmacenRecepcion() {
   const [observacion, setObservacion] = useState("");
   const [conObservacion, setConObservacion] = useState(false);
   const [guia, setGuia] = useState({ series: "", number: "", issueDate: hoyIso() });
+  // DEC-L084: la OC de entrega directa se recibe en cada CECO, no en el almacén.
+  const [entrega, setEntrega] = useState<EntregaDirecta | null>(null);
 
   function aplicar(d: RecepcionOrden) {
     setDatos(d);
@@ -83,11 +88,25 @@ export default function AlmacenRecepcion() {
     if (!id) return;
     obtenerRecepcionOrden(id)
       .then((res) => {
-        if (res.ok && res.result) aplicar(res.result);
-        else setError(res.message);
+        if (res.ok && res.result) {
+          aplicar(res.result);
+          if (res.result.orden.entregaDirecta) {
+            return obtenerEntregaDirecta(res.result.orden.orderId).then((r) => {
+              if (r.ok && r.result) setEntrega(r.result);
+              else setError(r.message);
+            });
+          }
+        } else setError(res.message);
       })
       .finally(() => setCargando(false));
   }, [id]);
+
+  async function onEntregaRegistrada(e: EntregaDirecta) {
+    setEntrega(e);
+    setExito("Recepción en obra registrada.");
+    const res = await obtenerRecepcionOrden(e.orderId);
+    if (res.ok && res.result) aplicar(res.result);
+  }
 
   function actualizarFila(orderItemId: string, cambio: Partial<FilaForm>) {
     setFilas((prev) => ({ ...prev, [orderItemId]: { ...prev[orderItemId], ...cambio } }));
@@ -205,6 +224,16 @@ export default function AlmacenRecepcion() {
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
       {exito && <Alert tone="good" className="mb-4">{exito}</Alert>}
 
+      {orden.entregaDirecta ? (
+        <>
+          <Alert tone="info" className="mb-4">
+            Entrega directa en obra: el proveedor entrega en el CECO de cada requerimiento.
+          </Alert>
+          {entrega && (
+            <FormEntregaDirecta key={entrega.recepciones.length} entrega={entrega} onGuardada={onEntregaRegistrada} />
+          )}
+        </>
+      ) : (
       <form onSubmit={onGuardar}>
         <Card className="mb-4 overflow-hidden">
           <CardBody className="pb-3">
@@ -398,6 +427,7 @@ export default function AlmacenRecepcion() {
           </Card>
         )}
       </form>
+      )}
 
       {incidencias.length > 0 && (
         <Card className="mb-4 overflow-hidden">
@@ -455,15 +485,22 @@ export default function AlmacenRecepcion() {
                   <span className="font-medium text-slate-800">Recepción #{r.receiptNumber}</span>
                   <RecepcionBadge estado={r.status} />
                   <span className="text-xs text-slate-500">
+                    {r.cecoDestino ? `En obra ${r.cecoDestino} · ` : ""}
                     {fmtFecha(r.receiptDate)} · {r.receivedByName}
                     {r.guia ? ` · Guía ${r.guia}` : ""}
                   </span>
+                  {r.constanciaUrl && (
+                    <a href={r.constanciaUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-700 hover:underline">
+                      Constancia
+                    </a>
+                  )}
                 </div>
                 {r.items.length > 0 && (
                   <ul className="mt-1.5 flex flex-col gap-0.5 text-xs text-slate-600">
                     {r.items.map((i) => (
-                      <li key={i.orderItemId}>
+                      <li key={`${i.orderItemId}-${i.requestCode ?? ""}`}>
                         {fmtCantidad(i.qtyReceived)} × {i.description}
+                        {i.requestCode ? ` · ${i.requestCode}` : ""}
                         {i.conditionStatus === "OBSERVADO" ? " (observado)" : ""}
                         {i.observation ? ` — ${i.observation}` : ""}
                       </li>

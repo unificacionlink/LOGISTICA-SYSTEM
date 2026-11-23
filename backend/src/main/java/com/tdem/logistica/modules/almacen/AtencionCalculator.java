@@ -4,6 +4,7 @@ import com.tdem.logistica.common.AppConstants.EstadoRequerimiento;
 import com.tdem.logistica.entity.Requerimiento;
 import com.tdem.logistica.entity.RequerimientoItem;
 import com.tdem.logistica.repository.RequerimientoItemRepository;
+import com.tdem.logistica.repository.RecepcionItemRepository;
 import com.tdem.logistica.repository.SalidaItemRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -19,7 +20,8 @@ import java.util.UUID;
  * RF-079: el estado de atencion de un requerimiento NUNCA se marca a mano. Se
  * calcula comparando, por request_item_id, lo solicitado contra lo despachado
  * cuyo envio ya fue recepcionado en destino, mas lo comprado con la caja chica
- * del proyecto que Logistica ya regularizo (DEC-L054: no pasa por el almacen).
+ * del proyecto que Logistica ya regularizo (DEC-L054: no pasa por el almacen)
+ * y lo que el proveedor entrego directo en el CECO (DEC-L084).
  */
 @Component
 public class AtencionCalculator {
@@ -29,12 +31,15 @@ public class AtencionCalculator {
 
     private final RequerimientoItemRepository requerimientoItemRepository;
     private final SalidaItemRepository salidaItemRepository;
+    private final RecepcionItemRepository recepcionItemRepository;
     private final JdbcTemplate jdbc;
 
     AtencionCalculator(RequerimientoItemRepository requerimientoItemRepository,
-                       SalidaItemRepository salidaItemRepository, JdbcTemplate jdbc) {
+                       SalidaItemRepository salidaItemRepository, RecepcionItemRepository recepcionItemRepository,
+                       JdbcTemplate jdbc) {
         this.requerimientoItemRepository = requerimientoItemRepository;
         this.salidaItemRepository = salidaItemRepository;
+        this.recepcionItemRepository = recepcionItemRepository;
         this.jdbc = jdbc;
     }
 
@@ -48,6 +53,9 @@ public class AtencionCalculator {
         Map<UUID, BigDecimal> entregados = new HashMap<>();
         for (Object[] fila : salidaItemRepository.sumarEntregadoPorItem(r.getRequestId())) {
             entregados.put((UUID) fila[0], (BigDecimal) fila[1]);
+        }
+        for (Object[] fila : recepcionItemRepository.sumarEntregadoDirectoPorItem(r.getRequestId())) {
+            entregados.merge((UUID) fila[0], (BigDecimal) fila[1], BigDecimal::add);
         }
         jdbc.query("""
                 select ci.request_item_id, sum(ci.quantity) from caja_chica_item ci

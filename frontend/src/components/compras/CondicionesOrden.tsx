@@ -44,12 +44,14 @@ export default function CondicionesOrden({
   const [plazo, setPlazo] = useState(orden.deliveryTerm ?? "");
   const [lugar, setLugar] = useState(orden.deliveryLocation ?? "");
   const [especificaciones, setEspecificaciones] = useState(orden.additionalSpecs ?? "");
+  const [directa, setDirecta] = useState(orden.entregaDirecta);
 
   function abrir() {
     setModo(orden.taxMode);
     setPlazo(orden.deliveryTerm ?? "");
     setLugar(orden.deliveryLocation ?? "");
     setEspecificaciones(orden.additionalSpecs ?? "");
+    setDirecta(orden.entregaDirecta);
     setEditando(true);
   }
 
@@ -61,6 +63,7 @@ export default function CondicionesOrden({
         deliveryTerm: plazo.trim() || null,
         deliveryLocation: lugar.trim() || null,
         additionalSpecs: especificaciones.trim() || null,
+        entregaDirecta: directa,
       });
       if (res.ok && res.result) {
         onCambio(res.result);
@@ -97,6 +100,16 @@ export default function CondicionesOrden({
                 <input className={`${inputClass} w-full`} value={lugar} maxLength={220} onChange={(e) => setLugar(e.target.value)} />
               </Field>
             </div>
+            {/* DEC-L084: el proveedor lleva cada parte al CECO de su requerimiento. */}
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={directa}
+                onChange={(e) => setDirecta(e.target.checked)}
+                className="size-4 accent-brand-700"
+              />
+              Entrega directa en obra (el proveedor entrega en el CECO de cada requerimiento)
+            </label>
             <Field label="Especificaciones adicionales">
               <textarea
                 className={`${inputClass} w-full`}
@@ -120,7 +133,11 @@ export default function CondicionesOrden({
             <div className="grid flex-1 gap-4 sm:grid-cols-4">
               <Dato label="Forma de pago">{orden.paymentCondition}</Dato>
               <Dato label="Plazo de entrega">{orden.deliveryTerm ?? "—"}</Dato>
-              <Dato label="Lugar de entrega">{orden.deliveryLocation ?? "—"}</Dato>
+              <Dato label="Lugar de entrega">
+                {orden.entregaDirecta
+                  ? `Entrega directa en obra${orden.deliveryLocation ? ` · ${orden.deliveryLocation}` : ""}`
+                  : (orden.deliveryLocation ?? "—")}
+              </Dato>
               <Dato label="IGV">{ETIQUETA_IGV[orden.taxMode]}</Dato>
               <Dato label="Valor total">{dinero(orden.subtotal, moneda)}</Dato>
               <Dato label="IGV">{dinero(orden.taxAmount, moneda)}</Dato>
