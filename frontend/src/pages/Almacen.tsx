@@ -114,7 +114,7 @@ function PorRecibir() {
                         </span>
                       ) : (
                         <Link to={`/almacen/ordenes/${o.orderId}/recepcion`} className={linkClass}>
-                          {o.entregaDirecta ? "Recibir en obra" : "Recibir"}
+                          {o.entregaDirecta ? "Recibir en proyecto" : "Recibir"}
                         </Link>
                       )}
                     </td>

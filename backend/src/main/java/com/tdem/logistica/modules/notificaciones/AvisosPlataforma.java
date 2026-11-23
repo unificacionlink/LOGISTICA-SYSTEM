@@ -93,7 +93,7 @@ public class AvisosPlataforma {
 
     /** El proveedor entrego directo en el CECO y alguien registro la recepcion (DEC-L084). */
     public void entregaDirecta(UUID requestId, String ordenCodigo, String cecoCodigo, UUID actor) {
-        avisar(requestId, RECIBIDO, "%s: el proveedor entregó en obra",
+        avisar(requestId, RECIBIDO, "%s: el proveedor entregó en el proyecto",
                 "Orden " + ordenCodigo + ": recepción registrada en " + cecoCodigo + ".", actor);
     }
 

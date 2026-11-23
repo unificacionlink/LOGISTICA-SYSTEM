@@ -54,7 +54,7 @@ public class BandejaService {
             "PEDIR_COTIZACION", "ESPERA_COTIZACION", "APROBAR_OC", "LIBERAR_OC", "RECIBIR_OC");
     /** Acciones del solicitante que lo dejan en "Pendientes mios" (DEC-L054). */
     private static final Set<String> DEL_SOLICITANTE = Set.of(
-            "ENVIAR", "CORREGIR", "REGISTRAR_CAJA_CHICA", "CORREGIR_CAJA_CHICA", "RECIBIR_EN_OBRA");
+            "ENVIAR", "CORREGIR", "REGISTRAR_CAJA_CHICA", "CORREGIR_CAJA_CHICA", "RECIBIR_EN_PROYECTO");
     private static final Map<String, Integer> PESO_PRIORIDAD = Map.of("URGENTE", 0, "APROVISIONAMIENTO", 1, "IMPLEMENTACION", 2);
 
     private static final String SQL = """
@@ -176,7 +176,7 @@ public class BandejaService {
                where o.status in ('POR_APROBAR','EMITIDA','EN_ATENCION','RECEPCION_PARCIAL')
                order by nc.request_id, (o.status = 'POR_APROBAR' or o.released_at is null) desc, o.created_at
             ),
-            en_obra as (
+            en_proyecto as (
               select distinct nc.request_id
                 from nec nc
                 join orden_item oi on oi.consolidation_id = nc.consolidation_id
@@ -215,7 +215,7 @@ public class BandejaService {
                    coalesce(cc.por_revisar, false) as cc_por_revisar, coalesce(cc.observada, false) as cc_observada,
                    coalesce(pr.por_piquear, false) as por_piquear, coalesce(pr.por_embalar, false) as por_embalar,
                    coalesce(pr.por_enviar, false) as por_enviar, coalesce(ob.observado, 0) as observado,
-                   exists (select 1 from en_obra eo where eo.request_id = b.request_id) as en_obra
+                   exists (select 1 from en_proyecto eo where eo.request_id = b.request_id) as en_proyecto
               from base b
               left join items i on i.request_id = b.request_id
               left join avance a on a.request_id = b.request_id
@@ -417,9 +417,9 @@ public class BandejaService {
         if (propio && rs.getBoolean("cc_observada")) {
             acciones.add(new BandejaDto.Accion("CORREGIR_CAJA_CHICA", false, id.toString()));
         }
-        // DEC-L084: el proveedor entrega en la obra; el solicitante registra lo que le llego.
-        if (propio && aprobado && rs.getBoolean("en_obra")) {
-            acciones.add(new BandejaDto.Accion("RECIBIR_EN_OBRA", false, id.toString()));
+        // DEC-L084: el proveedor entrega en el proyecto; el solicitante registra lo que le llego.
+        if (propio && aprobado && rs.getBoolean("en_proyecto")) {
+            acciones.add(new BandejaDto.Accion("RECIBIR_EN_PROYECTO", false, id.toString()));
         }
         if (gestor && aprobado) {
             UUID orden = rs.getObject("order_id", UUID.class);

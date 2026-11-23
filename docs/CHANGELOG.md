@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.66.1 — 2026-11-23
+
+- Entrega directa (DEC-L084): "obra" pasa a "proyecto" en pantallas, PDF y avisos; la acción de la Bandeja `RECIBIR_EN_OBRA` pasa a `RECIBIR_EN_PROYECTO`.
+- Administración › CECOs: filtro por empresa (Todas / TDEM / GOYDEL / METRIN, con cuántos CECOs tiene cada una).
+
 ## 0.66.0 — 2026-11-23
 
 Entrega directa del proveedor al CECO (DEC-L084, ALM-04 de la V38.7).

@@ -10,7 +10,7 @@ const DEF: Record<CodigoAccion, { label: string; ruta: (destino: string, reqId: 
   ADJUDICAR: { label: "Adjudicar", ruta: (d) => `/compras/comparativo?ids=${d}` },
   REGISTRAR_CAJA_CHICA: { label: "Registrar compra", ruta: (d) => `/requerimientos/${d}/caja-chica` },
   CORREGIR_CAJA_CHICA: { label: "Corregir compra", ruta: (d) => `/requerimientos/${d}/caja-chica` },
-  RECIBIR_EN_OBRA: { label: "Recibir en obra", ruta: (d) => `/requerimientos/${d}#entrega-directa` },
+  RECIBIR_EN_PROYECTO: { label: "Recibir en proyecto", ruta: (d) => `/requerimientos/${d}#entrega-directa` },
   REGULARIZAR_CAJA_CHICA: { label: "Revisar comprobante", ruta: () => "/compras?tab=caja" },
   DECIDIR_RUTA: { label: "Decidir ruta", ruta: () => "/compras?tab=necesidades" },
   PEDIR_COTIZACION: { label: "Cotizar", ruta: (d) => `/compras/comparativo?ids=${d}` },

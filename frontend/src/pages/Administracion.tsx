@@ -15,6 +15,7 @@ import PestanaEmpresas from "../components/admin/PestanaEmpresas";
 import PestanaPadron from "../components/admin/PestanaPadron";
 import PestanaRegistro from "../components/admin/PestanaRegistro";
 import PestanaUsuarios from "../components/admin/PestanaUsuarios";
+import { EMPRESAS } from "../components/empresas";
 
 type Pestana = "usuarios" | "personal" | "cecos" | "empresas" | "rrhh" | "registro";
 
@@ -130,6 +131,21 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
   const [guardando, setGuardando] = useState(false);
   // Solo vigentes: los CECO que RR.HH. ya no tiene (ADM/OPS de relleno) quedan inactivos por historial.
   const activos = useMemo(() => datos.cecos.filter((c) => c.activo), [datos.cecos]);
+  // Filtro por empresa: los CECOs de las 3 empresas en una sola lista son muchos.
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string | null>(null);
+  const empresasConCecos = useMemo(() => {
+    const conteo = new Map<string, number>();
+    for (const c of activos) conteo.set(c.empresaCode, (conteo.get(c.empresaCode) ?? 0) + 1);
+    // Orden fijo de EMPRESAS; una empresa nueva va al final.
+    const rango = (code: string) => {
+      const i = EMPRESAS.findIndex((e) => e.code === code);
+      return i < 0 ? EMPRESAS.length : i;
+    };
+    return [...conteo.entries()]
+      .sort((a, b) => rango(a[0]) - rango(b[0]))
+      .map(([code, n]) => ({ code, n, label: EMPRESAS.find((e) => e.code === code)?.label ?? code }));
+  }, [activos]);
+  const visibles = filtroEmpresa ? activos.filter((c) => c.empresaCode === filtroEmpresa) : activos;
   // Aprobador del CECO (DEC-L030): se asigna desde la ficha del usuario (DEC-L037).
   const nombres = useMemo(() => new Map(datos.usuarios.map((u) => [u.id, u.nombre])), [datos.usuarios]);
 
@@ -186,6 +202,24 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
           )}
         </div>
       )}
+      {empresasConCecos.length > 1 && (
+        <div role="radiogroup" aria-label="Empresa" className="mb-3 inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+          {[{ code: null as string | null, label: "Todas", n: activos.length }, ...empresasConCecos].map((e) => (
+            <button
+              key={e.code ?? "todas"}
+              type="button"
+              role="radio"
+              aria-checked={filtroEmpresa === e.code}
+              onClick={() => setFiltroEmpresa(e.code)}
+              className={`rounded px-3 py-1.5 text-[0.8125rem] transition-colors ${
+                filtroEmpresa === e.code ? "bg-brand-700 font-medium text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {e.label} <span className={filtroEmpresa === e.code ? "text-white/70" : "text-slate-400"}>{e.n}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <Card className="overflow-hidden">
         {activos.length === 0 ? (
           <EmptyState icon={Building2} title="Aún no hay CECOs" />
@@ -201,7 +235,7 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {activos.map((c) => {
+              {visibles.map((c) => {
                 const manual = datos.empresas.find((e) => e.code === c.empresaCode)?.altaManual;
                 return (
                   <tr key={c.id}>

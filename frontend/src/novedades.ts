@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.66.1",
+    titulo: "Recibir en proyecto y CECOs por empresa",
+    cambios: [
+      "La entrega directa del proveedor ahora dice \"Recibir en proyecto\".",
+      "En Administración › CECOs se puede filtrar por empresa.",
+    ],
+  },
+  {
     version: "0.66.0",
     titulo: "Entrega directa del proveedor en obra",
     cambios: [

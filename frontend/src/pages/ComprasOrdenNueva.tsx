@@ -282,7 +282,7 @@ export default function ComprasOrdenNueva() {
                       onChange={(e) => setCodigoReq(e.target.value)}
                     />
                   </Field>
-                  {/* DEC-L084: los productos van a la obra del CECO, no al almacén. */}
+                  {/* DEC-L084: los productos van al proyecto del CECO, no al almacén. */}
                   <label
                     className={`flex items-center gap-2 text-sm sm:col-span-3 ${cecoId ? "text-slate-700" : "text-slate-400"}`}
                   >
@@ -293,7 +293,7 @@ export default function ComprasOrdenNueva() {
                       onChange={(e) => setDirecta(e.target.checked)}
                       className="size-4 accent-brand-700"
                     />
-                    Entrega directa en la obra del CECO
+                    Entrega directa en el proyecto del CECO
                   </label>
                   <Field label="Especificaciones adicionales" className="sm:col-span-3">
                     <textarea

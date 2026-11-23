@@ -151,7 +151,7 @@ export function FormEntregaDirecta({
       <form onSubmit={onSubmit} noValidate>
         <CardBody className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="rotulo">Recibir en obra</div>
+            <div className="rotulo">Recibir en proyecto</div>
             {destinos.length > 1 && (
               <div role="radiogroup" aria-label="CECO que recibe" className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
                 {destinos.map((d) => (
@@ -357,7 +357,7 @@ export function FormEntregaDirecta({
   );
 }
 
-/** Recepciones en obra e incidencias de una entrega directa (solo lectura). */
+/** Recepciones en proyecto e incidencias de una entrega directa (solo lectura). */
 function HistorialEntrega({ entrega }: { entrega: EntregaDirecta }) {
   if (entrega.recepciones.length === 0 && entrega.incidencias.length === 0) return null;
   return (
@@ -408,7 +408,7 @@ function HistorialEntrega({ entrega }: { entrega: EntregaDirecta }) {
 }
 
 /**
- * Lo que el proveedor entrega directo en obra para este requerimiento: avance,
+ * Lo que el proveedor entrega directo en proyecto para este requerimiento: avance,
  * formulario (dueño, Logística, Gerencia) e historial. No se muestra si no hay.
  */
 export function EntregasDirectasRequerimiento({ requestId }: { requestId: string }) {
@@ -425,7 +425,7 @@ export function EntregasDirectasRequerimiento({ requestId }: { requestId: string
             <Card className="mb-4 overflow-hidden">
               <CardBody className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <Truck className="size-4.5 text-slate-500" />
-                <h2 className="font-semibold text-slate-900">Entrega directa en obra</h2>
+                <h2 className="font-semibold text-slate-900">Entrega directa en proyecto</h2>
                 <span className="font-mono text-xs text-slate-600">{e.orderCode}</span>
                 <span className="text-sm text-slate-500">{e.proveedor}</span>
               </CardBody>

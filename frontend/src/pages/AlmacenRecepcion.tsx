@@ -103,7 +103,7 @@ export default function AlmacenRecepcion() {
 
   async function onEntregaRegistrada(e: EntregaDirecta) {
     setEntrega(e);
-    setExito("Recepción en obra registrada.");
+    setExito("Recepción en proyecto registrada.");
     const res = await obtenerRecepcionOrden(e.orderId);
     if (res.ok && res.result) aplicar(res.result);
   }
@@ -227,7 +227,7 @@ export default function AlmacenRecepcion() {
       {orden.entregaDirecta ? (
         <>
           <Alert tone="info" className="mb-4">
-            Entrega directa en obra: el proveedor entrega en el CECO de cada requerimiento.
+            Entrega directa en proyecto: el proveedor entrega en el CECO de cada requerimiento.
           </Alert>
           {entrega && (
             <FormEntregaDirecta key={entrega.recepciones.length} entrega={entrega} onGuardada={onEntregaRegistrada} />
@@ -485,7 +485,7 @@ export default function AlmacenRecepcion() {
                   <span className="font-medium text-slate-800">Recepción #{r.receiptNumber}</span>
                   <RecepcionBadge estado={r.status} />
                   <span className="text-xs text-slate-500">
-                    {r.cecoDestino ? `En obra ${r.cecoDestino} · ` : ""}
+                    {r.cecoDestino ? `En proyecto ${r.cecoDestino} · ` : ""}
                     {fmtFecha(r.receiptDate)} · {r.receivedByName}
                     {r.guia ? ` · Guía ${r.guia}` : ""}
                   </span>

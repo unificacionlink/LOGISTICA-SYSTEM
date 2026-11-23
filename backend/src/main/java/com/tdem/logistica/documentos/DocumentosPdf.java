@@ -313,13 +313,13 @@ final class DocumentosPdf {
     }
 
     /** Codigos de estado/catalogo (EN_ATENCION) como texto legible (En atencion). */
-    /** Entrega directa (DEC-L084): el proveedor lleva los productos a la obra del CECO. */
+    /** Entrega directa (DEC-L084): el proveedor lleva los productos a el proyecto del CECO. */
     private static String lugarEntrega(com.tdem.logistica.modules.compras.dto.OrdenDto o) {
         if (!o.entregaDirecta()) {
             return o.deliveryLocation();
         }
         String lugar = o.deliveryLocation() == null || o.deliveryLocation().isBlank() ? "" : ": " + o.deliveryLocation();
-        return "Entrega directa en obra" + lugar;
+        return "Entrega directa en proyecto" + lugar;
     }
 
     private static String etiqueta(String codigo) {

@@ -29,13 +29,16 @@ actualizar esta lista y el CHANGELOG.
     (faltante, daño, producto errado) y queda pendiente para que el
     proveedor lo reponga; no hay cuarentena porque no hay almacén.
   - Lo entregado directo suma en la atención del REQ (`AtencionCalculator`),
-    la Bandeja (avance, compra pendiente y la acción "Recibir en obra" del
+    la Bandeja (avance, compra pendiente y la acción "Recibir en proyecto" del
     dueño), Mi resumen, el cumplimiento del presupuesto, el despacho, el
     Tracking (hitos, una fila por recepción y su historial) y el dashboard
     (A tiempo y la matriz ABC, que pasa a ser "despachado o entregado directo").
   - Pantallas: la recepción de la OC muestra el formulario por CECO; el
-    detalle del REQ trae la tarjeta "Entrega directa en obra" con el avance,
+    detalle del REQ trae la tarjeta "Entrega directa en proyecto" con el avance,
     el formulario (lo que el usuario puede recibir) y el historial.
+  - v0.66.1 (decisión del usuario): en pantalla se dice "proyecto", no "obra"
+    ("Recibir en proyecto", "Entrega directa en proyecto"); la acción de la
+    Bandeja es `RECIBIR_EN_PROYECTO`.
 
 - **DEC-L083 — Dashboard con pestañas Proceso, Demanda y Gasto (2026-11-23, v0.65.0).**
   - Cierra el Lote 19 (dashboard). Decisiones del usuario: el dashboard

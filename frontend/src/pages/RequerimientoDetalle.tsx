@@ -493,7 +493,7 @@ export default function RequerimientoDetalle() {
         </div>
       </Card>
 
-      {/* DEC-L084: lo que el proveedor entrega directo en la obra; no aparece si no hay. */}
+      {/* DEC-L084: lo que el proveedor entrega directo en el proyecto; no aparece si no hay. */}
       {id && ["EN_ATENCION", "ATENCION_PARCIAL", "ATENCION_COMPLETA"].includes(requerimiento.status) && (
         <EntregasDirectasRequerimiento requestId={id} />
       )}

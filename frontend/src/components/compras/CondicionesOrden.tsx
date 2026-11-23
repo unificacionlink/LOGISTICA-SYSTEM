@@ -108,7 +108,7 @@ export default function CondicionesOrden({
                 onChange={(e) => setDirecta(e.target.checked)}
                 className="size-4 accent-brand-700"
               />
-              Entrega directa en obra (el proveedor entrega en el CECO de cada requerimiento)
+              Entrega directa en proyecto (el proveedor entrega en el CECO de cada requerimiento)
             </label>
             <Field label="Especificaciones adicionales">
               <textarea
@@ -135,7 +135,7 @@ export default function CondicionesOrden({
               <Dato label="Plazo de entrega">{orden.deliveryTerm ?? "—"}</Dato>
               <Dato label="Lugar de entrega">
                 {orden.entregaDirecta
-                  ? `Entrega directa en obra${orden.deliveryLocation ? ` · ${orden.deliveryLocation}` : ""}`
+                  ? `Entrega directa en proyecto${orden.deliveryLocation ? ` · ${orden.deliveryLocation}` : ""}`
                   : (orden.deliveryLocation ?? "—")}
               </Dato>
               <Dato label="IGV">{ETIQUETA_IGV[orden.taxMode]}</Dato>

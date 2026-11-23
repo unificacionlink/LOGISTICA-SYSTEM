@@ -179,7 +179,7 @@ public class TrackingService {
         return filas;
     }
 
-    /** Una fila por recepcion de entrega directa: sin NI ni transportista; el proveedor entrego en obra. */
+    /** Una fila por recepcion de entrega directa: sin NI ni transportista; el proveedor entrego en proyecto. */
     private static void entregasDirectas(Map<UUID, List<RecepcionItem>> directas, List<EntregaDto> filas) {
         for (List<RecepcionItem> lineas : directas.values()) {
             Recepcion rc = lineas.get(0).getRecepcion();
