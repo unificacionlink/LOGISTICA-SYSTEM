@@ -212,13 +212,23 @@ export default function PanelUsuario({
             {/* key: tras guardar, la seleccion se rehace con lo que devolvio el servidor. */}
             <CecosUsuario key={u.cecoIds.join()} u={u} cecos={cecos} aplicar={aplicar} />
             {aprueba && (
-              <CecosAprobados
-                key={cecos.filter((c) => c.aprobadorId === u.id).map((c) => c.id).join()}
-                u={u}
-                cecos={cecos}
-                usuarios={usuarios}
-                aplicar={aplicar}
-              />
+              <>
+                <CecosAprobados
+                  key={cecos.filter((c) => c.aprobadorId === u.id).map((c) => c.id).join()}
+                  u={u}
+                  cecos={cecos}
+                  usuarios={usuarios}
+                  aplicar={aplicar}
+                />
+                <CecosAprobados
+                  key={`s-${cecos.filter((c) => c.suplenteId === u.id).map((c) => c.id).join()}`}
+                  papel="suplente"
+                  u={u}
+                  cecos={cecos}
+                  usuarios={usuarios}
+                  aplicar={aplicar}
+                />
+              </>
             )}
           </Seccion>
 

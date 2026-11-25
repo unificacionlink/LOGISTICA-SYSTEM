@@ -61,6 +61,15 @@ public class AdminController {
                 "CECOs que aprueba actualizados.");
     }
 
+    /** CECOs donde el usuario es suplente del aprobador (DEC-L087). */
+    @PutMapping("/usuarios/{id}/cecos-suplente")
+    public ApiResponse<AdminDatosDto> asignarCecosSuplente(@PathVariable UUID id,
+                                                           @Valid @RequestBody AsignarCecosRequest request,
+                                                           @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(service.asignarCecosSuplente(id, request.cecoIds(), principal),
+                "CECOs donde es suplente actualizados.");
+    }
+
     @PostMapping("/usuarios/{id}/password-temporal")
     public ApiResponse<PasswordTemporalDto> passwordTemporal(@PathVariable UUID id,
                                                              @AuthenticationPrincipal UsuarioPrincipal principal) {

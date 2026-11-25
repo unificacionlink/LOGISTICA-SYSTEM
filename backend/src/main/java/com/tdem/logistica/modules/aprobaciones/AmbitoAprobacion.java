@@ -22,6 +22,7 @@ import java.util.UUID;
  *   <li>Con aprobador asignado: ese usuario (APROBADOR o GERENCIA) y la
  *       GERENCIA que tenga el CECO entre los suyos.</li>
  *   <li>Sin aprobador asignado: cualquier APROBADOR o GERENCIA.</li>
+ *   <li>El suplente del CECO (DEC-L087) decide y ve igual que el aprobador.</li>
  * </ul>
  */
 @Component
@@ -55,7 +56,7 @@ public class AmbitoAprobacion {
         if (a.getAssignedTo() == null) {
             return p.tieneAlgunRol(Roles.APROBADOR, Roles.GERENCIA);
         }
-        if (a.getAssignedTo().equals(p.userId())) {
+        if (a.getAssignedTo().equals(p.userId()) || esSuplente(r, p)) {
             return p.tieneAlgunRol(Roles.APROBADOR, Roles.GERENCIA);
         }
         return p.tieneAlgunRol(Roles.GERENCIA) && cecosDelUsuario.contains(r.getCeco().getCecoId());
@@ -74,11 +75,19 @@ public class AmbitoAprobacion {
                 || EstadoRequerimiento.BORRADOR.equals(r.getStatus())) {
             return false;
         }
+        if (esSuplente(r, p)) {
+            return true;
+        }
         for (Aprobacion a : aprobacionRepository.findPorEntidad(EntidadAprobacion.REQUERIMIENTO, r.getRequestId())) {
             if (a.getAssignedTo() == null || p.userId().equals(a.getAssignedTo()) || p.userId().equals(a.getDecidedBy())) {
                 return true;
             }
         }
         return p.tieneAlgunRol(Roles.GERENCIA) && cecosDe(p.userId()).contains(r.getCeco().getCecoId());
+    }
+
+    /** DEC-L087: el suplente vigente del CECO del requerimiento. */
+    private static boolean esSuplente(Requerimiento r, UsuarioPrincipal p) {
+        return r.getCeco() != null && p.userId().equals(r.getCeco().getBackupApproverUserId());
     }
 }

@@ -53,6 +53,12 @@ public interface ReservaStockRepository extends RepositorioBase<ReservaStock, UU
             "and r.status = 'RESERVADA' order by r.reservedAt, r.reservationId")
     List<ReservaStock> findActivasParaDespacho(@Param("requestItemId") UUID requestItemId);
 
+    /** DEC-L088: reservas ya despachadas del item, la mas reciente primero (para revertir una anulacion). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from ReservaStock r where r.requerimientoItem.requestItemId = :requestItemId " +
+            "and r.status = 'DESPACHADA' order by r.reservedAt desc, r.reservationId desc")
+    List<ReservaStock> findDespachadas(@Param("requestItemId") UUID requestItemId);
+
     /** [variantId, reservado activo] por variante del almacen. */
     @Query("select v.variantId, sum(r.qtyReserved) from ReservaStock r join r.variante v " +
             "where r.almacen.warehouseId = :warehouseId and r.status = 'RESERVADA' group by v.variantId")

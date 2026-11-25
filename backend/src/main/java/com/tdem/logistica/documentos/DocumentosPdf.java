@@ -192,6 +192,9 @@ final class DocumentosPdf {
         } else {
             campos.add(Campo.de("Valor total", n.totalValueSnapshot() != null ? "PEN " + monto(n.totalValueSnapshot()) : null));
         }
+        if (n.annulmentReason() != null) {
+            campos.add(Campo.de("Motivo de anulación", n.annulmentReason()));
+        }
         pdf.campos(campos);
 
         pdf.seccion("Productos despachados");

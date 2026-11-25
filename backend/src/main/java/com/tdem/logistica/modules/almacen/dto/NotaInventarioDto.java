@@ -31,5 +31,8 @@ public record NotaInventarioDto(
         String packingEvidenceUrl,
         /* DEC-L086: empresa a la que TDEM vende lo despachado (null si el destino es de TDEM) y su total. */
         String empresaVentaCode,
-        java.math.BigDecimal totalSaleValue) {
+        java.math.BigDecimal totalSaleValue,
+        /* DEC-L088: anulacion (solo antes del envio) y su motivo. */
+        Instant annulledAt,
+        String annulmentReason) {
 }

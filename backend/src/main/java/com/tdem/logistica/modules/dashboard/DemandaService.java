@@ -66,7 +66,7 @@ public class DemandaService {
                 from (select si.product_id, si.qty, s.company_id
                         from salida_item si
                         join salida s on s.issue_id = si.issue_id
-                       where s.status <> 'BORRADOR' and s.issued_at >= :desde
+                       where s.status not in ('BORRADOR', 'ANULADA') and s.issued_at >= :desde
                       union all
                       -- entrega directa del proveedor al CECO (DEC-L084): tambien es consumo
                       select oi.product_id, rci.qty_received, o.company_id

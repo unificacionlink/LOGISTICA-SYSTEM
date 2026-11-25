@@ -16,10 +16,9 @@ const MARCA = new Map(EMPRESAS.map((e) => [e.code, e]));
 /** Mismo grid que el encabezado de columnas de la bandeja. */
 export const GRID_FILA = "md:grid-cols-[minmax(0,1fr)_9.5rem_7.5rem_10.5rem]";
 
-function titulo(f: FilaBandeja): { principal: string; extra: string | null } {
-  const nombres = (f.resumenItems ?? "").split(" · ").filter(Boolean);
-  if (nombres.length === 0) return { principal: "Sin productos", extra: null };
-  return { principal: nombres[0], extra: f.itemsCount > 1 ? `+${f.itemsCount - 1} más` : null };
+/** Dia de creacion en hora de Lima (createdAt trae hora: fmtDia es solo para fechas sin hora). */
+function creado(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function TextoAvance({ f }: { f: FilaBandeja }) {
@@ -37,9 +36,10 @@ function TextoAvance({ f }: { f: FilaBandeja }) {
 }
 
 /**
- * Fila de la bandeja (DEC-L048): lo pedido como titulo, empresa y codigo como
- * dato secundario, avance, vencimiento, estado y la siguiente accion. Clic en
- * la fila abre el panel lateral; el boton de accion lleva a su pantalla.
+ * Fila de la bandeja (DEC-L048): el numero del requerimiento como titulo y
+ * debajo empresa, CECO, solicitante y fecha de creacion; luego avance,
+ * vencimiento, estado y la siguiente accion. Los productos se ven al hacer clic
+ * (panel lateral); el boton de accion lleva a su pantalla.
  *
  * Memorizada: al escribir en el buscador o abrir el panel solo se redibujan
  * las filas que cambian (onAbrir debe ser estable).
@@ -60,7 +60,6 @@ export default memo(function FilaRequerimiento({
   onAbrir: (id: string) => void;
 }) {
   const empresa = MARCA.get(f.empresaCode);
-  const { principal, extra } = titulo(f);
   const venc = textoVencimiento(diasParaVencer(f));
   const accion = accionPrincipal(f.acciones, vista);
   const otras = f.acciones.filter((a) => a !== accion);
@@ -80,10 +79,7 @@ export default memo(function FilaRequerimiento({
       >
         <div className="col-span-2 min-w-0 md:col-span-1">
           <p className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[0.8438rem] font-medium text-slate-900" title={f.resumenItems ?? ""}>
-              {principal}
-            </span>
-            {extra && <span className="shrink-0 text-xs text-slate-400">{extra}</span>}
+            <span className="truncate font-mono text-[0.8125rem] font-semibold text-slate-900">{f.code}</span>
             {f.priority !== PRIORIDAD_POR_DEFECTO && <PrioridadBadge prioridad={f.priority} />}
           </p>
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
@@ -94,12 +90,16 @@ export default memo(function FilaRequerimiento({
                 <span className="text-slate-300">·</span>
               </span>
             )}
-            <span className="shrink-0 font-mono text-[0.6875rem] text-slate-400">{f.code}</span>
-            <span className="text-slate-300">·</span>
             <span className="truncate" title={`${f.cecoCode ?? ""} ${f.cecoNombre ?? ""}`}>
+              {f.cecoCode && <span className="font-mono text-[0.6875rem]">{f.cecoCode} </span>}
               {f.cecoNombre ?? "—"}
               {esGestor && f.solicitante && <span className="text-slate-400"> · {f.solicitante}</span>}
             </span>
+            {f.createdAt && (
+              <span className="shrink-0 text-slate-400">
+                <span className="text-slate-300">·</span> {creado(f.createdAt)}
+              </span>
+            )}
           </p>
         </div>
         <div className="col-span-2 flex flex-col gap-1 text-xs md:col-span-1">

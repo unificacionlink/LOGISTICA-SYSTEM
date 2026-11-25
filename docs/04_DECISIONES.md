@@ -5,6 +5,30 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L088 — Anular una Nota de Inventario con motivo (2026-11-25, v0.68.0).**
+  Observación de Logística en la marcha blanca. Se anula solo mientras la nota está
+  EMITIDA y **sin envío registrado** (lo despachado no salió del almacén); con envío,
+  lo que corresponde es la recepción en destino y la devolución (DEC-L063). Solo
+  LOGISTICA/ADMIN, con motivo obligatorio (5–500 caracteres) auditado en `log_cambios`.
+  - Efecto: cada línea vuelve al stock con un movimiento `DEVOLUCION` (referencia a la
+    salida, mismo costo) y lo despachado vuelve a `RESERVADA` para su item (reserva más
+    reciente primero, partida si sobra), así que reaparece en Por despachar.
+  - La nota y su salida quedan `ANULADA` y **siguen en la lista** con su estado, motivo
+    y fecha (`nota_inventario.annulled_at/by`, `annulment_reason`). Lo despachado de
+    salidas anuladas no cuenta en Bandeja, Demanda, Tracking ni Ventas.
+  - No hay borrador editable: la nota nace EMITIDA desde el despacho; corregirla es
+    anularla y volver a despachar. `V49__anular_nota_inventario.sql`.
+
+- **DEC-L087 — Suplente del aprobador por CECO (2026-11-25, v0.68.0).**
+  Pedido de Logística: un aprobador y un suplente por CECO. `ceco.backup_approver_user_id`
+  (distinto del aprobador, check en BD). El suplente decide, ve en Aprobaciones y recibe
+  los mismos correos que el aprobador (`AmbitoAprobacion`, `AvisosCorreo`); no se le
+  reasignan los pendientes: deciden ambos. Gerencia y Admin siguen siendo el respaldo
+  general. Se asigna desde la ficha del usuario en Administración ("Suplente del
+  aprobador en", `PUT /api/admin/usuarios/{id}/cecos-suplente`), auditado
+  `ASIGNAR_SUPLENTE`; la tabla de CECOs muestra la columna Suplente. Solo aplica a
+  requerimientos (los presupuestos siguen con el aprobador del CECO). `V48__suplente_aprobador_ceco.sql`.
+
 - **DEC-L086 — TDEM es la empresa central: compra para las tres y vende a GOYDEL y METRIN (2026-11-25, v0.67.0).**
   Regla del usuario antes de la marcha blanca (proyecto ATC PIURA de GOYDEL): el
   ERP es de tres empresas, pero quien compra es TDEM, y TDEM le vende a las otras dos.

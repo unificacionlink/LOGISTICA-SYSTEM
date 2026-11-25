@@ -14,6 +14,7 @@ import type { Ceco, Familia, Prioridad, SlaRequerimiento, VarianteConStock } fro
 import { etiquetaFamilia } from "../components/familia";
 import { useAuth } from "../auth/AuthContext";
 import BuscadorProductos, { Miniatura, StockDisponible } from "../components/BuscadorProductos";
+import CecoCombobox from "../components/CecoCombobox";
 import { useVerCantidadStock } from "../components/stock/verCantidad";
 import SolicitarProducto from "../components/maestro/SolicitarProducto";
 import Alert from "../components/ui/Alert";
@@ -22,7 +23,6 @@ import Button from "../components/ui/Button";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
 import Field, { inputClass } from "../components/ui/Field";
-import { EMPRESAS } from "../components/empresas";
 import PageHeader from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 
@@ -175,15 +175,6 @@ export default function RequerimientosNuevo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editando, id]);
 
-  // Si el usuario pide para varias empresas, el selector agrupa sus CECOs por empresa.
-  const gruposCeco = useMemo(() => {
-    const codes = [...new Set(cecos.map((c) => c.empresaCode))];
-    return codes.map((code) => ({
-      code,
-      label: EMPRESAS.find((e) => e.code === code)?.label ?? code,
-      cecos: cecos.filter((c) => c.empresaCode === code),
-    }));
-  }, [cecos]);
 
   const cantidadesEnCarrito = useMemo(() => {
     const mapa: Record<string, number> = {};
@@ -235,6 +226,10 @@ export default function RequerimientosNuevo() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!cecoId) {
+      setErrorItems("Elige el centro de costo (CECO).");
+      return;
+    }
     if (pendientes.length > 0) {
       setErrorItems(`Elige la talla/color de ${pendientes.map((p) => p.skuBase).join(", ")} o quítalo.`);
       return;
@@ -369,31 +364,7 @@ export default function RequerimientosNuevo() {
               <CardBody className="flex flex-col gap-5">
                 <div data-tutorial="req-datos" className="grid gap-4 sm:grid-cols-2">
                   <Field label="Centro de costo (CECO)" required>
-                    <select
-                      required
-                      value={cecoId}
-                      onChange={(e) => setCecoId(e.target.value)}
-                      className={`${inputClass} w-full`}
-                    >
-                      <option value="" disabled>
-                        Selecciona un CECO…
-                      </option>
-                      {gruposCeco.length > 1
-                        ? gruposCeco.map((g) => (
-                            <optgroup key={g.code} label={g.label}>
-                              {g.cecos.map((c) => (
-                                <option key={c.cecoId} value={c.cecoId}>
-                                  {etiquetaCeco(c)}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))
-                        : cecos.map((c) => (
-                            <option key={c.cecoId} value={c.cecoId}>
-                              {etiquetaCeco(c)}
-                            </option>
-                          ))}
-                    </select>
+                    <CecoCombobox cecos={cecos} valor={cecoId} onSeleccionar={setCecoId} />
                   </Field>
                   <Field label="Prioridad" required>
                     <select
@@ -661,8 +632,4 @@ export default function RequerimientosNuevo() {
       )}
     </div>
   );
-}
-
-function etiquetaCeco(c: Ceco) {
-  return c.code ? `${c.code} — ${c.name}` : c.name;
 }

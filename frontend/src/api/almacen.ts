@@ -86,6 +86,11 @@ export function listarNotas() {
   return http.get<NotaInventario[]>("/api/almacen/notas");
 }
 
+/** DEC-L088: anula una nota sin envio, con motivo. */
+export function anularNota(noteId: string, motivo: string) {
+  return http.post<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}/anular`, { motivo });
+}
+
 export function obtenerNota(noteId: string) {
   return http.get<NotaInventarioDetalle>(`/api/almacen/notas/${noteId}`);
 }

@@ -105,7 +105,7 @@ public class AvisosCorreo {
     }
 
     /**
-     * Con aprobador asignado: ese usuario y la GERENCIA que tenga el CECO.
+     * Con aprobador asignado: ese usuario, el suplente del CECO (DEC-L087) y la GERENCIA que tenga el CECO.
      * Sin asignado: todo APROBADOR y GERENCIA. Nunca el solicitante.
      */
     private List<Destinatario> aprobadores(Req r, UUID asignado) {
@@ -118,11 +118,12 @@ public class AvisosCorreo {
                    and ro.code in ('APROBADOR', 'GERENCIA')
                    and (cast(? as uuid) is null
                         or u.user_id = cast(? as uuid)
+                        or u.user_id = (select backup_approver_user_id from ceco where ceco_id = ?)
                         or (ro.code = 'GERENCIA' and exists (
                               select 1 from usuario_ceco uc where uc.user_id = u.user_id and uc.ceco_id = ?)))
                  order by u.display_name""",
                 (rs, n) -> new Destinatario(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)),
-                asignado, asignado, r.cecoId()).stream()
+                asignado, asignado, r.cecoId(), r.cecoId()).stream()
                 .filter(d -> !d.userId().equals(r.solicitanteId()))
                 .toList();
     }

@@ -1037,6 +1037,9 @@ export interface NotaInventario {
   /** DEC-L086: empresa a la que TDEM vende lo despachado (null si el destino es de TDEM) y su total en PEN. */
   empresaVentaCode: string | null;
   totalSaleValue: number | null;
+  /** DEC-L088: anulacion con motivo (solo antes del envio). */
+  annulledAt: string | null;
+  annulmentReason: string | null;
 }
 
 export interface NotaItem {
@@ -1433,6 +1436,8 @@ export interface CecoAdmin {
   activo: boolean;
   /** Aprobador asignado del CECO (DEC-L030); null = cualquier aprobador. */
   aprobadorId: string | null;
+  /** Suplente del aprobador (DEC-L087): también decide y recibe los avisos. */
+  suplenteId: string | null;
 }
 
 export interface SyncResultado {

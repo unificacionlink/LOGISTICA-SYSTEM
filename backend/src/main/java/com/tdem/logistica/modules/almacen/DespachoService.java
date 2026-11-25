@@ -61,8 +61,9 @@ public class DespachoService {
     private final AvisosPlataforma avisos;
     private final com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository;
     private final VentaInterna venta;
+    private final com.tdem.logistica.common.Auditoria auditoria;
 
-    public DespachoService(VentaInterna venta,
+    public DespachoService(VentaInterna venta, com.tdem.logistica.common.Auditoria auditoria,
                            RequerimientoRepository requerimientoRepository,
                            RequerimientoItemRepository requerimientoItemRepository,
                            ReservaStockRepository reservaRepository,
@@ -85,6 +86,7 @@ public class DespachoService {
                            AvisosPlataforma avisos,
                            com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository) {
         this.venta = venta;
+        this.auditoria = auditoria;
         this.avisos = avisos;
         this.recepcionItemRepository = recepcionItemRepository;
         this.requerimientoRepository = requerimientoRepository;
@@ -400,6 +402,105 @@ public class DespachoService {
             restante = restante.subtract(tomar);
         }
         return costo;
+    }
+
+    // ------------------------------------------------------------------
+    // Anulacion (DEC-L088)
+    // ------------------------------------------------------------------
+
+    /**
+     * Anula una Nota de Inventario emitida que aun no tiene envio (lo despachado
+     * no salio del almacen): devuelve cada linea al stock (kardex DEVOLUCION con
+     * referencia a la salida), la vuelve a reservar para el requerimiento y deja
+     * la nota y su salida en ANULADA, con motivo. Se audita.
+     */
+    @Transactional
+    public NotaInventarioDetalleDto anularNota(UUID noteId, String motivo, UsuarioPrincipal principal) {
+        exigirLogisticaOAdmin(principal);
+        String razon = motivo == null ? "" : motivo.trim();
+        if (razon.length() < 5) {
+            throw ApiException.badRequest("Indica el motivo de la anulación.");
+        }
+        NotaInventario nota = notaRepository.bloquear(noteId)
+                .orElseThrow(() -> ApiException.notFound("Nota de inventario no encontrada."));
+        if ("ANULADA".equals(nota.getStatus())) {
+            throw ApiException.badRequest("La nota ya está anulada.");
+        }
+        if (!"EMITIDA".equals(nota.getStatus()) || envioRepository.findByNota(noteId).isPresent()) {
+            throw ApiException.badRequest("La nota ya tiene un envío registrado: lo despachado salió del almacén y no se puede anular.");
+        }
+        Usuario usuario = usuarioRepository.findById(principal.userId())
+                .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
+        Salida salida = nota.getSalida();
+        for (SalidaItem item : salidaItemRepository.findBySalida(salida.getIssueId())) {
+            MovimientoInventario mov = new MovimientoInventario();
+            mov.setInventoryMovementId(UUID.randomUUID());
+            mov.setEmpresa(salida.getEmpresa());
+            mov.setAlmacen(salida.getAlmacen());
+            mov.setProducto(item.getProducto());
+            mov.setVariante(item.getVariante());
+            mov.setMovementType("DEVOLUCION");
+            mov.setQty(item.getQty());
+            mov.setUnitCost(item.getPurchaseCostReference());
+            mov.setReferenceType("SALIDA");
+            mov.setReferenceId(salida.getIssueId());
+            mov.setCreatedBy(usuario);
+            mov.setNotes(recortar("Anulación de " + nota.getInventoryNoteCode() + ": " + razon, 500));
+            movimientoRepository.insertar(mov);
+            if (item.getRequerimientoItem() != null) {
+                restaurarReservas(item.getRequerimientoItem().getRequestItemId(), item.getQty());
+            }
+        }
+        salida.setStatus("ANULADA");
+        salidaRepository.save(salida);
+        String antes = nota.getStatus();
+        nota.setStatus("ANULADA");
+        nota.setAnnulledAt(Instant.now());
+        nota.setAnnulledBy(principal.userId());
+        nota.setAnnulmentReason(razon);
+        notaRepository.save(nota);
+        auditoria.registrar("NOTA_INVENTARIO", noteId, "ANULAR", Map.of("estado", antes),
+                Map.of("estado", "ANULADA", "nota", nota.getInventoryNoteCode(), "motivo", razon), principal.userId());
+        return obtenerNota(noteId, principal);
+    }
+
+    /**
+     * Vuelve a RESERVADA lo despachado del item (la reserva mas reciente primero,
+     * partiendola si sobra): el stock devuelto queda otra vez apartado para el
+     * requerimiento y aparece en Por despachar.
+     */
+    private void restaurarReservas(UUID requestItemId, BigDecimal qty) {
+        BigDecimal restante = qty;
+        for (ReservaStock reserva : reservaRepository.findDespachadas(requestItemId)) {
+            if (restante.signum() == 0) {
+                break;
+            }
+            BigDecimal tomar = reserva.getQtyReserved().min(restante);
+            if (tomar.compareTo(reserva.getQtyReserved()) == 0) {
+                reserva.setStatus("RESERVADA");
+            } else {
+                reserva.setQtyReserved(reserva.getQtyReserved().subtract(tomar));
+                ReservaStock vuelta = new ReservaStock();
+                vuelta.setReservationId(UUID.randomUUID());
+                vuelta.setRequerimientoItem(reserva.getRequerimientoItem());
+                vuelta.setAlmacen(reserva.getAlmacen());
+                vuelta.setProducto(reserva.getProducto());
+                vuelta.setVariante(reserva.getVariante());
+                vuelta.setQtyReserved(tomar);
+                vuelta.setStatus("RESERVADA");
+                vuelta.setOrigin(reserva.getOrigin());
+                vuelta.setRecepcionItem(reserva.getRecepcionItem());
+                vuelta.setPettyCashItemId(reserva.getPettyCashItemId());
+                vuelta.setNecesidad(reserva.getNecesidad());
+                reservaRepository.insertar(vuelta);
+            }
+            reservaRepository.save(reserva);
+            restante = restante.subtract(tomar);
+        }
+    }
+
+    private static String recortar(String texto, int max) {
+        return texto.length() <= max ? texto : texto.substring(0, max);
     }
 
     // ------------------------------------------------------------------

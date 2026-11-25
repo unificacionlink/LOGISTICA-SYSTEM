@@ -145,7 +145,8 @@ export default function TrackingRequerimiento({ requestId, esGestor }: { request
               <div>
                 <div className="rotulo">CECO que recepciona</div>
                 <div className="mt-1 text-slate-700">
-                  ({tracking.cecoCodigo}) {tracking.requerimiento.cecoNombre}
+                  {/* cecoNombre ya trae el codigo ("0914 — ATC PIURA"). */}
+                  {tracking.requerimiento.cecoNombre ?? tracking.cecoCodigo}
                 </div>
               </div>
               <div>

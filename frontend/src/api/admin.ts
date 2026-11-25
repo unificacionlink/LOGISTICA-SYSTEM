@@ -120,6 +120,11 @@ export function asignarCecosAprobados(userId: string, cecoIds: string[]) {
   return http.put<AdminDatos>(`/api/admin/usuarios/${userId}/cecos-aprobados`, { cecoIds });
 }
 
+/** CECOs donde el usuario es suplente del aprobador (DEC-L087). */
+export function asignarCecosSuplente(userId: string, cecoIds: string[]) {
+  return http.put<AdminDatos>(`/api/admin/usuarios/${userId}/cecos-suplente`, { cecoIds });
+}
+
 export function sincronizarRrhh() {
   return http.post<AdminDatos>("/api/admin/sincronizar-rrhh");
 }

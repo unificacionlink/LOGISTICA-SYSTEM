@@ -18,6 +18,7 @@ import MenuAcciones from "../components/ui/MenuAcciones";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { useNavigate } from "react-router-dom";
+import { buscador } from "../components/busqueda";
 
 type Filtro = "todos" | "con" | "sin" | "bajo";
 
@@ -76,11 +77,9 @@ export default function Stock() {
 
   // Busqueda y familia primero: los conteos de los filtros responden a ellas.
   const base = useMemo(() => {
-    const t = textoDiferido.trim().toLowerCase();
+    const coincide = buscador(textoDiferido);
     return saldos.filter(
-      (s) =>
-        coincideFamilia(familia, s.tipoId, s.familiaId) &&
-        (!t || s.codigoVariante.toLowerCase().includes(t) || s.nombreProducto.toLowerCase().includes(t)),
+      (s) => coincideFamilia(familia, s.tipoId, s.familiaId) && coincide(`${s.codigoVariante} ${s.nombreProducto}`),
     );
   }, [saldos, textoDiferido, familia]);
 

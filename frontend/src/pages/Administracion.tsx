@@ -231,6 +231,7 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
                 <th className={thClass}>Código</th>
                 <th className={thClass}>Nombre</th>
                 <th className={thClass}>Aprobador</th>
+                <th className={thClass}>Suplente</th>
                 <th className={thClass}>Origen</th>
               </tr>
             </thead>
@@ -244,6 +245,9 @@ function PestanaCecos({ datos, aplicar }: { datos: AdminDatos; aplicar: Aplicar 
                     <td className="col-flex px-5 py-2.5 text-sm">{c.nombre}</td>
                     <td className="px-5 py-2.5 text-xs text-slate-600">
                       {c.aprobadorId ? (nombres.get(c.aprobadorId) ?? "—") : <span className="text-slate-400">Sin asignar</span>}
+                    </td>
+                    <td className="px-5 py-2.5 text-xs text-slate-600">
+                      {c.suplenteId ? (nombres.get(c.suplenteId) ?? "—") : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-5 py-2.5 text-xs text-slate-500">{manual ? "Manual" : "RR.HH."}</td>
                   </tr>

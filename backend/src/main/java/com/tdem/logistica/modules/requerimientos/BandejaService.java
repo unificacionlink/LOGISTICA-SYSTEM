@@ -79,6 +79,7 @@ public class BandejaService {
               select si.request_item_id, sum(si.qty) as despachado,
                      sum(si.dest_accepted_qty) as entregado
                 from salida_item si join it on it.request_item_id = si.request_item_id
+                join salida s on s.issue_id = si.issue_id and s.status <> 'ANULADA'
                group by si.request_item_id
             ),
             dir as (
@@ -564,7 +565,9 @@ public class BandejaService {
                where n.status <> 'ANULADA'
             )
             select it.*,
-                   coalesce((select sum(si.qty) from salida_item si where si.request_item_id = it.request_item_id), 0) as despachado,
+                   coalesce((select sum(si.qty) from salida_item si
+                              join salida s on s.issue_id = si.issue_id and s.status <> 'ANULADA'
+                              where si.request_item_id = it.request_item_id), 0) as despachado,
                    coalesce((select sum(si.dest_accepted_qty) from salida_item si
                               where si.request_item_id = it.request_item_id), 0)
                      + coalesce((select sum(rci.qty_received) from recepcion_item rci

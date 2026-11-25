@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.68.0 — 2026-11-25
+
+Ajustes de la marcha blanca (observaciones de Logística).
+
+- Suplente del aprobador por CECO (DEC-L087): `V48`, `Ceco.backupApproverUserId`, `AmbitoAprobacion` y `AvisosCorreo` lo incluyen, `AdminService.asignarCecosSuplente` + `PUT /api/admin/usuarios/{id}/cecos-suplente`, `CecoAdminDto.suplenteId`.
+- Anular Nota de Inventario sin envío (DEC-L088): `V49`, `DespachoService.anularNota` + `POST /api/almacen/notas/{id}/anular` (`AnularNotaRequest`), kardex `DEVOLUCION`, reservas de vuelta; lo despachado de salidas anuladas no suma en `SalidaItemRepository`, `BandejaService` ni `DemandaService`. `NotaInventarioDto.annulledAt/annulmentReason`; el PDF muestra el motivo.
+- Buscadores de productos por palabras sueltas, en cualquier orden y sin tildes (`components/busqueda.ts`): pedido (con "Ver más" / "Ver todos"), OC directa, presupuesto, catálogo y stock.
+- `CecoCombobox`: el CECO se busca escribiendo código o nombre, con su empresa (requerimiento y OC directa).
+- Bandeja de requerimientos: el número del REQ es el título; debajo empresa, CECO, solicitante y fecha de creación (los productos, al abrir el panel).
+- Tracking: el CECO ya no repite el código.
+- Frontend: Administración (suplente en la ficha y columna en CECOs), anular desde la nota de inventario.
+- Tests: `SuplenteYAnulacionTest`; `MigracionesFlywayTest` cuenta 49.
+
 ## 0.67.0 — 2026-11-25
 
 TDEM es la empresa central: compra para las tres empresas y vende a GOYDEL y METRIN (DEC-L086).

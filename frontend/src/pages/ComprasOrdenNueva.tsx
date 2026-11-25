@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, PackagePlus, Plus, Trash2, Wrench } from "lucide-react";
 import { invalidar } from "../api/cache";
@@ -11,7 +11,7 @@ import ProductoCombobox from "../components/ProductoCombobox";
 import ProveedorCombobox from "../components/compras/ProveedorCombobox";
 import { CONDICIONES, ENTREGAS } from "../components/compras/condiciones";
 import { dinero } from "../components/compras/formato";
-import { EMPRESAS } from "../components/empresas";
+import CecoCombobox from "../components/CecoCombobox";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
 import CampoNumero from "../components/ui/CampoNumero";
@@ -80,13 +80,6 @@ export default function ComprasOrdenNueva() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // DEC-L086: la orden sale siempre a nombre de TDEM; el CECO puede ser de cualquiera de las tres empresas.
-  const gruposCeco = useMemo(() => {
-    const cecos = catalogo.datos?.cecos ?? [];
-    return EMPRESAS.map((e) => ({ ...e, cecos: cecos.filter((c) => c.empresaCode === e.code) })).filter(
-      (g) => g.cecos.length > 0,
-    );
-  }, [catalogo.datos]);
   const suma = lineas.reduce((acc, l) => acc + (Number(l.cantidad) || 0) * (Number(l.precio) || 0), 0);
   const t = totales(suma, modoIgv);
 
@@ -242,25 +235,15 @@ export default function ComprasOrdenNueva() {
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
                   <Field label="CECO">
-                    <select
-                      className={`${inputClass} w-full`}
-                      value={cecoId}
-                      onChange={(e) => {
-                        setCecoId(e.target.value);
-                        if (!e.target.value) setDirecta(false);
+                    <CecoCombobox
+                      cecos={catalogo.datos?.cecos ?? []}
+                      valor={cecoId}
+                      vacio="Sin CECO"
+                      onSeleccionar={(id) => {
+                        setCecoId(id);
+                        if (!id) setDirecta(false);
                       }}
-                    >
-                      <option value="">Sin CECO</option>
-                      {gruposCeco.map((g) => (
-                        <optgroup key={g.code} label={g.label}>
-                          {g.cecos.map((c) => (
-                            <option key={c.cecoId} value={c.cecoId}>
-                              {c.code} · {c.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                    />
                   </Field>
                   <Field label="Requerimiento">
                     <input

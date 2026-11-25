@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Paperclip, Truck } from "lucide-react";
-import { adjuntarDocumentoEnvio, obtenerNota, registrarEnvio } from "../api/almacen";
+import { adjuntarDocumentoEnvio, anularNota, obtenerNota, registrarEnvio } from "../api/almacen";
 import type { ModalidadEntrega, NotaInventarioDetalle as Detalle, TipoAdjuntoEnvio } from "../api/types";
 import { EnvioBadge, NotaBadge } from "../components/AlmacenBadges";
 import { ETIQUETA_ADJUNTO, ETIQUETA_MODALIDAD, fmtCantidad, fmtDia, fmtFecha, hoyIso } from "../components/formato";
@@ -16,6 +16,9 @@ import PreparacionNota from "../components/almacen/PreparacionNota";
 import RecepcionDestinoPanel from "../components/almacen/RecepcionDestinoPanel";
 import { descargarPdfNota } from "../api/documentos";
 import { nombreEmpresa } from "../components/empresas";
+import { useAuth } from "../auth/AuthContext";
+import MenuAcciones from "../components/ui/MenuAcciones";
+import { useConfirmar } from "../components/ui/Confirmacion";
 
 import CampoNumero from "../components/ui/CampoNumero";
 const labelClass = "rotulo";
@@ -37,6 +40,9 @@ export default function NotaInventarioDetalle() {
   const [exito, setExito] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  const { tieneAlgunRol } = useAuth();
+  const esGestor = tieneAlgunRol("LOGISTICA", "ADMIN");
+  const confirmar = useConfirmar();
 
   const [envio, setEnvio] = useState({
     deliveryMode: "AGENCIA" as ModalidadEntrega,
@@ -97,6 +103,28 @@ export default function NotaInventarioDetalle() {
     }
   }
 
+  /** DEC-L088: solo sin envio; lo despachado vuelve al stock y a la reserva del requerimiento. */
+  async function onAnular() {
+    if (!id || !detalle) return;
+    const r = await confirmar({
+      titulo: `¿Anular ${detalle.nota.inventoryNoteCode}?`,
+      mensaje: "Lo despachado vuelve al stock y sigue reservado para el requerimiento. La nota queda en la lista como anulada.",
+      confirmar: "Anular nota",
+      peligro: true,
+      motivo: "Motivo de la anulación",
+    });
+    if (!r) return;
+    setError(null);
+    setExito(null);
+    const res = await anularNota(id, r.motivo);
+    if (res.ok && res.result) {
+      setDetalle(res.result);
+      setExito(res.message);
+    } else {
+      setError(res.message);
+    }
+  }
+
   async function onAdjuntar(file: File | undefined) {
     const shipmentId = detalle?.nota.envio?.shipmentId;
     if (!file || !shipmentId) return;
@@ -141,12 +169,20 @@ export default function NotaInventarioDetalle() {
           <>
             <BotonDescarga descargar={() => descargarPdfNota(nota.inventoryNoteId, nota.inventoryNoteCode)} />
             <NotaBadge estado={nota.status} />
+            {esGestor && nota.status === "EMITIDA" && !e && (
+              <MenuAcciones acciones={[{ label: "Anular nota", peligro: true, onClick: () => void onAnular() }]} />
+            )}
           </>
         }
       />
 
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
       {exito && <Alert tone="good" className="mb-4">{exito}</Alert>}
+      {nota.status === "ANULADA" && (
+        <Alert tone="danger" className="mb-4">
+          <p className="font-medium">Anulada{nota.annulledAt ? ` el ${fmtFecha(nota.annulledAt)}` : ""}: {nota.annulmentReason}</p>
+        </Alert>
+      )}
 
       <Card className="mb-4">
         <CardBody className="grid gap-4 sm:grid-cols-4">
@@ -170,14 +206,16 @@ export default function NotaInventarioDetalle() {
         </CardBody>
       </Card>
 
-      <PreparacionNota
-        detalle={detalle}
-        onCambio={(d) => {
-          setDetalle(d);
-          setError(null);
-        }}
-        onError={setError}
-      />
+      {nota.status !== "ANULADA" && (
+        <PreparacionNota
+          detalle={detalle}
+          onCambio={(d) => {
+            setDetalle(d);
+            setError(null);
+          }}
+          onError={setError}
+        />
+      )}
 
       <Card className="mb-4 overflow-hidden">
         <CardBody className="pb-3">

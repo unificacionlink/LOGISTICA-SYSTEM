@@ -104,7 +104,7 @@ public class AdminService {
                 .toList();
         List<CecoAdminDto> cecosDto = cecoRepository.findAllConEmpresa().stream()
                 .map(c -> new CecoAdminDto(c.getCecoId(), c.getEmpresa().getCode(), c.getCode(), c.getName(), c.isActive(),
-                        c.getApproverUserId()))
+                        c.getApproverUserId(), c.getBackupApproverUserId()))
                 .toList();
         Timestamp ultima = jdbc.queryForObject(
                 "select max(source_synced_at) from personal where fuente = 'RRHH_SYNC'", Timestamp.class);
@@ -328,7 +328,26 @@ public class AdminService {
      */
     @Transactional
     public AdminDatosDto asignarCecosAprobados(UUID userId, List<UUID> cecoIds, UsuarioPrincipal principal) {
+        return asignarCecosDecisor(userId, cecoIds, false, principal);
+    }
+
+    /** CECOs donde el usuario es suplente del aprobador (DEC-L087). */
+    @Transactional
+    public AdminDatosDto asignarCecosSuplente(UUID userId, List<UUID> cecoIds, UsuarioPrincipal principal) {
+        return asignarCecosDecisor(userId, cecoIds, true, principal);
+    }
+
+    /**
+     * Aprobador o suplente de cada CECO (un solo usuario por papel y CECO): los
+     * CECOs nuevos se le asignan a este usuario (quitandoselos a quien los tenia)
+     * y los que ya no vienen quedan sin ese papel. Aprobador y suplente de un
+     * mismo CECO deben ser personas distintas.
+     */
+    private AdminDatosDto asignarCecosDecisor(UUID userId, List<UUID> cecoIds, boolean suplente,
+                                              UsuarioPrincipal principal) {
         exigirAdmin(principal);
+        String columna = suplente ? "backup_approver_user_id" : "approver_user_id";
+        String otraColumna = suplente ? "approver_user_id" : "backup_approver_user_id";
         Usuario u = usuario(userId);
         Set<UUID> nuevos = new LinkedHashSet<>(cecoIds);
         if (!nuevos.isEmpty()) {
@@ -343,15 +362,19 @@ public class AdminService {
         // Por JDBC y no por la entidad: datos() relee los CECO en esta misma
         // transaccion y una entidad ya cargada devolveria el aprobador viejo.
         Set<UUID> actuales = new HashSet<>(jdbc.queryForList(
-                "select ceco_id from ceco where approver_user_id = ?", UUID.class, userId));
+                "select ceco_id from ceco where " + columna + " = ?", UUID.class, userId));
         List<UUID> agregados = nuevos.stream().filter(c -> !actuales.contains(c)).toList();
         if (!agregados.isEmpty()) {
             // Estado de todos los CECO nuevos en una consulta (antes una por CECO).
             Map<UUID, Boolean> activos = new HashMap<>();
-            jdbc.query("select ceco_id, active from ceco where ceco_id in ("
+            Map<UUID, String> conOtroPapel = new HashMap<>();
+            jdbc.query("select ceco_id, active, code, " + otraColumna + " from ceco where ceco_id in ("
                             + String.join(",", Collections.nCopies(agregados.size(), "?")) + ")",
                     rs -> {
                         activos.put(rs.getObject(1, UUID.class), rs.getBoolean(2));
+                        if (userId.equals(rs.getObject(4, UUID.class))) {
+                            conOtroPapel.put(rs.getObject(1, UUID.class), rs.getString(3));
+                        }
                     }, agregados.toArray());
             for (UUID cecoId : agregados) {
                 Boolean activo = activos.get(cecoId);
@@ -361,17 +384,41 @@ public class AdminService {
                 if (!activo) {
                     throw ApiException.badRequest("No se asignan CECOs inactivos.");
                 }
+                if (conOtroPapel.containsKey(cecoId)) {
+                    throw ApiException.badRequest(u.getDisplayName() + " ya es " + (suplente ? "el aprobador" : "el suplente")
+                            + " del CECO " + conOtroPapel.get(cecoId) + ": aprobador y suplente deben ser personas distintas.");
+                }
             }
             for (UUID cecoId : agregados) {
-                aplicarAprobador(cecoId, userId, principal);
+                if (suplente) {
+                    aplicarSuplente(cecoId, userId, principal);
+                } else {
+                    aplicarAprobador(cecoId, userId, principal);
+                }
             }
         }
         for (UUID cecoId : actuales) {
             if (!nuevos.contains(cecoId)) {
-                aplicarAprobador(cecoId, null, principal);
+                if (suplente) {
+                    aplicarSuplente(cecoId, null, principal);
+                } else {
+                    aplicarAprobador(cecoId, null, principal);
+                }
             }
         }
         return datos(principal);
+    }
+
+    /** Fija el suplente de un CECO (DEC-L087). No mueve los pendientes: decide junto al aprobador. Se audita. */
+    private void aplicarSuplente(UUID cecoId, UUID suplenteId, UsuarioPrincipal principal) {
+        UUID anterior = jdbc.query("select backup_approver_user_id from ceco where ceco_id = ?",
+                (rs, n) -> rs.getObject(1, UUID.class), cecoId).getFirst();
+        jdbc.update("update ceco set backup_approver_user_id = ? where ceco_id = ?", suplenteId, cecoId);
+        Map<String, Object> antes = new HashMap<>();
+        antes.put("suplente", anterior);
+        Map<String, Object> despues = new HashMap<>();
+        despues.put("suplente", suplenteId);
+        auditoria.registrar("CECO", cecoId, "ASIGNAR_SUPLENTE", antes, despues, principal.userId());
     }
 
     /**

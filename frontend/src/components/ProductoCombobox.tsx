@@ -3,6 +3,7 @@ import { Search, X } from "lucide-react";
 import type { VarianteCatalogo } from "../api/types";
 import { inputClass } from "./ui/Field";
 import Flotante from "./ui/Flotante";
+import { buscador } from "./busqueda";
 
 export default function ProductoCombobox({
   variantes,
@@ -18,9 +19,8 @@ export default function ProductoCombobox({
   const [abierto, setAbierto] = useState(false);
 
   const resultados = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return variantes.slice(0, 30);
-    return variantes.filter((v) => v.etiqueta.toLowerCase().includes(q)).slice(0, 30);
+    const coincide = buscador(query);
+    return variantes.filter((v) => coincide(v.etiqueta)).slice(0, 30);
   }, [query, variantes]);
 
   if (valor) {

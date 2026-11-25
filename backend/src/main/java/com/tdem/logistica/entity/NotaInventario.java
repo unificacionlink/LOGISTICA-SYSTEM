@@ -75,6 +75,16 @@ public class NotaInventario {
     @Column(name = "total_sale_value")
     private BigDecimal totalSaleValue;
 
+    /** DEC-L088: anulacion con motivo (solo antes de registrar el envio). */
+    @Column(name = "annulled_at")
+    private Instant annulledAt;
+
+    @Column(name = "annulled_by")
+    private UUID annulledBy;
+
+    @Column(name = "annulment_reason")
+    private String annulmentReason;
+
     @Column(name = "total_item_qty")
     private BigDecimal totalItemQty;
 

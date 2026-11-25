@@ -148,6 +148,16 @@ public class AlmacenController {
         return ApiResponse.ok(despachoService.obtenerNota(id, principal));
     }
 
+    /** DEC-L088: anula una nota sin envio; devuelve lo despachado al stock y a la reserva del REQ. */
+    @PostMapping("/notas/{id}/anular")
+    public ApiResponse<NotaInventarioDetalleDto> anularNota(
+            @PathVariable UUID id,
+            @Valid @RequestBody AnularNotaRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(despachoService.anularNota(id, request.motivo(), principal),
+                "Nota anulada: lo despachado volvió al stock y sigue reservado para el requerimiento.");
+    }
+
     // ---------- Preparacion (ALM-02) ----------
 
     @PostMapping("/notas/{id}/picking")

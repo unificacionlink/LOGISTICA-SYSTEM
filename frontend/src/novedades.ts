@@ -13,6 +13,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.68.0",
+    titulo: "Búsquedas más fáciles, suplente y anular notas",
+    cambios: [
+      "Los productos se buscan por palabras sueltas y en cualquier orden (por ejemplo \"camisa denim tdem\"), y se pueden ver todos los resultados.",
+      "El centro de costo se elige escribiendo su código o su nombre, y cada opción dice de qué empresa es.",
+      "En la lista de requerimientos se ve primero el número, con la empresa, el CECO, el solicitante y la fecha; los productos, al abrirlo.",
+      "Cada CECO puede tener un suplente del aprobador, que también aprueba y recibe los avisos.",
+      "Logística puede anular una nota de inventario antes de enviarla, indicando el motivo: lo despachado vuelve al stock y la nota queda en la lista como anulada.",
+    ],
+  },
+  {
     version: "0.67.0",
     titulo: "TDEM compra para las tres empresas",
     cambios: [

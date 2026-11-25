@@ -7,7 +7,7 @@
 ERP Logístico Corporativo para TDEM, GOYDEL y METRIN. Reemplaza el prototipo V38 de Jonathan (HTML + localStorage, en `docs_base/`) por un sistema productivo. Flujo principal:
 Requerimiento → Aprobación → Stock/Compra (RFQ → Cotización → OC) → Recepción → Despacho (Nota de Inventario) → Envío → Entrega → Tracking.
 
-Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-L030). No hay perfil Compras ni Almacén: los opera LOGISTICA/ADMIN. PYC trabaja sobre todos los CECOs de las 3 empresas sin asignárselos (DEC-L077). Cada CECO puede tener un aprobador asignado (`ceco.approver_user_id`, se asigna desde la ficha del usuario en Administración, DEC-L037); la regla de quién decide/ve está en `modules/aprobaciones/AmbitoAprobacion`.
+Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-L030). No hay perfil Compras ni Almacén: los opera LOGISTICA/ADMIN. PYC trabaja sobre todos los CECOs de las 3 empresas sin asignárselos (DEC-L077). Cada CECO puede tener un aprobador asignado y un suplente que también decide (`ceco.approver_user_id` / `backup_approver_user_id`, se asignan desde la ficha del usuario en Administración, DEC-L037/L087); la regla de quién decide/ve está en `modules/aprobaciones/AmbitoAprobacion`.
 
 **En curso: adopción de la V38.7** (entrega del 06/10/2026 en `docs_base/V38_7_ENTREGA_2026-10-06/`, ver DEC-L030). Lotes: 12 roles/aprobador por CECO (hecho) → 13 precios de venta + plazo de atención (hecho, DEC-L035) → 14 Presupuestos (hecho, DEC-L036) → 15 control presupuestal + cumplimiento (hecho, DEC-L038) → 16 necesidad/consolidación/RFQ multiproducto (hecho, DEC-L039) → 17 OC con aprobación, pago y liberación (hecho, DEC-L061) → 18 almacén V38.7 (en curso: 18a picking y embalaje, DEC-L062, y 18b recepción en destino con diferencias, DEC-L063, hechos; ALM-04 entrega directa proveedor → CECO hecho, DEC-L084; falta ALM-05 F-LOG-10) → 19 proveedores + dashboard (hecho: 19a proveedores, DEC-L069..L071 y cuentas bancarias DEC-L078; 19b dashboard con pestañas Proceso/Demanda/Gasto en Inicio, DEC-L083).
 
@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD propia en Supabase.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L086 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L088 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `docs/05_PLAN_PROVEEDORES.md` — plan y diagnóstico del Lote 19a (proveedores), con los indicadores pendientes de datos.
 - `docs/06_PLAN_MUDANZA_SUPABASE.md` — mudanza de RR-HH al proyecto propio (DEC-L072): bitácora del corte y retiro pendiente en RR-HH.
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
@@ -77,6 +77,7 @@ Reglas clave:
 - **Alta de una entidad nueva con `repo.insertar(e)`** (o `insertarTodos`), no `save`: los ids se asignan a mano y `save` haría un SELECT antes de cada INSERT (DEC-L074). `save` es para modificar. Los INSERT/UPDATE van en lotes de 50.
 - La BD está lejos (~150 ms por ida y vuelta): evitar N+1; preferir una consulta (el dashboard es una sola SQL que devuelve JSON).
 - **TDEM es la empresa central** (DEC-L086): compra para las tres (consolidados, RFQ y OC —también la directa— a su nombre, un consolidado por SKU para todas), emite las Notas de Inventario (`NI-<n>-TDEMSRL`) y **vende a GOYDEL y METRIN** lo que entrega en sus CECOs, al precio de venta de esa empresa congelado en la línea (`VentaInterna`; `salida_item`/`recepcion_item.sale_unit_price`). Reporte en Inicio › Ventas. La empresa del REQ sigue mandando en ámbito, CECO y presupuesto; nunca filtrar compras por "la empresa del REQ".
+- **Nota de Inventario anulable** (DEC-L088): sin envío, LOGISTICA/ADMIN la anula con motivo; vuelve al stock (kardex `DEVOLUCION`) y a la reserva del REQ, y la nota y su salida quedan `ANULADA` en la lista. **Toda consulta nueva que sume lo despachado (`salida_item.qty`) debe excluir `salida.status = 'ANULADA'`.**
 - **Stock: un solo almacén central, el de TDEM, para las tres empresas** (DEC-L045). Para reservas, recepciones y despachos usar `AlmacenCentral` / `almacenRepository.findCentralDelGrupo()`, nunca el almacén de la empresa del documento. Inventario por Excel en `CargaStockService` (stock contado → ajustes `CARGA_STOCK`).
 - El SOLICITANTE solo pide para sus CECOs asignados (`usuario_ceco`, de cualquier empresa); la empresa del REQ sale del CECO (DEC-L029). LOGISTICA/ADMIN, cualquier CECO activo.
 - La prioridad del REQ fija su tiempo de atención (Urgente 2, Aprovisionamiento 10, Implementación 20 días hábiles, sin feriados de Perú; `SlaAtencion`, DEC-L068). La fecha requerida no la escribe nadie: el servidor la calcula al crear y al enviar (hoy + plazo) e ignora la del cliente.
@@ -90,7 +91,7 @@ Reglas clave:
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V48__descripcion.sql` (existen V1..V47).
+- Siguiente migración: `V50__descripcion.sql` (existen V1..V49).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.

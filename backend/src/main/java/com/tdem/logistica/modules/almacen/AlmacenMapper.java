@@ -114,7 +114,9 @@ final class AlmacenMapper {
                 n.getPackedAt(),
                 n.getPackingEvidenceUrl(),
                 n.getEmpresaVenta() != null ? n.getEmpresaVenta().getCode() : null,
-                n.getTotalSaleValue());
+                n.getTotalSaleValue(),
+                n.getAnnulledAt(),
+                n.getAnnulmentReason());
     }
 
     static NotaItemDto toDto(SalidaItem i) {

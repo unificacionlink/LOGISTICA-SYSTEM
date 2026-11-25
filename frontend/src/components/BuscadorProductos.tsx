@@ -5,6 +5,7 @@ import { subirImagenProducto } from "../api/requerimientos";
 import type { Familia, VarianteConStock } from "../api/types";
 import { useVerCantidadStock } from "./stock/verCantidad";
 import FiltroFamilia from "./FiltroFamilia";
+import { buscador } from "./busqueda";
 import { coincideFamilia, etiquetaFamilia } from "./familia";
 import { inputClass } from "./ui/Field";
 import { respaldoOriginal, urlImagen } from "./imagenes";
@@ -126,6 +127,9 @@ function VisorFoto({
   );
 }
 
+const POR_PAGINA = 20;
+
+
 export default function BuscadorProductos({
   variantes,
   familias,
@@ -148,13 +152,21 @@ export default function BuscadorProductos({
   const inputArchivoRef = useRef<HTMLInputElement | null>(null);
   const productoParaSubirRef = useRef<string | null>(null);
 
-  const resultados = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  // Busca por palabras sueltas, en cualquier orden y sin importar tildes ("camisa denim tdem").
+  const coincidencias = useMemo(() => {
+    const coincide = buscador(query);
     return variantes
       .filter((v) => coincideFamilia(filtroFamilia, v.tipoId, v.familiaId))
-      .filter((v) => !q || v.etiqueta.toLowerCase().includes(q))
-      .slice(0, 8);
+      .filter((v) => coincide(v.etiqueta));
   }, [query, filtroFamilia, variantes]);
+  const [limite, setLimite] = useState(POR_PAGINA);
+  // Al cambiar la busqueda vuelve a mostrar la primera tanda.
+  const [busquedaPrevia, setBusquedaPrevia] = useState(`${query}|${filtroFamilia}`);
+  if (busquedaPrevia !== `${query}|${filtroFamilia}`) {
+    setBusquedaPrevia(`${query}|${filtroFamilia}`);
+    setLimite(POR_PAGINA);
+  }
+  const resultados = coincidencias.slice(0, limite);
 
   function abrirSelectorArchivo(productId: string) {
     setErrorSubida(null);
@@ -207,7 +219,7 @@ export default function BuscadorProductos({
 
       {errorSubida && <p className="mt-2 text-xs text-rose-600">{errorSubida}</p>}
 
-      <ul className="mt-3 flex flex-col divide-y divide-slate-100 rounded-lg border border-slate-200">
+      <ul className="mt-3 flex max-h-[32rem] flex-col divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
         {resultados.length === 0 ? (
           <li className="px-4 py-6 text-center text-sm text-slate-400">Sin resultados.</li>
         ) : (
@@ -246,6 +258,21 @@ export default function BuscadorProductos({
           })
         )}
       </ul>
+      {coincidencias.length > resultados.length && (
+        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
+          <span>
+            Mostrando {resultados.length} de {coincidencias.length}
+          </span>
+          <span className="flex gap-3">
+            <button type="button" onClick={() => setLimite((l) => l + POR_PAGINA)} className="font-medium text-brand-600 hover:text-brand-700">
+              Ver {Math.min(POR_PAGINA, coincidencias.length - resultados.length)} más
+            </button>
+            <button type="button" onClick={() => setLimite(coincidencias.length)} className="font-medium text-brand-600 hover:text-brand-700">
+              Ver todos
+            </button>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

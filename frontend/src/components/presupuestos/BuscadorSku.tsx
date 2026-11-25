@@ -4,6 +4,7 @@ import type { ProductoPresupuesto } from "../../api/types";
 import { inputClass } from "../ui/Field";
 import { soles } from "./formato";
 import Flotante from "../ui/Flotante";
+import { buscador } from "../busqueda";
 
 /** Buscador de SKU base para agregar partidas; muestra el precio de venta vigente. */
 export default function BuscadorSku({
@@ -20,10 +21,9 @@ export default function BuscadorSku({
   const [abierto, setAbierto] = useState(false);
 
   const resultados = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const coincide = buscador(query);
     const libres = (productos ?? []).filter((p) => !excluir.has(p.productId));
-    if (!q) return libres.slice(0, 30);
-    return libres.filter((p) => p.sku.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q)).slice(0, 30);
+    return libres.filter((p) => coincide(`${p.sku} ${p.nombre}`)).slice(0, 30);
   }, [query, productos, excluir]);
 
   return (

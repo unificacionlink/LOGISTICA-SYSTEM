@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
-import { asignarCecosAprobados } from "../../api/admin";
+import { asignarCecosAprobados, asignarCecosSuplente } from "../../api/admin";
 import type { AdminDatos, CecoAdmin, UsuarioAdmin } from "../../api/types";
 import Button from "../ui/Button";
 import { inputClass } from "../ui/Field";
@@ -13,23 +13,32 @@ function etiquetaEmpresa(code: string) {
   return EMPRESAS.find((e) => e.code === code)?.label ?? code;
 }
 
+/** Papel del usuario en el CECO: aprobador (DEC-L037) o su suplente (DEC-L087). */
+export type Papel = "aprobador" | "suplente";
+
+const id = (c: CecoAdmin, papel: Papel) => (papel === "aprobador" ? c.aprobadorId : c.suplenteId);
+
 /**
- * CECOs que aprueba el usuario (Aprobador o Gerencia; DEC-L037, como Accesos /
- * usuarios de la V38.7). Un CECO tiene un solo aprobador: elegir uno que ya
- * tenia otro se lo reasigna a este usuario.
+ * CECOs que aprueba el usuario, o donde es suplente (Aprobador o Gerencia;
+ * DEC-L037, como Accesos / usuarios de la V38.7). Un CECO tiene un solo
+ * aprobador y un solo suplente: elegir uno que ya tenia otro se lo reasigna a
+ * este usuario.
  */
 export default function CecosAprobados({
   u,
   cecos,
   usuarios,
   aplicar,
+  papel = "aprobador",
 }: {
   u: UsuarioAdmin;
   cecos: CecoAdmin[];
   usuarios: UsuarioAdmin[];
   aplicar: (res: { ok: boolean; result: AdminDatos | null; message: string }) => boolean;
+  papel?: Papel;
 }) {
-  const actuales = useMemo(() => cecos.filter((c) => c.aprobadorId === u.id).map((c) => c.id), [cecos, u.id]);
+  const esSuplente = papel === "suplente";
+  const actuales = useMemo(() => cecos.filter((c) => id(c, papel) === u.id).map((c) => c.id), [cecos, u.id, papel]);
   const [seleccion, setSeleccion] = useState<string[]>(actuales);
   const caja = useRef<HTMLDivElement>(null);
   const [busqueda, setBusqueda] = useState("");
@@ -38,8 +47,11 @@ export default function CecosAprobados({
   const nombre = useMemo(() => new Map(usuarios.map((x) => [x.id, x.nombre])), [usuarios]);
   const cambiaron = seleccion.toSorted().join() !== actuales.toSorted().join();
 
-  /** Aprobador actual del CECO si es otro usuario (se le quitara al guardar). */
-  const otroAprobador = (c: CecoAdmin) => (c.aprobadorId && c.aprobadorId !== u.id ? nombre.get(c.aprobadorId) : null);
+  /** Quien tiene hoy ese papel en el CECO si es otro usuario (se le quitara al guardar). */
+  const otroAprobador = (c: CecoAdmin) => {
+    const actual = id(c, papel);
+    return actual && actual !== u.id ? nombre.get(actual) : null;
+  };
 
   const resultados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -49,15 +61,17 @@ export default function CecosAprobados({
         (c) =>
           c.activo &&
           !seleccion.includes(c.id) &&
+          // Aprobador y suplente de un CECO son personas distintas.
+          id(c, esSuplente ? "aprobador" : "suplente") !== u.id &&
           `${c.code} ${c.nombre} ${c.empresaCode} ${etiquetaEmpresa(c.empresaCode)}`.toLowerCase().includes(q),
       )
       .slice(0, MAX_RESULTADOS);
-  }, [busqueda, cecos, seleccion]);
+  }, [busqueda, cecos, seleccion, esSuplente, u.id]);
 
   async function onGuardar() {
     setGuardando(true);
     try {
-      aplicar(await asignarCecosAprobados(u.id, seleccion));
+      aplicar(await (esSuplente ? asignarCecosSuplente : asignarCecosAprobados)(u.id, seleccion));
     } finally {
       setGuardando(false);
     }
@@ -65,12 +79,14 @@ export default function CecosAprobados({
 
   return (
     <div className="mt-4">
-      <div className="rotulo mb-2">Aprobador asignado de</div>
+      <div className="rotulo mb-2">{esSuplente ? "Suplente del aprobador en" : "Aprobador asignado de"}</div>
       {seleccion.length === 0 ? (
         <p className="text-xs text-slate-500">
-          {u.roles.includes("GERENCIA")
-            ? "De ningún CECO. Como Gerencia igual aprueba los CECOs de su ámbito."
-            : "No es aprobador asignado de ningún CECO."}
+          {esSuplente
+            ? "No es suplente de ningún CECO."
+            : u.roles.includes("GERENCIA")
+              ? "De ningún CECO. Como Gerencia igual aprueba los CECOs de su ámbito."
+              : "No es aprobador asignado de ningún CECO."}
         </p>
       ) : (
         <ul className="flex flex-wrap gap-1.5">
@@ -111,8 +127,8 @@ export default function CecosAprobados({
           onKeyDown={(e) => {
             if (e.key === "Escape") setBusqueda("");
           }}
-          placeholder="Agregar CECO que aprueba"
-          aria-label="Agregar CECO que aprueba"
+          placeholder={esSuplente ? "Agregar CECO donde es suplente" : "Agregar CECO que aprueba"}
+          aria-label={esSuplente ? "Agregar CECO donde es suplente" : "Agregar CECO que aprueba"}
           className={`${inputClass} w-full pl-9 text-sm`}
         />
         {busqueda.trim() && (

@@ -34,4 +34,8 @@ public class Ceco {
     /** Aprobador asignado (DEC-L030); null = cualquier APROBADOR/GERENCIA. Se escribe desde AdminService. */
     @Column(name = "approver_user_id", insertable = false, updatable = false)
     private UUID approverUserId;
+
+    /** Suplente del aprobador (DEC-L087): tambien decide y recibe avisos. Se escribe desde AdminService. */
+    @Column(name = "backup_approver_user_id", insertable = false, updatable = false)
+    private UUID backupApproverUserId;
 }

@@ -41,6 +41,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { useConfirmar } from "../components/ui/Confirmacion";
 import { comprimirImagen } from "../utils/imagenes";
+import { buscador } from "../components/busqueda";
 
 interface ProductoCatalogo {
   productId: string;
@@ -226,10 +227,10 @@ export default function CatalogoProductos() {
   }
 
   const filtrados = useMemo(() => {
-    const q = queryDiferido.trim().toLowerCase();
+    const coincide = buscador(queryDiferido);
     return productos
       .filter((p) => coincideFamilia(filtroFamilia, p.tipoId, p.familiaId))
-      .filter((p) => !q || p.skuBase.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q))
+      .filter((p) => coincide(`${p.skuBase} ${p.nombre}`))
       .filter((p) => !soloSinPrecio || !precios[p.productId]);
   }, [productos, queryDiferido, filtroFamilia, soloSinPrecio, precios]);
 
