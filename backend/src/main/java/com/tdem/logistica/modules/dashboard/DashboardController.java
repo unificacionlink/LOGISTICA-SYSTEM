@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-/** Dashboard del Inicio: pestanas Proceso (DEC-L020), Demanda y Gasto (DEC-L083). */
+/** Dashboard del Inicio: pestanas Proceso (DEC-L020), Demanda y Gasto (DEC-L083) y Ventas (DEC-L086). */
 @RestController
 @RequestMapping("/api/dashboard")
 public class DashboardController {
@@ -25,11 +25,14 @@ public class DashboardController {
     private final DashboardService service;
     private final DemandaService demandaService;
     private final GastoService gastoService;
+    private final VentasService ventasService;
 
-    public DashboardController(DashboardService service, DemandaService demandaService, GastoService gastoService) {
+    public DashboardController(DashboardService service, DemandaService demandaService, GastoService gastoService,
+                               VentasService ventasService) {
         this.service = service;
         this.demandaService = demandaService;
         this.gastoService = gastoService;
+        this.ventasService = ventasService;
     }
 
     @GetMapping
@@ -70,5 +73,27 @@ public class DashboardController {
             @RequestParam(required = false) String empresa,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(gastoService.obtener(dias, empresa, principal));
+    }
+
+    @GetMapping("/ventas")
+    public ApiResponse<VentasDto> ventas(
+            @RequestParam(defaultValue = "90") int dias,
+            @RequestParam(required = false) String empresa,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(ventasService.obtener(dias, empresa, principal));
+    }
+
+    /** Todas las lineas vendidas del periodo (la pantalla muestra las ultimas 100). */
+    @GetMapping("/ventas/excel")
+    public ResponseEntity<byte[]> ventasExcel(
+            @RequestParam(defaultValue = "90") int dias,
+            @RequestParam(required = false) String empresa,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        byte[] xlsx = VentasExcel.generar(ventasService.lineas(dias, empresa, principal));
+        String nombre = "VENTAS_EMPRESAS_" + LocalDate.now() + ".xlsx";
+        return ResponseEntity.ok()
+                .contentType(XLSX)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(nombre).build().toString())
+                .body(xlsx);
     }
 }

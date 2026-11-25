@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.67.0 — 2026-11-25
+
+TDEM es la empresa central: compra para las tres empresas y vende a GOYDEL y METRIN (DEC-L086).
+
+- `V47__venta_tdem_empresas.sql`: `salida_item.sale_unit_price`, `nota_inventario.sale_company_id` + `total_sale_value`, `recepcion_item.sale_unit_price`.
+- `AlmacenCentral.empresa()`; `AbastecimientoService` consolida en la empresa central (un consolidado por SKU para las tres empresas), así que RFQ y OC salen de TDEM.
+- `OrdenDirectaService`: siempre TDEM; `CrearOrdenDirectaRequest` sin `empresaCode`; CECO y REQ de cualquier empresa (REQ y CECO de la misma).
+- `DespachoService`: Nota de Inventario con correlativo único de TDEM; `VentaInterna` valoriza al precio de venta de la empresa del CECO y lo congela. `EntregaDirectaService` congela el precio en `recepcion_item`.
+- `NotaInventarioDto.empresaVentaCode`/`totalSaleValue`, `NotaItemDto.saleUnitPrice`; el PDF de la NI muestra "Vendido a" y valoriza a precio de venta.
+- `VentasService` + `GET /api/dashboard/ventas` y `/ventas/excel` (`VentasExcel`); solo LOGISTICA, GERENCIA y ADMIN.
+- `PresupuestoService`: último costo de compra del grupo, sin filtrar por la empresa de la OC.
+- Frontend: pestaña Ventas en Inicio (`PestanaVentas`), OC directa sin selector de empresa (CECOs agrupados por empresa), venta en la Nota de Inventario, `nombreEmpresa` en `components/empresas.ts`.
+- Tests: `VentaInternaTest`, `ConsolidacionComprasTest.tdemCompraParaLasTresEmpresasEnUnSoloConsolidado`, `OrdenDirectaTest` (REQ y CECO de distinta empresa); `MigracionesFlywayTest` cuenta 47.
+
 ## 0.66.1 — 2026-11-23
 
 - Entrega directa (DEC-L084): "obra" pasa a "proyecto" en pantallas, PDF y avisos; la acción de la Bandeja `RECIBIR_EN_OBRA` pasa a `RECIBIR_EN_PROYECTO`.

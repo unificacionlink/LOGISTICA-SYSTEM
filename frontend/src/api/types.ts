@@ -1034,6 +1034,9 @@ export interface NotaInventario {
   pickedAt: string | null;
   packedAt: string | null;
   packingEvidenceUrl: string | null;
+  /** DEC-L086: empresa a la que TDEM vende lo despachado (null si el destino es de TDEM) y su total en PEN. */
+  empresaVentaCode: string | null;
+  totalSaleValue: number | null;
 }
 
 export interface NotaItem {
@@ -1049,6 +1052,8 @@ export interface NotaItem {
   destAceptado: number;
   destObservado: number;
   destDevuelto: number;
+  /** DEC-L086: precio de venta de TDEM a la empresa del destino (null si no es venta o no hay precio). */
+  saleUnitPrice: number | null;
 }
 
 export interface DocumentoAdjunto {
@@ -1295,6 +1300,28 @@ export interface GastoDashboard {
   porCeco: MontoGasto[];
   porFamilia: MontoGasto[];
   proveedores: MontoGasto[];
+}
+
+/** Ventas de TDEM a GOYDEL y METRIN (DEC-L086), en PEN al precio de venta de cada empresa. */
+export interface VentasDashboard {
+  /** monto = solo lineas con precio; sinPrecio = lineas sin precio de venta. */
+  totales: { empresa: string; monto: number; lineas: number; sinPrecio: number }[];
+  meses: string[];
+  porMes: { empresa: string; clave: string; detalle: string | null; monto: number }[];
+  porCeco: { empresa: string; clave: string | null; detalle: string | null; monto: number }[];
+  lineas: {
+    fecha: string;
+    documento: string;
+    requerimiento: string | null;
+    empresa: string;
+    ceco: string | null;
+    cecoNombre: string | null;
+    sku: string;
+    producto: string;
+    cantidad: number;
+    precio: number | null;
+    total: number | null;
+  }[];
 }
 
 // ---------- Carga masiva de ingresos (RF-031) ----------

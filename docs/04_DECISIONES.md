@@ -5,6 +5,39 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L086 — TDEM es la empresa central: compra para las tres y vende a GOYDEL y METRIN (2026-11-25, v0.67.0).**
+  Regla del usuario antes de la marcha blanca (proyecto ATC PIURA de GOYDEL): el
+  ERP es de tres empresas, pero quien compra es TDEM, y TDEM le vende a las otras dos.
+  - **Empresa central** = la dueña del almacén central (`AlmacenCentral.empresa()`,
+    DEC-L045): TDEM. No hay una bandera nueva.
+  - **Compras a nombre de TDEM**: el faltante de cualquier REQ entra al consolidado
+    ABIERTO de **TDEM** + SKU + unidad, así que lo que piden TDEM, GOYDEL y METRIN
+    del mismo producto se compra junto. La RFQ y la OC salen de TDEM (siguen al
+    consolidado). La necesidad conserva la empresa de su REQ y la OC sigue
+    repartiéndose a los CECOs de origen. La **OC directa** sale siempre de TDEM: el
+    formulario ya no pide empresa y acepta CECO y REQ de cualquiera de las tres (si
+    vienen ambos, deben ser de la misma empresa).
+  - **Nota de Inventario de TDEM**: un solo correlativo `NI-<n>-TDEMSRL` (antes uno
+    por empresa del REQ). La salida y el kardex siguen registrando la empresa del REQ.
+  - **Venta**: lo que va a un CECO de GOYDEL o METRIN es venta de TDEM a esa empresa,
+    al **precio de venta vigente de esa empresa** (`precio_venta_producto`, DEC-L035),
+    congelado al despachar (`salida_item.sale_unit_price`, `nota_inventario.sale_company_id`
+    y `total_sale_value`) o al recibir la entrega directa (`recepcion_item.sale_unit_price`).
+    Sin precio vigente se despacha igual y la línea queda "sin precio" (nunca se
+    inventa). A un CECO de TDEM no es venta. La Nota de Inventario (pantalla y PDF)
+    muestra "Vendido a" y valoriza al precio de venta.
+  - **Reporte**: Inicio › pestaña **Ventas** (`VentasService`, una consulta que devuelve
+    JSON, + Excel) por empresa, mes y CECO; cuenta lo despachado menos lo devuelto al
+    almacén y lo entregado directo por el proveedor. Solo LOGISTICA, GERENCIA y ADMIN
+    (no el aprobador de CECO). La facturación entre empresas se hace fuera del ERP con
+    ese reporte; no hay documento de venta interna.
+  - **Consecuencias**: el presupuesto toma el último costo de compra del grupo (ya no
+    filtra por la empresa de la OC); Gasto (DEC-L083) es lo que compra TDEM y su reparto
+    por CECO sigue mostrando para qué proyecto fue. Los datos de empresa (dirección,
+    firmas) que salen en la OC y la Nota de Inventario son los de TDEM.
+  - `V47__venta_tdem_empresas.sql`. Tests: `VentaInternaTest`,
+    `ConsolidacionComprasTest.tdemCompraParaLasTresEmpresasEnUnSoloConsolidado`, `OrdenDirectaTest`.
+
 - **DEC-L085 — Carga inicial del almacén y del catálogo desde el sistema anterior (2026-11-23).**
   - Fuente: el reporte de Logística `stock_minimo_TDEM_GOYDEL_2026-01-01_2026-11-20.csv`
     (917 filas, códigos antiguos A0xxx de TDEM y GOYDEL). Lo procesa

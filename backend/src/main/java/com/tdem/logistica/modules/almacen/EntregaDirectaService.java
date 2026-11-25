@@ -54,8 +54,9 @@ public class EntregaDirectaService {
     private final Auditoria auditoria;
     private final AvisosPlataforma avisos;
     private final RealtimeNotifier realtimeNotifier;
+    private final VentaInterna venta;
 
-    public EntregaDirectaService(OrdenAbastecimientoRepository ordenRepository, OrdenItemRepository ordenItemRepository,
+    public EntregaDirectaService(VentaInterna venta, OrdenAbastecimientoRepository ordenRepository, OrdenItemRepository ordenItemRepository,
                                  RecepcionRepository recepcionRepository, RecepcionItemRepository recepcionItemRepository,
                                  GuiaRemisionRepository guiaRepository, IncidenciaRecepcionRepository incidenciaRepository,
                                  RequerimientoRepository requerimientoRepository, UsuarioRepository usuarioRepository,
@@ -64,6 +65,7 @@ public class EntregaDirectaService {
                                  DestinosEntrega destinosEntrega, AtencionCalculator atencionCalculator,
                                  ArchivosAlmacen archivos, Auditoria auditoria, AvisosPlataforma avisos,
                                  RealtimeNotifier realtimeNotifier) {
+        this.venta = venta;
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.recepcionRepository = recepcionRepository;
@@ -168,6 +170,10 @@ public class EntregaDirectaService {
 
         boolean observada = false;
         Set<UUID> requerimientos = new LinkedHashSet<>();
+        // DEC-L086: lo que el proveedor entrega en un CECO de GOYDEL o METRIN es venta de TDEM a esa empresa.
+        var precios = venta.precios(venta.compradora(ceco.getEmpresa()), lineas.stream()
+                .map(l -> l.destino().item().getProducto()).filter(java.util.Objects::nonNull)
+                .map(p -> p.getProductId()).collect(java.util.stream.Collectors.toSet()));
         for (Linea l : lineas) {
             DestinosEntrega.Destino d = l.destino();
             RecepcionItem ri = null;
@@ -180,6 +186,9 @@ public class EntregaDirectaService {
                 ri.setConditionStatus("CONFORME");
                 ri.setRequerimientoItem(d.requerimientoItem());
                 ri.setNecesidad(d.necesidad());
+                if (d.item().getProducto() != null) {
+                    ri.setSaleUnitPrice(precios.get(d.item().getProducto().getProductId()));
+                }
                 recepcionItemRepository.insertar(ri);
                 if (d.requerimientoItem() != null) {
                     requerimientos.add(d.requerimientoItem().getRequerimiento().getRequestId());

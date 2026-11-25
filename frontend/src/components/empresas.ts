@@ -5,3 +5,8 @@ export const EMPRESAS: { code: string; label: string; marca: string }[] = [
   { code: "GOYDELSAC", label: "GOYDEL", marca: "bg-emerald-600" },
   { code: "METRIN", label: "METRIN", marca: "bg-amber-500" },
 ];
+
+/** Nombre corto de la empresa por su codigo (GOYDELSAC -> GOYDEL); el codigo si no esta en la lista. */
+export function nombreEmpresa(code: string | null): string {
+  return EMPRESAS.find((e) => e.code === code)?.label ?? code ?? "";
+}

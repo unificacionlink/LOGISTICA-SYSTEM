@@ -42,6 +42,10 @@ public class SalidaItem {
     @Column(name = "purchase_cost_reference")
     private BigDecimal purchaseCostReference;
 
+    /** DEC-L086: precio de venta de TDEM a la empresa del destino (null si es de TDEM o no hay precio). */
+    @Column(name = "sale_unit_price")
+    private BigDecimal saleUnitPrice;
+
     /** Recepcion en destino (ALM-03, DEC-L063): recibido = aceptado + observado + devuelto. */
     @Column(name = "dest_received_qty", nullable = false)
     private BigDecimal destReceivedQty = BigDecimal.ZERO;

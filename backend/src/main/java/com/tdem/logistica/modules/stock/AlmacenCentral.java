@@ -25,6 +25,15 @@ public class AlmacenCentral {
                 .orElseThrow(() -> ApiException.badRequest("No hay un almacen central del grupo configurado."));
     }
 
+    /**
+     * DEC-L086: la empresa central del grupo (TDEM), duena del almacen. Compra
+     * para las tres empresas (consolidados, RFQ y OC salen a su nombre), emite
+     * las Notas de Inventario y vende a GOYDEL y METRIN.
+     */
+    public com.tdem.logistica.entity.Empresa empresa() {
+        return obtener().getEmpresa();
+    }
+
     /** El almacen central, si esta configurado (para lecturas que no deben fallar sin el). */
     public java.util.Optional<Almacen> buscar() {
         return almacenRepository.findCentralDelGrupo();

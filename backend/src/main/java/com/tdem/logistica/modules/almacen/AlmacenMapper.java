@@ -112,7 +112,9 @@ final class AlmacenMapper {
                 n.getRequerimiento().getRequester() != null ? n.getRequerimiento().getRequester().getDisplayName() : null,
                 n.getPickedAt(),
                 n.getPackedAt(),
-                n.getPackingEvidenceUrl());
+                n.getPackingEvidenceUrl(),
+                n.getEmpresaVenta() != null ? n.getEmpresaVenta().getCode() : null,
+                n.getTotalSaleValue());
     }
 
     static NotaItemDto toDto(SalidaItem i) {
@@ -127,7 +129,8 @@ final class AlmacenMapper {
                 i.getDestReceivedQty(),
                 i.getDestAcceptedQty(),
                 i.getDestObservedQty(),
-                i.getDestReturnedQty());
+                i.getDestReturnedQty(),
+                i.getSaleUnitPrice());
     }
 
     static String sku(SalidaItem i) {

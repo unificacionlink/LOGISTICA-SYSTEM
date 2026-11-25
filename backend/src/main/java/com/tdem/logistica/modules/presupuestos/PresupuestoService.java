@@ -535,7 +535,7 @@ public class PresupuestoService {
 
     /**
      * Congela una version nueva: cantidades, precio de venta vigente (obligatorio)
-     * y el ultimo precio de compra de la empresa (OC no anulada; null si no es PEN
+     * y el ultimo precio de compra del grupo (TDEM compra para todas, DEC-L086; OC no anulada; null si no es PEN
      * o no hay compra, nunca se inventa).
      */
     private record Congelada(UUID id, int numero) {
@@ -551,10 +551,11 @@ public class PresupuestoService {
                 from presupuesto_linea l
                 join producto p on p.product_id = l.product_id
                 left join precio_venta_producto pv on pv.company_id = ? and pv.product_id = l.product_id and pv.active
+                -- DEC-L086: TDEM compra para las tres empresas: el ultimo costo es el del grupo.
                 left join lateral (
                   select oi.unit_cost, o.currency_code, o.order_id
                   from orden_item oi join orden_abastecimiento o on o.order_id = oi.order_id
-                  where oi.product_id = l.product_id and o.company_id = ? and o.status <> 'ANULADA'
+                  where oi.product_id = l.product_id and o.status <> 'ANULADA'
                   order by o.created_at desc, o.order_id desc limit 1) oc on true
                 where l.budget_id = ?
                 order by p.sku_base""", (rs, i) -> {
@@ -564,7 +565,7 @@ public class PresupuestoService {
             }
             return new Fila(rs.getObject(1, UUID.class), rs.getString(2), meses, rs.getBigDecimal(9),
                     rs.getBigDecimal(10), rs.getString(11), rs.getObject(12, UUID.class));
-        }, c.companyId(), c.companyId(), c.id());
+        }, c.companyId(), c.id());
         List<String> sinPrecio = filas.stream().filter(f -> f.venta() == null).map(Fila::sku).toList();
         if (filas.isEmpty() || !sinPrecio.isEmpty()) {
             throw ApiException.badRequest("No se puede aprobar: falta precio de venta vigente para "

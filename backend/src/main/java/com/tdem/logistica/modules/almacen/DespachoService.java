@@ -60,8 +60,10 @@ public class DespachoService {
     private final com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService;
     private final AvisosPlataforma avisos;
     private final com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository;
+    private final VentaInterna venta;
 
-    public DespachoService(RequerimientoRepository requerimientoRepository,
+    public DespachoService(VentaInterna venta,
+                           RequerimientoRepository requerimientoRepository,
                            RequerimientoItemRepository requerimientoItemRepository,
                            ReservaStockRepository reservaRepository,
                            SalidaRepository salidaRepository,
@@ -82,6 +84,7 @@ public class DespachoService {
                            com.tdem.logistica.modules.requerimientos.RequerimientoService requerimientoService,
                            AvisosPlataforma avisos,
                            com.tdem.logistica.repository.RecepcionItemRepository recepcionItemRepository) {
+        this.venta = venta;
         this.avisos = avisos;
         this.recepcionItemRepository = recepcionItemRepository;
         this.requerimientoRepository = requerimientoRepository;
@@ -230,12 +233,14 @@ public class DespachoService {
         }
         Usuario usuario = usuarioRepository.findById(principal.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
-        // Lock de la empresa: correlativo NI-<n>-<EMPRESA> sin duplicados en carrera.
-        Empresa empresa = empresaRepository.bloquear(r.getEmpresa().getCompanyId())
-                .orElseThrow(() -> ApiException.badRequest("Empresa del requerimiento no encontrada."));
+        Empresa empresa = r.getEmpresa();
         // DEC-L045: un solo almacen central (TDEM) para todas las empresas.
         Almacen almacen = almacenRepository.findCentralDelGrupo()
                 .orElseThrow(() -> ApiException.badRequest("No hay un almacen central del grupo configurado."));
+        // DEC-L086: la Nota de Inventario la emite TDEM, duena del almacen, con un solo correlativo
+        // (NI-<n>-TDEM...); el lock de la empresa evita duplicados en carrera.
+        Empresa emisora = empresaRepository.bloquear(almacen.getEmpresa().getCompanyId())
+                .orElseThrow(() -> ApiException.badRequest("Empresa del almacen central no encontrada."));
 
         Map<UUID, RequerimientoItem> itemsReq = requerimientoItemRepository.findByRequerimiento(requestId).stream()
                 .collect(Collectors.toMap(RequerimientoItem::getRequestItemId, Function.identity()));
@@ -256,6 +261,10 @@ public class DespachoService {
         if (aDespachar.isEmpty()) {
             throw ApiException.badRequest("Indica al menos una cantidad a despachar.");
         }
+        // DEC-L086: a un CECO de GOYDEL o METRIN, TDEM le vende al precio de venta de esa empresa.
+        Empresa compradora = venta.compradora(empresa);
+        Map<UUID, BigDecimal> precios = venta.precios(compradora, aDespachar.stream()
+                .map(in -> itemsReq.get(in.requestItemId()).getProducto().getProductId()).collect(Collectors.toSet()));
 
         Salida salida = new Salida();
         salida.setIssueId(UUID.randomUUID());
@@ -273,6 +282,7 @@ public class DespachoService {
         BigDecimal totalQty = BigDecimal.ZERO;
         BigDecimal totalValor = BigDecimal.ZERO;
         boolean valorConocido = false;
+        BigDecimal totalVenta = null;
         for (DespachoItemInput in : aDespachar) {
             RequerimientoItem item = itemsReq.get(in.requestItemId());
             BigDecimal costo = consumirReservas(item, in.qty());
@@ -285,7 +295,12 @@ public class DespachoService {
             si.setQty(in.qty());
             si.setRequerimientoItem(item);
             si.setPurchaseCostReference(costo);
+            BigDecimal precio = precios.get(item.getProducto().getProductId());
+            si.setSaleUnitPrice(precio);
             salidaItemRepository.insertar(si);
+            if (precio != null) {
+                totalVenta = (totalVenta == null ? BigDecimal.ZERO : totalVenta).add(precio.multiply(in.qty()));
+            }
 
             MovimientoInventario mov = new MovimientoInventario();
             mov.setInventoryMovementId(UUID.randomUUID());
@@ -308,12 +323,14 @@ public class DespachoService {
             }
         }
 
-        int numero = notaRepository.maxNumeroPorEmpresa(empresa.getCompanyId()) + 1;
+        int numero = notaRepository.maxNumeroPorEmpresa(emisora.getCompanyId()) + 1;
         NotaInventario nota = new NotaInventario();
         nota.setInventoryNoteId(UUID.randomUUID());
         nota.setNoteNumber(numero);
-        nota.setInventoryNoteCode("NI-" + numero + "-" + empresa.getCode());
-        nota.setEmpresa(empresa);
+        nota.setInventoryNoteCode("NI-" + numero + "-" + emisora.getCode());
+        nota.setEmpresa(emisora);
+        nota.setEmpresaVenta(compradora);
+        nota.setTotalSaleValue(totalVenta == null ? null : totalVenta.setScale(2, java.math.RoundingMode.HALF_UP));
         nota.setRequerimiento(r);
         nota.setSalida(salida);
         nota.setAlmacenOrigen(almacen);

@@ -15,6 +15,7 @@ import BotonDescarga from "../components/BotonDescarga";
 import PreparacionNota from "../components/almacen/PreparacionNota";
 import RecepcionDestinoPanel from "../components/almacen/RecepcionDestinoPanel";
 import { descargarPdfNota } from "../api/documentos";
+import { nombreEmpresa } from "../components/empresas";
 
 import CampoNumero from "../components/ui/CampoNumero";
 const labelClass = "rotulo";
@@ -126,6 +127,8 @@ export default function NotaInventarioDetalle() {
   const { nota, items, documentos } = detalle;
   const e = nota.envio;
   const conRecepcion = items.some((it) => it.destRecibido > 0);
+  // DEC-L086: lo despachado a un proyecto de GOYDEL o METRIN es venta de TDEM.
+  const venta = nota.empresaVentaCode !== null;
 
   return (
     <div>
@@ -153,9 +156,15 @@ export default function NotaInventarioDetalle() {
           </Dato>
           <Dato label="Estado del bien">{nota.itemState}</Dato>
           <Dato label="Unidades">{fmtCantidad(nota.totalItemQty)}</Dato>
-          <Dato label="Valor referencial">
-            {nota.totalValueSnapshot !== null ? `${fmtCantidad(nota.totalValueSnapshot)} PEN` : "—"}
-          </Dato>
+          {venta ? (
+            <Dato label={`Venta a ${nombreEmpresa(nota.empresaVentaCode)}`}>
+              {nota.totalSaleValue !== null ? `${fmtCantidad(nota.totalSaleValue)} PEN` : "Sin precio de venta"}
+            </Dato>
+          ) : (
+            <Dato label="Valor referencial">
+              {nota.totalValueSnapshot !== null ? `${fmtCantidad(nota.totalValueSnapshot)} PEN` : "—"}
+            </Dato>
+          )}
           <Dato label="Emitida">{fmtFecha(nota.issuedAt)}</Dato>
           {nota.comments && <Dato label="Comentarios">{nota.comments}</Dato>}
         </CardBody>
@@ -188,7 +197,7 @@ export default function NotaInventarioDetalle() {
                     <th className="px-5 py-2.5">Devuelto</th>
                   </>
                 )}
-                <th className="px-5 py-2.5">Costo ref.</th>
+                <th className="px-5 py-2.5">{venta ? "Precio venta" : "Costo ref."}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -209,7 +218,9 @@ export default function NotaInventarioDetalle() {
                       <td className="px-5 py-2.5 text-slate-600">{fmtCantidad(it.destDevuelto)}</td>
                     </>
                   )}
-                  <td className="px-5 py-2.5 text-slate-600">{it.purchaseCostReference ?? "—"}</td>
+                  <td className="px-5 py-2.5 text-slate-600">
+                    {(venta ? it.saleUnitPrice : it.purchaseCostReference) ?? "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>

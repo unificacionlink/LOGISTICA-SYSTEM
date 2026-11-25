@@ -388,6 +388,34 @@ class ConsolidacionComprasTest {
 	}
 
 	@Test
+	void tdemCompraParaLasTresEmpresasEnUnSoloConsolidado() {
+		// DEC-L086: lo que piden TDEM y GOYDEL del mismo producto se compra junto, a nombre de TDEM.
+		UsuarioPrincipal logistica = logistica();
+		UUID prov = proveedor("20100000021");
+		abastecimiento.reemplazarCobertura(producto("AC01010"), List.of(prov), logistica);
+		Req tdem = requerimiento("ADM", "APROVISIONAMIENTO", null, Map.of("AC01010-00", 2));
+		Req goydel = requerimientoDe("GOYDELSAC", "DEC86-G", Map.of("AC01010-00", 3));
+		aprobar(tdem);
+		aprobarComoGerencia(goydel);
+
+		ConsolidadoDto c = consolidado("AC01010-00");
+		assertEquals(0, c.totalQty().compareTo(new BigDecimal("5")), "un solo consolidado con lo de ambas empresas");
+		assertEquals("TDEMSRL", jdbc.queryForObject("""
+				select e.code from consolidacion c join empresa e on e.company_id = c.company_id
+				 where c.consolidation_id = ?""", String.class, c.consolidationId()));
+		assertEquals("GOYDELSAC", jdbc.queryForObject("""
+				select e.code from necesidad_compra n join empresa e on e.company_id = n.company_id
+				 where n.request_item_id = ?""", String.class, goydel.items.get("AC01010-00")),
+				"la necesidad conserva la empresa de su requerimiento");
+
+		List<RfqDto> rfqs = abastecimiento.prepararSolicitudes(List.of(c.consolidationId()), logistica);
+		assertEquals(1, rfqs.size());
+		assertEquals("TDEMSRL", jdbc.queryForObject("""
+				select e.code from rfq r join empresa e on e.company_id = r.company_id where r.rfq_id = ?""",
+				String.class, rfqs.get(0).rfqId()), "la solicitud de cotizacion sale de TDEM");
+	}
+
+	@Test
 	void soloLogisticaGestionaCompras() {
 		UsuarioPrincipal solicitante = new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"));
 		assertThrows(ApiException.class, () -> abastecimiento.listarNecesidades(solicitante));
@@ -408,6 +436,24 @@ class ConsolidacionComprasTest {
 		ordenCompra.decidir(orderId, new DecidirOrdenRequest("APROBADO", null),
 				new UsuarioPrincipal(usuario("gerencia@logistica.test"), List.of("GERENCIA")));
 		ordenCompra.liberar(orderId, new LiberarOrdenRequest(null), logistica());
+	}
+
+	private void aprobarComoGerencia(Req req) {
+		aprobacionService.decidir(req.approvalId, new DecidirAprobacionRequest("APROBADO", null, null),
+				new UsuarioPrincipal(usuario("gerencia@logistica.test"), List.of("GERENCIA")));
+	}
+
+	/** REQ de otra empresa, en un CECO propio que se crea si no existe. */
+	private Req requerimientoDe(String empresaCode, String ceco, Map<String, Integer> pedido) {
+		jdbc.update("""
+				insert into ceco (company_id, code, name) select company_id, ?, 'Proyecto ' || ? from empresa where code = ?
+				on conflict (company_id, code) do nothing""", ceco, ceco, empresaCode);
+		Req base = requerimiento("ADM", "APROVISIONAMIENTO", null, pedido);
+		jdbc.update("""
+				update requerimiento set company_id = e.company_id, ceco_id = c.ceco_id
+				  from empresa e join ceco c on c.company_id = e.company_id and c.code = ?
+				 where e.code = ? and requerimiento.request_id = ?""", ceco, empresaCode, base.id);
+		return base;
 	}
 
 	private void aprobar(Req req) {

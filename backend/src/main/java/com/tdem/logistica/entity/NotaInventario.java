@@ -67,6 +67,14 @@ public class NotaInventario {
     @Column(name = "total_value_snapshot")
     private BigDecimal totalValueSnapshot;
 
+    /** DEC-L086: empresa a la que TDEM vende lo despachado; null si el destino es de TDEM. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sale_company_id")
+    private Empresa empresaVenta;
+
+    @Column(name = "total_sale_value")
+    private BigDecimal totalSaleValue;
+
     @Column(name = "total_item_qty")
     private BigDecimal totalItemQty;
 

@@ -175,10 +175,10 @@ class EntregaDirectaTest {
 				"select variant_id from producto_variante where internal_variant_code = 'AC01006-00'", UUID.class);
 		List<CrearOrdenDirectaRequest.Linea> lineas = List.of(
 				new CrearOrdenDirectaRequest.Linea(variante, null, new BigDecimal("2"), BigDecimal.TEN));
-		assertThrows(ApiException.class, () -> directas.crear(new CrearOrdenDirectaRequest("TDEMSRL", prov, "PEN",
+		assertThrows(ApiException.class, () -> directas.crear(new CrearOrdenDirectaRequest(prov, "PEN",
 				"CONTADO", "ALMACEN_CLIENTE", null, null, "MAS_IGV", null, null, null, lineas, true), log));
 
-		OrdenDto oc = directas.crear(new CrearOrdenDirectaRequest("TDEMSRL", prov, "PEN", "CONTADO", "ALMACEN_CLIENTE",
+		OrdenDto oc = directas.crear(new CrearOrdenDirectaRequest(prov, "PEN", "CONTADO", "ALMACEN_CLIENTE",
 				"Obra Lima", null, "MAS_IGV", null, ceco("ADM"), null, lineas, true), log);
 		assertTrue(oc.entregaDirecta());
 		ordenCompra.liberar(oc.orderId(), new com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest(null), log);

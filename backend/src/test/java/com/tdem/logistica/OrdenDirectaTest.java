@@ -74,7 +74,7 @@ class OrdenDirectaTest {
 		UsuarioPrincipal log = logistica();
 		UUID prov = proveedor("20100000081");
 		String req = requerimiento();
-		OrdenDto oc = directas.crear(request(prov, "TDEMSRL", cecoTdem(), req, List.of(
+		OrdenDto oc = directas.crear(request(prov, cecoTdem(), req, List.of(
 				new Linea(variante("AC01006-00"), null, new BigDecimal("3"), new BigDecimal("10")),
 				new Linea(null, "Instalación del equipo en obra", BigDecimal.ONE, new BigDecimal("70")))), log);
 
@@ -112,7 +112,7 @@ class OrdenDirectaTest {
 	@Test
 	void soloServiciosNoSeLiberaYSeCierraAlPagar() {
 		UsuarioPrincipal log = logistica();
-		OrdenDto oc = directas.crear(request(proveedor("20100000082"), "TDEMSRL", null, null, List.of(
+		OrdenDto oc = directas.crear(request(proveedor("20100000082"), null, null, List.of(
 				new Linea(null, "Mantenimiento preventivo de camioneta", BigDecimal.ONE, new BigDecimal("450")))), log);
 		assertTrue(oc.servicesOnly());
 		assertNull(oc.bloqueoRecepcion());
@@ -131,27 +131,27 @@ class OrdenDirectaTest {
 		UsuarioPrincipal log = logistica();
 		UUID prov = proveedor("20100000083");
 		Linea servicio = new Linea(null, "Servicio", BigDecimal.ONE, BigDecimal.TEN);
-		assertThrows(ApiException.class, () -> directas.crear(request(prov, "TDEMSRL", null, null, List.of(servicio)),
+		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null, List.of(servicio)),
 				new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"))));
-		assertThrows(ApiException.class, () -> directas.crear(request(prov, "TDEMSRL", null, null,
+		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null,
 				List.of(new Linea(null, " ", BigDecimal.ONE, BigDecimal.TEN))), log), "servicio sin descripcion");
-		assertThrows(ApiException.class, () -> directas.crear(request(prov, "METRIN", cecoTdem(), null,
-				List.of(servicio)), log), "CECO de otra empresa");
-		assertThrows(ApiException.class, () -> directas.crear(request(prov, "TDEMSRL", null, "REQ-NO-EXISTE",
+		assertThrows(ApiException.class, () -> directas.crear(request(prov, cecoGoydel(), requerimiento(),
+				List.of(servicio)), log), "requerimiento de otra empresa que el CECO");
+		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, "REQ-NO-EXISTE",
 				List.of(servicio)), log));
 		UUID v = variante("AC01007-00");
-		assertThrows(ApiException.class, () -> directas.crear(request(prov, "TDEMSRL", null, null, List.of(
+		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null, List.of(
 				new Linea(v, null, BigDecimal.ONE, BigDecimal.TEN), new Linea(v, null, BigDecimal.ONE, BigDecimal.TEN))),
 				log), "producto repetido");
 		jdbc.update("update proveedor set active = false where supplier_id = ?", prov);
-		assertThrows(ApiException.class, () -> directas.crear(request(prov, "TDEMSRL", null, null, List.of(servicio)),
+		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null, List.of(servicio)),
 				log), "proveedor no habilitado");
 	}
 
 	// ------------------------------------------------------------------
 
-	private static CrearOrdenDirectaRequest request(UUID prov, String empresa, UUID ceco, String req, List<Linea> lineas) {
-		return new CrearOrdenDirectaRequest(empresa, prov, "PEN", "CONTADO", "ALMACEN_CLIENTE", "Almacén central",
+	private static CrearOrdenDirectaRequest request(UUID prov, UUID ceco, String req, List<Linea> lineas) {
+		return new CrearOrdenDirectaRequest(prov, "PEN", "CONTADO", "ALMACEN_CLIENTE", "Almacén central",
 				"3 días", "MAS_IGV", null, ceco, req, lineas, null);
 	}
 
@@ -169,6 +169,14 @@ class OrdenDirectaTest {
 		return jdbc.queryForObject("""
 				select c.ceco_id from ceco c join empresa e on e.company_id = c.company_id
 				 where e.code = 'TDEMSRL' and c.code = 'ADM'""", UUID.class);
+	}
+
+	private UUID cecoGoydel() {
+		return jdbc.queryForObject("""
+				insert into ceco (company_id, code, name)
+				select company_id, 'OD-G1', 'Proyecto GOYDEL' from empresa where code = 'GOYDELSAC'
+				on conflict (company_id, code) do update set name = excluded.name
+				returning ceco_id""", UUID.class);
 	}
 
 	private String requerimiento() {

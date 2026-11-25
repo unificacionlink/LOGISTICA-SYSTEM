@@ -1,27 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Activity, ClipboardList, Wallet } from "lucide-react";
-import { descargarDemanda, obtenerDashboard, obtenerDemanda, obtenerGasto } from "../api/dashboard";
+import { Activity, ClipboardList, Handshake, Wallet } from "lucide-react";
+import { descargarDemanda, descargarVentas, obtenerDashboard, obtenerDemanda, obtenerGasto, obtenerVentas } from "../api/dashboard";
 import { obtenerClasificacion } from "../api/maestro";
 import type { Familia } from "../api/types";
 import { useDatos } from "../api/useDatos";
+import { useAuth } from "../auth/AuthContext";
 import BotonDescarga from "./BotonDescarga";
 import PestanaDemanda from "./dashboard/PestanaDemanda";
 import PestanaGasto from "./dashboard/PestanaGasto";
 import PestanaProceso from "./dashboard/PestanaProceso";
+import PestanaVentas from "./dashboard/PestanaVentas";
 import { EMPRESAS } from "./empresas";
 import FiltroFamilia from "./FiltroFamilia";
 import Alert from "./ui/Alert";
 import Pestanas, { type Pestana } from "./ui/Pestanas";
 import { Skeleton } from "./ui/Skeleton";
 
-type Vista = "proceso" | "demanda" | "gasto";
+type Vista = "proceso" | "demanda" | "gasto" | "ventas";
 
 const PESTANAS: Pestana<Vista>[] = [
   { id: "proceso", label: "Proceso", icon: Activity },
   { id: "demanda", label: "Demanda", icon: ClipboardList },
   { id: "gasto", label: "Gasto", icon: Wallet },
 ];
+/** DEC-L086: lo que TDEM vende a GOYDEL y METRIN; no lo ve el aprobador de CECO. */
+const VENTAS: Pestana<Vista> = { id: "ventas", label: "Ventas", icon: Handshake };
 
 const PERIODOS = [
   { dias: 30, label: "30 días" },
@@ -81,7 +85,9 @@ function useFamilias(activo: boolean): Familia[] {
  */
 export default function Dashboard() {
   const [params, setParams] = useSearchParams();
-  const vista = (PESTANAS.some((p) => p.id === params.get("tab")) ? params.get("tab") : "proceso") as Vista;
+  const { tieneAlgunRol } = useAuth();
+  const pestanas = tieneAlgunRol("LOGISTICA", "ADMIN", "GERENCIA") ? [...PESTANAS, VENTAS] : PESTANAS;
+  const vista = (pestanas.some((p) => p.id === params.get("tab")) ? params.get("tab") : "proceso") as Vista;
   const [dias, setDias] = useState(90);
   const [empresa, setEmpresa] = useState<string | null>(null);
   const [familia, setFamilia] = useState("");
@@ -99,7 +105,10 @@ export default function Dashboard() {
   const gasto = useDatos(vista === "gasto" ? `dashboard-gasto:${filtroClave}` : null, () => obtenerGasto(dias, empresa), {
     conservar: true,
   });
-  const activa = vista === "proceso" ? proceso : vista === "demanda" ? demanda : gasto;
+  const ventas = useDatos(vista === "ventas" ? `dashboard-ventas:${filtroClave}` : null, () => obtenerVentas(dias, empresa), {
+    conservar: true,
+  });
+  const activa = vista === "proceso" ? proceso : vista === "demanda" ? demanda : vista === "gasto" ? gasto : ventas;
 
   function cambiarVista(id: Vista) {
     setParams(
@@ -115,7 +124,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <Pestanas pestanas={PESTANAS} activa={vista} onCambiar={cambiarVista} />
+      <Pestanas pestanas={pestanas} activa={vista} onCambiar={cambiarVista} />
 
       {/* Filtros: una sola fila, afectan a toda la pestana. */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -161,6 +170,11 @@ export default function Dashboard() {
             </span>
           </>
         )}
+        {vista === "ventas" && (
+          <span className="sm:ml-auto">
+            <BotonDescarga tipo="excel" etiqueta="Excel" descargar={() => descargarVentas(dias, empresa)} />
+          </span>
+        )}
       </div>
 
       {activa.error && <Alert tone="danger" className="mb-4">{activa.error}</Alert>}
@@ -173,6 +187,7 @@ export default function Dashboard() {
           {vista === "proceso" && proceso.datos && <PestanaProceso data={proceso.datos} />}
           {vista === "demanda" && demanda.datos && <PestanaDemanda data={demanda.datos} />}
           {vista === "gasto" && gasto.datos && <PestanaGasto data={gasto.datos} />}
+          {vista === "ventas" && ventas.datos && <PestanaVentas data={ventas.datos} />}
         </div>
       )}
     </div>

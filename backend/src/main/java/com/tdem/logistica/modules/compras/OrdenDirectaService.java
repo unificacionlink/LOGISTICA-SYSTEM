@@ -15,9 +15,9 @@ import com.tdem.logistica.entity.Proveedor;
 import com.tdem.logistica.entity.Usuario;
 import com.tdem.logistica.modules.compras.dto.CrearOrdenDirectaRequest;
 import com.tdem.logistica.modules.compras.dto.OrdenDto;
+import com.tdem.logistica.modules.stock.AlmacenCentral;
 import com.tdem.logistica.realtime.RealtimeNotifier;
 import com.tdem.logistica.repository.CecoRepository;
-import com.tdem.logistica.repository.EmpresaRepository;
 import com.tdem.logistica.repository.MonedaRepository;
 import com.tdem.logistica.repository.OrdenAbastecimientoRepository;
 import com.tdem.logistica.repository.OrdenItemRepository;
@@ -49,6 +49,7 @@ import java.util.stream.Collectors;
  * OC directa (DEC-L080): Logistica compra sin solicitud de cotizacion, con
  * productos del catalogo y/o servicios en texto libre. Sale aprobada (la emite
  * quien decide compras) y con las mismas condiciones del formato F-LOG-09.
+ * Sale siempre a nombre de TDEM, que compra para el grupo (DEC-L086).
  * Los productos siguen el camino normal: liberar y recibir en el almacen
  * central. Una orden solo de servicios no pasa por el almacen y se cierra al
  * registrar su pago.
@@ -65,7 +66,7 @@ public class OrdenDirectaService {
 
     private final OrdenAbastecimientoRepository ordenRepository;
     private final OrdenItemRepository ordenItemRepository;
-    private final EmpresaRepository empresaRepository;
+    private final AlmacenCentral almacenCentral;
     private final ProveedorRepository proveedorRepository;
     private final MonedaRepository monedaRepository;
     private final CecoRepository cecoRepository;
@@ -77,14 +78,14 @@ public class OrdenDirectaService {
     private final RealtimeNotifier realtime;
 
     public OrdenDirectaService(OrdenAbastecimientoRepository ordenRepository, OrdenItemRepository ordenItemRepository,
-                               EmpresaRepository empresaRepository, ProveedorRepository proveedorRepository,
+                               AlmacenCentral almacenCentral, ProveedorRepository proveedorRepository,
                                MonedaRepository monedaRepository, CecoRepository cecoRepository,
                                ProductoVarianteRepository varianteRepository, UsuarioRepository usuarioRepository,
                                JdbcTemplate jdbc, OrigenCompras origen, Auditoria auditoria,
                                RealtimeNotifier realtime) {
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
-        this.empresaRepository = empresaRepository;
+        this.almacenCentral = almacenCentral;
         this.proveedorRepository = proveedorRepository;
         this.monedaRepository = monedaRepository;
         this.cecoRepository = cecoRepository;
@@ -101,9 +102,8 @@ public class OrdenDirectaService {
         if (!principal.tieneAlgunRol(Roles.LOGISTICA, Roles.ADMIN)) {
             throw ApiException.forbidden("No tienes permiso para emitir ordenes de compra.");
         }
-        Empresa empresa = empresaRepository.findByCode(r.empresaCode().trim())
-                .filter(Empresa::isActive)
-                .orElseThrow(() -> ApiException.badRequest("Empresa no encontrada."));
+        // DEC-L086: TDEM compra para las tres empresas; el CECO y el REQ dicen para quien.
+        Empresa empresa = almacenCentral.empresa();
         Proveedor proveedor = proveedorRepository.findById(r.supplierId())
                 .orElseThrow(() -> ApiException.badRequest("Proveedor no encontrado."));
         if (!proveedor.isActive()) {
@@ -115,8 +115,8 @@ public class OrdenDirectaService {
         String formaPago = opcion(r.paymentCondition(), FORMAS_PAGO, "Forma de pago no valida.");
         String entrega = opcion(r.deliveryMode(), ENTREGAS, "Modalidad de entrega no valida.");
         String modoIgv = ImpuestoOrden.validarModo(r.taxMode());
-        Ceco ceco = ceco(r.cecoId(), empresa);
-        UUID requestId = requerimiento(r.requestCode(), empresa);
+        Ceco ceco = ceco(r.cecoId());
+        UUID requestId = requerimiento(r.requestCode(), ceco);
         Usuario usuario = usuarioRepository.findById(principal.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
 
@@ -229,20 +229,17 @@ public class OrdenDirectaService {
         return items;
     }
 
-    private Ceco ceco(UUID cecoId, Empresa empresa) {
+    private Ceco ceco(UUID cecoId) {
         if (cecoId == null) {
             return null;
         }
-        Ceco c = cecoRepository.findById(cecoId)
+        return cecoRepository.findById(cecoId)
                 .filter(Ceco::isActive)
                 .orElseThrow(() -> ApiException.badRequest("CECO no encontrado."));
-        if (!c.getEmpresa().getCompanyId().equals(empresa.getCompanyId())) {
-            throw ApiException.badRequest("El CECO no es de la empresa de la orden.");
-        }
-        return c;
     }
 
-    private UUID requerimiento(String requestCode, Empresa empresa) {
+    /** El REQ de referencia; si tambien se indico el CECO, debe ser de la misma empresa. */
+    private UUID requerimiento(String requestCode, Ceco ceco) {
         String codigo = limpio(requestCode);
         if (codigo == null) {
             return null;
@@ -252,8 +249,8 @@ public class OrdenDirectaService {
         if (filas.isEmpty()) {
             throw ApiException.badRequest("No existe el requerimiento " + codigo + ".");
         }
-        if (!empresa.getCompanyId().equals(filas.get(0).get("company_id"))) {
-            throw ApiException.badRequest("El requerimiento " + codigo + " no es de la empresa de la orden.");
+        if (ceco != null && !ceco.getEmpresa().getCompanyId().equals(filas.get(0).get("company_id"))) {
+            throw ApiException.badRequest("El requerimiento " + codigo + " es de otra empresa que el CECO.");
         }
         return (UUID) filas.get(0).get("request_id");
     }

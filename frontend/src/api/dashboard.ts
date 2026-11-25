@@ -1,5 +1,5 @@
 import { http } from "./http";
-import type { Dashboard, DemandaDashboard, GastoDashboard } from "./types";
+import type { Dashboard, DemandaDashboard, GastoDashboard, VentasDashboard } from "./types";
 
 /** Filtros comunes de las pestañas del dashboard (DEC-L083). */
 export interface FiltrosDashboard {
@@ -31,4 +31,14 @@ export function descargarDemanda(filtros: FiltrosDashboard) {
 
 export function obtenerGasto(dias: number, empresa: string | null) {
   return http.get<GastoDashboard>(`/api/dashboard/gasto?${consulta({ dias, empresa })}`);
+}
+
+/** DEC-L086: lo que TDEM vendio a GOYDEL y METRIN (Logistica, Gerencia y Admin). */
+export function obtenerVentas(dias: number, empresa: string | null) {
+  return http.get<VentasDashboard>(`/api/dashboard/ventas?${consulta({ dias, empresa })}`);
+}
+
+export function descargarVentas(dias: number, empresa: string | null) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  return http.descargar(`/api/dashboard/ventas/excel?${consulta({ dias, empresa })}`, `VENTAS_EMPRESAS_${hoy}.xlsx`);
 }

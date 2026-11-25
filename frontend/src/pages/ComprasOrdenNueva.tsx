@@ -64,7 +64,6 @@ export default function ComprasOrdenNueva() {
   const proveedores = useDatos("proveedores", () => listarProveedores(), { fresco: 5 * 60_000 });
   const monedas = useDatos("monedas", listarMonedas, { fresco: 60 * 60_000 });
 
-  const [empresa, setEmpresa] = useState(EMPRESAS[0].code);
   const [proveedor, setProveedor] = useState<string | null>(null);
   const [moneda, setMoneda] = useState("PEN");
   const [formaPago, setFormaPago] = useState("CREDITO_30");
@@ -81,10 +80,13 @@ export default function ComprasOrdenNueva() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cecos = useMemo(
-    () => (catalogo.datos?.cecos ?? []).filter((c) => c.empresaCode === empresa),
-    [catalogo.datos, empresa],
-  );
+  // DEC-L086: la orden sale siempre a nombre de TDEM; el CECO puede ser de cualquiera de las tres empresas.
+  const gruposCeco = useMemo(() => {
+    const cecos = catalogo.datos?.cecos ?? [];
+    return EMPRESAS.map((e) => ({ ...e, cecos: cecos.filter((c) => c.empresaCode === e.code) })).filter(
+      (g) => g.cecos.length > 0,
+    );
+  }, [catalogo.datos]);
   const suma = lineas.reduce((acc, l) => acc + (Number(l.cantidad) || 0) * (Number(l.precio) || 0), 0);
   const t = totales(suma, modoIgv);
 
@@ -124,7 +126,6 @@ export default function ComprasOrdenNueva() {
     setGuardando(true);
     try {
       const res = await crearOrdenDirecta({
-        empresaCode: empresa,
         supplierId: proveedor!,
         currencyCode: moneda,
         paymentCondition: formaPago,
@@ -187,23 +188,7 @@ export default function ComprasOrdenNueva() {
           <Card className="mb-4">
             <CardBody className="flex flex-col gap-4">
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Empresa" required>
-                  <select
-                    className={`${inputClass} w-full`}
-                    value={empresa}
-                    onChange={(e) => {
-                      setEmpresa(e.target.value);
-                      setCecoId("");
-                    }}
-                  >
-                    {EMPRESAS.map((e) => (
-                      <option key={e.code} value={e.code}>
-                        {e.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Proveedor" required className="sm:col-span-2">
+                <Field label="Proveedor" required className="sm:col-span-3">
                   <ProveedorCombobox proveedores={proveedores.datos ?? []} valor={proveedor} onSeleccionar={setProveedor} />
                 </Field>
                 <Field label="Moneda">
@@ -266,10 +251,14 @@ export default function ComprasOrdenNueva() {
                       }}
                     >
                       <option value="">Sin CECO</option>
-                      {cecos.map((c) => (
-                        <option key={c.cecoId} value={c.cecoId}>
-                          {c.code} · {c.name}
-                        </option>
+                      {gruposCeco.map((g) => (
+                        <optgroup key={g.code} label={g.label}>
+                          {g.cecos.map((c) => (
+                            <option key={c.cecoId} value={c.cecoId}>
+                              {c.code} · {c.name}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </Field>

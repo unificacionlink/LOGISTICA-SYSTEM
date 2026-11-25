@@ -45,4 +45,8 @@ public class RecepcionItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "need_id")
     private NecesidadCompra necesidad;
+
+    /** DEC-L086: entrega directa a un CECO de GOYDEL o METRIN, precio de venta de TDEM a esa empresa. */
+    @Column(name = "sale_unit_price")
+    private BigDecimal saleUnitPrice;
 }

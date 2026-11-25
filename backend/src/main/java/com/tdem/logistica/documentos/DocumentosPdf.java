@@ -169,9 +169,10 @@ final class DocumentosPdf {
 
     static byte[] notaInventario(NotaInventarioDetalleDto d, String pie) {
         NotaInventarioDto n = d.nota();
+        boolean venta = n.empresaVentaCode() != null;
         PdfCorporativo pdf = new PdfCorporativo("NOTA DE INVENTARIO", n.inventoryNoteCode(), n.empresaCode(), PLANTILLA_NI, pie);
         pdf.seccion("Datos de la nota");
-        pdf.campos(List.of(
+        List<Campo> campos = new ArrayList<>(List.of(
                 Campo.de("Requerimiento", n.requestCode()),
                 Campo.de("Solicitante", n.solicitante()),
                 Campo.de("Estado", etiqueta(n.status())),
@@ -182,26 +183,34 @@ final class DocumentosPdf {
                 Campo.de("Destino (CECO)", ceco(n.cecoCodigo(), n.cecoNombre())),
                 Campo.de("Estado de artículos", etiqueta(n.itemState())),
                 Campo.de("Total de ítems", cantidad(n.totalItemQty())),
-                Campo.de("Total de bultos", n.packageCount() != null ? n.packageCount().toString() : null),
-                Campo.de("Valor total", n.totalValueSnapshot() != null ? "PEN " + monto(n.totalValueSnapshot()) : null)));
+                Campo.de("Total de bultos", n.packageCount() != null ? n.packageCount().toString() : null)));
+        if (venta) {
+            // DEC-L086: a GOYDEL o METRIN es venta de TDEM, valorizada a su precio de venta.
+            campos.add(Campo.de("Vendido a", n.empresaVentaCode()));
+            campos.add(Campo.de("Valor de venta",
+                    n.totalSaleValue() != null ? "PEN " + monto(n.totalSaleValue()) : "Sin precio de venta"));
+        } else {
+            campos.add(Campo.de("Valor total", n.totalValueSnapshot() != null ? "PEN " + monto(n.totalValueSnapshot()) : null));
+        }
+        pdf.campos(campos);
 
         pdf.seccion("Productos despachados");
         List<List<String>> filas = new ArrayList<>();
         int pos = 1;
         for (NotaItemDto i : d.items()) {
-            BigDecimal total = i.purchaseCostReference() != null && i.qty() != null
-                    ? i.purchaseCostReference().multiply(i.qty()) : null;
+            BigDecimal unitario = venta ? i.saleUnitPrice() : i.purchaseCostReference();
+            BigDecimal total = unitario != null && i.qty() != null ? unitario.multiply(i.qty()) : null;
             filas.add(List.of(String.valueOf(pos++), sku(i.skuBase(), i.codigoVariante()),
                     producto(i.nombreProducto(), i.atributo()), cantidad(i.qty()),
-                    monto(i.purchaseCostReference()), monto(total)));
+                    monto(unitario), monto(total)));
         }
         pdf.tabla(List.of(
                 Columna.numero("#", 0.5f),
                 Columna.texto("SKU", 1.6f),
                 Columna.texto("Producto", 5f),
                 Columna.numero("Cantidad", 1.1f),
-                Columna.numero("Valor unit.", 1.4f),
-                Columna.numero("Valor total", 1.5f)), filas);
+                Columna.numero(venta ? "Precio venta" : "Valor unit.", 1.4f),
+                Columna.numero(venta ? "Total venta" : "Valor total", 1.5f)), filas);
 
         EnvioDto e = n.envio();
         if (e != null) {

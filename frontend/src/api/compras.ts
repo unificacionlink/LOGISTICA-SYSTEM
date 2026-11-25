@@ -237,8 +237,8 @@ export function liberarOrden(orderId: string, nota?: string) {
   return http.post<Orden>(`/api/compras/ordenes/${orderId}/liberar`, { nota: nota || null });
 }
 
+/** DEC-L086: sale siempre a nombre de TDEM; el CECO y el REQ dicen para qué empresa es. */
 export interface OrdenDirectaInput {
-  empresaCode: string;
   supplierId: string;
   currencyCode: string;
   paymentCondition: string;

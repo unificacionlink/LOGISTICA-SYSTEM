@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.67.0",
+    titulo: "TDEM compra para las tres empresas",
+    cambios: [
+      "Todas las compras a proveedores salen a nombre de TDEM: lo que piden TDEM, GOYDEL y METRIN del mismo producto se compra junto.",
+      "La orden de compra directa ya no pide empresa; el CECO puede ser de cualquiera de las tres.",
+      "Las Notas de Inventario las emite TDEM. Lo que se entrega a un proyecto de GOYDEL o METRIN queda como venta, al precio de venta de esa empresa.",
+      "Nueva pestaña Ventas en Inicio: lo vendido a GOYDEL y METRIN por mes y CECO, con descarga en Excel para facturar.",
+    ],
+  },
+  {
     version: "0.66.1",
     titulo: "Recibir en proyecto y CECOs por empresa",
     cambios: [

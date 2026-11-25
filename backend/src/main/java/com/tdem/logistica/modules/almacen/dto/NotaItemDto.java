@@ -14,5 +14,7 @@ public record NotaItemDto(
         BigDecimal destRecibido,
         BigDecimal destAceptado,
         BigDecimal destObservado,
-        BigDecimal destDevuelto) {
+        BigDecimal destDevuelto,
+        /* DEC-L086: precio de venta de TDEM a la empresa del destino (null si no es venta o no hay precio). */
+        BigDecimal saleUnitPrice) {
 }

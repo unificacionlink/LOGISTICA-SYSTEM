@@ -14,11 +14,12 @@ import java.util.UUID;
 
 /**
  * OC directa (DEC-L080): sin cotizacion. CECO y requerimiento son referencias
- * opcionales. Cada linea es un producto del catalogo ({@code variantId}) o un
- * servicio (sin variante, con descripcion).
+ * opcionales, de cualquiera de las tres empresas: la orden sale siempre a
+ * nombre de TDEM, que compra para el grupo (DEC-L086). Cada linea es un
+ * producto del catalogo ({@code variantId}) o un servicio (sin variante, con
+ * descripcion).
  */
 public record CrearOrdenDirectaRequest(
-        @NotBlank(message = "Selecciona la empresa.") String empresaCode,
         @NotNull(message = "Selecciona el proveedor.") UUID supplierId,
         @NotBlank(message = "Selecciona la moneda.") String currencyCode,
         @NotBlank(message = "Selecciona la forma de pago.") String paymentCondition,

@@ -30,11 +30,11 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>Al aprobar, el faltante de cada item (lo no reservado de stock) crea una
  *       necesidad. Si la regla de Caja Chica no aplica entra sola al
- *       consolidado ABIERTO de su empresa + SKU + unidad; si aplica queda
- *       PENDIENTE_RUTA hasta que Logistica decida.</li>
+ *       consolidado ABIERTO de TDEM + SKU + unidad (DEC-L086: TDEM compra para
+ *       las tres empresas); si aplica queda PENDIENTE_RUTA hasta que Logistica decida.</li>
  *   <li>Preparar solicitudes cierra el consolidado (EN_COTIZACION) y agrega una
  *       linea por cada proveedor habilitado del producto a la RFQ BORRADOR de
- *       esa empresa + proveedor (una RFQ, varios productos).</li>
+ *       TDEM + proveedor (una RFQ, varios productos).</li>
  *   <li>Cada consolidado se adjudica a una linea cotizada (proveedores
  *       distintos por producto) y la OC se emite por cotizacion, con todos sus
  *       productos adjudicados.</li>
@@ -71,8 +71,10 @@ public class AbastecimientoService {
     private final OrigenCompras origen;
     private final Auditoria auditoria;
     private final OrdenCompraService ordenCompra;
+    private final com.tdem.logistica.modules.stock.AlmacenCentral almacenCentral;
 
-    public AbastecimientoService(JdbcTemplate jdbc, NamedParameterJdbcTemplate named,
+    public AbastecimientoService(com.tdem.logistica.modules.stock.AlmacenCentral almacenCentral,
+                                 JdbcTemplate jdbc, NamedParameterJdbcTemplate named,
                                  NecesidadCompraRepository necesidadRepository,
                                  ConsolidacionRepository consolidacionRepository,
                                  RequerimientoItemRepository requerimientoItemRepository,
@@ -84,6 +86,7 @@ public class AbastecimientoService {
                                  UsuarioRepository usuarioRepository, CajaChicaService cajaChicaService, StockService stockService,
                                  OrigenCompras origen, Auditoria auditoria, OrdenCompraService ordenCompra) {
         this.ordenCompra = ordenCompra;
+        this.almacenCentral = almacenCentral;
         this.jdbc = jdbc;
         this.named = named;
         this.necesidadRepository = necesidadRepository;
@@ -178,30 +181,35 @@ public class AbastecimientoService {
         return companyId + "|" + productId + "|" + (variantId != null ? variantId : "") + "|" + uomId;
     }
 
-    private static String claveConsolidado(NecesidadCompra n) {
-        return claveConsolidado(n.getEmpresa().getCompanyId(), n.getProducto().getProductId(),
+    private static String claveConsolidado(UUID companyId, NecesidadCompra n) {
+        return claveConsolidado(companyId, n.getProducto().getProductId(),
                 n.getVariante() != null ? n.getVariante().getVariantId() : null, n.getUom().getUomId());
     }
 
     /**
-     * Suma cada necesidad al consolidado ABIERTO de su empresa + SKU + unidad (lo
-     * crea si no hay), en tres idas a la BD sea cual sea la cantidad (DEC-L074).
-     * El indice unico parcial uq_consolidacion_abierta garantiza uno solo por
-     * clave; "on conflict do nothing" + "for update" (en orden de id, sin
-     * interbloqueos) lo hace seguro ante dos aprobaciones simultaneas.
+     * Suma cada necesidad al consolidado ABIERTO de la empresa central + SKU +
+     * unidad (lo crea si no hay), en tres idas a la BD sea cual sea la cantidad
+     * (DEC-L074). DEC-L086: TDEM compra para las tres empresas, asi que lo que
+     * piden TDEM, GOYDEL y METRIN se junta en un solo consolidado por producto;
+     * la necesidad conserva la empresa de su REQ. El indice unico parcial
+     * uq_consolidacion_abierta garantiza uno solo por clave; "on conflict do
+     * nothing" + "for update" (en orden de id, sin interbloqueos) lo hace seguro
+     * ante dos aprobaciones simultaneas.
      */
     private void agregarAConsolidados(List<NecesidadCompra> necesidades) {
         if (necesidades.isEmpty()) {
             return;
         }
+        Empresa central = almacenCentral.empresa();
+        UUID centralId = central.getCompanyId();
         Map<String, NecesidadCompra> porClave = new LinkedHashMap<>();
         for (NecesidadCompra n : necesidades) {
-            porClave.putIfAbsent(claveConsolidado(n), n);
+            porClave.putIfAbsent(claveConsolidado(centralId, n), n);
         }
         List<Object[]> altas = new ArrayList<>();
         for (NecesidadCompra n : porClave.values()) {
-            altas.add(new Object[] {UUID.randomUUID(), CodigoCompra.generar("CON", n.getEmpresa().getCode()),
-                    n.getEmpresa().getCompanyId(), n.getProducto().getProductId(),
+            altas.add(new Object[] {UUID.randomUUID(), CodigoCompra.generar("CON", central.getCode()),
+                    centralId, n.getProducto().getProductId(),
                     n.getVariante() != null ? n.getVariante().getVariantId() : null, n.getUom().getUomId()});
         }
         jdbc.batchUpdate("""
@@ -211,14 +219,13 @@ public class AbastecimientoService {
                 on conflict (company_id, product_id, (coalesce(variant_id, '00000000-0000-0000-0000-000000000000'::uuid)), uom_id)
                   where status = 'ABIERTA' do nothing""", altas);
 
-        List<UUID> empresas = porClave.values().stream().map(n -> n.getEmpresa().getCompanyId()).distinct().toList();
         List<UUID> productos = porClave.values().stream().map(n -> n.getProducto().getProductId()).distinct().toList();
         Map<String, UUID> abierto = new HashMap<>();
         named.query("""
                 select consolidation_id, company_id, product_id, variant_id, uom_id from consolidacion
-                where status = 'ABIERTA' and company_id in (:empresas) and product_id in (:productos)
+                where status = 'ABIERTA' and company_id = :central and product_id in (:productos)
                 order by consolidation_id for update""",
-                new MapSqlParameterSource().addValue("empresas", empresas).addValue("productos", productos),
+                new MapSqlParameterSource().addValue("central", centralId).addValue("productos", productos),
                 rs -> {
                     abierto.put(claveConsolidado(rs.getObject(2, UUID.class), rs.getObject(3, UUID.class),
                             rs.getObject(4, UUID.class), rs.getObject(5, UUID.class)), rs.getObject(1, UUID.class));
@@ -226,9 +233,9 @@ public class AbastecimientoService {
 
         Map<UUID, BigDecimal> suma = new LinkedHashMap<>();
         for (NecesidadCompra n : necesidades) {
-            UUID id = abierto.get(claveConsolidado(n));
+            UUID id = abierto.get(claveConsolidado(centralId, n));
             if (id == null) {
-                throw new IllegalStateException("Sin consolidado abierto para " + claveConsolidado(n));
+                throw new IllegalStateException("Sin consolidado abierto para " + claveConsolidado(centralId, n));
             }
             suma.merge(id, n.getQty(), BigDecimal::add);
             n.setConsolidacion(consolidacionRepository.getReferenceById(id));
