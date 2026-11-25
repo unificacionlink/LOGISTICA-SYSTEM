@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.71.0 — 2026-11-25
+
+Repositorio de documentos (DEC-L091).
+
+- `V52__repositorio_documentos.sql`: `repositorio_documento`.
+- `ArchivadorDocumentos` (`app.repositorio.intervalo-ms`, 3 min): archiva en el bucket privado el PDF de cada requerimiento aprobado, OC aprobada y Nota de Inventario (emitida y anulada). `StorageClient.privadoConfigurado()`.
+- `RepositorioService` + `GET /api/repositorio`, `/api/repositorio/{id}/archivo`, `/api/repositorio/zip`.
+- Frontend: pantalla Documentos (`/documentos`, menú Sistema, para Logística, Gerencia y Admin) con filtros por mes, tipo, empresa y texto, descarga y ZIP.
+- Tests: `RepositorioDocumentosTest`; `MigracionesFlywayTest` cuenta 52.
+
 ## 0.70.0 — 2026-11-25
 
 Un usuario, una sesión (DEC-L090).

@@ -66,7 +66,7 @@ public class SecurityConfig {
                                 "/login", "/inicio", "/requerimientos/**", "/aprobaciones", "/presupuestos", "/presupuestos/**",
                                 "/stock", "/stock/ajustes", "/stock/carga", "/catalogo",
                                 "/proveedores", "/proveedores/**", "/compras", "/compras/**",
-                                "/almacen", "/almacen/**", "/admin", "/cambiar-password", "/cotizar/**")
+                                "/almacen", "/almacen/**", "/admin", "/documentos", "/cambiar-password", "/cotizar/**")
                         .permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -2,6 +2,7 @@ import {
   Boxes,
   CheckSquare,
   ClipboardList,
+  FolderArchive,
   Images,
   LayoutDashboard,
   PiggyBank,
@@ -53,7 +54,11 @@ export const NAV_GRUPOS: { id: string; titulo: string | null; items: NavItem[] }
   {
     id: "sistema",
     titulo: "Sistema",
-    items: [{ to: "/admin", label: "Administración", icon: ShieldCheck, roles: ["ADMIN"] }],
+    items: [
+      // DEC-L091: repositorio de PDF y archivos por tipo, empresa y mes.
+      { to: "/documentos", label: "Documentos", icon: FolderArchive, roles: [...GESTION, "GERENCIA"] },
+      { to: "/admin", label: "Administración", icon: ShieldCheck, roles: ["ADMIN"] },
+    ],
   },
 ];
 

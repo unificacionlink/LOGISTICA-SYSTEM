@@ -152,6 +152,11 @@ public class S3StorageClient implements StorageClient {
         }
     }
 
+    @Override
+    public boolean privadoConfigurado() {
+        return conCredenciales && !bucketPrivado.isBlank();
+    }
+
     private void exigirPrivado() {
         if (!conCredenciales || bucketPrivado.isBlank()) {
             throw ApiException.badRequest(

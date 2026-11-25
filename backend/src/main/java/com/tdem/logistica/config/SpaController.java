@@ -50,6 +50,7 @@ public class SpaController {
             "/almacen/requerimientos/{id}/despacho",
             "/almacen/notas/{id}",
             "/admin",
+            "/documentos",
             "/cambiar-password",
             "/cotizar/{token}",
     })

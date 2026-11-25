@@ -32,4 +32,9 @@ public interface StorageClient {
 
     /** Contenido de un archivo del bucket privado. */
     byte[] leerPrivado(String clave);
+
+    /** Si el bucket privado esta configurado (sin el, las tareas que archivan no hacen nada). */
+    default boolean privadoConfigurado() {
+        return true;
+    }
 }

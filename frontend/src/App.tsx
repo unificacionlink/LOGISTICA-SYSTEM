@@ -37,6 +37,7 @@ import {
   AlmacenDespacho,
   NotaInventarioDetalle,
   Administracion,
+  Repositorio,
   CotizarProveedor,
 } from "./paginas";
 
@@ -95,6 +96,7 @@ export default function App() {
               <Route path="/almacen/requerimientos/:id/despacho" element={<AlmacenDespacho />} />
               <Route path="/almacen/notas/:id" element={<NotaInventarioDetalle />} />
               <Route path="/admin" element={<Administracion />} />
+              <Route path="/documentos" element={<Repositorio />} />
               <Route path="/cambiar-password" element={<CambiarPassword />} />
             </Route>
           </Routes>

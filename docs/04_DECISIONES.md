@@ -5,6 +5,21 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L091 — Repositorio de documentos por tipo, empresa y mes (2026-11-25, v0.71.0).**
+  Observación 9 de Logística. Los PDF oficiales que genera el ERP se **archivan una vez**
+  en el bucket privado, en `repositorio/<TIPO>/<EMPRESA>/<AAAA-MM>/<código>.pdf`
+  (`repositorio_documento`): el requerimiento al aprobarse, la OC al aprobarse (con
+  firmas) y la Nota de Inventario al emitirse y, si se anula, también su versión anulada
+  (`-ANULADA`). Lo hace `ArchivadorDocumentos`, una tarea cada 3 minutos que recupera lo
+  pendiente (un fallo del almacenamiento se reintenta solo, y no frena la acción del
+  usuario); el PDF se genera como lo vería quien hizo la acción (su nombre va en el pie).
+  La pantalla **Documentos** (`/documentos`, `RepositorioService`, una consulta) junta esas
+  copias con lo que ya se sube: constancias y facturas de pago, guías, comprobantes de caja
+  chica y documentos de proveedores con su vencimiento; filtra por mes, tipo, empresa y
+  texto, y baja en ZIP (carpetas tipo/empresa/mes) los PDF archivados del filtro (hasta 300).
+  Solo LOGISTICA, GERENCIA y ADMIN. La empresa de la OC y la NI es TDEM (DEC-L086); la del
+  requerimiento, la de su CECO. `V52__repositorio_documentos.sql`.
+
 - **DEC-L090 — Un usuario, una sesión (2026-11-25, v0.70.0).**
   Pedido del usuario: si dos personas comparten usuario, la auditoría no distingue quién
   hizo qué y se burlan controles como "nadie aprueba lo propio". Cada ingreso genera una

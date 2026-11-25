@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.71.0",
+    titulo: "Repositorio de documentos",
+    cambios: [
+      "Nueva pantalla Documentos: reúne los requerimientos aprobados, las órdenes de compra, las notas de inventario, las constancias de pago, las facturas, las guías, los comprobantes de caja chica y los documentos de proveedores con su vencimiento.",
+      "Se filtra por mes, tipo de documento, empresa o código, y se pueden descargar juntos en un ZIP ordenado por tipo, empresa y mes.",
+      "El sistema guarda solo una copia en PDF de cada requerimiento aprobado, orden de compra aprobada y nota de inventario.",
+    ],
+  },
+  {
     version: "0.70.0",
     titulo: "Un usuario, una sesión",
     cambios: [
