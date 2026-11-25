@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.70.0 — 2026-11-25
+
+Un usuario, una sesión (DEC-L090).
+
+- `V51__sesion_unica.sql`: `usuario.session_id`.
+- `JwtService.generar(..., sesion)` + claim `sid`; `AccesoVigente.Acceso.sesion` / `sesionVigente`; `JwtAuthFilter` y `WebSocketAuthHandshakeInterceptor` rechazan otra sesión; `JsonAuthEntryPoint` responde `SESION_REEMPLAZADA` (UTF-8).
+- `AuthService.login` abre sesión nueva y avisa en vivo (`RealtimeNotifier.sesionIniciada`, `/user/queue/sesion`); `cerrarSesion` la rota en el logout. `UsuarioDto.sesion`.
+- Frontend: `auth/sesion.ts` (aviso y marca), `http.ts` y `RealtimeProvider` cierran la sesión reemplazada, el login muestra "Tu sesión se abrió en otro dispositivo".
+- Tests: `SesionUnicaTest`; `MigracionesFlywayTest` cuenta 51.
+
 ## 0.69.0 — 2026-11-25
 
 Plazo y lugar de entrega, factura y documentos de la OC (DEC-L089).

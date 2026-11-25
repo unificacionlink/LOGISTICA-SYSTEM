@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.70.0",
+    titulo: "Un usuario, una sesión",
+    cambios: [
+      "Cada usuario puede tener una sola sesión abierta: si alguien ingresa con el mismo usuario en otro equipo, la sesión anterior se cierra con el aviso \"Tu sesión se abrió en otro dispositivo\".",
+      "Al cerrar sesión, esa sesión ya no se puede volver a usar.",
+    ],
+  },
+  {
     version: "0.69.0",
     titulo: "Plazo, lugar de entrega y factura en la orden de compra",
     cambios: [

@@ -12,5 +12,7 @@ public record UsuarioDto(
         List<String> roles,
         boolean debeCambiarPassword,
         /** Recorridos guiados ya vistos o saltados (DEC-L055). */
-        List<String> tutorialesVistos) {
+        List<String> tutorialesVistos,
+        /** DEC-L090: sesion vigente; la app se cierra si llega aviso de otra sesion. */
+        UUID sesion) {
 }

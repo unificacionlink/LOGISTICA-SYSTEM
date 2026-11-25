@@ -1,6 +1,7 @@
 import type { Client } from "@stomp/stompjs";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { avisarSesionReemplazada } from "../auth/sesion";
 import { invalidar } from "../api/cache";
 import { API_URL } from "../api/http";
 import type { Notificacion } from "../api/notificaciones";
@@ -60,6 +61,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         onConnect: () => {
           // Cada aviso marca como viejas las listas que cambia: si alguna esta en
           // pantalla se actualiza sola; si no, se pide al volver (DEC-L073).
+          // DEC-L090: el mismo usuario ingreso en otro lugar; esta sesion ya no vale.
+          c.subscribe("/user/queue/sesion", (msg) => {
+            const { sesion } = JSON.parse(msg.body) as { sesion: string };
+            if (usuario.sesion && sesion !== usuario.sesion) avisarSesionReemplazada();
+          });
           c.subscribe("/user/queue/mis-requerimientos", (msg) => {
             const req = JSON.parse(msg.body) as Requerimiento;
             invalidar("bandeja", "tablero", `avance:${req.id}`, `tracking:${req.id}`);

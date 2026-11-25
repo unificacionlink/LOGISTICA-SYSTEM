@@ -28,6 +28,8 @@ export interface Usuario {
   debeCambiarPassword: boolean;
   /** Recorridos guiados ya vistos o saltados (DEC-L055). */
   tutorialesVistos: string[];
+  /** DEC-L090: sesion vigente; un aviso en vivo con otra sesion cierra esta. */
+  sesion: string | null;
 }
 
 export interface Requerimiento {

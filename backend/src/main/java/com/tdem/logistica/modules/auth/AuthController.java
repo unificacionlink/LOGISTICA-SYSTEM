@@ -45,7 +45,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout() {
+    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        // DEC-L090: el token que se cierra no vuelve a servir, aunque alguien lo haya copiado.
+        if (principal != null) {
+            authService.cerrarSesion(principal.userId());
+        }
         ResponseCookie cookie = ResponseCookie.from(JwtAuthFilter.COOKIE_NAME, "")
                 .httpOnly(true)
                 .secure(cookieSecure)

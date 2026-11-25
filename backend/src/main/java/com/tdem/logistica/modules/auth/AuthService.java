@@ -26,6 +26,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final JdbcTemplate jdbc;
     private final AccesoVigente accesoVigente;
+    private final com.tdem.logistica.realtime.RealtimeNotifier realtime;
 
     private static final Pattern CODIGO_TUTORIAL = Pattern.compile("^[a-z-]{1,40}$");
 
@@ -35,7 +36,9 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             JdbcTemplate jdbc,
-            AccesoVigente accesoVigente) {
+            AccesoVigente accesoVigente,
+            com.tdem.logistica.realtime.RealtimeNotifier realtime) {
+        this.realtime = realtime;
         this.usuarioRepository = usuarioRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.passwordEncoder = passwordEncoder;
@@ -47,6 +50,12 @@ public class AuthService {
     public record LoginResult(String token, UsuarioDto usuario, int expirationSeconds) {
     }
 
+    /**
+     * DEC-L090: cada ingreso abre una sesion nueva y deja invalidas las anteriores
+     * del mismo usuario (otro dispositivo o navegador); la que estaba abierta se
+     * entera al instante por el aviso en vivo o en su siguiente pedido.
+     */
+    @Transactional
     public LoginResult login(String correo, String password) {
         Usuario usuario = usuarioRepository.findByCorporateEmailIgnoreCase(correo)
                 .orElseThrow(() -> ApiException.unauthorized("Credenciales invalidas. Verifica tu correo y contrasena."));
@@ -57,8 +66,19 @@ public class AuthService {
         }
 
         List<String> roles = usuarioRolRepository.findCodigosRolPorUsuario(usuario.getUserId());
-        String token = jwtService.generar(usuario.getUserId(), roles);
-        return new LoginResult(token, toDto(usuario, roles), jwtService.expirationSeconds());
+        UUID sesion = UUID.randomUUID();
+        jdbc.update("update usuario set session_id = ? where user_id = ?", sesion, usuario.getUserId());
+        accesoVigente.invalidar(usuario.getUserId());
+        realtime.sesionIniciada(usuario.getUserId(), sesion);
+        String token = jwtService.generar(usuario.getUserId(), roles, sesion);
+        return new LoginResult(token, toDto(usuario, roles, sesion), jwtService.expirationSeconds());
+    }
+
+    /** DEC-L090: cerrar sesion rota la sesion vigente a una que ningun token tiene. */
+    @Transactional
+    public void cerrarSesion(UUID userId) {
+        jdbc.update("update usuario set session_id = ? where user_id = ?", UUID.randomUUID(), userId);
+        accesoVigente.invalidar(userId);
     }
 
     /**
@@ -83,7 +103,8 @@ public class AuthService {
                         rs.getString(5),
                         acceso.roles(),
                         rs.getBoolean(6),
-                        List.of((String[]) rs.getArray(7).getArray())),
+                        List.of((String[]) rs.getArray(7).getArray()),
+                        acceso.sesion()),
                 userId);
         if (filas.isEmpty() || !acceso.activo()) {
             throw ApiException.unauthorized("Sesion invalida.");
@@ -92,6 +113,10 @@ public class AuthService {
     }
 
     private UsuarioDto toDto(Usuario usuario, List<String> roles) {
+        return toDto(usuario, roles, accesoVigente.obtener(usuario.getUserId()).sesion());
+    }
+
+    private UsuarioDto toDto(Usuario usuario, List<String> roles, UUID sesion) {
         return new UsuarioDto(
                 usuario.getUserId(),
                 usuario.getDisplayName(),
@@ -100,7 +125,8 @@ public class AuthService {
                 usuario.getEmpresa() != null ? usuario.getEmpresa().getCode() : null,
                 roles,
                 usuario.isMustChangePassword(),
-                tutorialesVistos(usuario.getUserId()));
+                tutorialesVistos(usuario.getUserId()),
+                sesion);
     }
 
     private List<String> tutorialesVistos(UUID userId) {

@@ -29,11 +29,15 @@ public class JwtService {
         this.expirationMinutes = expirationMinutes;
     }
 
-    public String generar(UUID userId, List<String> roles) {
+    /** Claim con la sesion del token (DEC-L090: sesion unica). */
+    public static final String CLAIM_SESION = "sid";
+
+    public String generar(UUID userId, List<String> roles, UUID sesion) {
         Instant ahora = Instant.now();
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("roles", roles)
+                .claim(CLAIM_SESION, sesion.toString())
                 .issuedAt(Date.from(ahora))
                 .expiration(Date.from(ahora.plus(expirationMinutes, ChronoUnit.MINUTES)))
                 .signWith(key)
@@ -42,6 +46,16 @@ public class JwtService {
 
     public int expirationSeconds() {
         return (int) (expirationMinutes * 60);
+    }
+
+    /** La sesion del token; null si es un token anterior a la sesion unica. */
+    public static UUID sesion(Claims claims) {
+        Object sid = claims.get(CLAIM_SESION);
+        try {
+            return sid == null ? null : UUID.fromString(sid.toString());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public Optional<Claims> validar(String token) {

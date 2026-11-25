@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import * as authApi from "../api/auth";
 import type { Usuario } from "../api/types";
 import { AuthContext } from "./AuthContext";
+import { EVENTO_SESION_REEMPLAZADA } from "./sesion";
 
 /** Sesion del usuario: se pide /api/auth/me al cargar la app. */
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -23,6 +24,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       vigente = false;
     };
+  }, []);
+
+  // DEC-L090: la sesion se abrio en otro dispositivo: se sale y el login dice por que.
+  useEffect(() => {
+    const salir = () => setUsuario(null);
+    window.addEventListener(EVENTO_SESION_REEMPLAZADA, salir);
+    return () => window.removeEventListener(EVENTO_SESION_REEMPLAZADA, salir);
   }, []);
 
   async function cerrarSesion() {

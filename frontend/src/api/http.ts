@@ -1,3 +1,4 @@
+import { avisarSesionReemplazada } from "../auth/sesion";
 import { conProgreso } from "./progreso";
 
 /**
@@ -22,7 +23,10 @@ async function parsearRespuesta<T>(res: Response): Promise<ApiResponse<T>> {
   if (!texto) {
     return { ok: false, result: null, message: "No tienes sesion activa.", code: "NO_AUTORIZADO", error: null };
   }
-  return JSON.parse(texto) as ApiResponse<T>;
+  const respuesta = JSON.parse(texto) as ApiResponse<T>;
+  // DEC-L090: alguien ingreso con este usuario en otro lugar; esta sesion se cierra.
+  if (respuesta.code === "SESION_REEMPLAZADA") avisarSesionReemplazada();
+  return respuesta;
 }
 
 // fetch() rechaza (TypeError) si el backend no esta corriendo, no responde, o

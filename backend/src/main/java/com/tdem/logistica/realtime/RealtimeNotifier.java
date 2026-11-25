@@ -69,4 +69,9 @@ public class RealtimeNotifier {
     public void notificacion(UUID userId, NotificacionDto dto) {
         messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/notificaciones", dto);
     }
+
+    /** DEC-L090: el usuario ingreso en otro lugar; las demas sesiones abiertas se cierran solas. */
+    public void sesionIniciada(UUID userId, UUID sesion) {
+        messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/sesion", java.util.Map.of("sesion", sesion.toString()));
+    }
 }

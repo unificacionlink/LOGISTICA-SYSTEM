@@ -28,9 +28,11 @@ public class WebSocketAuthHandshakeInterceptor implements HandshakeInterceptor {
     public static final String ATTR_ROLES = "roles";
 
     private final JwtService jwtService;
+    private final AccesoVigente accesoVigente;
 
-    public WebSocketAuthHandshakeInterceptor(JwtService jwtService) {
+    public WebSocketAuthHandshakeInterceptor(JwtService jwtService, AccesoVigente accesoVigente) {
         this.jwtService = jwtService;
+        this.accesoVigente = accesoVigente;
     }
 
     @Override
@@ -50,10 +52,13 @@ public class WebSocketAuthHandshakeInterceptor implements HandshakeInterceptor {
             return false;
         }
 
+        // Como el filtro JWT: usuario activo, roles vigentes y sesion vigente (DEC-L090).
+        AccesoVigente.Acceso acceso = accesoVigente.obtener(java.util.UUID.fromString(claims.get().getSubject()));
+        if (!acceso.activo() || !acceso.sesionVigente(JwtService.sesion(claims.get()))) {
+            return false;
+        }
         attributes.put(ATTR_USER_ID, claims.get().getSubject());
-        @SuppressWarnings("unchecked")
-        List<String> roles = (List<String>) claims.get().get("roles", List.class);
-        attributes.put(ATTR_ROLES, roles);
+        attributes.put(ATTR_ROLES, acceso.roles());
         return true;
     }
 

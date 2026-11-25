@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Lock, Mail } from "lucide-react";
 import * as authApi from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
+import { tomarAvisoSesion } from "../auth/sesion";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
 import Field, { inputClass } from "../components/ui/Field";
@@ -16,6 +17,8 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refrescar } = useAuth();
+  // DEC-L090: se llego aqui porque alguien ingreso con este usuario en otro lugar.
+  const [avisoSesion] = useState(tomarAvisoSesion);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -92,6 +95,7 @@ export default function Login() {
               </div>
             </Field>
 
+            {avisoSesion && !error && <Alert tone="info">Tu sesión se abrió en otro dispositivo. Ingresa de nuevo para continuar.</Alert>}
             {error && <Alert tone="danger">{error}</Alert>}
 
             <Button type="submit" loading={enviando} className="mt-2 h-10 w-full">

@@ -20,7 +20,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class AccesoVigente {
 
-    public record Acceso(boolean activo, List<String> roles) {
+    /** sesion = la vigente del usuario (DEC-L090); null si nadie ingreso desde la sesion unica. */
+    public record Acceso(boolean activo, List<String> roles, UUID sesion) {
+
+        /** El token pertenece a la sesion vigente (los tokens sin sesion valen solo si aun no hay ninguna). */
+        public boolean sesionVigente(UUID sesionDelToken) {
+            return sesion == null || sesion.equals(sesionDelToken);
+        }
     }
 
     private record Entrada(Acceso acceso, long expira) {
@@ -57,18 +63,20 @@ public class AccesoVigente {
     private Acceso consultar(UUID userId) {
         List<String> roles = new ArrayList<>();
         boolean[] activo = {false};
+        UUID[] sesion = {null};
         jdbc.query("""
-                select u.active, r.code
+                select u.active, r.code, u.session_id
                 from usuario u
                 left join usuario_rol ur on ur.user_id = u.user_id
                 left join rol r on r.role_id = ur.role_id and r.active
                 where u.user_id = ?""", rs -> {
             activo[0] = rs.getBoolean(1);
+            sesion[0] = rs.getObject(3, UUID.class);
             String codigo = rs.getString(2);
             if (codigo != null && !roles.contains(codigo)) {
                 roles.add(codigo);
             }
         }, userId);
-        return new Acceso(activo[0], List.copyOf(roles));
+        return new Acceso(activo[0], List.copyOf(roles), sesion[0]);
     }
 }

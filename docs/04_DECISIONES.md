@@ -5,6 +5,18 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L090 — Un usuario, una sesión (2026-11-25, v0.70.0).**
+  Pedido del usuario: si dos personas comparten usuario, la auditoría no distingue quién
+  hizo qué y se burlan controles como "nadie aprueba lo propio". Cada ingreso genera una
+  sesión nueva (`usuario.session_id`, claim `sid` del JWT); `JwtAuthFilter` y el
+  handshake del WebSocket rechazan los tokens de otra sesión (vía `AccesoVigente`, cuya
+  caché se invalida al ingresar) y responden `401` con `code = SESION_REEMPLAZADA`
+  ("Tu sesión se abrió en otro dispositivo."). Al ingresar se publica `/user/queue/sesion`
+  y las pantallas abiertas con otra sesión se cierran al instante; el login muestra el
+  motivo. Cerrar sesión rota la sesión a un valor que ningún token tiene (el token
+  cerrado deja de servir aunque se haya copiado). Los tokens previos al cambio (sin `sid`)
+  valen hasta vencer o hasta que el usuario vuelva a ingresar. `V51__sesion_unica.sql`.
+
 - **DEC-L089 — Plazo y lugar de entrega estructurados, factura en el pago final y documentos de la OC (2026-11-25, v0.69.0).**
   Observaciones 7 y 8 de Logística en la marcha blanca.
   - **Plazo**: `orden_abastecimiento.delivery_days` (1–365) + `delivery_day_type`

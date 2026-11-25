@@ -23,6 +23,8 @@ import java.util.UUID;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     public static final String COOKIE_NAME = "auth_token";
+    /** DEC-L090: el token es de una sesion reemplazada por un ingreso en otro dispositivo. */
+    public static final String ATR_SESION_REEMPLAZADA = "sesionReemplazada";
 
     private final JwtService jwtService;
     private final AccesoVigente accesoVigente;
@@ -44,6 +46,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             UUID userId = UUID.fromString(claims.getSubject());
             AccesoVigente.Acceso acceso = accesoVigente.obtener(userId);
             if (!acceso.activo()) {
+                return;
+            }
+            // DEC-L090: un usuario, una sesion; la de otro dispositivo ya no sirve.
+            if (!acceso.sesionVigente(JwtService.sesion(claims))) {
+                request.setAttribute(ATR_SESION_REEMPLAZADA, true);
                 return;
             }
             UsuarioPrincipal principal = new UsuarioPrincipal(userId, acceso.roles());
