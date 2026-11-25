@@ -10,6 +10,7 @@ import com.tdem.logistica.modules.aprobaciones.dto.DecidirAprobacionRequest;
 import com.tdem.logistica.modules.compras.AbastecimientoService;
 import com.tdem.logistica.modules.compras.ComparativoService;
 import com.tdem.logistica.modules.compras.ComprasService;
+import com.tdem.logistica.modules.compras.DocumentosOrdenService;
 import com.tdem.logistica.modules.compras.OrdenCompraService;
 import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
@@ -45,6 +46,7 @@ class OrdenCompraAprobacionTest {
 	private static EmbeddedPostgres pg;
 
 	@Autowired private JdbcTemplate jdbc;
+	@Autowired private DocumentosOrdenService documentosOrden;
 	@Autowired private AprobacionService aprobacionService;
 	@Autowired private AbastecimientoService abastecimiento;
 	@Autowired private ComparativoService comparativo;
@@ -98,7 +100,7 @@ class OrdenCompraAprobacionTest {
 		// Antes de aprobar no hay pago ni liberacion; el rechazo exige motivo.
 		UUID constancia = constancia("CONSTANCIA_PAGO");
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia), log));
+				new RegistrarPagoRequest("ANTICIPO", constancia, null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.liberar(oc.orderId(), new LiberarOrdenRequest(null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.decidir(oc.orderId(),
 				new DecidirOrdenRequest("RECHAZADO", " "), ger));
@@ -117,14 +119,14 @@ class OrdenCompraAprobacionTest {
 
 		// Anticipo: exige constancia del tipo correcto; con pago registrado no se anula.
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", null), log));
+				new RegistrarPagoRequest("ANTICIPO", null, null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia("EVIDENCIA")), log));
+				new RegistrarPagoRequest("ANTICIPO", constancia("EVIDENCIA"), null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PENDIENTE", constancia), log));
+				new RegistrarPagoRequest("PENDIENTE", constancia, null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia), ger), "el pago lo registra Logistica");
-		OrdenDto anticipo = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("ANTICIPO", constancia), log);
+				new RegistrarPagoRequest("ANTICIPO", constancia, null, null), ger), "el pago lo registra Logistica");
+		OrdenDto anticipo = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("ANTICIPO", constancia, null, null), log);
 		assertEquals("ANTICIPO", anticipo.paymentStatus());
 		assertNotNull(anticipo.paymentProofUrl());
 		ApiException conPago = assertThrows(ApiException.class, () -> compras.anularOrden(oc.orderId(), "Prueba", log));
@@ -140,10 +142,24 @@ class OrdenCompraAprobacionTest {
 		assertEquals("RECEPCION_PARCIAL", recibida.orden().status());
 
 		// Pago total despues de recibir: el pago nunca depende de la recepcion ni al reves.
-		assertEquals("PAGADO", ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO")), log).paymentStatus());
+		// DEC-L089: el pago final exige la factura (número serie-número y archivo).
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO")), log));
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), null, null), log), "sin factura");
+		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "123", constancia("FACTURA_PDF")), log),
+				"número sin serie");
+		OrdenDto pagada = ordenCompra.registrarPago(oc.orderId(),
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "f001-123", constancia("FACTURA_PDF")), log);
+		assertEquals("PAGADO", pagada.paymentStatus());
+		assertEquals("F001-123", pagada.invoiceNumber());
+		assertNotNull(pagada.invoiceUrl());
+		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "F001-124", constancia("FACTURA_PDF")), log));
+		// Documentos de la OC: la constancia del anticipo, la del pago final, la factura y la recepcion.
+		List<DocumentoOrdenDto> docs = documentosOrden.listar(oc.orderId(), log);
+		assertEquals(3, docs.stream().filter(d -> "PAGO".equals(d.tipo())).count(), docs.toString());
+		assertTrue(docs.stream().anyMatch(d -> d.titulo().equals("Factura F001-123")), docs.toString());
+		assertTrue(docs.stream().anyMatch(d -> "RECEPCION".equals(d.tipo()) && d.ruta() != null), docs.toString());
 
 		assertEquals(4, jdbc.queryForObject("""
 				select count(*) from log_cambios where entidad = 'ORDEN_ABASTECIMIENTO' and entidad_id = ?

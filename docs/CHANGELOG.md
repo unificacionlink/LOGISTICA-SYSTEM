@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.69.0 — 2026-11-25
+
+Plazo y lugar de entrega, factura y documentos de la OC (DEC-L089).
+
+- `V50__plazo_lugar_factura_oc.sql`: `orden_abastecimiento.delivery_days`, `delivery_day_type`, `delivery_point_id`, `invoice_number`, `invoice_document_id`; `punto_entrega.created_by` opcional y alta del almacén central de TDEM.
+- `PlazoEntrega` (validación, texto del F-LOG-09 y fecha comprometida; `SlaAtencion.sumarHabiles` público), `PuntosEntregaService` + `GET/POST /api/compras/puntos-entrega`, entidad `PuntoEntrega`.
+- `CrearOrdenDirectaRequest` y `CondicionesOrdenRequest`: `deliveryDays` + `deliveryDayType` + `deliveryPointId` (antes texto libre). La OC por cotización toma los días cotizados (hábiles) y el almacén central.
+- `RegistrarPagoRequest.facturaNumero` / `facturaDocumentId`: obligatorios en el pago final; constancias y factura en `documento_relacion`. Tipo de subida `FACTURA_PDF`.
+- `DocumentosOrdenService` + `GET /api/compras/ordenes/{id}/documentos`; `OrdenDto` con plazo, lugar, fecha comprometida y factura.
+- Frontend: `CamposEntrega` (plazo y lugar con "Agregar dirección") en la OC directa y en Condiciones; factura en el pago final (`CicloOrden`); tarjeta `DocumentosOrden` en el detalle de la OC.
+- Tests: `OrdenCompraAprobacionTest` (factura obligatoria, formato, documentos relacionados), `ConsolidacionComprasTest` (plazo cotizado en hábiles, fecha comprometida, almacén por defecto), `OrdenDirectaTest`, `EntregaDirectaTest`; `MigracionesFlywayTest` cuenta 50.
+
 ## 0.68.0 — 2026-11-25
 
 Ajustes de la marcha blanca (observaciones de Logística).

@@ -72,8 +72,10 @@ public class AbastecimientoService {
     private final Auditoria auditoria;
     private final OrdenCompraService ordenCompra;
     private final com.tdem.logistica.modules.stock.AlmacenCentral almacenCentral;
+    private final PuntosEntregaService puntos;
 
     public AbastecimientoService(com.tdem.logistica.modules.stock.AlmacenCentral almacenCentral,
+                                 PuntosEntregaService puntos,
                                  JdbcTemplate jdbc, NamedParameterJdbcTemplate named,
                                  NecesidadCompraRepository necesidadRepository,
                                  ConsolidacionRepository consolidacionRepository,
@@ -87,6 +89,7 @@ public class AbastecimientoService {
                                  OrigenCompras origen, Auditoria auditoria, OrdenCompraService ordenCompra) {
         this.ordenCompra = ordenCompra;
         this.almacenCentral = almacenCentral;
+        this.puntos = puntos;
         this.jdbc = jdbc;
         this.named = named;
         this.necesidadRepository = necesidadRepository;
@@ -829,12 +832,20 @@ public class AbastecimientoService {
         orden.setIssueDate(LocalDate.now());
         orden.setPaymentCondition(cot.getPaymentCondition());
         orden.setDeliveryMode(cot.getDeliveryMode());
-        orden.setDeliveryLocation(rfq.getDeliveryLocation());
+        // DEC-L089: por defecto el almacen central; Logistica lo cambia en Condiciones antes de aprobar.
+        UUID almacen = puntos.almacenPorDefecto();
+        if (almacen != null) {
+            puntos.aplicar(orden, almacen);
+        } else {
+            orden.setDeliveryLocation(rfq.getDeliveryLocation());
+        }
         orden.setMoneda(cot.getMoneda());
         // DEC-L079: por defecto los precios cotizados son sin IGV; Logistica lo ajusta antes de aprobar.
         orden.setTaxMode(ImpuestoOrden.MAS_IGV);
-        orden.setDeliveryTerm(cot.getLeadDays() != null
-                ? cot.getLeadDays() + (cot.getLeadDays() == 1 ? " día" : " días") : null);
+        // DEC-L089: el plazo cotizado, en dias habiles; se ajusta en Condiciones antes de aprobar.
+        if (cot.getLeadDays() != null && cot.getLeadDays() >= 1 && cot.getLeadDays() <= 365) {
+            PlazoEntrega.aplicar(orden, cot.getLeadDays(), PlazoEntrega.HABILES);
+        }
         // DEC-L061: nace por aprobar; Gerencia o Logistica la aprueba antes de enviarla al proveedor.
         orden.setStatus(AppConstants.EstadoOrden.POR_APROBAR);
         orden.setCreatedBy(usuario);

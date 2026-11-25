@@ -793,6 +793,37 @@ export interface Orden {
   servicesOnly: boolean;
   /** El proveedor entrega en el CECO; no se recibe en el almacén (DEC-L084). */
   entregaDirecta: boolean;
+  /** DEC-L089: plazo en días hábiles o calendario, lugar de la lista y fecha que debe entregar. */
+  deliveryDays: number | null;
+  deliveryDayType: TipoPlazo | null;
+  deliveryPointId: string | null;
+  fechaEntregaComprometida: string | null;
+  /** DEC-L089: factura del proveedor registrada en el pago final. */
+  invoiceNumber: string | null;
+  invoiceUrl: string | null;
+}
+
+export type TipoPlazo = "HABILES" | "CALENDARIO";
+
+/** Lugar de entrega de la OC (DEC-L089): el almacén central y las direcciones de los proyectos. */
+export interface PuntoEntrega {
+  id: string;
+  nombre: string;
+  direccion: string;
+  tipo: string;
+  empresaCode: string;
+  cecoCode: string | null;
+  cecoNombre: string | null;
+}
+
+/** Documento relacionado con una OC (DEC-L089): pagos, guías, recepciones y notas de inventario. */
+export interface DocumentoOrden {
+  tipo: "PAGO" | "GUIA" | "RECEPCION" | "NOTA_INVENTARIO";
+  titulo: string;
+  detalle: string | null;
+  fecha: string | null;
+  url: string | null;
+  ruta: string | null;
 }
 
 export type ModoIgv = "MAS_IGV" | "IGV_INCLUIDO" | "NO_AFECTO";

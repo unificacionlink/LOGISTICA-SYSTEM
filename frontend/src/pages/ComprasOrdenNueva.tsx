@@ -5,13 +5,14 @@ import { invalidar } from "../api/cache";
 import { crearOrdenDirecta, listarMonedas } from "../api/compras";
 import { listarProveedores } from "../api/proveedores";
 import { obtenerCatalogoFormulario } from "../api/requerimientos";
-import type { ModoIgv, VarianteCatalogo } from "../api/types";
+import type { ModoIgv, TipoPlazo, VarianteCatalogo } from "../api/types";
 import { useDatos } from "../api/useDatos";
 import ProductoCombobox from "../components/ProductoCombobox";
 import ProveedorCombobox from "../components/compras/ProveedorCombobox";
 import { CONDICIONES, ENTREGAS } from "../components/compras/condiciones";
 import { dinero } from "../components/compras/formato";
 import CecoCombobox from "../components/CecoCombobox";
+import { LugarEntregaCampo, PlazoEntregaCampo } from "../components/compras/CamposEntrega";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
 import CampoNumero from "../components/ui/CampoNumero";
@@ -69,8 +70,10 @@ export default function ComprasOrdenNueva() {
   const [formaPago, setFormaPago] = useState("CREDITO_30");
   const [entrega, setEntrega] = useState("ALMACEN_CLIENTE");
   const [modoIgv, setModoIgv] = useState<ModoIgv>("MAS_IGV");
-  const [plazo, setPlazo] = useState("");
-  const [lugar, setLugar] = useState("");
+  // DEC-L089: plazo en dias habiles o calendario y lugar de la lista de direcciones.
+  const [dias, setDias] = useState("");
+  const [tipoPlazo, setTipoPlazo] = useState<TipoPlazo>("HABILES");
+  const [lugar, setLugar] = useState<string | null>(null);
   const [especificaciones, setEspecificaciones] = useState("");
   const [cecoId, setCecoId] = useState("");
   const [directa, setDirecta] = useState(false);
@@ -94,6 +97,7 @@ export default function ComprasOrdenNueva() {
 
   function faltante(): string | null {
     if (!proveedor) return "Selecciona el proveedor.";
+    if (!(Number(dias) >= 1)) return "Indica el plazo de entrega en días.";
     if (lineas.length === 0) return "Agrega al menos un producto o servicio.";
     for (const l of lineas) {
       if (l.servicio === null && !l.variante) return "Elige el producto de cada línea de producto.";
@@ -123,8 +127,9 @@ export default function ComprasOrdenNueva() {
         currencyCode: moneda,
         paymentCondition: formaPago,
         deliveryMode: entrega,
-        deliveryLocation: lugar.trim() || null,
-        deliveryTerm: plazo.trim() || null,
+        deliveryPointId: lugar,
+        deliveryDays: Number(dias),
+        deliveryDayType: tipoPlazo,
         taxMode: modoIgv,
         additionalSpecs: especificaciones.trim() || null,
         cecoId: cecoId || null,
@@ -211,8 +216,8 @@ export default function ComprasOrdenNueva() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Plazo de entrega">
-                  <input className={`${inputClass} w-full`} value={plazo} maxLength={120} placeholder="Ej. 5 días hábiles" onChange={(e) => setPlazo(e.target.value)} />
+                <Field label="Plazo de entrega" required>
+                  <PlazoEntregaCampo dias={dias} tipo={tipoPlazo} onDias={setDias} onTipo={setTipoPlazo} />
                 </Field>
                 <Field label="Entrega">
                   <select className={`${inputClass} w-full`} value={entrega} onChange={(e) => setEntrega(e.target.value)}>
@@ -224,7 +229,7 @@ export default function ComprasOrdenNueva() {
                   </select>
                 </Field>
                 <Field label="Lugar de entrega">
-                  <input className={`${inputClass} w-full`} value={lugar} maxLength={220} onChange={(e) => setLugar(e.target.value)} />
+                  <LugarEntregaCampo valor={lugar} onCambio={setLugar} />
                 </Field>
               </div>
 

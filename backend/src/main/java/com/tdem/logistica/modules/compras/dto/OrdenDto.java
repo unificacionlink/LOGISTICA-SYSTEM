@@ -45,5 +45,12 @@ public record OrdenDto(
         String cecoNombre,
         boolean servicesOnly,
         // Entrega directa del proveedor al CECO (DEC-L084): no se recibe en el almacen.
-        boolean entregaDirecta) {
+        boolean entregaDirecta,
+        // DEC-L089: plazo estructurado, lugar de la lista, fecha comprometida y factura del pago final.
+        Integer deliveryDays,
+        String deliveryDayType,
+        UUID deliveryPointId,
+        LocalDate fechaEntregaComprometida,
+        String invoiceNumber,
+        String invoiceUrl) {
 }

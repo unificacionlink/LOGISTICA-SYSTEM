@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Check, FileUp, PackageOpen, Unlock, X } from "lucide-react";
-import { decidirOrden, liberarOrden, registrarPagoOrden, subirConstanciaPago } from "../../api/compras";
+import { decidirOrden, liberarOrden, registrarPagoOrden, subirConstanciaPago, subirFactura } from "../../api/compras";
 import type { Orden } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import Button from "../ui/Button";
@@ -38,6 +38,9 @@ export default function CicloOrden({
   const [nota, setNota] = useState("");
   const [estadoPago, setEstadoPago] = useState<"ANTICIPO" | "PAGADO">("PAGADO");
   const [archivo, setArchivo] = useState<File | null>(null);
+  // DEC-L089: el pago final exige la factura del proveedor (número y archivo).
+  const [factura, setFactura] = useState<File | null>(null);
+  const [numeroFactura, setNumeroFactura] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const gestiona = tieneAlgunRol("LOGISTICA", "ADMIN");
@@ -74,14 +77,25 @@ export default function CicloOrden({
     if (r) await ejecutar("rechazar", () => decidirOrden(orden.orderId, "RECHAZADO", r.motivo));
   }
 
+  const pideFactura = estadoPago === "PAGADO" && !orden.invoiceNumber;
+  const listoParaPagar = !!archivo && (!pideFactura || (!!factura && /^[A-Za-z0-9]{1,6}-\d{1,12}$/.test(numeroFactura.trim())));
+
   async function onPagar() {
     if (!archivo) return;
     await ejecutar("pago", async () => {
       const doc = await subirConstanciaPago(archivo);
       if (!doc.ok || !doc.result) return { ok: false, message: doc.message };
-      return registrarPagoOrden(orden.orderId, estadoPago, doc.result.documentId);
+      let datosFactura: { numero: string; documentId: string } | undefined;
+      if (factura && numeroFactura.trim()) {
+        const fac = await subirFactura(factura);
+        if (!fac.ok || !fac.result) return { ok: false, message: fac.message };
+        datosFactura = { numero: numeroFactura.trim(), documentId: fac.result.documentId };
+      }
+      return registrarPagoOrden(orden.orderId, estadoPago, doc.result.documentId, datosFactura);
     });
     setArchivo(null);
+    setFactura(null);
+    setNumeroFactura("");
   }
 
   const pasos = [
@@ -95,6 +109,7 @@ export default function CicloOrden({
       valor: ETIQUETA_PAGO[orden.paymentStatus],
       ok: orden.paymentStatus === "PAGADO",
       enlace: orden.paymentProofUrl,
+      detalle: orden.invoiceNumber ? `Factura ${orden.invoiceNumber}` : null,
     },
     servicios
       ? {
@@ -213,7 +228,29 @@ export default function CicloOrden({
                 onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
               />
             </label>
-            <Button disabled={!archivo} loading={ocupado === "pago"} onClick={onPagar}>
+            {pideFactura && (
+              <div className="flex w-full flex-wrap items-center gap-2">
+                <input
+                  value={numeroFactura}
+                  maxLength={30}
+                  onChange={(e) => setNumeroFactura(e.target.value)}
+                  placeholder="Factura (ej. F001-123)"
+                  aria-label="Número de factura"
+                  className="h-9 w-48 rounded-md border border-slate-300 px-3 text-sm"
+                />
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 hover:border-slate-400 hover:bg-slate-50">
+                  <FileUp className="size-4 shrink-0 text-slate-400" />
+                  <span className="truncate">{factura ? factura.name : "Factura (PDF o imagen)"}</span>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={(e) => setFactura(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
+            )}
+            <Button disabled={!listoParaPagar} loading={ocupado === "pago"} onClick={onPagar}>
               Guardar pago
             </Button>
           </div>

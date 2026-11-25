@@ -57,7 +57,7 @@ public final class SlaAtencion {
         return sumarHabiles(desde, plazo(prioridad).diasHabiles());
     }
 
-    static LocalDate sumarHabiles(LocalDate desde, int dias) {
+    public static LocalDate sumarHabiles(LocalDate desde, int dias) {
         LocalDate d = desde;
         int contados = 0;
         while (contados < dias) {

@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { Pencil } from "lucide-react";
 import { editarCondicionesOrden } from "../../api/compras";
-import type { ModoIgv, Orden } from "../../api/types";
+import type { ModoIgv, Orden, TipoPlazo } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import Button from "../ui/Button";
 import { Card, CardBody } from "../ui/Card";
 import Field, { inputClass } from "../ui/Field";
+import { LugarEntregaCampo, PlazoEntregaCampo } from "./CamposEntrega";
 import { dinero } from "./formato";
+import { fmtDia } from "../formato";
 
 const ETIQUETA_IGV: Record<ModoIgv, string> = {
   MAS_IGV: "Precios sin IGV (+18%)",
@@ -41,27 +43,34 @@ export default function CondicionesOrden({
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [modo, setModo] = useState<ModoIgv>(orden.taxMode);
-  const [plazo, setPlazo] = useState(orden.deliveryTerm ?? "");
-  const [lugar, setLugar] = useState(orden.deliveryLocation ?? "");
+  const [dias, setDias] = useState(orden.deliveryDays != null ? String(orden.deliveryDays) : "");
+  const [tipoPlazo, setTipoPlazo] = useState<TipoPlazo>(orden.deliveryDayType ?? "HABILES");
+  const [lugar, setLugar] = useState<string | null>(orden.deliveryPointId);
   const [especificaciones, setEspecificaciones] = useState(orden.additionalSpecs ?? "");
   const [directa, setDirecta] = useState(orden.entregaDirecta);
 
   function abrir() {
     setModo(orden.taxMode);
-    setPlazo(orden.deliveryTerm ?? "");
-    setLugar(orden.deliveryLocation ?? "");
+    setDias(orden.deliveryDays != null ? String(orden.deliveryDays) : "");
+    setTipoPlazo(orden.deliveryDayType ?? "HABILES");
+    setLugar(orden.deliveryPointId);
     setEspecificaciones(orden.additionalSpecs ?? "");
     setDirecta(orden.entregaDirecta);
     setEditando(true);
   }
 
   async function guardar() {
+    if (!(Number(dias) >= 1)) {
+      onError("Indica el plazo de entrega en días.");
+      return;
+    }
     setGuardando(true);
     try {
       const res = await editarCondicionesOrden(orden.orderId, {
         taxMode: modo,
-        deliveryTerm: plazo.trim() || null,
-        deliveryLocation: lugar.trim() || null,
+        deliveryDays: Number(dias),
+        deliveryDayType: tipoPlazo,
+        deliveryPointId: lugar,
         additionalSpecs: especificaciones.trim() || null,
         entregaDirecta: directa,
       });
@@ -93,11 +102,11 @@ export default function CondicionesOrden({
                   ))}
                 </select>
               </Field>
-              <Field label="Plazo de entrega">
-                <input className={`${inputClass} w-full`} value={plazo} maxLength={120} onChange={(e) => setPlazo(e.target.value)} />
+              <Field label="Plazo de entrega" required>
+                <PlazoEntregaCampo dias={dias} tipo={tipoPlazo} onDias={setDias} onTipo={setTipoPlazo} />
               </Field>
               <Field label="Lugar de entrega">
-                <input className={`${inputClass} w-full`} value={lugar} maxLength={220} onChange={(e) => setLugar(e.target.value)} />
+                <LugarEntregaCampo valor={lugar} onCambio={setLugar} />
               </Field>
             </div>
             {/* DEC-L084: el proveedor lleva cada parte al CECO de su requerimiento. */}
@@ -132,7 +141,12 @@ export default function CondicionesOrden({
           <div className="flex items-start gap-4">
             <div className="grid flex-1 gap-4 sm:grid-cols-4">
               <Dato label="Forma de pago">{orden.paymentCondition}</Dato>
-              <Dato label="Plazo de entrega">{orden.deliveryTerm ?? "—"}</Dato>
+              <Dato label="Plazo de entrega">
+                {orden.deliveryTerm ?? "—"}
+                {orden.fechaEntregaComprometida && (
+                  <span className="text-slate-500"> · hasta el {fmtDia(orden.fechaEntregaComprometida)}</span>
+                )}
+              </Dato>
               <Dato label="Lugar de entrega">
                 {orden.entregaDirecta
                   ? `Entrega directa en proyecto${orden.deliveryLocation ? ` · ${orden.deliveryLocation}` : ""}`

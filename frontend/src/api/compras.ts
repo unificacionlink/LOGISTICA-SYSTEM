@@ -8,6 +8,7 @@ import type {
   Consolidado,
   ConsolidadoDetalle,
   Cotizacion,
+  DocumentoOrden,
   DocumentoSubido,
   Moneda,
   Necesidad,
@@ -17,6 +18,8 @@ import type {
   Orden,
   OrdenDetalle,
   PorEmitir,
+  PuntoEntrega,
+  TipoPlazo,
   ProveedorProducto,
   Rfq,
   RfqDetalle,
@@ -229,8 +232,39 @@ export function subirConstanciaPago(file: File) {
   return http.postForm<DocumentoSubido>("/api/compras/documentos", form);
 }
 
-export function registrarPagoOrden(orderId: string, estado: "ANTICIPO" | "PAGADO", documentId: string) {
-  return http.post<Orden>(`/api/compras/ordenes/${orderId}/pago`, { estado, documentId });
+/** DEC-L089: el pago final exige la factura (número serie-número y archivo ya subido). */
+export function registrarPagoOrden(
+  orderId: string,
+  estado: "ANTICIPO" | "PAGADO",
+  documentId: string,
+  factura?: { numero: string; documentId: string },
+) {
+  return http.post<Orden>(`/api/compras/ordenes/${orderId}/pago`, {
+    estado,
+    documentId,
+    facturaNumero: factura?.numero ?? null,
+    facturaDocumentId: factura?.documentId ?? null,
+  });
+}
+
+export function subirFactura(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("tipo", "FACTURA_PDF");
+  return http.postForm<DocumentoSubido>("/api/compras/documentos", form);
+}
+
+/** Pagos, guías, recepciones y notas de inventario de la OC (DEC-L089). */
+export function documentosOrden(orderId: string) {
+  return http.get<DocumentoOrden[]>(`/api/compras/ordenes/${orderId}/documentos`);
+}
+
+export function listarPuntosEntrega() {
+  return http.get<PuntoEntrega[]>("/api/compras/puntos-entrega");
+}
+
+export function crearPuntoEntrega(input: { nombre: string; direccion: string; cecoId: string | null }) {
+  return http.post<PuntoEntrega>("/api/compras/puntos-entrega", input);
 }
 
 export function liberarOrden(orderId: string, nota?: string) {
@@ -243,8 +277,10 @@ export interface OrdenDirectaInput {
   currencyCode: string;
   paymentCondition: string;
   deliveryMode: string;
-  deliveryLocation: string | null;
-  deliveryTerm: string | null;
+  /** DEC-L089: lugar de la lista de direcciones y plazo en días hábiles o calendario. */
+  deliveryPointId: string | null;
+  deliveryDays: number;
+  deliveryDayType: TipoPlazo;
   taxMode: ModoIgv;
   additionalSpecs: string | null;
   cecoId: string | null;
@@ -262,8 +298,9 @@ export function crearOrdenDirecta(input: OrdenDirectaInput) {
 
 export interface CondicionesOrden {
   taxMode: ModoIgv;
-  deliveryTerm: string | null;
-  deliveryLocation: string | null;
+  deliveryDays: number;
+  deliveryDayType: TipoPlazo;
+  deliveryPointId: string | null;
   additionalSpecs: string | null;
   /** Entrega directa del proveedor al CECO (DEC-L084). */
   entregaDirecta: boolean;

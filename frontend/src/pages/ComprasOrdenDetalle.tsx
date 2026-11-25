@@ -14,6 +14,7 @@ import { useConfirmar } from "../components/ui/Confirmacion";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import CicloOrden from "../components/compras/CicloOrden";
 import CondicionesOrden from "../components/compras/CondicionesOrden";
+import DocumentosOrden from "../components/compras/DocumentosOrden";
 import { useAuth } from "../auth/AuthContext";
 
 export default function ComprasOrdenDetalle() {
@@ -169,6 +170,10 @@ export default function ComprasOrdenDetalle() {
         </div>
       </Card>
 
+      {/* DEC-L089: pagos, guías, recepciones y notas de inventario de esta OC. */}
+      {orden.status !== "POR_APROBAR" && (
+        <DocumentosOrden orderId={orden.orderId} version={`${orden.status}|${orden.paymentStatus}|${orden.releasedAt ?? ""}`} />
+      )}
     </div>
   );
 }

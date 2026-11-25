@@ -120,9 +120,9 @@ class OrdenDirectaTest {
 		assertTrue(recepcion.listarPorRecibir(log).stream().noneMatch(o -> o.orderId().equals(oc.orderId())));
 
 		OrdenDto anticipo = ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia()), log);
+				new RegistrarPagoRequest("ANTICIPO", constancia(), null, null), log);
 		assertEquals("EMITIDA", anticipo.status(), "con anticipo sigue abierta");
-		OrdenDto pagada = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("PAGADO", constancia()), log);
+		OrdenDto pagada = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("PAGADO", constancia(), "F001-45", factura()), log);
 		assertEquals("CERRADA", pagada.status());
 	}
 
@@ -151,8 +151,8 @@ class OrdenDirectaTest {
 	// ------------------------------------------------------------------
 
 	private static CrearOrdenDirectaRequest request(UUID prov, UUID ceco, String req, List<Linea> lineas) {
-		return new CrearOrdenDirectaRequest(prov, "PEN", "CONTADO", "ALMACEN_CLIENTE", "Almacén central",
-				"3 días", "MAS_IGV", null, ceco, req, lineas, null);
+		return new CrearOrdenDirectaRequest(prov, "PEN", "CONTADO", "ALMACEN_CLIENTE", null,
+				3, "CALENDARIO", "MAS_IGV", null, ceco, req, lineas, null);
 	}
 
 	private UUID proveedor(String ruc) {
@@ -188,6 +188,11 @@ class OrdenDirectaTest {
 				  from empresa e join ceco c on c.company_id = e.company_id and c.code = 'ADM' where e.code = 'TDEMSRL'""",
 				codigo, usuario("solicitante@logistica.test"));
 		return codigo;
+	}
+
+	private UUID factura() {
+		return jdbc.queryForObject("insert into documento (document_type, file_name, file_url) "
+				+ "values ('FACTURA_PDF', 'factura.pdf', 'https://x/factura.pdf') returning document_id", UUID.class);
 	}
 
 	private UUID constancia() {

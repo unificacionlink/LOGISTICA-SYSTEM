@@ -142,4 +142,24 @@ public class OrdenAbastecimiento {
     /** El proveedor entrega en los CECO de destino; no se recibe en el almacen (DEC-L084). */
     @Column(name = "direct_delivery", nullable = false)
     private boolean directDelivery;
+
+    /** DEC-L089: plazo de entrega en dias y si son HABILES o CALENDARIO (delivery_term guarda el texto). */
+    @Column(name = "delivery_days")
+    private Integer deliveryDays;
+
+    @Column(name = "delivery_day_type")
+    private String deliveryDayType;
+
+    /** DEC-L089: lugar de entrega elegido de la lista; delivery_location guarda su texto. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_point_id")
+    private PuntoEntrega puntoEntrega;
+
+    /** DEC-L089: factura del proveedor, obligatoria al registrar el pago final. */
+    @Column(name = "invoice_number")
+    private String invoiceNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invoice_document_id")
+    private Documento factura;
 }

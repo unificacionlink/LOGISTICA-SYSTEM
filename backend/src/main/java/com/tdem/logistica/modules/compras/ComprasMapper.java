@@ -134,7 +134,13 @@ public final class ComprasMapper {
                 o.getCeco() != null ? o.getCeco().getCode() : null,
                 o.getCeco() != null ? o.getCeco().getName() : null,
                 o.isServicesOnly(),
-                o.isDirectDelivery());
+                o.isDirectDelivery(),
+                o.getDeliveryDays(),
+                o.getDeliveryDayType(),
+                o.getPuntoEntrega() != null ? o.getPuntoEntrega().getDeliveryPointId() : null,
+                PlazoEntrega.fechaComprometida(o),
+                o.getInvoiceNumber(),
+                o.getFactura() != null ? o.getFactura().getFileUrl() : null);
     }
 
     public static OrdenItemDto toDto(OrdenItem i) {

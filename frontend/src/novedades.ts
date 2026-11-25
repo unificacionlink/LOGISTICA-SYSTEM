@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.69.0",
+    titulo: "Plazo, lugar de entrega y factura en la orden de compra",
+    cambios: [
+      "El plazo de entrega de la orden se indica en días y se elige si son hábiles o calendario; la orden muestra la fecha en que el proveedor debe entregar.",
+      "El lugar de entrega se elige de una lista de direcciones (empieza con el almacén central); si falta una, se agrega desde la misma orden.",
+      "Al registrar el pago final se pide la factura del proveedor (número y archivo).",
+      "La orden de compra muestra sus documentos: constancias de pago, factura, guías, recepciones y notas de inventario.",
+    ],
+  },
+  {
     version: "0.68.0",
     titulo: "Búsquedas más fáciles, suplente y anular notas",
     cambios: [

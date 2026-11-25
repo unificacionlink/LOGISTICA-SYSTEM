@@ -23,16 +23,41 @@ public class ComprasController {
     private final EnlaceCotizacionService enlaces;
     private final OrdenCompraService ordenes;
     private final OrdenDirectaService directas;
+    private final PuntosEntregaService puntos;
+    private final DocumentosOrdenService documentosOrden;
 
     public ComprasController(ComprasService service, AbastecimientoService abastecimiento,
                              ComparativoService comparativo, EnlaceCotizacionService enlaces,
-                             OrdenCompraService ordenes, OrdenDirectaService directas) {
+                             OrdenCompraService ordenes, OrdenDirectaService directas,
+                             PuntosEntregaService puntos, DocumentosOrdenService documentosOrden) {
+        this.puntos = puntos;
+        this.documentosOrden = documentosOrden;
         this.ordenes = ordenes;
         this.directas = directas;
         this.service = service;
         this.abastecimiento = abastecimiento;
         this.comparativo = comparativo;
         this.enlaces = enlaces;
+    }
+
+    // ---------------------------------------------------------------- Lugares de entrega (DEC-L089)
+
+    @GetMapping("/puntos-entrega")
+    public ApiResponse<List<PuntoEntregaDto>> puntosEntrega(@AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(puntos.listar(principal));
+    }
+
+    @PostMapping("/puntos-entrega")
+    public ApiResponse<PuntoEntregaDto> crearPuntoEntrega(@Valid @RequestBody CrearPuntoEntregaRequest request,
+                                                         @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(puntos.crear(request, principal), "Dirección agregada.");
+    }
+
+    /** DEC-L089: pagos, guias, recepciones y notas de inventario relacionados con la OC. */
+    @GetMapping("/ordenes/{id}/documentos")
+    public ApiResponse<List<DocumentoOrdenDto>> documentosOrden(@PathVariable UUID id,
+                                                                @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(documentosOrden.listar(id, principal));
     }
 
     // ---------------------------------------------------------------- Enlace del proveedor (DEC-L052)

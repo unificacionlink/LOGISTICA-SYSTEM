@@ -5,6 +5,29 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L089 — Plazo y lugar de entrega estructurados, factura en el pago final y documentos de la OC (2026-11-25, v0.69.0).**
+  Observaciones 7 y 8 de Logística en la marcha blanca.
+  - **Plazo**: `orden_abastecimiento.delivery_days` (1–365) + `delivery_day_type`
+    (`HABILES` sin fines de semana ni feriados de Perú, como `SlaAtencion`, o
+    `CALENDARIO`), obligatorio en la OC directa y al editar condiciones. `delivery_term`
+    sigue guardando el texto ("5 días hábiles") para el F-LOG-09 y las OC anteriores.
+    La OC por cotización toma los días cotizados como hábiles (se ajusta antes de
+    aprobar). **Fecha comprometida** (`PlazoEntrega.fechaComprometida`) = aprobación de
+    la OC + plazo; resuelve PD-14 para las OC nuevas (falta usarla en el desempeño del proveedor).
+  - **Lugar**: lista `punto_entrega` (tabla del diseño original, sin uso hasta ahora):
+    arranca con el almacén central de TDEM y Logística agrega direcciones desde la misma
+    OC ("Agregar dirección"); la OC guarda el punto y su texto en `delivery_location`.
+    La OC por cotización usa por defecto el almacén central.
+  - **Factura**: el pago **final** (PAGADO) exige el número (serie-número, p. ej.
+    F001-123) y el archivo (`documento` tipo `FACTURA_PDF`); en el anticipo es opcional
+    (decisión del usuario). `orden_abastecimiento.invoice_number` / `invoice_document_id`.
+    Cada constancia y factura se liga a la OC en `documento_relacion` (entidad `ORDEN`),
+    así la constancia del anticipo no se pierde al pagar el saldo.
+  - **Documentos relacionados** (`DocumentosOrdenService`, una consulta): pagos, guías,
+    recepciones y Notas de Inventario de los requerimientos de origen, con enlace al
+    archivo o a su pantalla. Solo lectura; los archivos privados no se exponen.
+  - `V50__plazo_lugar_factura_oc.sql`.
+
 - **DEC-L088 — Anular una Nota de Inventario con motivo (2026-11-25, v0.68.0).**
   Observación de Logística en la marcha blanca. Se anula solo mientras la nota está
   EMITIDA y **sin envío registrado** (lo despachado no salió del almacén); con envío,

@@ -67,6 +67,7 @@ public class OrdenDirectaService {
     private final OrdenAbastecimientoRepository ordenRepository;
     private final OrdenItemRepository ordenItemRepository;
     private final AlmacenCentral almacenCentral;
+    private final PuntosEntregaService puntos;
     private final ProveedorRepository proveedorRepository;
     private final MonedaRepository monedaRepository;
     private final CecoRepository cecoRepository;
@@ -78,7 +79,8 @@ public class OrdenDirectaService {
     private final RealtimeNotifier realtime;
 
     public OrdenDirectaService(OrdenAbastecimientoRepository ordenRepository, OrdenItemRepository ordenItemRepository,
-                               AlmacenCentral almacenCentral, ProveedorRepository proveedorRepository,
+                               AlmacenCentral almacenCentral, PuntosEntregaService puntos,
+                               ProveedorRepository proveedorRepository,
                                MonedaRepository monedaRepository, CecoRepository cecoRepository,
                                ProductoVarianteRepository varianteRepository, UsuarioRepository usuarioRepository,
                                JdbcTemplate jdbc, OrigenCompras origen, Auditoria auditoria,
@@ -86,6 +88,7 @@ public class OrdenDirectaService {
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.almacenCentral = almacenCentral;
+        this.puntos = puntos;
         this.proveedorRepository = proveedorRepository;
         this.monedaRepository = monedaRepository;
         this.cecoRepository = cecoRepository;
@@ -129,8 +132,9 @@ public class OrdenDirectaService {
         orden.setIssueDate(LocalDate.now(LIMA));
         orden.setPaymentCondition(formaPago);
         orden.setDeliveryMode(entrega);
-        orden.setDeliveryLocation(limpio(r.deliveryLocation()));
-        orden.setDeliveryTerm(limpio(r.deliveryTerm()));
+        // DEC-L089: plazo estructurado y lugar de la lista.
+        PlazoEntrega.aplicar(orden, r.deliveryDays(), r.deliveryDayType());
+        puntos.aplicar(orden, r.deliveryPointId());
         orden.setAdditionalSpecs(limpio(r.additionalSpecs()));
         orden.setMoneda(moneda);
         orden.setTaxMode(modoIgv);

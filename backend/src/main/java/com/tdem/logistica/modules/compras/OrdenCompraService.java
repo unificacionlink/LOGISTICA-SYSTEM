@@ -58,6 +58,8 @@ public class OrdenCompraService {
     private final Auditoria auditoria;
     private final RealtimeNotifier realtime;
     private final DestinosEntrega destinosEntrega;
+    private final PuntosEntregaService puntos;
+    private final com.tdem.logistica.repository.DocumentoRelacionRepository documentoRelacionRepository;
 
     public OrdenCompraService(OrdenAbastecimientoRepository ordenRepository,
                               OrdenItemRepository ordenItemRepository,
@@ -67,7 +69,11 @@ public class OrdenCompraService {
                               OrigenCompras origen,
                               Auditoria auditoria,
                               RealtimeNotifier realtime,
-                              DestinosEntrega destinosEntrega) {
+                              DestinosEntrega destinosEntrega,
+                              PuntosEntregaService puntos,
+                              com.tdem.logistica.repository.DocumentoRelacionRepository documentoRelacionRepository) {
+        this.puntos = puntos;
+        this.documentoRelacionRepository = documentoRelacionRepository;
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.aprobacionRepository = aprobacionRepository;
@@ -185,8 +191,8 @@ public class OrdenCompraService {
         }
         Map<String, Object> antes = condiciones(orden);
         orden.setTaxMode(modo);
-        orden.setDeliveryTerm(limpio(request.deliveryTerm()));
-        orden.setDeliveryLocation(limpio(request.deliveryLocation()));
+        PlazoEntrega.aplicar(orden, request.deliveryDays(), request.deliveryDayType());
+        puntos.aplicar(orden, request.deliveryPointId());
         orden.setAdditionalSpecs(limpio(request.additionalSpecs()));
         List<OrdenItem> items = ordenItemRepository.findByOrden(orderId);
         if (request.entregaDirecta() != null) {
@@ -244,6 +250,26 @@ public class OrdenCompraService {
         Documento constancia = documentoRepository.findById(request.documentId())
                 .filter(d -> "CONSTANCIA_PAGO".equals(d.getDocumentType()))
                 .orElseThrow(() -> ApiException.badRequest("Constancia de pago no encontrada."));
+        // DEC-L089: el pago final exige la factura del proveedor; en el anticipo es opcional.
+        String facturaNumero = request.facturaNumero() == null ? null : request.facturaNumero().trim().toUpperCase();
+        if (facturaNumero != null && facturaNumero.isEmpty()) {
+            facturaNumero = null;
+        }
+        boolean pagoFinal = EstadoPagoOrden.PAGADO.equals(estado);
+        if (pagoFinal && (facturaNumero == null || request.facturaDocumentId() == null)
+                && orden.getFactura() == null) {
+            throw ApiException.badRequest("Para el pago final adjunta la factura del proveedor y su número.");
+        }
+        if ((facturaNumero == null) != (request.facturaDocumentId() == null)) {
+            throw ApiException.badRequest("Indica el número de la factura y adjunta su archivo.");
+        }
+        if (facturaNumero != null && !facturaNumero.matches("[A-Z0-9]{1,6}-[0-9]{1,12}")) {
+            throw ApiException.badRequest("El número de factura va como serie-número, por ejemplo F001-123.");
+        }
+        Documento factura = request.facturaDocumentId() == null ? null
+                : documentoRepository.findById(request.facturaDocumentId())
+                        .filter(d -> "FACTURA_PDF".equals(d.getDocumentType()))
+                        .orElseThrow(() -> ApiException.badRequest("Factura no encontrada."));
 
         Map<String, Object> antes = new HashMap<>();
         antes.put("pago", orden.getPaymentStatus());
@@ -251,9 +277,16 @@ public class OrdenCompraService {
         orden.setConstanciaPago(constancia);
         orden.setPaidAt(Instant.now());
         orden.setPaidBy(principal.userId());
+        relacionar(constancia, orderId);
+        if (factura != null) {
+            orden.setFactura(factura);
+            orden.setInvoiceNumber(facturaNumero);
+            relacionar(factura, orderId);
+        }
         Map<String, Object> despues = new HashMap<>();
         despues.put("pago", estado);
         despues.put("constancia", constancia.getDocumentId());
+        despues.put("factura", orden.getInvoiceNumber());
         // DEC-L080: la orden solo de servicios no tiene recepcion; pagada, queda cerrada.
         if (orden.isServicesOnly() && EstadoPagoOrden.PAGADO.equals(estado)) {
             antes.put("estado", orden.getStatus());
@@ -263,6 +296,16 @@ public class OrdenCompraService {
         ordenRepository.save(orden);
         auditoria.registrar(ENTIDAD_AUDITORIA, orderId, "PAGO", antes, despues, principal.userId());
         return ComprasMapper.toDto(orden, origen.deOrden(orderId));
+    }
+
+    /** DEC-L089: cada constancia y factura queda ligada a la OC (el anticipo no se pierde al pagar el saldo). */
+    private void relacionar(Documento documento, UUID orderId) {
+        com.tdem.logistica.entity.DocumentoRelacion rel = new com.tdem.logistica.entity.DocumentoRelacion();
+        rel.setDocumentRelationId(UUID.randomUUID());
+        rel.setDocumento(documento);
+        rel.setEntityType("ORDEN");
+        rel.setEntityId(orderId);
+        documentoRelacionRepository.insertar(rel);
     }
 
     /** Deja la OC aprobada lista para que el almacen la reciba; el pago no se exige. */

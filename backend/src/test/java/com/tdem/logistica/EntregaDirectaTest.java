@@ -176,10 +176,10 @@ class EntregaDirectaTest {
 		List<CrearOrdenDirectaRequest.Linea> lineas = List.of(
 				new CrearOrdenDirectaRequest.Linea(variante, null, new BigDecimal("2"), BigDecimal.TEN));
 		assertThrows(ApiException.class, () -> directas.crear(new CrearOrdenDirectaRequest(prov, "PEN",
-				"CONTADO", "ALMACEN_CLIENTE", null, null, "MAS_IGV", null, null, null, lineas, true), log));
+				"CONTADO", "ALMACEN_CLIENTE", null, 5, "HABILES", "MAS_IGV", null, null, null, lineas, true), log));
 
 		OrdenDto oc = directas.crear(new CrearOrdenDirectaRequest(prov, "PEN", "CONTADO", "ALMACEN_CLIENTE",
-				"Obra Lima", null, "MAS_IGV", null, ceco("ADM"), null, lineas, true), log);
+				null, 5, "HABILES", "MAS_IGV", null, ceco("ADM"), null, lineas, true), log);
 		assertTrue(oc.entregaDirecta());
 		ordenCompra.liberar(oc.orderId(), new com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest(null), log);
 		EntregaDirectaDto e = entregas.obtener(oc.orderId(), log);
@@ -196,7 +196,7 @@ class EntregaDirectaTest {
 
 	private OrdenDto marcar(UUID orderId, boolean directa, UsuarioPrincipal quien) {
 		return ordenCompra.editarCondiciones(orderId,
-				new CondicionesOrdenRequest("MAS_IGV", "5 días", "Obras según requerimiento", null, directa), quien);
+				new CondicionesOrdenRequest("MAS_IGV", 5, "CALENDARIO", null, null, directa), quien);
 	}
 
 	private EntregaDirectaDto registrar(UUID orderId, UUID ceco, GuiaInput guia, UUID linea, UUID need, UUID item,

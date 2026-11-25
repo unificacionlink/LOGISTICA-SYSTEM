@@ -24,8 +24,11 @@ public record CrearOrdenDirectaRequest(
         @NotBlank(message = "Selecciona la moneda.") String currencyCode,
         @NotBlank(message = "Selecciona la forma de pago.") String paymentCondition,
         @NotBlank(message = "Selecciona la modalidad de entrega.") String deliveryMode,
-        @Size(max = 220, message = "El lugar de entrega admite hasta 220 caracteres.") String deliveryLocation,
-        @Size(max = 120, message = "El plazo de entrega admite hasta 120 caracteres.") String deliveryTerm,
+        /** DEC-L089: lugar de entrega de la lista (punto_entrega); null = sin lugar. */
+        UUID deliveryPointId,
+        /** DEC-L089: plazo en dias y si son HABILES o CALENDARIO. */
+        @NotNull(message = "Indica el plazo de entrega en días.") Integer deliveryDays,
+        @NotBlank(message = "Indica si el plazo es en días hábiles o calendario.") String deliveryDayType,
         @NotBlank(message = "Indica como se aplica el IGV.") String taxMode,
         @Size(max = 2000, message = "Las especificaciones admiten hasta 2000 caracteres.") String additionalSpecs,
         UUID cecoId,

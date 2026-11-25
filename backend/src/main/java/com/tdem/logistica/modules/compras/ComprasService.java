@@ -50,7 +50,8 @@ public class ComprasService {
     private static final Map<String, String> CARPETA_POR_TIPO = Map.of(
             "COTIZACION", "cotizaciones/",
             "COMPROBANTE_CAJA_CHICA", "caja-chica/",
-            "CONSTANCIA_PAGO", "pagos/");
+            "CONSTANCIA_PAGO", "pagos/",
+            "FACTURA_PDF", "facturas/");
 
     private final RequerimientoRepository requerimientoRepository;
     private final RequerimientoItemRepository requerimientoItemRepository;
