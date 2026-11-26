@@ -86,6 +86,13 @@ export function subirComprobanteCajaChica(requestId: string, file: File) {
 
 export type TipoComprobanteCajaChica = "FACTURA" | "BOLETA" | "TICKET" | "RECIBO" | "OTRO";
 
+/** DEC-L096: al registrar, solo boleta o factura. */
+export const TIPOS_REGISTRO: { id: TipoComprobanteCajaChica; label: string }[] = [
+  { id: "FACTURA", label: "Factura" },
+  { id: "BOLETA", label: "Boleta" },
+];
+
+/** Etiquetas de todos los tipos (registros anteriores pueden ser ticket, recibo u otro). */
 export const TIPOS_COMPROBANTE: { id: TipoComprobanteCajaChica; label: string }[] = [
   { id: "FACTURA", label: "Factura" },
   { id: "BOLETA", label: "Boleta" },

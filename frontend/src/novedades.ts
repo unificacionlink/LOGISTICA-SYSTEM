@@ -13,6 +13,15 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.76.0",
+    titulo: "Ajustes a la caja chica",
+    cambios: [
+      "El comprobante de una compra de caja chica es boleta o factura.",
+      "La factura ya no se mueve al bajar por la página: queda del mismo alto que el formulario.",
+      "Se quitó la nota al registrar la compra.",
+    ],
+  },
+  {
     version: "0.75.0",
     titulo: "Caja chica con lectura de la factura",
     cambios: [

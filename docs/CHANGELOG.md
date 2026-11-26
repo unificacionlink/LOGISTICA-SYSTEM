@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.76.0 — 2026-11-26
+
+Ajustes a la caja chica (DEC-L096).
+
+- `CompraCajaChicaService`: el tipo de comprobante es FACTURA o BOLETA; `ComprobanteOcrParser` ya no devuelve TICKET ni RECIBO.
+- Frontend: `TIPOS_REGISTRO` (boleta o factura) en Registrar compra; la factura deja de ser `sticky` y mide lo mismo que el formulario; sin nota; ayuda en "Número".
+- Tests: `CompraCajaChicaTest` rechaza un ticket.
+
 ## 0.75.0 — 2026-11-26
 
 Caja chica con OCR (DEC-L095).

@@ -9,7 +9,7 @@ import java.util.List;
  * es null si no se reconocio con seguridad; nada se guarda: solo pre-llena el
  * formulario para que el usuario revise.
  *
- * @param tipo FACTURA, BOLETA, TICKET o RECIBO
+ * @param tipo FACTURA o BOLETA
  */
 public record LecturaComprobanteDto(
         String tipo,

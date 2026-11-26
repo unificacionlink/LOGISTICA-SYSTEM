@@ -4,7 +4,7 @@ import { FileUp, Link2, Plus, ScanText, Trash2 } from "lucide-react";
 import {
   leerComprobanteCajaChica,
   registrarCompraCajaChica,
-  TIPOS_COMPROBANTE,
+  TIPOS_REGISTRO,
   type LecturaComprobante,
   type TipoComprobanteCajaChica,
 } from "../api/cajachica";
@@ -52,7 +52,8 @@ const lineaEnBlanco = (l: Linea) => !l.variante && !l.descripcion.trim() && !l.p
 
 /**
  * Registrar una compra con la caja chica del proyecto (DEC-L092): a la izquierda
- * el formulario y a la derecha la factura (obligatoria, foto, PDF o enlace).
+ * el formulario y a la derecha la factura (obligatoria, foto, PDF o enlace),
+ * del mismo alto que el formulario. DEC-L096: solo boleta o factura, sin nota.
  * DEC-L095: "Leer con OCR" llena lo que se pueda leer del comprobante y lo
  * marca; lo que no se leyó queda vacío para completarlo mirando la factura.
  */
@@ -73,7 +74,6 @@ export default function CajaChicaNueva() {
   const [modoFactura, setModoFactura] = useState<"archivo" | "enlace">("archivo");
   const [archivo, setArchivo] = useState<File | null>(null);
   const [enlace, setEnlace] = useState("");
-  const [nota, setNota] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [leyendo, setLeyendo] = useState(false);
@@ -104,7 +104,7 @@ export default function CajaChicaNueva() {
       setFecha(r.fecha);
       llenos.add("fecha");
     }
-    if (r.tipo) {
+    if (r.tipo === "FACTURA" || r.tipo === "BOLETA") {
       setTipo(r.tipo);
       llenos.add("tipo");
     }
@@ -201,7 +201,7 @@ export default function CajaChicaNueva() {
           serie: serie.trim() || null,
           numero: numero.trim(),
           facturaUrl: modoFactura === "enlace" ? enlace.trim() : null,
-          nota: nota.trim() || null,
+          nota: null,
           lineas: lineas.map((l) => ({
             variantId: l.delCatalogo ? (l.variante?.variantId ?? null) : null,
             descripcion: l.delCatalogo ? null : l.descripcion.trim(),
@@ -240,7 +240,8 @@ export default function CajaChicaNueva() {
           <Skeleton className="h-[28rem]" />
         </div>
       ) : (
-        <div className="grid items-start gap-5 lg:grid-cols-2">
+        <>
+        <div className="grid items-stretch gap-5 lg:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-5">
             <Card>
               <CardHeader>
@@ -265,7 +266,7 @@ export default function CajaChicaNueva() {
                     onChange={(e) => setTipo(e.target.value as TipoComprobanteCajaChica)}
                     className={`${inputClass} w-full ${marca("tipo")}`}
                   >
-                    {TIPOS_COMPROBANTE.map((t) => (
+                    {TIPOS_REGISTRO.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.label}
                       </option>
@@ -282,7 +283,14 @@ export default function CajaChicaNueva() {
                   />
                 </Field>
                 <Field label="Número" required>
-                  <input value={numero} maxLength={20} onChange={(e) => setNumero(e.target.value)} className={`${inputClass} w-full ${marca("numero")}`} />
+                  <input
+                    value={numero}
+                    maxLength={20}
+                    onChange={(e) => setNumero(e.target.value)}
+                    placeholder="00012345"
+                    title="El correlativo que va después de la serie: en F001-00012345 es 00012345"
+                    className={`${inputClass} w-full ${marca("numero")}`}
+                  />
                 </Field>
                 <Field label="RUC" required={tipo === "FACTURA"}>
                   <CampoNumero value={ruc} onChange={setRuc} maxEnteros={11} className={`${inputClass} w-full ${marca("ruc")}`} />
@@ -371,23 +379,10 @@ export default function CajaChicaNueva() {
               </div>
             </Card>
 
-            <Field label="Nota">
-              <textarea value={nota} maxLength={500} rows={2} onChange={(e) => setNota(e.target.value)} className={`${inputClass} w-full`} />
-            </Field>
-
-            {error && <Alert tone="danger">{error}</Alert>}
-
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" href="/caja-chica">
-                Cancelar
-              </Button>
-              <Button loading={guardando} onClick={guardar}>
-                Registrar compra
-              </Button>
-            </div>
           </div>
 
-          <Card className="min-w-0 lg:sticky lg:top-4">
+          {/* Mismo alto que Comprobante + Lo comprado: la factura no se desplaza con la página. */}
+          <Card className="flex min-w-0 flex-col">
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold text-slate-900">
@@ -400,7 +395,7 @@ export default function CajaChicaNueva() {
                 )}
               </div>
             </CardHeader>
-            <CardBody className="flex flex-col gap-4">
+            <CardBody className="flex flex-1 flex-col gap-4">
               <div role="radiogroup" className="inline-flex w-fit rounded-md border border-slate-200 p-0.5">
                 {(
                   [
@@ -435,16 +430,14 @@ export default function CajaChicaNueva() {
                   {aviso && <Alert tone={aviso.tono}>{aviso.texto}</Alert>}
                   {vista && archivo ? (
                     archivo.type === "application/pdf" ? (
-                      <iframe src={vista} title="Factura" className="h-[36rem] w-full rounded-md border border-slate-200" />
+                      <iframe src={vista} title="Factura" className="min-h-[20rem] w-full flex-1 rounded-md border border-slate-200" />
                     ) : (
-                      <img
-                        src={vista}
-                        alt="Factura"
-                        className="max-h-[36rem] w-full rounded-md border border-slate-200 bg-slate-50 object-contain"
-                      />
+                      <div className="relative min-h-[20rem] flex-1 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+                        <img src={vista} alt="Factura" className="absolute inset-0 size-full object-contain" />
+                      </div>
                     )
                   ) : (
-                    <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 text-sm text-slate-400">
+                    <div className="flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 text-sm text-slate-400">
                       <FileUp className="size-6" />
                       Foto o PDF de la factura
                     </div>
@@ -463,6 +456,18 @@ export default function CajaChicaNueva() {
             </CardBody>
           </Card>
         </div>
+
+        {error && <Alert tone="danger" className="mt-5">{error}</Alert>}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" href="/caja-chica">
+            Cancelar
+          </Button>
+          <Button loading={guardando} onClick={guardar}>
+            Registrar compra
+          </Button>
+        </div>
+        </>
       )}
     </div>
   );

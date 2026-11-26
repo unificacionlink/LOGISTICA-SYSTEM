@@ -105,12 +105,15 @@ class CompraCajaChicaTest {
 		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, "20512345678", "FACTURA", "F001", "123",
 				"https://x.test/f.pdf", List.of(new Linea(null, "Repetida", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante),
 				"comprobante repetido");
-		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy.plusDays(1), null, "TICKET", null, "1",
+		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy.plusDays(1), null, "BOLETA", "B001", "1",
 				"https://x.test/t.pdf", List.of(new Linea(null, "Futura", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante));
 		UUID ajeno = ceco("GOYDELSAC", "CCH-G1");
-		assertThrows(ApiException.class, () -> cajaChica.registrar(request(ajeno, hoy, null, "TICKET", null, "9",
+		assertThrows(ApiException.class, () -> cajaChica.registrar(request(ajeno, hoy, null, "BOLETA", "B001", "9",
 				"https://x.test/t.pdf", List.of(new Linea(null, "Ajeno", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante),
 				"solo sus CECOs");
+		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, null, "TICKET", null, "10",
+				"https://x.test/t.pdf", List.of(new Linea(null, "Ticket", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante),
+				"solo boleta o factura");
 		assertEquals(2, cajaChica.mias(solicitante).size());
 
 		// Consolidado: Logistica ve todo; el aprobador, solo los CECOs que aprueba o suple.

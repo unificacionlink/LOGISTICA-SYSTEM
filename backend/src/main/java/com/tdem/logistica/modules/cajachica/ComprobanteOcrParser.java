@@ -82,9 +82,7 @@ public final class ComprobanteOcrParser {
         if (t.contains("FACTURA ELECTR")) return "FACTURA";
         if (t.contains("BOLETA")) return "BOLETA";
         if (t.contains("FACTURA")) return "FACTURA";
-        if (t.contains("TICKET")) return "TICKET";
-        if (t.contains("RECIBO")) return "RECIBO";
-        return null;
+        return null;  // DEC-L096: la caja chica solo registra boletas y facturas
     }
 
     static String[] serieNumero(String t) {

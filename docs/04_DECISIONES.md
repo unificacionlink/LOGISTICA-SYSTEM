@@ -5,6 +5,15 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L096 — Caja chica: solo boleta o factura, factura fija y sin nota (2026-11-26, v0.76.0).**
+  Ajustes de Logística a DEC-L095. (1) El comprobante de una compra nueva es **solo boleta o
+  factura** (`CompraCajaChicaService.TIPOS`; el check de la BD sigue aceptando ticket, recibo y
+  otro de registros anteriores, que conservan su etiqueta en la lista); el OCR ya no propone
+  ticket ni recibo. (2) La columna de la factura ya no se desplaza con la página: mide lo mismo
+  que Comprobante + Lo comprado y la vista previa ocupa ese alto. (3) Se quita la **nota** del
+  formulario (la API la sigue aceptando). "Número" es el correlativo que va después de la serie
+  (en F001-00012345, el número es 00012345).
+
 - **DEC-L095 — Caja chica: factura al lado del formulario y lectura por OCR (2026-11-26, v0.75.0).**
   Pedido de Logística (boceto). "Registrar compra" se parte en dos: a la izquierda el formulario
   y a la derecha la factura con su vista previa (imagen o PDF, sin subirla todavía). El botón

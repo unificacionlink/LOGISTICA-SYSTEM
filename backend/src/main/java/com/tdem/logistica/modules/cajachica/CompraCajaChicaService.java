@@ -42,7 +42,8 @@ import java.util.regex.Pattern;
 public class CompraCajaChicaService {
 
     private static final ZoneId LIMA = ZoneId.of("America/Lima");
-    private static final Set<String> TIPOS = Set.of("FACTURA", "BOLETA", "TICKET", "RECIBO", "OTRO");
+    /** DEC-L096: solo boleta o factura (los registros anteriores pueden tener otros tipos). */
+    private static final Set<String> TIPOS = Set.of("FACTURA", "BOLETA");
     private static final Set<String> FORMATOS = Set.of("application/pdf", "image/jpeg", "image/png", "image/webp");
     private static final Pattern RUC = Pattern.compile("\\d{11}");
     private static final Pattern PERIODO = Pattern.compile("\\d{4}-\\d{2}");
@@ -102,7 +103,7 @@ public class CompraCajaChicaService {
         }
         String tipo = r.tipoComprobante().trim().toUpperCase();
         if (!TIPOS.contains(tipo)) {
-            throw ApiException.badRequest("Tipo de comprobante inválido.");
+            throw ApiException.badRequest("El comprobante es una boleta o una factura.");
         }
         String ruc = limpio(r.proveedorRuc());
         if (ruc != null && !RUC.matcher(ruc).matches()) {
