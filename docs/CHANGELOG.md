@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.75.0 — 2026-11-26
+
+Caja chica con OCR (DEC-L095).
+
+- `POST /api/caja-chica/compras/leer` (`LecturaComprobanteService`): OCR del comprobante con `OcrExtractor`; si falla, lectura vacía.
+- `ComprobanteOcrParser` + `LecturaComprobanteDto`: tipo, serie-número, RUC/razón social del emisor (excluye las empresas del grupo), fecha, total y líneas que cuadran.
+- Frontend: Registrar compra de caja chica en dos columnas (formulario | factura con vista previa) y botón "Leer con OCR"; lo leído se marca en verde.
+- Tests: `ComprobanteOcrParserTest`.
+
 ## 0.74.0 — 2026-11-26
 
 Órdenes de compra (DEC-L094).

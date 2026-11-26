@@ -5,6 +5,7 @@ import com.tdem.logistica.common.MotivoRequest;
 import com.tdem.logistica.documentos.Descargas;
 import com.tdem.logistica.modules.cajachica.dto.CompraCajaChicaDto;
 import com.tdem.logistica.modules.cajachica.dto.ConsolidadoCajaChicaDto;
+import com.tdem.logistica.modules.cajachica.dto.LecturaComprobanteDto;
 import com.tdem.logistica.modules.cajachica.dto.RegistrarCompraCajaChicaRequest;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import jakarta.validation.Valid;
@@ -24,9 +25,18 @@ import java.util.UUID;
 public class CompraCajaChicaController {
 
     private final CompraCajaChicaService service;
+    private final LecturaComprobanteService lectura;
 
-    public CompraCajaChicaController(CompraCajaChicaService service) {
+    public CompraCajaChicaController(CompraCajaChicaService service, LecturaComprobanteService lectura) {
         this.service = service;
+        this.lectura = lectura;
+    }
+
+    /** DEC-L095: lee por OCR lo que pueda del comprobante; no guarda nada. */
+    @PostMapping(value = "/compras/leer", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<LecturaComprobanteDto> leer(@RequestPart("file") MultipartFile archivo,
+                                                   @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(lectura.leer(archivo, principal));
     }
 
     /** Multipart: {@code datos} (JSON) y la factura en {@code file}, o su enlace en datos.facturaUrl. */

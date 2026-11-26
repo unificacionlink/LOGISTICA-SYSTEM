@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.75.0",
+    titulo: "Caja chica con lectura de la factura",
+    cambios: [
+      "Al registrar una compra de caja chica ves la factura al lado del formulario.",
+      "«Leer con OCR» llena lo que se puede leer de la factura y lo marca en verde; lo que no se lee queda vacío para completarlo.",
+    ],
+  },
+  {
     version: "0.74.0",
     titulo: "Órdenes de compra",
     cambios: [

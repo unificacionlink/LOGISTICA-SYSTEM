@@ -165,6 +165,24 @@ export function registrarCompraCajaChica(datos: RegistrarCompraInput, factura: F
   return http.postForm<CompraModuloCajaChica>("/api/caja-chica/compras", form);
 }
 
+/** DEC-L095: lo que el OCR leyó del comprobante; null = no se reconoció (queda para completar a mano). */
+export interface LecturaComprobante {
+  tipo: TipoComprobanteCajaChica | null;
+  serie: string | null;
+  numero: string | null;
+  ruc: string | null;
+  proveedor: string | null;
+  fecha: string | null;
+  total: number | null;
+  lineas: { descripcion: string; cantidad: number; precioUnitario: number }[];
+}
+
+export function leerComprobanteCajaChica(archivo: File) {
+  const form = new FormData();
+  form.append("file", archivo);
+  return http.postForm<LecturaComprobante>("/api/caja-chica/compras/leer", form);
+}
+
 export function misComprasCajaChica() {
   return http.get<CompraModuloCajaChica[]>("/api/caja-chica/compras/mias");
 }

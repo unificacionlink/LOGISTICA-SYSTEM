@@ -5,6 +5,19 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L095 — Caja chica: factura al lado del formulario y lectura por OCR (2026-11-26, v0.75.0).**
+  Pedido de Logística (boceto). "Registrar compra" se parte en dos: a la izquierda el formulario
+  y a la derecha la factura con su vista previa (imagen o PDF, sin subirla todavía). El botón
+  **Leer con OCR** manda el archivo a `POST /api/caja-chica/compras/leer` (`LecturaComprobanteService`,
+  el mismo Tesseract local de las cotizaciones; no guarda nada) y `ComprobanteOcrParser` devuelve
+  solo lo que reconoce con seguridad: tipo, serie-número, RUC y razón social del emisor (nunca los
+  del grupo, que figuran como cliente), fecha de emisión (no futura ni de hace más de 2 años),
+  total y las líneas cuyo cálculo cuadra (cantidad entera × precio = importe; si los precios
+  vienen sin IGV y con IGV suman el total, se pasan con IGV). Lo que no lee queda vacío: una
+  factura ilegible no es un error, se completa a mano. Lo llenado se marca en verde; las líneas
+  solo se reemplazan si estaban en blanco, y sin detalle se llena al menos el total en una
+  línea. Con enlace no hay OCR.
+
 - **DEC-L094 — OC: producto escrito, descripción editable, sin pie, pago con enlace y sin paso de liberación (2026-11-26, v0.74.0).**
   Pedidos de Logística. (1) **OC directa**: cada línea de producto se elige del catálogo y su
   **texto en la OC se puede editar** (`orden_item.description`, que el PDF usa siempre); si el
