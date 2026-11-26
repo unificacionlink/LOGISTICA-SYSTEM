@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronDown, PackagePlus, Plus, Trash2, Wrench } from "lucide-react";
 import { invalidar } from "../api/cache";
 import { crearOrdenDirecta, listarMonedas } from "../api/compras";
+import { obtenerClasificacion } from "../api/maestro";
 import { listarProveedores } from "../api/proveedores";
 import { obtenerCatalogoFormulario } from "../api/requerimientos";
 import type { ModoIgv, TipoPlazo, VarianteCatalogo } from "../api/types";
@@ -28,14 +29,21 @@ const IGV: { id: ModoIgv; label: string }[] = [
   { id: "NO_AFECTO", label: "No afecto a IGV" },
 ];
 
+/** CATALOGO = producto con SKU; ESCRITO = producto a mano, solo texto en la OC (DEC-L094); SERVICIO. */
+type TipoLinea = "CATALOGO" | "ESCRITO" | "SERVICIO";
+
 interface Linea {
   clave: number;
+  tipo: TipoLinea;
   variante: VarianteCatalogo | null;
-  /** null = linea de producto; texto = servicio. */
-  servicio: string | null;
+  /** Texto que sale en la OC: el del catalogo (editable), el producto escrito o el servicio. */
+  descripcion: string;
+  uomId: string;
   cantidad: string;
   precio: string;
 }
+
+const nombreCatalogo = (v: VarianteCatalogo) => (v.atributo ? `${v.nombre} (${v.atributo})` : v.nombre);
 
 const redondear = (n: number) => Math.round(n * 100) / 100;
 
@@ -64,6 +72,9 @@ export default function ComprasOrdenNueva() {
   const catalogo = useDatos("catalogo", obtenerCatalogoFormulario, { fresco: 10 * 60_000 });
   const proveedores = useDatos("proveedores", () => listarProveedores(), { fresco: 5 * 60_000 });
   const monedas = useDatos("monedas", listarMonedas, { fresco: 60 * 60_000 });
+  const clasificacion = useDatos("clasificacion", obtenerClasificacion, { fresco: 10 * 60_000 });
+  const unidades = clasificacion.datos?.unidades ?? [];
+  const und = unidades.find((u) => u.code === "UND")?.id ?? unidades[0]?.id ?? "";
 
   const [proveedor, setProveedor] = useState<string | null>(null);
   const [moneda, setMoneda] = useState("PEN");
@@ -86,8 +97,11 @@ export default function ComprasOrdenNueva() {
   const suma = lineas.reduce((acc, l) => acc + (Number(l.cantidad) || 0) * (Number(l.precio) || 0), 0);
   const t = totales(suma, modoIgv);
 
-  function agregar(servicio: boolean) {
-    setLineas((ls) => [...ls, { clave: siguiente, variante: null, servicio: servicio ? "" : null, cantidad: "1", precio: "" }]);
+  function agregar(tipo: TipoLinea) {
+    setLineas((ls) => [
+      ...ls,
+      { clave: siguiente, tipo, variante: null, descripcion: "", uomId: und, cantidad: "1", precio: "" },
+    ]);
     setSiguiente((n) => n + 1);
   }
 
@@ -100,8 +114,10 @@ export default function ComprasOrdenNueva() {
     if (!(Number(dias) >= 1)) return "Indica el plazo de entrega en días.";
     if (lineas.length === 0) return "Agrega al menos un producto o servicio.";
     for (const l of lineas) {
-      if (l.servicio === null && !l.variante) return "Elige el producto de cada línea de producto.";
-      if (l.servicio !== null && !l.servicio.trim()) return "Describe cada servicio.";
+      if (l.tipo === "CATALOGO" && !l.variante) return "Elige el producto de cada línea o escríbelo.";
+      if (l.tipo === "ESCRITO" && !l.descripcion.trim()) return "Escribe el nombre de cada producto.";
+      if (l.tipo === "ESCRITO" && !(l.uomId || und)) return "Elige la unidad de cada producto escrito.";
+      if (l.tipo === "SERVICIO" && !l.descripcion.trim()) return "Describe cada servicio.";
       if (!(Number(l.cantidad) > 0)) return "Indica la cantidad de cada línea.";
       if (!(Number(l.precio) > 0)) return "Indica el precio unitario de cada línea.";
     }
@@ -136,10 +152,11 @@ export default function ComprasOrdenNueva() {
         requestCode: codigoReq.trim() || null,
         entregaDirecta: directa && !!cecoId,
         lineas: lineas.map((l) => ({
-          variantId: l.servicio === null ? l.variante!.variantId : null,
-          descripcion: l.servicio,
+          variantId: l.tipo === "CATALOGO" ? l.variante!.variantId : null,
+          descripcion: l.descripcion.trim() || null,
           cantidad: Number(l.cantidad),
           precioUnitario: Number(l.precio),
+          uomId: l.tipo === "ESCRITO" ? l.uomId || und : null,
         })),
       });
       if (res.ok && res.result) {
@@ -153,7 +170,7 @@ export default function ComprasOrdenNueva() {
     }
   }
 
-  const cargando = !catalogo.datos || !proveedores.datos || !monedas.datos;
+  const cargando = !catalogo.datos || !proveedores.datos || !monedas.datos || !clasificacion.datos;
 
   return (
     <div>
@@ -290,10 +307,10 @@ export default function ComprasOrdenNueva() {
             <CardHeader className="flex items-center justify-between gap-3">
               <div className="rotulo">Productos y servicios ({lineas.length})</div>
               <div className="flex gap-2">
-                <Button variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={() => agregar(false)}>
+                <Button variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={() => agregar("CATALOGO")}>
                   Producto
                 </Button>
-                <Button variant="secondary" size="sm" icon={<Wrench className="size-3.5" />} onClick={() => agregar(true)}>
+                <Button variant="secondary" size="sm" icon={<Wrench className="size-3.5" />} onClick={() => agregar("SERVICIO")}>
                   Servicio
                 </Button>
               </div>
@@ -316,21 +333,12 @@ export default function ComprasOrdenNueva() {
                     {lineas.map((l) => (
                       <tr key={l.clave}>
                         <td className="col-flex px-5 py-2">
-                          {l.servicio === null ? (
-                            <ProductoCombobox
-                              variantes={catalogo.datos?.variantes ?? []}
-                              valor={l.variante}
-                              onSeleccionar={(v) => cambiar(l.clave, { variante: v })}
-                            />
-                          ) : (
-                            <input
-                              className={`${inputClass} w-full`}
-                              placeholder="Describe el servicio"
-                              maxLength={250}
-                              value={l.servicio}
-                              onChange={(e) => cambiar(l.clave, { servicio: e.target.value })}
-                            />
-                          )}
+                          <LineaDescripcion
+                            linea={l}
+                            variantes={catalogo.datos?.variantes ?? []}
+                            unidades={unidades}
+                            onCambio={(c) => cambiar(l.clave, c)}
+                          />
                         </td>
                         <td className="px-3 py-2">
                           <CampoNumero
@@ -381,6 +389,89 @@ export default function ComprasOrdenNueva() {
             </CardBody>
           </Card>
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Celda de descripcion (DEC-L094): el producto se elige del catalogo y su texto
+ * en la OC se puede editar; si no esta en el catalogo, se escribe a mano con su
+ * unidad (queda solo como texto en la OC, no entra al stock).
+ */
+function LineaDescripcion({
+  linea: l,
+  variantes,
+  unidades,
+  onCambio,
+}: {
+  linea: Linea;
+  variantes: VarianteCatalogo[];
+  unidades: { id: string; code: string; nombre: string }[];
+  onCambio: (c: Partial<Linea>) => void;
+}) {
+  const enlace = "mt-1 text-xs text-brand-700 hover:underline";
+  if (l.tipo === "SERVICIO") {
+    return (
+      <input
+        className={`${inputClass} w-full`}
+        placeholder="Describe el servicio"
+        maxLength={250}
+        value={l.descripcion}
+        onChange={(e) => onCambio({ descripcion: e.target.value })}
+      />
+    );
+  }
+  if (l.tipo === "ESCRITO") {
+    return (
+      <div>
+        <div className="flex gap-2">
+          <input
+            className={`${inputClass} min-w-0 flex-1`}
+            placeholder="Escribe el producto"
+            maxLength={250}
+            value={l.descripcion}
+            onChange={(e) => onCambio({ descripcion: e.target.value })}
+          />
+          <select
+            className={`${inputClass} w-28`}
+            aria-label="Unidad"
+            value={l.uomId}
+            onChange={(e) => onCambio({ uomId: e.target.value })}
+          >
+            {unidades.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="button" className={enlace} onClick={() => onCambio({ tipo: "CATALOGO", descripcion: "" })}>
+          Buscar en el catálogo
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <ProductoCombobox
+        variantes={variantes}
+        valor={l.variante}
+        onSeleccionar={(v) => onCambio({ variante: v, descripcion: v ? nombreCatalogo(v) : "" })}
+      />
+      {l.variante ? (
+        <input
+          className={`${inputClass} mt-1.5 w-full`}
+          aria-label="Descripción en la orden"
+          title="Texto que sale en la orden de compra"
+          maxLength={250}
+          value={l.descripcion}
+          onChange={(e) => onCambio({ descripcion: e.target.value })}
+        />
+      ) : (
+        <button type="button" className={enlace} onClick={() => onCambio({ tipo: "ESCRITO", variante: null })}>
+          No está en el catálogo: escribirlo
+        </button>
       )}
     </div>
   );

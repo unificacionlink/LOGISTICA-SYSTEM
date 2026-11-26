@@ -23,6 +23,7 @@ import com.tdem.logistica.repository.OrdenAbastecimientoRepository;
 import com.tdem.logistica.repository.OrdenItemRepository;
 import com.tdem.logistica.repository.ProductoVarianteRepository;
 import com.tdem.logistica.repository.ProveedorRepository;
+import com.tdem.logistica.repository.UnidadMedidaRepository;
 import com.tdem.logistica.repository.UsuarioRepository;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,7 +51,7 @@ import java.util.stream.Collectors;
  * productos del catalogo y/o servicios en texto libre. Sale aprobada (la emite
  * quien decide compras) y con las mismas condiciones del formato F-LOG-09.
  * Sale siempre a nombre de TDEM, que compra para el grupo (DEC-L086).
- * Los productos siguen el camino normal: liberar y recibir en el almacen
+ * Los productos siguen el camino normal: recibir en el almacen
  * central. Una orden solo de servicios no pasa por el almacen y se cierra al
  * registrar su pago.
  */
@@ -73,6 +74,7 @@ public class OrdenDirectaService {
     private final CecoRepository cecoRepository;
     private final ProductoVarianteRepository varianteRepository;
     private final UsuarioRepository usuarioRepository;
+    private final UnidadMedidaRepository unidadRepository;
     private final JdbcTemplate jdbc;
     private final OrigenCompras origen;
     private final Auditoria auditoria;
@@ -84,7 +86,7 @@ public class OrdenDirectaService {
                                MonedaRepository monedaRepository, CecoRepository cecoRepository,
                                ProductoVarianteRepository varianteRepository, UsuarioRepository usuarioRepository,
                                JdbcTemplate jdbc, OrigenCompras origen, Auditoria auditoria,
-                               RealtimeNotifier realtime) {
+                               RealtimeNotifier realtime, UnidadMedidaRepository unidadRepository) {
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.almacenCentral = almacenCentral;
@@ -98,6 +100,7 @@ public class OrdenDirectaService {
         this.origen = origen;
         this.auditoria = auditoria;
         this.realtime = realtime;
+        this.unidadRepository = unidadRepository;
     }
 
     @Transactional
@@ -149,6 +152,8 @@ public class OrdenDirectaService {
 
         List<OrdenItem> items = lineas(r.lineas(), orden);
         orden.setServicesOnly(items.stream().allMatch(i -> i.getProducto() == null));
+        // DEC-L094: sale aprobada y, por eso, ya liberada para recibir.
+        OrdenCompraService.liberarAlAprobar(orden, ahora, principal.userId());
         if (Boolean.TRUE.equals(r.entregaDirecta())) {
             // DEC-L084: los productos van al CECO de la orden, no al almacen.
             if (ceco == null) {
@@ -213,14 +218,21 @@ public class OrdenDirectaService {
                         ? " (" + v.getAttributeValue() + ")" : "";
                 oi.setProducto(v.getProducto());
                 oi.setVariante(v);
-                oi.setDescription(recortar(v.getProducto().getName() + atributo));
+                // DEC-L094: Logistica puede cambiar el texto que sale en la OC.
+                String propia = limpio(l.descripcion());
+                oi.setDescription(propia != null ? propia : recortar(v.getProducto().getName() + atributo));
                 oi.setUom(v.getProducto().getBaseUom());
             } else {
                 String descripcion = limpio(l.descripcion());
                 if (descripcion == null) {
-                    throw ApiException.badRequest("Describe el servicio de cada linea sin producto.");
+                    throw ApiException.badRequest("Describe el producto o servicio de cada linea.");
                 }
                 oi.setDescription(descripcion);
+                if (l.uomId() != null) {
+                    // DEC-L094: producto escrito a mano, solo texto en la OC (sin SKU ni stock).
+                    oi.setUom(unidadRepository.findById(l.uomId())
+                            .orElseThrow(() -> ApiException.badRequest("Unidad de medida no encontrada.")));
+                }
             }
             BigDecimal subtotal = l.cantidad().multiply(l.precioUnitario()).setScale(2, RoundingMode.HALF_UP);
             oi.setQtyOrdered(l.cantidad());

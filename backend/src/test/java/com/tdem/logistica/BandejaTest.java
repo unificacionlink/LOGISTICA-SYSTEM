@@ -17,7 +17,6 @@ import com.tdem.logistica.modules.stock.StockService;
 import com.tdem.logistica.modules.stock.dto.AjusteStockRequest;
 import com.tdem.logistica.modules.compras.OrdenCompraService;
 import com.tdem.logistica.modules.compras.dto.DecidirOrdenRequest;
-import com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterAll;
@@ -105,7 +104,7 @@ class BandejaTest {
 		assertEquals(List.of("ADJUDICAR"), codigos(fila(b, log)));
 		assertEquals(cons.toString(), fila(b, log).acciones().get(0).destino());
 
-		// Adjudicado -> EMITIR_OC; emitida -> APROBAR_OC (espera); aprobada -> LIBERAR_OC (Logistica actua);
+		// Adjudicado -> EMITIR_OC; emitida -> APROBAR_OC (espera); aprobada -> RECIBIR_OC (DEC-L094: sale liberada);
 		// liberada -> RECIBIR_OC (espera): pasa a Seguimiento, sigue en Compras (DEC-L061)
 		UUID item = c.proveedores().get(0).precios().get(0).quotationItemId();
 		comparativo.adjudicar(new AdjudicarComparativoRequest(List.of(cons),
@@ -116,9 +115,6 @@ class BandejaTest {
 		assertTrue(fila(b, log).acciones().get(0).espera());
 		ordenCompra.decidir(oc.orderId(), new DecidirOrdenRequest("APROBADO", null),
 				new UsuarioPrincipal(usuario("gerencia@logistica.test"), List.of("GERENCIA")));
-		assertEquals(List.of("LIBERAR_OC"), codigos(fila(b, log)));
-		assertTrue(enVista(b, "atencion", log) && enVista(b, "compras", log));
-		ordenCompra.liberar(oc.orderId(), new LiberarOrdenRequest(null), log);
 		BandejaDto.Fila fb = fila(b, log);
 		assertEquals(List.of("RECIBIR_OC"), codigos(fb));
 		assertTrue(fb.acciones().get(0).espera());

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.74.0 — 2026-11-26
+
+Órdenes de compra (DEC-L094).
+
+- `V55__oc_liberada_al_aprobar.sql`: libera las OC aprobadas que esperaban liberación.
+- `OrdenCompraService.decidir` y `OrdenDirectaService.crear` liberan al aprobar (`liberarAlAprobar`); `/liberar` queda como legado.
+- `RegistrarPagoRequest.constanciaUrl`/`facturaUrl`: el pago se registra con enlaces (`OrdenCompraService.enlace` crea el `documento`). `RecepcionDestinoService.exigirEnlace` pasa a público.
+- `CrearOrdenDirectaRequest.Linea.uomId`: producto escrito a mano (sin variante, con unidad), solo texto en la OC; una línea del catálogo acepta su propia `descripcion`. `UnidadMedidaRepository`.
+- `DocumentosPdf.orden`: sin pie de trazabilidad; descripción = `orden_item.description`; unidad del producto escrito en vez de "SERV".
+- Frontend: Nueva orden directa con "No está en el catálogo: escribirlo" y descripción editable; `CicloOrden` sin "Liberar para recepción" (paso Recepción) y pago con enlaces; se quitan "Por liberar" de Órdenes y Almacén.
+- Tests: `OrdenDirectaTest` (`productoEscritoDescripcionPropiaYPagoConEnlace`), `OrdenCompraAprobacionTest`, `BandejaTest` y demás sin liberar a mano; `MigracionesFlywayTest` cuenta 55.
+
 ## 0.73.0 — 2026-11-26
 
 Ajustes de Logística (DEC-L093).

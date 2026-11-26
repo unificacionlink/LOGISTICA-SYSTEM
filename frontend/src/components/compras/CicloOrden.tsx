@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
-import { Check, FileUp, PackageOpen, Unlock, X } from "lucide-react";
-import { decidirOrden, liberarOrden, registrarPagoOrden, subirConstanciaPago, subirFactura } from "../../api/compras";
+import { useState } from "react";
+import { Check, FileUp, PackageOpen, X } from "lucide-react";
+import { decidirOrden, registrarPagoOrden } from "../../api/compras";
 import type { Orden } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import Button from "../ui/Button";
@@ -14,13 +14,19 @@ const ETIQUETA_PAGO: Record<Orden["paymentStatus"], string> = {
   PAGADO: "Pagado",
 };
 
+/** Estados en los que el almacen recibe (FlujoOrden.ESTADOS_RECIBIBLES). */
+const RECIBIBLES = new Set(["EMITIDA", "EN_ATENCION", "RECEPCION_PARCIAL"]);
+
 function fecha(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("es-PE") : "";
 }
 
+const ENLACE = /^https?:\/\/\S+$/i;
+
 /**
- * Aprobacion, pago y liberacion de la OC (DEC-L061). Una sola accion principal
- * segun el paso: aprobar → liberar → recibir. El pago es control y va aparte.
+ * Aprobacion, pago y recepcion de la OC (DEC-L061). Una sola accion principal
+ * segun el paso: aprobar → recibir (DEC-L094: al aprobarse queda liberada).
+ * El pago es control, va aparte y se registra con enlaces.
  */
 export default function CicloOrden({
   orden,
@@ -34,14 +40,12 @@ export default function CicloOrden({
   const { usuario, tieneAlgunRol } = useAuth();
   const confirmar = useConfirmar();
   const [ocupado, setOcupado] = useState<string | null>(null);
-  const [panel, setPanel] = useState<"liberar" | "pago" | null>(null);
-  const [nota, setNota] = useState("");
+  const [panel, setPanel] = useState<"pago" | null>(null);
   const [estadoPago, setEstadoPago] = useState<"ANTICIPO" | "PAGADO">("PAGADO");
-  const [archivo, setArchivo] = useState<File | null>(null);
-  // DEC-L089: el pago final exige la factura del proveedor (número y archivo).
-  const [factura, setFactura] = useState<File | null>(null);
+  // DEC-L094: constancia y factura como enlace; DEC-L089: el pago final exige la factura.
+  const [constancia, setConstancia] = useState("");
+  const [factura, setFactura] = useState("");
   const [numeroFactura, setNumeroFactura] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const gestiona = tieneAlgunRol("LOGISTICA", "ADMIN");
   const emitidaPorMi = usuario?.id === orden.createdById;
@@ -50,7 +54,6 @@ export default function CicloOrden({
   const anulada = orden.status === "ANULADA";
   // DEC-L080: la orden solo de servicios no pasa por el almacen; se cierra al pagarse.
   const servicios = orden.servicesOnly;
-  const porLiberar = orden.status === "EMITIDA" && !orden.releasedAt && !servicios;
   const puedePagar = gestiona && !porAprobar && !anulada && orden.paymentStatus !== "PAGADO";
 
   async function ejecutar(clave: string, accion: () => Promise<{ ok: boolean; result?: Orden | null; message: string }>) {
@@ -78,25 +81,24 @@ export default function CicloOrden({
   }
 
   const pideFactura = estadoPago === "PAGADO" && !orden.invoiceNumber;
-  const listoParaPagar = !!archivo && (!pideFactura || (!!factura && /^[A-Za-z0-9]{1,6}-\d{1,12}$/.test(numeroFactura.trim())));
+  const conFactura = !!factura.trim() || !!numeroFactura.trim();
+  const facturaValida = ENLACE.test(factura.trim()) && /^[A-Za-z0-9]{1,6}-\d{1,12}$/.test(numeroFactura.trim());
+  const listoParaPagar = ENLACE.test(constancia.trim()) && (pideFactura || conFactura ? facturaValida : true);
 
   async function onPagar() {
-    if (!archivo) return;
-    await ejecutar("pago", async () => {
-      const doc = await subirConstanciaPago(archivo);
-      if (!doc.ok || !doc.result) return { ok: false, message: doc.message };
-      let datosFactura: { numero: string; documentId: string } | undefined;
-      if (factura && numeroFactura.trim()) {
-        const fac = await subirFactura(factura);
-        if (!fac.ok || !fac.result) return { ok: false, message: fac.message };
-        datosFactura = { numero: numeroFactura.trim(), documentId: fac.result.documentId };
-      }
-      return registrarPagoOrden(orden.orderId, estadoPago, doc.result.documentId, datosFactura);
-    });
-    setArchivo(null);
-    setFactura(null);
+    const datosFactura = facturaValida ? { numero: numeroFactura.trim(), url: factura.trim() } : undefined;
+    await ejecutar("pago", () => registrarPagoOrden(orden.orderId, estadoPago, constancia.trim(), datosFactura));
+    setConstancia("");
+    setFactura("");
     setNumeroFactura("");
   }
+
+  const recepcion =
+    orden.status === "RECEPCION_COMPLETA" || orden.status === "CERRADA"
+      ? "Completa"
+      : orden.status === "RECEPCION_PARCIAL"
+        ? "Parcial"
+        : "Pendiente";
 
   const pasos = [
     {
@@ -118,10 +120,9 @@ export default function CicloOrden({
           ok: orden.status === "CERRADA",
         }
       : {
-          label: "Liberación",
-          valor: orden.releasedAt ? `Liberada ${fecha(orden.releasedAt)}` : "Pendiente",
-          ok: !!orden.releasedAt,
-          detalle: orden.releaseNote,
+          label: "Recepción",
+          valor: recepcion,
+          ok: recepcion === "Completa",
         },
   ];
 
@@ -165,12 +166,7 @@ export default function CicloOrden({
                 {emitidaPorMi ? "Espera la aprobación de Gerencia o de otro usuario de Logística." : "Espera su aprobación."}
               </span>
             )}
-            {porLiberar && gestiona && (
-              <Button icon={<Unlock className="size-4" />} onClick={() => setPanel(panel === "liberar" ? null : "liberar")}>
-                Liberar para recepción
-              </Button>
-            )}
-            {orden.releasedAt && !orden.bloqueoRecepcion && orden.status !== "RECEPCION_COMPLETA" && gestiona && (
+            {!porAprobar && !servicios && !orden.bloqueoRecepcion && RECIBIBLES.has(orden.status) && gestiona && (
               <Button href={`/almacen/ordenes/${orden.orderId}/recepcion`} icon={<PackageOpen className="size-4" />}>
                 Registrar recepción
               </Button>
@@ -180,24 +176,6 @@ export default function CicloOrden({
                 Registrar pago
               </Button>
             )}
-          </div>
-        )}
-
-        {panel === "liberar" && (
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              className={`${inputClass} min-w-0 flex-1`}
-              placeholder="Nota para el almacén (opcional)"
-              maxLength={300}
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-            />
-            <Button
-              loading={ocupado === "liberar"}
-              onClick={() => ejecutar("liberar", () => liberarOrden(orden.orderId, nota.trim()))}
-            >
-              Confirmar liberación
-            </Button>
           </div>
         )}
 
@@ -217,17 +195,14 @@ export default function CicloOrden({
                   </button>
                 ))}
             </div>
-            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 hover:border-slate-400 hover:bg-slate-50">
-              <FileUp className="size-4 shrink-0 text-slate-400" />
-              <span className="truncate">{archivo ? archivo.name : "Constancia (PDF o imagen)"}</span>
-              <input
-                ref={inputRef}
-                type="file"
-                accept="application/pdf,image/jpeg,image/png,image/webp"
-                className="sr-only"
-                onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
-              />
-            </label>
+            <input
+              value={constancia}
+              maxLength={500}
+              onChange={(e) => setConstancia(e.target.value)}
+              placeholder="Enlace de la constancia de pago"
+              aria-label="Enlace de la constancia de pago"
+              className={`${inputClass} min-w-0 flex-1`}
+            />
             {pideFactura && (
               <div className="flex w-full flex-wrap items-center gap-2">
                 <input
@@ -236,18 +211,16 @@ export default function CicloOrden({
                   onChange={(e) => setNumeroFactura(e.target.value)}
                   placeholder="Factura (ej. F001-123)"
                   aria-label="Número de factura"
-                  className="h-9 w-48 rounded-md border border-slate-300 px-3 text-sm"
+                  className={`${inputClass} w-48`}
                 />
-                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 hover:border-slate-400 hover:bg-slate-50">
-                  <FileUp className="size-4 shrink-0 text-slate-400" />
-                  <span className="truncate">{factura ? factura.name : "Factura (PDF o imagen)"}</span>
-                  <input
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    onChange={(e) => setFactura(e.target.files?.[0] ?? null)}
-                  />
-                </label>
+                <input
+                  value={factura}
+                  maxLength={500}
+                  onChange={(e) => setFactura(e.target.value)}
+                  placeholder="Enlace de la factura"
+                  aria-label="Enlace de la factura"
+                  className={`${inputClass} min-w-0 flex-1`}
+                />
               </div>
             )}
             <Button disabled={!listoParaPagar} loading={ocupado === "pago"} onClick={onPagar}>

@@ -100,43 +100,38 @@ class OrdenCompraAprobacionTest {
 		// Antes de aprobar no hay pago ni liberacion; el rechazo exige motivo.
 		UUID constancia = constancia("CONSTANCIA_PAGO");
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia, null, null), log));
+				new RegistrarPagoRequest("ANTICIPO", constancia, null, null, null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.liberar(oc.orderId(), new LiberarOrdenRequest(null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.decidir(oc.orderId(),
 				new DecidirOrdenRequest("RECHAZADO", " "), ger));
 
-		// Gerencia aprueba: EMITIDA, falta liberar.
+		// Gerencia aprueba: EMITIDA y, desde DEC-L094, ya liberada para recibir.
 		OrdenDto aprobada = ordenCompra.decidir(oc.orderId(), aprobar(), ger);
 		assertEquals("EMITIDA", aprobada.status());
 		assertNotNull(aprobada.approvedAt());
-		assertEquals("Falta liberar la orden de compra.", aprobada.bloqueoRecepcion());
+		assertNotNull(aprobada.releasedAt());
+		assertNull(aprobada.bloqueoRecepcion());
 		assertEquals("APROBADO", estadoAprobacion(oc.orderId()));
 		assertEquals(ger.userId(), jdbc.queryForObject("select decided_by from aprobacion where entity_id = ?",
 				UUID.class, oc.orderId()));
 		assertThrows(ApiException.class, () -> ordenCompra.decidir(oc.orderId(), aprobar(), admin()));
-		ApiException sinLiberar = assertThrows(ApiException.class, () -> recibir(oc.orderId(), 1));
-		assertTrue(sinLiberar.getMessage().contains("liberar"), sinLiberar.getMessage());
 
 		// Anticipo: exige constancia del tipo correcto; con pago registrado no se anula.
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", null, null, null), log));
+				new RegistrarPagoRequest("ANTICIPO", null, null, null, null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia("EVIDENCIA"), null, null), log));
+				new RegistrarPagoRequest("ANTICIPO", constancia("EVIDENCIA"), null, null, null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PENDIENTE", constancia, null, null), log));
+				new RegistrarPagoRequest("PENDIENTE", constancia, null, null, null, null), log));
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia, null, null), ger), "el pago lo registra Logistica");
-		OrdenDto anticipo = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("ANTICIPO", constancia, null, null), log);
+				new RegistrarPagoRequest("ANTICIPO", constancia, null, null, null, null), ger), "el pago lo registra Logistica");
+		OrdenDto anticipo = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("ANTICIPO", constancia, null, null, null, null), log);
 		assertEquals("ANTICIPO", anticipo.paymentStatus());
 		assertNotNull(anticipo.paymentProofUrl());
 		ApiException conPago = assertThrows(ApiException.class, () -> compras.anularOrden(oc.orderId(), "Prueba", log));
 		assertTrue(conPago.getMessage().contains("pago"), conPago.getMessage());
 
-		// Liberar con nota (una sola vez); recien ahi el almacen recibe. El pago no se exige.
-		OrdenDto liberada = ordenCompra.liberar(oc.orderId(), new LiberarOrdenRequest("  Proveedor confirma despacho  "), log);
-		assertNotNull(liberada.releasedAt());
-		assertEquals("Proveedor confirma despacho", liberada.releaseNote());
-		assertNull(liberada.bloqueoRecepcion());
+		// Ya liberada: no se vuelve a liberar y el almacen recibe sin exigir el pago.
 		assertThrows(ApiException.class, () -> ordenCompra.liberar(oc.orderId(), null, log));
 		RecepcionOrdenDto recibida = recibir(oc.orderId(), 1);
 		assertEquals("RECEPCION_PARCIAL", recibida.orden().status());
@@ -144,24 +139,24 @@ class OrdenCompraAprobacionTest {
 		// Pago total despues de recibir: el pago nunca depende de la recepcion ni al reves.
 		// DEC-L089: el pago final exige la factura (número serie-número y archivo).
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), null, null), log), "sin factura");
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), null, null, null, null), log), "sin factura");
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "123", constancia("FACTURA_PDF")), log),
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "123", constancia("FACTURA_PDF"), null, null), log),
 				"número sin serie");
 		OrdenDto pagada = ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "f001-123", constancia("FACTURA_PDF")), log);
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "f001-123", constancia("FACTURA_PDF"), null, null), log);
 		assertEquals("PAGADO", pagada.paymentStatus());
 		assertEquals("F001-123", pagada.invoiceNumber());
 		assertNotNull(pagada.invoiceUrl());
 		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "F001-124", constancia("FACTURA_PDF")), log));
+				new RegistrarPagoRequest("PAGADO", constancia("CONSTANCIA_PAGO"), "F001-124", constancia("FACTURA_PDF"), null, null), log));
 		// Documentos de la OC: la constancia del anticipo, la del pago final, la factura y la recepcion.
 		List<DocumentoOrdenDto> docs = documentosOrden.listar(oc.orderId(), log);
 		assertEquals(3, docs.stream().filter(d -> "PAGO".equals(d.tipo())).count(), docs.toString());
 		assertTrue(docs.stream().anyMatch(d -> d.titulo().equals("Factura F001-123")), docs.toString());
 		assertTrue(docs.stream().anyMatch(d -> "RECEPCION".equals(d.tipo()) && d.ruta() != null), docs.toString());
 
-		assertEquals(4, jdbc.queryForObject("""
+		assertEquals(3, jdbc.queryForObject("""
 				select count(*) from log_cambios where entidad = 'ORDEN_ABASTECIMIENTO' and entidad_id = ?
 				  and accion in ('APROBAR', 'PAGO', 'LIBERAR')""", Integer.class, oc.orderId()));
 	}

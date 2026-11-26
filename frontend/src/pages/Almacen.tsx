@@ -107,10 +107,10 @@ function PorRecibir() {
                       <OrdenEstadoBadge estado={o.status} />
                     </td>
                     <td className="px-5 py-3 text-right">
-                      {/* DEC-L061: por aprobar o sin liberar, el almacen todavia no recibe. */}
+                      {/* DEC-L061/L094: por aprobar, el almacen todavia no recibe. */}
                       {o.bloqueoRecepcion ? (
                         <span className="text-xs text-amber-700" title={o.bloqueoRecepcion}>
-                          {o.status === "POR_APROBAR" ? "Por aprobar" : "Por liberar"}
+                          Por aprobar
                         </span>
                       ) : (
                         <Link to={`/almacen/ordenes/${o.orderId}/recepcion`} className={linkClass}>

@@ -44,7 +44,6 @@ final class DocumentosPdf {
 
     static final String PLANTILLA_REQ = "PLT-REQ v1";
     static final String PLANTILLA_RFQ = "PLT-RFQ v1";
-    static final String PLANTILLA_OC = "F-LOG-09 v1";
     static final String PLANTILLA_NI = "PLT-NI v1";
     static final String PLANTILLA_TRACKING = "PLT-TRK v1";
 
@@ -137,19 +136,23 @@ final class DocumentosPdf {
                        List<String> cuentasDetraccion, byte[] firmaGerencia, byte[] firmaLogistica) {
     }
 
-    /** Formato F-LOG-09 (DEC-L079). */
-    static byte[] orden(OrdenDetalleDto d, ExtrasOrden e, String pie) {
+    /** Formato F-LOG-09 (DEC-L079). DEC-L094: sin pie de trazabilidad (solo el numero de pagina). */
+    static byte[] orden(OrdenDetalleDto d, ExtrasOrden e) {
         OrdenDto o = d.orden();
         List<PdfOrdenCompra.Linea> lineas = new ArrayList<>();
         for (OrdenItemDto i : d.items()) {
-            String descripcion = i.nombreProducto() != null ? producto(i.nombreProducto(), i.atributo()) : texto(i.description());
+            // DEC-L094: sale el texto de la linea (en la OC directa Logistica puede cambiarlo).
+            String descripcion = i.description() != null && !i.description().isBlank() ? i.description()
+                    : producto(i.nombreProducto(), i.atributo());
             if (i.referenciaProveedor() != null && !i.referenciaProveedor().isBlank()) {
                 descripcion += "\nRef. proveedor: " + i.referenciaProveedor();
             }
-            // Linea de servicio de una OC directa (DEC-L080): sin SKU ni unidad del catalogo.
-            boolean servicio = i.nombreProducto() == null;
-            lineas.add(new PdfOrdenCompra.Linea(servicio ? "-" : sku(i.skuBase(), i.codigoVariante()), descripcion,
-                    servicio ? "SERV" : texto(i.unidadMedida()), cantidad(i.qtyOrdered()), monto(i.unitCost()),
+            // Linea sin producto de una OC directa (DEC-L080): servicio, o producto escrito
+            // a mano con su unidad (DEC-L094); sin SKU del catalogo.
+            boolean sinSku = i.nombreProducto() == null;
+            String um = sinSku && i.unidadMedida() == null ? "SERV" : texto(i.unidadMedida());
+            lineas.add(new PdfOrdenCompra.Linea(sinSku ? "-" : sku(i.skuBase(), i.codigoVariante()), descripcion,
+                    um, cantidad(i.qtyOrdered()), monto(i.unitCost()),
                     monto(i.lineTotal())));
         }
         boolean noAfecto = "NO_AFECTO".equals(o.taxMode());
@@ -164,7 +167,7 @@ final class DocumentosPdf {
                 monto(o.subtotal()), noAfecto ? "NO AFECTO" : "18%", monto(o.taxAmount()), monto(o.total()), notaIgv,
                 e.cuentasDeposito(), e.cuentasDetraccion(), o.additionalSpecs(),
                 aprobada ? e.firmaGerencia() : null, aprobada ? e.firmaLogistica() : null,
-                PLANTILLA_OC + " · " + pie));
+                null));
     }
 
     static byte[] notaInventario(NotaInventarioDetalleDto d, String pie) {

@@ -93,7 +93,7 @@ class RepositorioDocumentosTest {
 		String req = requerimientoAprobado();
 		var oc = directas.crear(new CrearOrdenDirectaRequest(proveedor(), "PEN", "CONTADO", "ALMACEN_CLIENTE", null,
 				3, "CALENDARIO", "MAS_IGV", null, null, null,
-				List.of(new CrearOrdenDirectaRequest.Linea(null, "Servicio de prueba", BigDecimal.ONE, BigDecimal.TEN)),
+				List.of(new CrearOrdenDirectaRequest.Linea(null, "Servicio de prueba", BigDecimal.ONE, BigDecimal.TEN, null)),
 				null), logistica);
 		NotaInventarioDetalleDto ni = notaEmitida(logistica);
 

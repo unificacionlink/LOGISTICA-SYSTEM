@@ -177,14 +177,13 @@ class EntregaDirectaTest {
 		UUID variante = jdbc.queryForObject(
 				"select variant_id from producto_variante where internal_variant_code = 'AC01006-00'", UUID.class);
 		List<CrearOrdenDirectaRequest.Linea> lineas = List.of(
-				new CrearOrdenDirectaRequest.Linea(variante, null, new BigDecimal("2"), BigDecimal.TEN));
+				new CrearOrdenDirectaRequest.Linea(variante, null, new BigDecimal("2"), BigDecimal.TEN, null));
 		assertThrows(ApiException.class, () -> directas.crear(new CrearOrdenDirectaRequest(prov, "PEN",
 				"CONTADO", "ALMACEN_CLIENTE", null, 5, "HABILES", "MAS_IGV", null, null, null, lineas, true), log));
 
 		OrdenDto oc = directas.crear(new CrearOrdenDirectaRequest(prov, "PEN", "CONTADO", "ALMACEN_CLIENTE",
 				null, 5, "HABILES", "MAS_IGV", null, ceco("ADM"), null, lineas, true), log);
 		assertTrue(oc.entregaDirecta());
-		ordenCompra.liberar(oc.orderId(), new com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest(null), log);
 		EntregaDirectaDto e = entregas.obtener(oc.orderId(), log);
 		assertEquals(1, e.destinos().size());
 		EntregaDirectaDto.Linea l = e.destinos().get(0).lineas().get(0);

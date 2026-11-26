@@ -75,8 +75,8 @@ class OrdenDirectaTest {
 		UUID prov = proveedor("20100000081");
 		String req = requerimiento();
 		OrdenDto oc = directas.crear(request(prov, cecoTdem(), req, List.of(
-				new Linea(variante("AC01006-00"), null, new BigDecimal("3"), new BigDecimal("10")),
-				new Linea(null, "Instalación del equipo en obra", BigDecimal.ONE, new BigDecimal("70")))), log);
+				new Linea(variante("AC01006-00"), null, new BigDecimal("3"), new BigDecimal("10"), null),
+				new Linea(null, "Instalación del equipo en obra", BigDecimal.ONE, new BigDecimal("70"), null))), log);
 
 		assertEquals("OC_DIRECTA", oc.orderType());
 		assertEquals("EMITIDA", oc.status(), "sale aprobada, sin pasar por Gerencia");
@@ -91,8 +91,9 @@ class OrdenDirectaTest {
 		assertEquals(1, jdbc.queryForObject("select count(*) from proveedor_producto where supplier_id = ?",
 				Integer.class, prov), "el proveedor queda habilitado para el producto");
 
-		// El almacen solo ve el producto; recibido completo, la orden queda completa.
-		ordenCompra.liberar(oc.orderId(), new LiberarOrdenRequest(null), log);
+		// DEC-L094: sale liberada. El almacen solo ve el producto; recibido completo, la orden queda completa.
+		assertNotNull(oc.releasedAt());
+		assertNull(oc.bloqueoRecepcion());
 		RecepcionOrdenDto ro = recepcion.obtenerRecepcionOrden(oc.orderId(), log);
 		assertEquals(1, ro.items().size(), "el servicio no se recibe en almacen");
 		RecepcionOrdenDto despues = recepcion.registrar(oc.orderId(), new RegistrarRecepcionRequest(List.of(
@@ -113,35 +114,69 @@ class OrdenDirectaTest {
 	void soloServiciosNoSeLiberaYSeCierraAlPagar() {
 		UsuarioPrincipal log = logistica();
 		OrdenDto oc = directas.crear(request(proveedor("20100000082"), null, null, List.of(
-				new Linea(null, "Mantenimiento preventivo de camioneta", BigDecimal.ONE, new BigDecimal("450")))), log);
+				new Linea(null, "Mantenimiento preventivo de camioneta", BigDecimal.ONE, new BigDecimal("450"), null))), log);
 		assertTrue(oc.servicesOnly());
 		assertNull(oc.bloqueoRecepcion());
 		assertThrows(ApiException.class, () -> ordenCompra.liberar(oc.orderId(), new LiberarOrdenRequest(null), log));
 		assertTrue(recepcion.listarPorRecibir(log).stream().noneMatch(o -> o.orderId().equals(oc.orderId())));
 
 		OrdenDto anticipo = ordenCompra.registrarPago(oc.orderId(),
-				new RegistrarPagoRequest("ANTICIPO", constancia(), null, null), log);
+				new RegistrarPagoRequest("ANTICIPO", constancia(), null, null, null, null), log);
 		assertEquals("EMITIDA", anticipo.status(), "con anticipo sigue abierta");
-		OrdenDto pagada = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("PAGADO", constancia(), "F001-45", factura()), log);
+		OrdenDto pagada = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("PAGADO", constancia(), "F001-45", factura(), null, null), log);
 		assertEquals("CERRADA", pagada.status());
+	}
+
+	/** DEC-L094: producto escrito a mano (solo texto), descripcion propia y pago con enlaces. */
+	@Test
+	void productoEscritoDescripcionPropiaYPagoConEnlace() throws IOException {
+		UsuarioPrincipal log = logistica();
+		UUID und = jdbc.queryForObject("select uom_id from unidad_medida where code = 'UND'", UUID.class);
+		OrdenDto oc = directas.crear(request(proveedor("20100000084"), null, null, List.of(
+				new Linea(variante("AC01008-00"), "  Casco blanco con barbiquejo  ", BigDecimal.ONE, BigDecimal.TEN, null),
+				new Linea(null, "Repuesto de filtro marca X", new BigDecimal("2"), new BigDecimal("5"), und))), log);
+		assertFalse(oc.servicesOnly());
+		assertNotNull(oc.releasedAt(), "sale liberada");
+		List<String> textos = jdbc.queryForList(
+				"select description from orden_item where order_id = ? order by description", String.class, oc.orderId());
+		assertEquals(List.of("Casco blanco con barbiquejo", "Repuesto de filtro marca X"), textos);
+		assertEquals(1, recepcion.obtenerRecepcionOrden(oc.orderId(), log).items().size(),
+				"el producto escrito no pasa por el almacen");
+		String texto;
+		try (var doc = Loader.loadPDF(documentos.orden(oc.orderId(), log).contenido())) {
+			texto = new PDFTextStripper().getText(doc);
+		}
+		assertTrue(texto.contains("Casco blanco con barbiquejo") && texto.contains("Repuesto de filtro marca X"), texto);
+		assertFalse(texto.contains("Generado el"), "sin pie de trazabilidad");
+
+		// Pago con enlaces: constancia obligatoria, factura con numero en el pago final.
+		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
+				new RegistrarPagoRequest("ANTICIPO", null, null, null, "no-es-enlace", null), log));
+		assertThrows(ApiException.class, () -> ordenCompra.registrarPago(oc.orderId(),
+				new RegistrarPagoRequest("PAGADO", null, "F001-9", null, "https://drive.test/pago", null), log),
+				"falta el enlace de la factura");
+		OrdenDto pagada = ordenCompra.registrarPago(oc.orderId(), new RegistrarPagoRequest("PAGADO", null, "F001-9",
+				null, "https://drive.test/pago", "https://drive.test/factura"), log);
+		assertEquals("https://drive.test/pago", pagada.paymentProofUrl());
+		assertEquals("https://drive.test/factura", pagada.invoiceUrl());
 	}
 
 	@Test
 	void validaciones() {
 		UsuarioPrincipal log = logistica();
 		UUID prov = proveedor("20100000083");
-		Linea servicio = new Linea(null, "Servicio", BigDecimal.ONE, BigDecimal.TEN);
+		Linea servicio = new Linea(null, "Servicio", BigDecimal.ONE, BigDecimal.TEN, null);
 		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null, List.of(servicio)),
 				new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"))));
 		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null,
-				List.of(new Linea(null, " ", BigDecimal.ONE, BigDecimal.TEN))), log), "servicio sin descripcion");
+				List.of(new Linea(null, " ", BigDecimal.ONE, BigDecimal.TEN, null))), log), "servicio sin descripcion");
 		assertThrows(ApiException.class, () -> directas.crear(request(prov, cecoGoydel(), requerimiento(),
 				List.of(servicio)), log), "requerimiento de otra empresa que el CECO");
 		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, "REQ-NO-EXISTE",
 				List.of(servicio)), log));
 		UUID v = variante("AC01007-00");
 		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null, List.of(
-				new Linea(v, null, BigDecimal.ONE, BigDecimal.TEN), new Linea(v, null, BigDecimal.ONE, BigDecimal.TEN))),
+				new Linea(v, null, BigDecimal.ONE, BigDecimal.TEN, null), new Linea(v, null, BigDecimal.ONE, BigDecimal.TEN, null))),
 				log), "producto repetido");
 		jdbc.update("update proveedor set active = false where supplier_id = ?", prov);
 		assertThrows(ApiException.class, () -> directas.crear(request(prov, null, null, List.of(servicio)),

@@ -13,7 +13,6 @@ import com.tdem.logistica.modules.compras.ComprasService;
 import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.modules.compras.OrdenCompraService;
 import com.tdem.logistica.modules.compras.dto.DecidirOrdenRequest;
-import com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest;
 import com.tdem.logistica.documentos.DocumentosService;
 import com.tdem.logistica.modules.identidad.EmpresaAdminService;
 import com.tdem.logistica.modules.identidad.dto.EditarEmpresaRequest;
@@ -438,7 +437,6 @@ class ConsolidacionComprasTest {
 	private void aprobarYLiberar(UUID orderId) {
 		ordenCompra.decidir(orderId, new DecidirOrdenRequest("APROBADO", null),
 				new UsuarioPrincipal(usuario("gerencia@logistica.test"), List.of("GERENCIA")));
-		ordenCompra.liberar(orderId, new LiberarOrdenRequest(null), logistica());
 	}
 
 	private void aprobarComoGerencia(Req req) {

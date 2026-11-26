@@ -427,7 +427,9 @@ final class PdfOrdenCompra {
             try (PDPageContentStream pie = new PDPageContentStream(doc, pagina,
                     PDPageContentStream.AppendMode.APPEND, true, true)) {
                 cs = pie;
-                escribir(d.pie(), helvetica, 6f, X0, 24f, TENUE);
+                if (d.pie() != null && !d.pie().isBlank()) {
+                    escribir(d.pie(), helvetica, 6f, X0, 24f, TENUE);
+                }
                 derecha(numero, helvetica, 7f, X0, W, 24f, TENUE);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);

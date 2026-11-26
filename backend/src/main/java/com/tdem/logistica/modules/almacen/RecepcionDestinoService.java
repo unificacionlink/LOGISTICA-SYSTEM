@@ -350,7 +350,7 @@ public class RecepcionDestinoService {
                 .orElseThrow(() -> ApiException.unauthorized("Sesion invalida."));
     }
 
-    static void exigirEnlace(String url, String mensaje) {
+    public static void exigirEnlace(String url, String mensaje) {
         if (url == null || !ENLACE.matcher(url).matches()) {
             throw ApiException.badRequest(mensaje);
         }

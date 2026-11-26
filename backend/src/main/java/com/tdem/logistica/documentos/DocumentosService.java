@@ -84,7 +84,7 @@ public class DocumentosService {
     /** Formato F-LOG-09 (DEC-L079); obtenerOrden valida antes quien puede verla. */
     public Pdf orden(UUID id, UsuarioPrincipal principal) {
         var d = comprasService.obtenerOrden(id, principal);
-        return new Pdf(d.orden().orderCode() + ".pdf", DocumentosPdf.orden(d, extrasOrden(id, d), pie(principal)));
+        return new Pdf(d.orden().orderCode() + ".pdf", DocumentosPdf.orden(d, extrasOrden(id, d)));
     }
 
     private DocumentosPdf.ExtrasOrden extrasOrden(UUID orderId, com.tdem.logistica.modules.compras.dto.OrdenDetalleDto d) {

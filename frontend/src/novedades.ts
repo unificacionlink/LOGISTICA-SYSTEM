@@ -13,6 +13,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.74.0",
+    titulo: "Órdenes de compra",
+    cambios: [
+      "En la orden directa puedes escribir un producto que no está en el catálogo; queda como texto en la orden y no pasa por el almacén.",
+      "El nombre de un producto del catálogo se puede editar en la orden directa antes de emitirla.",
+      "El PDF de la orden de compra ya no lleva el texto «Generado el … por …» al pie.",
+      "El pago de una orden se registra con el enlace de la constancia y de la factura, sin subir archivos.",
+      "Ya no hay que liberar la orden: aprobada, el almacén la puede recibir.",
+    ],
+  },
+  {
     version: "0.73.0",
     titulo: "Ajustes de Logística",
     cambios: [

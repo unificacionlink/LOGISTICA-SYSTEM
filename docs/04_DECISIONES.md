@@ -5,6 +5,23 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L094 — OC: producto escrito, descripción editable, sin pie, pago con enlace y sin paso de liberación (2026-11-26, v0.74.0).**
+  Pedidos de Logística. (1) **OC directa**: cada línea de producto se elige del catálogo y su
+  **texto en la OC se puede editar** (`orden_item.description`, que el PDF usa siempre); si el
+  producto no está en el catálogo se **escribe a mano** con su unidad
+  (`CrearOrdenDirectaRequest.Linea.uomId`): queda **solo como texto en la OC**, sin SKU, no entra
+  al stock ni al kardex y el almacén no lo recibe (como un servicio, pero con su unidad en vez
+  de "SERV"). Es una excepción consciente a la regla de DEC-L093: solo lo que tiene SKU pasa por
+  el stock. (2) El PDF de la OC (F-LOG-09) **ya no lleva el pie** "F-LOG-09 v1 · Generado el … por
+  …" (solo el número de página; el formato ya figura en la cabecera). (3) **Registrar pago pide
+  enlaces**, no archivos: constancia (`constanciaUrl`) y, en el pago final, número y enlace de la
+  factura (`facturaUrl`); cada enlace queda como `documento` con `file_url` = la URL (visible en
+  Documentos de la OC y en el Repositorio). La API sigue aceptando ids de documentos subidos.
+  (4) **La liberación deja de ser un paso**: al aprobarse (o al emitirse la OC directa, que sale
+  aprobada) la OC queda liberada (`OrdenCompraService.liberarAlAprobar`) y el almacén ya puede
+  recibir; V55 libera las aprobadas que esperaban. El endpoint `/liberar` queda por
+  compatibilidad y la acción `LIBERAR_OC` de la bandeja ya no aparece.
+
 - **DEC-L093 — Ajustes de Logística: justificación opcional, cotizar primero, envío con ticket y kardex de la entrega directa (2026-11-26, v0.73.0).**
   Pedidos de la encargada de Logística. (1) La **justificación del requerimiento es opcional**
   (V54 quita el NOT NULL; en blanco se guarda nula). (2) La siguiente acción **Cotizar** de un

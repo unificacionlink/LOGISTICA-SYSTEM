@@ -148,7 +148,7 @@ export default function ComprasOrdenDetalle() {
               {items.map((it) => (
                 <tr key={it.orderItemId}>
                   <td className="px-5 py-2.5 font-mono text-xs text-slate-600">
-                    {it.codigoVariante ?? <span className="font-sans text-slate-400">Servicio</span>}
+                    {it.codigoVariante ?? <span className="font-sans text-slate-400">{it.unidadMedida ? "Sin SKU" : "Servicio"}</span>}
                   </td>
                   <td className="col-flex px-5 py-2.5 text-slate-700" title={String(it.description)}>
                     {it.description}

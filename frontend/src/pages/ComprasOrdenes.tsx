@@ -80,9 +80,6 @@ export default function ComprasOrdenes() {
                     </td>
                     <td className="px-5 py-3">
                       <OrdenEstadoBadge estado={o.status} />
-                      {o.status === "EMITIDA" && !o.releasedAt && !o.servicesOnly && (
-                        <span className="ml-2 text-xs text-amber-700">Por liberar</span>
-                      )}
                     </td>
                     <td className="col-sec px-5 py-3 text-xs text-slate-500">{PAGO[o.paymentStatus]}</td>
                     <td className="col-sec px-5 py-3 text-xs text-slate-400">{fmtFecha(o.issueDate)}</td>

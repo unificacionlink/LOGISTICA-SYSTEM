@@ -17,7 +17,9 @@ import java.util.UUID;
  * opcionales, de cualquiera de las tres empresas: la orden sale siempre a
  * nombre de TDEM, que compra para el grupo (DEC-L086). Cada linea es un
  * producto del catalogo ({@code variantId}) o un servicio (sin variante, con
- * descripcion).
+ * descripcion). DEC-L094: un producto del catalogo puede llevar su propia
+ * descripcion en la OC, y un producto escrito a mano es una linea sin variante
+ * con unidad ({@code uomId}): queda solo como texto en la OC, sin stock.
  */
 public record CrearOrdenDirectaRequest(
         @NotNull(message = "Selecciona el proveedor.") UUID supplierId,
@@ -48,6 +50,8 @@ public record CrearOrdenDirectaRequest(
             @Digits(integer = 9, fraction = 0, message = "La cantidad es un numero entero.") BigDecimal cantidad,
             @NotNull(message = "Indica el precio unitario.")
             @Positive(message = "El precio unitario debe ser mayor a cero.")
-            @Digits(integer = 10, fraction = 4, message = "El precio admite hasta 4 decimales.") BigDecimal precioUnitario) {
+            @Digits(integer = 10, fraction = 4, message = "El precio admite hasta 4 decimales.") BigDecimal precioUnitario,
+            /** Unidad del producto escrito a mano; null = servicio (o producto del catalogo). */
+            UUID uomId) {
     }
 }

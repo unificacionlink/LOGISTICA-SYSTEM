@@ -320,7 +320,6 @@ class ProveedoresTest {
 				UUID.class);
 		OrdenDto oc = emitir("AC01003-00", 3, prov);
 		ordenCompra.decidir(oc.orderId(), new DecidirOrdenRequest("APROBADO", null), gerencia());
-		ordenCompra.liberar(oc.orderId(), new LiberarOrdenRequest(null), log);
 		RecepcionOrdenDto ro = recepcion.obtenerRecepcionOrden(oc.orderId(), log);
 		recepcion.registrar(oc.orderId(), new RegistrarRecepcionRequest(List.of(new RecepcionItemInput(
 				ro.items().get(0).orderItemId(), BigDecimal.valueOf(2), "CONFORME", null, null)), null, null), log);

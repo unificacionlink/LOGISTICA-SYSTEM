@@ -225,33 +225,22 @@ export function decidirOrden(orderId: string, decision: "APROBADO" | "RECHAZADO"
   return http.post<Orden>(`/api/compras/ordenes/${orderId}/decision`, { decision, motivo });
 }
 
-export function subirConstanciaPago(file: File) {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("tipo", "CONSTANCIA_PAGO");
-  return http.postForm<DocumentoSubido>("/api/compras/documentos", form);
-}
-
-/** DEC-L089: el pago final exige la factura (número serie-número y archivo ya subido). */
+/**
+ * DEC-L094: constancia y factura van como enlace (Drive, correo, etc.).
+ * DEC-L089: el pago final exige la factura (número serie-número y su enlace).
+ */
 export function registrarPagoOrden(
   orderId: string,
   estado: "ANTICIPO" | "PAGADO",
-  documentId: string,
-  factura?: { numero: string; documentId: string },
+  constanciaUrl: string,
+  factura?: { numero: string; url: string },
 ) {
   return http.post<Orden>(`/api/compras/ordenes/${orderId}/pago`, {
     estado,
-    documentId,
+    constanciaUrl,
     facturaNumero: factura?.numero ?? null,
-    facturaDocumentId: factura?.documentId ?? null,
+    facturaUrl: factura?.url ?? null,
   });
-}
-
-export function subirFactura(file: File) {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("tipo", "FACTURA_PDF");
-  return http.postForm<DocumentoSubido>("/api/compras/documentos", form);
 }
 
 /** Pagos, guías, recepciones y notas de inventario de la OC (DEC-L089). */
@@ -265,10 +254,6 @@ export function listarPuntosEntrega() {
 
 export function crearPuntoEntrega(input: { nombre: string; direccion: string; cecoId: string | null }) {
   return http.post<PuntoEntrega>("/api/compras/puntos-entrega", input);
-}
-
-export function liberarOrden(orderId: string, nota?: string) {
-  return http.post<Orden>(`/api/compras/ordenes/${orderId}/liberar`, { nota: nota || null });
 }
 
 /** DEC-L086: sale siempre a nombre de TDEM; el CECO y el REQ dicen para qué empresa es. */
@@ -287,8 +272,17 @@ export interface OrdenDirectaInput {
   requestCode: string | null;
   /** El proveedor entrega en el CECO de la orden (DEC-L084). */
   entregaDirecta: boolean;
-  /** variantId = producto del catalogo; sin variantId, descripcion = servicio. */
-  lineas: { variantId: string | null; descripcion: string | null; cantidad: number; precioUnitario: number }[];
+  /**
+   * variantId = producto del catalogo (descripcion opcional = texto propio en la OC);
+   * sin variantId: con uomId, producto escrito a mano (solo texto, DEC-L094); sin uomId, servicio.
+   */
+  lineas: {
+    variantId: string | null;
+    descripcion: string | null;
+    cantidad: number;
+    precioUnitario: number;
+    uomId: string | null;
+  }[];
 }
 
 /** OC directa sin cotizacion (DEC-L080): sale aprobada. */

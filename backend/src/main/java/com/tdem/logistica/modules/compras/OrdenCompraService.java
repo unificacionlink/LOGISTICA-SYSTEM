@@ -12,6 +12,7 @@ import com.tdem.logistica.entity.Documento;
 import com.tdem.logistica.entity.OrdenAbastecimiento;
 import com.tdem.logistica.entity.OrdenItem;
 import com.tdem.logistica.modules.almacen.DestinosEntrega;
+import com.tdem.logistica.modules.almacen.RecepcionDestinoService;
 import com.tdem.logistica.modules.compras.dto.CondicionesOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.DecidirOrdenRequest;
 import com.tdem.logistica.modules.compras.dto.LiberarOrdenRequest;
@@ -162,8 +163,10 @@ public class OrdenCompraService {
 
         if (aprueba) {
             orden.setStatus(EstadoOrden.EMITIDA);
-            orden.setApprovedAt(Instant.now());
+            Instant ahora = Instant.now();
+            orden.setApprovedAt(ahora);
             orden.setApprovedBy(principal.userId());
+            liberarAlAprobar(orden, ahora, principal.userId());
             ordenRepository.save(orden);
             auditoria.registrar(ENTIDAD_AUDITORIA, orderId, "APROBAR", Map.of("estado", EstadoOrden.POR_APROBAR),
                     Map.of("estado", EstadoOrden.EMITIDA), principal.userId());
@@ -234,8 +237,10 @@ public class OrdenCompraService {
         if (!EstadoPagoOrden.ANTICIPO.equals(estado) && !EstadoPagoOrden.PAGADO.equals(estado)) {
             throw ApiException.badRequest("Estado de pago invalido: usa ANTICIPO o PAGADO.");
         }
-        if (request.documentId() == null) {
-            throw ApiException.badRequest("Adjunta la constancia del pago.");
+        String constanciaUrl = limpio(request.constanciaUrl());
+        String facturaUrl = limpio(request.facturaUrl());
+        if (request.documentId() == null && constanciaUrl == null) {
+            throw ApiException.badRequest("Pega el enlace de la constancia del pago.");
         }
         OrdenAbastecimiento orden = bloquearConDetalle(orderId);
         if (EstadoOrden.POR_APROBAR.equals(orden.getStatus())) {
@@ -247,29 +252,33 @@ public class OrdenCompraService {
         if (EstadoPagoOrden.PAGADO.equals(orden.getPaymentStatus())) {
             throw ApiException.badRequest("Esta orden ya esta pagada.");
         }
-        Documento constancia = documentoRepository.findById(request.documentId())
-                .filter(d -> "CONSTANCIA_PAGO".equals(d.getDocumentType()))
-                .orElseThrow(() -> ApiException.badRequest("Constancia de pago no encontrada."));
+        Documento constancia = request.documentId() == null
+                ? enlace("CONSTANCIA_PAGO", constanciaUrl, "Constancia de pago", principal.userId())
+                : documentoRepository.findById(request.documentId())
+                        .filter(d -> "CONSTANCIA_PAGO".equals(d.getDocumentType()))
+                        .orElseThrow(() -> ApiException.badRequest("Constancia de pago no encontrada."));
         // DEC-L089: el pago final exige la factura del proveedor; en el anticipo es opcional.
         String facturaNumero = request.facturaNumero() == null ? null : request.facturaNumero().trim().toUpperCase();
         if (facturaNumero != null && facturaNumero.isEmpty()) {
             facturaNumero = null;
         }
         boolean pagoFinal = EstadoPagoOrden.PAGADO.equals(estado);
-        if (pagoFinal && (facturaNumero == null || request.facturaDocumentId() == null)
-                && orden.getFactura() == null) {
-            throw ApiException.badRequest("Para el pago final adjunta la factura del proveedor y su número.");
+        boolean conFactura = request.facturaDocumentId() != null || facturaUrl != null;
+        if (pagoFinal && (facturaNumero == null || !conFactura) && orden.getFactura() == null) {
+            throw ApiException.badRequest("Para el pago final indica el número de la factura y pega su enlace.");
         }
-        if ((facturaNumero == null) != (request.facturaDocumentId() == null)) {
-            throw ApiException.badRequest("Indica el número de la factura y adjunta su archivo.");
+        if ((facturaNumero == null) == conFactura) {
+            throw ApiException.badRequest("Indica el número de la factura y pega su enlace.");
         }
         if (facturaNumero != null && !facturaNumero.matches("[A-Z0-9]{1,6}-[0-9]{1,12}")) {
             throw ApiException.badRequest("El número de factura va como serie-número, por ejemplo F001-123.");
         }
-        Documento factura = request.facturaDocumentId() == null ? null
-                : documentoRepository.findById(request.facturaDocumentId())
+        Documento factura = request.facturaDocumentId() != null
+                ? documentoRepository.findById(request.facturaDocumentId())
                         .filter(d -> "FACTURA_PDF".equals(d.getDocumentType()))
-                        .orElseThrow(() -> ApiException.badRequest("Factura no encontrada."));
+                        .orElseThrow(() -> ApiException.badRequest("Factura no encontrada."))
+                : facturaUrl != null ? enlace("FACTURA_PDF", facturaUrl, "Factura " + facturaNumero, principal.userId())
+                : null;
 
         Map<String, Object> antes = new HashMap<>();
         antes.put("pago", orden.getPaymentStatus());
@@ -298,6 +307,21 @@ public class OrdenCompraService {
         return ComprasMapper.toDto(orden, origen.deOrden(orderId));
     }
 
+    /** DEC-L094: constancia o factura como enlace (Drive, correo, etc.): un documento cuyo archivo es la URL. */
+    private Documento enlace(String tipo, String url, String nombre, UUID userId) {
+        RecepcionDestinoService.exigirEnlace(url, "Pega un enlace válido (http o https).");
+        Documento d = new Documento();
+        d.setDocumentId(UUID.randomUUID());
+        d.setDocumentType(tipo);
+        d.setFileName(nombre);
+        d.setFileUrl(url);
+        d.setUploadedBy(userId);
+        d.setUploadedAt(Instant.now());
+        d.setStatus("ACTIVO");
+        documentoRepository.insertar(d);
+        return d;
+    }
+
     /** DEC-L089: cada constancia y factura queda ligada a la OC (el anticipo no se pierde al pagar el saldo). */
     private void relacionar(Documento documento, UUID orderId) {
         com.tdem.logistica.entity.DocumentoRelacion rel = new com.tdem.logistica.entity.DocumentoRelacion();
@@ -308,7 +332,18 @@ public class OrdenCompraService {
         documentoRelacionRepository.insertar(rel);
     }
 
-    /** Deja la OC aprobada lista para que el almacen la reciba; el pago no se exige. */
+    /**
+     * DEC-L094: la liberacion dejo de ser un paso: al aprobarse, la OC queda lista
+     * para recibir (la de servicios no pasa por el almacen).
+     */
+    static void liberarAlAprobar(OrdenAbastecimiento orden, Instant cuando, UUID userId) {
+        if (!orden.isServicesOnly() && orden.getReleasedAt() == null) {
+            orden.setReleasedAt(cuando);
+            orden.setReleasedBy(userId);
+        }
+    }
+
+    /** Legado (DEC-L061): liberar a mano; desde DEC-L094 la OC sale liberada al aprobarse. */
     @Transactional
     public OrdenDto liberar(UUID orderId, LiberarOrdenRequest request, UsuarioPrincipal principal) {
         exigirLogisticaOAdmin(principal);
