@@ -38,6 +38,22 @@ class OcrExtractorTest {
         assertEquals(5, datos.plazoDetectadoDias());
     }
 
+    /** DEC-L098: el trazo tenue de un ticket termico pasa a negro y el papel a blanco. */
+    @Test
+    void realzarContrasteOscureceElTrazoTenueYBlanqueaElPapel() {
+        BufferedImage ticket = new BufferedImage(200, 100, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = ticket.createGraphics();
+        g.setColor(new Color(225, 225, 225));  // papel gris
+        g.fillRect(0, 0, 200, 100);
+        g.setColor(new Color(195, 195, 195));  // texto tenue
+        g.fillRect(20, 40, 60, 10);
+        g.dispose();
+
+        var r = OcrExtractor.realzarContraste(ticket).getRaster();
+        assertEquals(255, r.getSample(150, 80, 0), "el papel queda blanco");
+        assertEquals(0, r.getSample(40, 45, 0), "el trazo tenue queda negro");
+    }
+
     private BufferedImage generarImagenDeCotizacion() {
         BufferedImage imagen = new BufferedImage(900, 300, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = imagen.createGraphics();

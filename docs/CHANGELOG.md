@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.78.0 — 2026-11-26
+
+OCR de caja chica con más contraste (DEC-L098).
+
+- `OcrExtractor`: el modo reforzado suma una tercera pasada adaptativa sobre `realzarContraste` (percentiles 2 % → negro y 50 % → blanco); en PDF esa pasada usa la página renderizada en `ImageType.GRAY`.
+- Tests: `OcrExtractorTest.realzarContrasteOscureceElTrazoTenueYBlanqueaElPapel`.
+
 ## 0.77.0 — 2026-11-26
 
 OCR de caja chica afinado (DEC-L097).

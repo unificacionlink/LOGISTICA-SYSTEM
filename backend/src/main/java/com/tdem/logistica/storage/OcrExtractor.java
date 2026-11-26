@@ -4,6 +4,7 @@ import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
@@ -59,9 +60,10 @@ public class OcrExtractor {
     /**
      * @param reforzado ademas del umbral global, una segunda pasada con umbral
      *                  adaptativo (DEC-L097): rescata el texto tenue de los tickets
-     *                  termicos, pero ensucia las fotos, asi que se suman las dos
+     *                  termicos, pero ensucia las fotos, asi que se suman las
      *                  lecturas y el que interpreta se queda con lo que reconoce.
-     *                  Tarda el doble; para comprobantes de caja chica.
+     *                  Una tercera, adaptativa sobre la imagen con mas contraste
+     *                  (DEC-L098). Tarda el triple; para comprobantes de caja chica.
      */
     public synchronized String extraerTexto(byte[] contenido, String contentType, boolean reforzado) {
         try {
@@ -72,23 +74,70 @@ public class OcrExtractor {
             if (imagen == null) {
                 throw new UncheckedIOException(new IOException("Formato de imagen no reconocido."));
             }
-            return ocr(imagen, reforzado);
+            return ocr(imagen, imagen, reforzado);
         } catch (TesseractException | IOException e) {
             throw new UncheckedIOException("No se pudo leer el documento con OCR.", new IOException(e));
         }
     }
 
-    private String ocr(BufferedImage imagen, boolean reforzado) throws TesseractException {
+    /** @param paraContraste la misma imagen, de donde sale la lectura con contraste. */
+    private String ocr(BufferedImage imagen, BufferedImage paraContraste, boolean reforzado) throws TesseractException {
         if (!reforzado) {
             return tesseract.doOCR(imagen);
         }
         try {
             String global = tesseract.doOCR(imagen);
             tesseract.setVariable("thresholding_method", "1");
-            return global + "\n\f\n" + tesseract.doOCR(imagen);  // \f separa las lecturas
+            String adaptativo = tesseract.doOCR(imagen);
+            String contrastado = tesseract.doOCR(realzarContraste(paraContraste));
+            return global + "\n\f\n" + adaptativo + "\n\f\n" + contrastado;  // \f separa las lecturas
         } finally {
             tesseract.setVariable("thresholding_method", "0");
         }
+    }
+
+    /**
+     * Sube el contraste recortando (DEC-L098): el 2 % mas oscuro pasa a negro y todo
+     * lo que es tan claro como la mediana (el papel) a blanco. Estirar sin recortar
+     * no cambia nada al binarizar; recortar si oscurece el trazo tenue de los
+     * tickets termicos y de las fotos, y el umbral adaptativo lo rescata.
+     */
+    static BufferedImage realzarContraste(BufferedImage imagen) {
+        int w = imagen.getWidth();
+        int h = imagen.getHeight();
+        // Luminancia directa de los canales: la conversion de color de Java2D (con
+        // gamma) aclara el trazo tenue y se pierde lo que se queria rescatar.
+        int[] rgb = imagen.getRGB(0, 0, w, h, null, 0, w);
+        int[] pixeles = new int[rgb.length];
+        for (int k = 0; k < rgb.length; k++) {
+            int c = rgb[k];
+            pixeles[k] = ((c >> 16 & 255) * 3 + (c >> 8 & 255) * 6 + (c & 255)) / 10;
+        }
+        BufferedImage gris = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
+        var raster = gris.getRaster();
+        int[] histograma = new int[256];
+        for (int p : pixeles) {
+            histograma[p]++;
+        }
+        int negro = percentil(histograma, pixeles.length, 0.02);
+        int blanco = Math.max(negro + 1, percentil(histograma, pixeles.length, 0.50));
+        for (int k = 0; k < pixeles.length; k++) {
+            pixeles[k] = Math.clamp((pixeles[k] - negro) * 255L / (blanco - negro), 0, 255);
+        }
+        raster.setPixels(0, 0, w, h, pixeles);
+        return gris;
+    }
+
+    private static int percentil(int[] histograma, int total, double fraccion) {
+        long objetivo = (long) (fraccion * total);
+        long acumulado = 0;
+        for (int v = 0; v < histograma.length; v++) {
+            acumulado += histograma[v];
+            if (acumulado > objetivo) {
+                return v;
+            }
+        }
+        return 255;
     }
 
     private String extraerDePdf(byte[] contenido, boolean reforzado) throws IOException {
@@ -119,7 +168,10 @@ public class OcrExtractor {
                 }
                 try {
                     BufferedImage imagen = renderer.renderImageWithDPI(i, 300);
-                    texto.append(ocr(imagen, reforzado)).append("\n\f\n");
+                    // La pagina dibujada en gris conserva mejor el trazo tenue para
+                    // la lectura con contraste; las otras dos, sobre la de color.
+                    BufferedImage gris = reforzado ? renderer.renderImageWithDPI(i, 300, ImageType.GRAY) : null;
+                    texto.append(ocr(imagen, gris, reforzado)).append("\n\f\n");
                 } catch (Exception e) {
                     log.warn("No se pudo renderizar/leer la pagina {} del PDF, se omite", i, e);
                 }

@@ -13,6 +13,13 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.78.0",
+    titulo: "Lectura de facturas con más contraste",
+    cambios: [
+      "«Leer con OCR» también lee el comprobante con más contraste: rescata fechas y datos de tickets desteñidos y fotos.",
+    ],
+  },
+  {
     version: "0.77.0",
     titulo: "Mejor lectura de facturas en caja chica",
     cambios: [

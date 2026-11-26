@@ -5,6 +5,16 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L098 — OCR de caja chica: tercera lectura con más contraste (2026-11-26, v0.78.0).**
+  Logística notó que, a la vista, el comprobante se lee mejor con más contraste. Estirarlo sin
+  recortar no cambia nada al binarizar (DEC-L097), pero **recortando** sí: `OcrExtractor.realzarContraste`
+  lleva el 2 % más oscuro a negro y todo lo tan claro como la mediana (el papel) a blanco, y esa
+  imagen se lee con umbral adaptativo como **tercera pasada** del modo reforzado (las tres se
+  suman separadas por `\f`). En un PDF, esa pasada usa la página dibujada en gris por PDFBox
+  (conserva mejor el trazo tenue que convertir la de color); las otras dos siguen sobre la de
+  color. Con los ejemplos reales sumó la fecha del ticket térmico y el tipo «Boleta» de la boleta
+  manual, sin perder nada de lo que ya se leía. La lectura tarda unos 6 a 9 s.
+
 - **DEC-L097 — OCR de caja chica afinado con comprobantes reales (2026-11-26, v0.77.0).**
   Logística probó un ticket térmico tenue (factura electrónica) y una boleta manual fotografiada
   junto a su OC. (1) `OcrExtractor` lee el PDF **página por página**: la que tiene texto se lee
