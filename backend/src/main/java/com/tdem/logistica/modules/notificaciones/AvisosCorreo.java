@@ -77,6 +77,49 @@ public class AvisosCorreo {
                 url.de("/aprobaciones"), "Revisar en la plataforma");
     }
 
+    // ---------------------------------------------------------------- logistica (DEC-L101)
+
+    /** REQ enviado a aprobacion: a todo usuario LOGISTICA, para que se anticipe. */
+    public void reqEnviadoALogistica(UUID requestId, UUID actor) {
+        avisarLogistica("REQ_ENVIADO", requestId, actor, "Requerimiento emitido: ",
+                "Se emitió un requerimiento y está pendiente de aprobación.", "/requerimientos");
+    }
+
+    /** REQ aprobado: a todo usuario LOGISTICA, que ya debe atenderlo. */
+    public void reqAprobadoALogistica(UUID requestId, UUID actor) {
+        avisarLogistica("REQ_APROBADO", requestId, actor, "Requerimiento aprobado: ",
+                "Se aprobó un requerimiento y ya está para atención de Logística.", "/requerimientos");
+    }
+
+    private void avisarLogistica(String evento, UUID requestId, UUID actor, String asunto, String parrafo, String ruta) {
+        Req r = req(requestId);
+        if (r == null) {
+            return;
+        }
+        for (Destinatario d : conRol("LOGISTICA")) {
+            if (d.userId().equals(actor)) {
+                continue;
+            }
+            Map<String, String> datos = datosReq(r);
+            datos.put("Solicitante", nombre(r.solicitanteId()));
+            datos.put("Justificación", r.justificacion());
+            encolar(evento, r.id(), d, asunto + r.codigo(),
+                    PlantillasCorreo.correo(asunto + r.codigo(), d.nombre(), parrafo, datos,
+                            url.de(ruta), "Ver en la plataforma"), null);
+        }
+    }
+
+    private List<Destinatario> conRol(String rol) {
+        return jdbc.query("""
+                select distinct u.user_id, u.corporate_email, u.display_name
+                  from usuario u
+                  join usuario_rol ur on ur.user_id = u.user_id
+                  join rol ro on ro.role_id = ur.role_id and ro.active
+                 where u.active and u.password_hash is not null and ro.code = ?
+                 order by u.display_name""",
+                (rs, n) -> new Destinatario(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)), rol);
+    }
+
     // Decision, despacho y recepcion ya no van por correo al solicitante: son
     // avisos de su campana en la plataforma (DEC-L076, AvisosPlataforma).
 

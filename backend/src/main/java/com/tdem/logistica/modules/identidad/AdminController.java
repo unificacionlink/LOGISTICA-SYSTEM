@@ -26,10 +26,12 @@ public class AdminController {
     private final PersonalManualService personal;
     private final PadronPersonalService padron;
     private final EmpresaAdminService empresas;
+    private final FirmaUsuarioService firmas;
 
     public AdminController(AdminService service, PersonalManualService personal, PadronPersonalService padron,
-                           EmpresaAdminService empresas) {
+                           EmpresaAdminService empresas, FirmaUsuarioService firmas) {
         this.service = service;
+        this.firmas = firmas;
         this.empresas = empresas;
         this.personal = personal;
         this.padron = padron;
@@ -81,6 +83,27 @@ public class AdminController {
                                                     @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ApiResponse.ok(service.cambiarActivo(id, request.activo(), principal),
                 request.activo() ? "Usuario activado." : "Usuario desactivado.");
+    }
+
+    // ---------- Firma del usuario para el F-LOG-08 (DEC-L102) ----------
+
+    @PostMapping(value = "/usuarios/{id}/firma", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<AdminDatosDto> subirFirma(@PathVariable UUID id, @RequestParam("file") MultipartFile file,
+                                                 @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(firmas.subir(id, file, principal), "Firma guardada.");
+    }
+
+    @DeleteMapping("/usuarios/{id}/firma")
+    public ApiResponse<AdminDatosDto> quitarFirma(@PathVariable UUID id,
+                                                  @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ApiResponse.ok(firmas.quitar(id, principal), "Firma quitada.");
+    }
+
+    @GetMapping("/usuarios/{id}/firma")
+    public ResponseEntity<byte[]> firma(@PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        EmpresaAdminService.Imagen img = firmas.ver(id, principal);
+        return Descargas.archivo(img.contenido(), "firma" + (img.tipo().endsWith("png") ? ".png" : ".jpg"),
+                MediaType.parseMediaType(img.tipo()));
     }
 
     @PostMapping("/usuarios")

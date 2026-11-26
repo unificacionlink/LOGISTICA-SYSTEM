@@ -123,10 +123,14 @@ class CorreosTest {
 				String.class, req.id());
 		assertTrue(html.contains("/aprobaciones"), "el boton lleva a la plataforma");
 
-		// --- Aprobar: el solicitante se entera en su campana, no por correo (DEC-L076) ---
+		// DEC-L101: Logistica recibe el correo del REQ emitido.
+		UUID logistica = principal("logistica@logistica.test", "LOGISTICA").userId();
+		assertEquals(List.of(logistica), destinatarios(req.id(), "REQ_ENVIADO"));
+
+		// --- Aprobar: el solicitante se entera en su campana, no por correo (DEC-L076); Logistica, por correo (DEC-L101) ---
 		UUID aprobacion = requerimientos.obtener(req.id(), aprobador).pendingApprovalId();
 		aprobaciones.decidir(aprobacion, new DecidirAprobacionRequest("APROBADO", null, null), aprobador);
-		assertEquals(List.of(), destinatarios(req.id(), "REQ_APROBADO"));
+		assertEquals(List.of(logistica), destinatarios(req.id(), "REQ_APROBADO"));
 		var bandeja = avisosPlataforma.bandeja(solicitante);
 		assertEquals(1, bandeja.noLeidas());
 		assertEquals("REQ_APROBADO", bandeja.items().get(0).tipo());

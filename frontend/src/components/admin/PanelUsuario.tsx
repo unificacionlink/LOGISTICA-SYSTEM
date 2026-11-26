@@ -12,6 +12,7 @@ import { useConfirmar } from "../ui/Confirmacion";
 import Field, { inputClass } from "../ui/Field";
 import CecosAprobados from "./CecosAprobados";
 import CecosUsuario from "./CecosUsuario";
+import FirmaUsuario from "./FirmaUsuario";
 import { ETIQUETA_ROL } from "./roles";
 
 export type Aplicar = (res: { ok: boolean; result: AdminDatos | null; message: string }) => boolean;
@@ -268,6 +269,12 @@ export default function PanelUsuario({
               </div>
             )}
           </Seccion>
+
+          {u.tieneAcceso && (
+            <Seccion titulo="Firma (F-LOG-08)">
+              <FirmaUsuario u={u} aplicar={aplicar} />
+            </Seccion>
+          )}
 
           <Seccion titulo="Datos">
             {editando ? (

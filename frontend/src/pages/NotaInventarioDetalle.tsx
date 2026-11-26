@@ -14,6 +14,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 import BotonDescarga from "../components/BotonDescarga";
 import PreparacionNota from "../components/almacen/PreparacionNota";
 import RecepcionDestinoPanel from "../components/almacen/RecepcionDestinoPanel";
+import VerificacionesNota from "../components/almacen/VerificacionesNota";
 import { descargarPdfNota } from "../api/documentos";
 import { nombreEmpresa } from "../components/empresas";
 import { useAuth } from "../auth/AuthContext";
@@ -150,6 +151,7 @@ export default function NotaInventarioDetalle() {
         actions={
           <>
             <BotonDescarga descargar={() => descargarPdfNota(nota.inventoryNoteId, nota.inventoryNoteCode)} />
+            <VerificacionesNota noteId={nota.inventoryNoteId} />
             <NotaBadge estado={nota.status} />
             {esGestor && nota.status === "EMITIDA" && !e && (
               <MenuAcciones acciones={[{ label: "Anular nota", peligro: true, onClick: () => void onAnular() }]} />

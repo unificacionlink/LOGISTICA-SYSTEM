@@ -17,5 +17,7 @@ public record UsuarioAdminDto(
         boolean activo,
         Instant sincronizadoEn,
         boolean tieneAcceso,
-        boolean debeCambiarPassword) {
+        boolean debeCambiarPassword,
+        /** Tiene firma escaneada para el F-LOG-08 (DEC-L102). */
+        boolean tieneFirma) {
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.80.0 — 2026-11-26
+
+F-LOG-08 por OC (DEC-L102) y correos a Logística (DEC-L101).
+
+- V56: `verificacion_oc`, `verificacion_oc_item`, `usuario.firma_key`; `correo_saliente.event_type` suma `REQ_ENVIADO`; `repositorio_documento.doc_type` suma `VERIFICACION_OC`.
+- `VerificacionOcService` + `VerificacionOcController`: `GET/PUT /api/compras/ordenes/{id}/verificacion`, `GET /api/almacen/notas/{id}/verificaciones`; PDF en `/api/compras/ordenes/{id}/verificacion/pdf` y `/api/almacen/notas/{noteId}/verificaciones/{orderId}/pdf`.
+- `PdfVerificacionOc` sobre la base nueva `HojaPdf` (cabecera de formato y primitivas); `ArchivadorDocumentos` lo archiva.
+- `FirmaUsuarioService`: `POST/DELETE/GET /api/admin/usuarios/{id}/firma`; `UsuarioAdminDto.tieneFirma`.
+- `AvisosCorreo`: correo a todo LOGISTICA al enviar y al aprobar un REQ.
+- Frontend: sección «Verificación (F-LOG-08)» en la OC, descarga desde la Nota de Inventario, firma en la ficha del usuario, tipo nuevo en Repositorio.
+- Tests: `OrdenCompraAprobacionTest.verificacionFLog08AlRecibirTodo`, `AprobadorCecoTest` (correo REQ_ENVIADO), `MigracionesFlywayTest` (56).
+
 ## 0.79.0 — 2026-11-26
 
 Caja chica: factura solo como archivo (DEC-L099). ADMIN decide todo, también lo suyo (DEC-L100).

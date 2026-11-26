@@ -91,13 +91,16 @@ public class AdminService {
             cecos.computeIfAbsent(rs.getObject(1, UUID.class), k -> new ArrayList<>()).add(rs.getObject(2, UUID.class));
         });
         Set<UUID> manuales = empresasManuales();
+        Set<UUID> conFirma = new HashSet<>(jdbc.queryForList(
+                "select user_id from usuario where firma_key is not null", UUID.class));
 
         List<UsuarioAdminDto> usuarios = usuarioRepository.findAllConEmpresa().stream()
                 .map(u -> new UsuarioAdminDto(u.getUserId(), u.getDisplayName(), u.getCorporateEmail(),
                         u.getEmployeeExternalId(), u.getEmpresa() != null ? u.getEmpresa().getCode() : null,
                         u.getCargo(), ordenarRoles(roles.getOrDefault(u.getUserId(), List.of())),
                         cecos.getOrDefault(u.getUserId(), List.of()), u.getFuente(), u.isActive(),
-                        u.getSourceSyncedAt(), u.getPasswordHash() != null, u.isMustChangePassword()))
+                        u.getSourceSyncedAt(), u.getPasswordHash() != null, u.isMustChangePassword(),
+                        conFirma.contains(u.getUserId())))
                 .toList();
         List<EmpresaAdminDto> empresas = empresaRepository.findAllByActiveTrueOrderByCode().stream()
                 .map(e -> new EmpresaAdminDto(e.getCompanyId(), e.getCode(), e.getLegalName(), manuales.contains(e.getCompanyId())))

@@ -42,6 +42,19 @@ public class DocumentosController {
         return descargar(service.orden(id, principal));
     }
 
+    /** F-LOG-08 (DEC-L102). */
+    @GetMapping("/api/compras/ordenes/{id}/verificacion/pdf")
+    public ResponseEntity<byte[]> verificacion(@PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return descargar(service.verificacionOc(id, principal));
+    }
+
+    /** F-LOG-08 desde la Nota de Inventario que despacha lo comprado (DEC-L102). */
+    @GetMapping("/api/almacen/notas/{noteId}/verificaciones/{orderId}/pdf")
+    public ResponseEntity<byte[]> verificacionDeNota(@PathVariable UUID noteId, @PathVariable UUID orderId,
+                                                     @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return descargar(service.verificacionDeNota(noteId, orderId, principal));
+    }
+
     @GetMapping("/api/almacen/notas/{id}/pdf")
     public ResponseEntity<byte[]> notaInventario(@PathVariable UUID id, @AuthenticationPrincipal UsuarioPrincipal principal) {
         return descargar(service.notaInventario(id, principal));

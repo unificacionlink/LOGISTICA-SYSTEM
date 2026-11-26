@@ -23,3 +23,13 @@ export function descargarPdfOrden(orderId: string, codigo: string) {
 export function descargarPdfNota(noteId: string, codigo: string) {
   return http.descargar(`/api/almacen/notas/${noteId}/pdf`, `${codigo}.pdf`);
 }
+
+/** F-LOG-08 de la OC (DEC-L102). */
+export function descargarPdfVerificacion(orderId: string, codigo: string) {
+  return http.descargar(`/api/compras/ordenes/${orderId}/verificacion/pdf`, `F-LOG-08_${codigo}.pdf`);
+}
+
+/** F-LOG-08 de una OC desde la Nota de Inventario que despacha lo comprado. */
+export function descargarPdfVerificacionDeNota(noteId: string, orderId: string, codigo: string) {
+  return http.descargar(`/api/almacen/notas/${noteId}/verificaciones/${orderId}/pdf`, `F-LOG-08_${codigo}.pdf`);
+}

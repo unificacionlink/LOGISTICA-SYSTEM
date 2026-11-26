@@ -129,6 +129,26 @@ export function sincronizarRrhh() {
   return http.post<AdminDatos>("/api/admin/sincronizar-rrhh");
 }
 
+// ---------------------------------------------------------------- Firma del usuario (F-LOG-08, DEC-L102)
+
+export function subirFirmaUsuario(userId: string, file: File) {
+  return http.postForm<AdminDatos>(`/api/admin/usuarios/${userId}/firma`, formArchivo(file));
+}
+
+export function quitarFirmaUsuario(userId: string) {
+  return http.delete<AdminDatos>(`/api/admin/usuarios/${userId}/firma`);
+}
+
+/** Vista previa de la firma (bucket privado): URL local del navegador, o null. */
+export async function verFirmaUsuario(userId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/admin/usuarios/${userId}/firma`, { credentials: "include" });
+    return res.ok ? URL.createObjectURL(await res.blob()) : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------- Empresas (F-LOG-09, DEC-L079)
 
 export type ImagenEmpresa = "logo" | "firma-gerencia" | "firma-logistica";

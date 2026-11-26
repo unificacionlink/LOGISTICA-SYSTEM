@@ -23,6 +23,7 @@ export type TipoDocumentoRepositorio =
   | "REQUERIMIENTO"
   | "ORDEN_COMPRA"
   | "NOTA_INVENTARIO"
+  | "VERIFICACION_OC"
   | "CONSTANCIA_PAGO"
   | "FACTURA"
   | "GUIA"

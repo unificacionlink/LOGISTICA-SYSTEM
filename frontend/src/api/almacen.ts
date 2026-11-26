@@ -224,3 +224,8 @@ export function validarCargaMasiva(file: File) {
 export function confirmarCargaMasiva(file: File) {
   return http.postForm<CargaMasiva>("/api/almacen/carga-masiva/confirmar", formArchivo(file));
 }
+
+/** F-LOG-08 de las OC que despacha esta nota (DEC-L102). */
+export function verificacionesDeNota(noteId: string) {
+  return http.get<{ orderId: string; orderCode: string }[]>(`/api/almacen/notas/${noteId}/verificaciones`);
+}

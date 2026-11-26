@@ -117,6 +117,10 @@ class AprobadorCecoTest {
 		UsuarioPrincipal adminSolicitante = new UsuarioPrincipal(adminP.userId(), List.of("ADMIN", "SOLICITANTE"));
 		RequerimientoDto propio = requerimientos.crear(solicitud(ceco), adminSolicitante);
 		requerimientos.enviar(propio.id(), adminSolicitante);
+		// DEC-L101: Logistica recibe el correo del REQ emitido.
+		assertEquals(1, jdbc.queryForObject("""
+				select count(*) from correo_saliente where event_type = 'REQ_ENVIADO' and entity_id = ?
+				   and to_email = 'logistica@logistica.test'""", Integer.class, propio.id()));
 		UUID aprobacionPropia = requerimientos.obtener(propio.id(), adminSolicitante).pendingApprovalId();
 		assertNotNull(aprobacionPropia);
 		assertTrue(aprobaciones.listarPendientes(adminSolicitante).stream()

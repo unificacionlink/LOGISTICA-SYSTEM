@@ -15,6 +15,7 @@ import MenuAcciones from "../components/ui/MenuAcciones";
 import CicloOrden from "../components/compras/CicloOrden";
 import CondicionesOrden from "../components/compras/CondicionesOrden";
 import DocumentosOrden from "../components/compras/DocumentosOrden";
+import VerificacionOrden from "../components/compras/VerificacionOrden";
 import { useAuth } from "../auth/AuthContext";
 
 export default function ComprasOrdenDetalle() {
@@ -169,6 +170,11 @@ export default function ComprasOrdenDetalle() {
           </table>
         </div>
       </Card>
+
+      {/* DEC-L102: verificación F-LOG-08 cuando se recibió todo. */}
+      {orden.status !== "POR_APROBAR" && orden.status !== "ANULADA" && (
+        <VerificacionOrden orderId={orden.orderId} version={orden.status} />
+      )}
 
       {/* DEC-L089: pagos, guías, recepciones y notas de inventario de esta OC. */}
       {orden.status !== "POR_APROBAR" && (

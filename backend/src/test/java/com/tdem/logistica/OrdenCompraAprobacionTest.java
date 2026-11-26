@@ -12,6 +12,8 @@ import com.tdem.logistica.modules.compras.ComparativoService;
 import com.tdem.logistica.modules.compras.ComprasService;
 import com.tdem.logistica.modules.compras.DocumentosOrdenService;
 import com.tdem.logistica.modules.compras.OrdenCompraService;
+import com.tdem.logistica.modules.compras.VerificacionOcService;
+import com.tdem.logistica.documentos.DocumentosService;
 import com.tdem.logistica.modules.compras.dto.*;
 import com.tdem.logistica.security.UsuarioPrincipal;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
@@ -53,6 +55,8 @@ class OrdenCompraAprobacionTest {
 	@Autowired private ComprasService compras;
 	@Autowired private OrdenCompraService ordenCompra;
 	@Autowired private RecepcionService recepcion;
+	@Autowired private VerificacionOcService verificaciones;
+	@Autowired private DocumentosService documentos;
 
 	@DynamicPropertySource
 	static void bd(DynamicPropertyRegistry registry) throws IOException, SQLException {
@@ -195,6 +199,49 @@ class OrdenCompraAprobacionTest {
 		OrdenDto otra = abastecimiento.emitirOrden(cotizacion, logistica());
 		assertEquals("POR_APROBAR", otra.status());
 		assertEquals("EMITIDA", ordenCompra.decidir(otra.orderId(), aprobar(), admin()).status());
+	}
+
+	/** DEC-L102: F-LOG-08 una vez recibido todo; DEC-L101: Logistica recibe el correo del REQ aprobado. */
+	@Test
+	void verificacionFLog08AlRecibirTodo() {
+		UsuarioPrincipal log = logistica();
+		OrdenDto oc = emitir("AC01001-00", 2, "20100000073");
+		assertTrue(jdbc.queryForObject("""
+				select count(*) from correo_saliente where event_type = 'REQ_APROBADO' and to_email = 'logistica@logistica.test'""",
+				Integer.class) > 0, "Logistica recibe el correo del REQ aprobado");
+
+		ordenCompra.decidir(oc.orderId(), aprobar(), gerencia());
+		VerificacionOcDto antes = verificaciones.obtener(oc.orderId(), log);
+		assertFalse(antes.disponible(), "sin recibir no se verifica");
+		assertFalse(antes.puedeEditar());
+		GuardarVerificacionRequest pedido = new GuardarVerificacionRequest(usuario("solicitante@logistica.test"),
+				"CONFORME", List.of(new GuardarVerificacionRequest.Item(antes.items().get(0).orderItemId(), null, null,
+				"Y", null)));
+		assertThrows(ApiException.class, () -> verificaciones.guardar(oc.orderId(), pedido, log));
+
+		assertEquals("RECEPCION_COMPLETA", recibir(oc.orderId(), 2).orden().status());
+		VerificacionOcDto lista = verificaciones.obtener(oc.orderId(), log);
+		assertTrue(lista.disponible());
+		assertTrue(lista.puedeEditar());
+		assertEquals(0, lista.items().get(0).recibida().compareTo(BigDecimal.valueOf(2)));
+		assertEquals(usuario("solicitante@logistica.test"), lista.especialistaSugeridoId(), "el solicitante del REQ");
+		assertFalse(verificaciones.obtener(oc.orderId(), gerencia()).puedeEditar(), "Gerencia la ve, no la registra");
+		assertThrows(ApiException.class, () -> verificaciones.guardar(oc.orderId(), pedido, gerencia()));
+		assertThrows(ApiException.class, () -> verificaciones.obtener(oc.orderId(), solicitante()));
+		assertThrows(ApiException.class, () -> verificaciones.guardar(oc.orderId(), new GuardarVerificacionRequest(
+				usuario("solicitante@logistica.test"), "CONFORME", List.of()), log), "todas las lineas");
+
+		VerificacionOcDto guardada = verificaciones.guardar(oc.orderId(), pedido, log);
+		assertTrue(guardada.registrada());
+		assertEquals(log.userId(), guardada.verificadaPor().id());
+		assertEquals("Y", guardada.items().get(0).especificaciones());
+		assertNull(guardada.items().get(0).funcionalidad(), "no aplica");
+		byte[] pdf = documentos.verificacionOc(oc.orderId(), log).contenido();
+		assertEquals("%PDF", new String(pdf, 0, 4));
+		assertTrue(verificaciones.deNota(UUID.randomUUID()).isEmpty());
+		assertEquals(1, jdbc.queryForObject("""
+				select count(*) from log_cambios where entidad = 'ORDEN_COMPRA' and entidad_id = ?
+				  and accion = 'VERIFICAR_F_LOG_08'""", Integer.class, oc.orderId()));
 	}
 
 	// ---------------------------------------------------------------- apoyo

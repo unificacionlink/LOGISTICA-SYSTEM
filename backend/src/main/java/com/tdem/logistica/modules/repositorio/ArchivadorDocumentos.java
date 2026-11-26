@@ -16,8 +16,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Archiva en el bucket privado cada PDF oficial que aun no tiene copia (DEC-L091):
- * requerimiento aprobado, OC aprobada (con firmas) y Nota de Inventario emitida o
- * anulada, en repositorio/&lt;TIPO&gt;/&lt;EMPRESA&gt;/&lt;AAAA-MM&gt;/. Corre cada pocos
+ * requerimiento aprobado, OC aprobada (con firmas), Nota de Inventario emitida o
+ * anulada y la verificacion F-LOG-08 de una OC (DEC-L102), en repositorio/&lt;TIPO&gt;/&lt;EMPRESA&gt;/&lt;AAAA-MM&gt;/. Corre cada pocos
  * minutos y recupera lo pendiente, asi que un fallo del almacenamiento no pierde
  * nada: se reintenta en la siguiente vuelta. El PDF se genera como lo veria quien
  * hizo la accion (su nombre va en el pie).
@@ -51,6 +51,13 @@ public class ArchivadorDocumentos {
                 from nota_inventario n
                 join empresa e on e.company_id = n.company_id
                where n.issued_at is not null
+              union all
+              select 'VERIFICACION_OC', v.order_id, 'F-LOG-08_' || o.order_code, o.company_id, e.code,
+                     to_char(v.verified_at at time zone 'America/Lima', 'YYYY-MM'), 'VERIFICADA',
+                     v.verified_by, v.verified_at
+                from verificacion_oc v
+                join orden_abastecimiento o on o.order_id = v.order_id
+                join empresa e on e.company_id = o.company_id
             ) p
             where not exists (select 1 from repositorio_documento d
                                where d.doc_type = p.tipo and d.entity_id = p.id and d.version_key = p.version)
@@ -116,6 +123,7 @@ public class ArchivadorDocumentos {
         DocumentosService.Pdf pdf = switch (p.tipo()) {
             case "REQUERIMIENTO" -> documentos.requerimiento(p.id(), como);
             case "ORDEN_COMPRA" -> documentos.orden(p.id(), como);
+            case "VERIFICACION_OC" -> documentos.verificacionOc(p.id(), como);
             default -> documentos.notaInventario(p.id(), como);
         };
         String clave = "repositorio/" + p.tipo() + "/" + p.empresa() + "/" + p.periodo() + "/"

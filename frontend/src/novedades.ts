@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.80.0",
+    titulo: "Verificación de la orden de compra (F-LOG-08)",
+    cambios: [
+      "Al recibir todo lo de una orden de compra, Logística la verifica en su ficha: marca Y o F por producto, escribe la conclusión y elige quién da el visto bueno del área solicitante.",
+      "El formato F-LOG-08 sale en PDF con las firmas, y también se descarga desde la Nota de Inventario que despacha lo comprado.",
+      "El administrador sube la firma de cada usuario desde su ficha.",
+      "Logística recibe un correo cuando se emite un requerimiento y cuando se aprueba.",
+    ],
+  },
+  {
     version: "0.79.0",
     titulo: "Factura en PDF o foto y el administrador aprueba todo",
     cambios: [

@@ -506,6 +506,7 @@ public class RequerimientoService {
             realtimeNotifier.nuevaAprobacionPendiente(pendiente);
         }
         avisosCorreo.aprobacionPendiente(r.getRequestId(), aprobacion.getAssignedTo(), principal.userId());
+        avisosCorreo.reqEnviadoALogistica(r.getRequestId(), principal.userId());
         return dto;
     }
 

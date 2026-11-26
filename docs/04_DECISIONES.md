@@ -5,6 +5,29 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L102 — F-LOG-08: verificación de adquisiciones por orden de compra (2026-11-26, v0.80.0).**
+  Logística entregó el formato F-LOG-08 v1 (aprobado el 29/01/2025). Es **uno por OC** y se habilita
+  cuando la OC está aprobada, no anulada y se recibió todo lo que pasa por el almacén (los servicios y
+  productos escritos a mano cuentan como recibidos, DEC-L080/L094). Logística (LOGISTICA/ADMIN) marca
+  por línea **Y** (conforme) / **F** (no conforme): funcionalidad por testeo/muestreo y estándares
+  F-LOG-04 pueden quedar en blanco (no aplica); especificaciones y condiciones siempre se marcan; más
+  una observación por línea y la conclusión. Gerencia la ve sin editar. Tablas `verificacion_oc` y
+  `verificacion_oc_item` (V56); `VerificacionOcService`. **Firmas por usuario**: `usuario.firma_key`
+  (bucket privado, la sube ADMIN en la ficha del usuario, `FirmaUsuarioService`); el V°B° Logística
+  es quien guarda la verificación y el V°B° del área solicitante o especialista se elige (sugerido: el
+  solicitante del REQ si la OC atiende uno solo). El documento adjunto es **la propia OC**: su código
+  y el enlace a su ficha en la plataforma. **Relación automática con las Notas de Inventario**: por las
+  líneas de requerimiento que atiende la OC (directas o por necesidad del consolidado) y que despacha
+  cada NI; la ficha de la OC lista sus NI y la de la NI descarga el F-LOG-08 (quien ve la nota lo
+  descarga). El PDF (`PdfVerificacionOc`, sobre la base nueva `HojaPdf`) se archiva en el repositorio
+  como `VERIFICACION_OC` (DEC-L091). Volver a guardar reemplaza las marcas y queda en `log_cambios`.
+
+- **DEC-L101 — Correos a Logística al emitir y al aprobar un requerimiento (2026-11-26, v0.80.0).**
+  Además de los aprobadores (DEC-L066), cada usuario activo con rol **LOGISTICA** recibe un correo
+  cuando un REQ se envía a aprobación (`REQ_ENVIADO`) y cuando se aprueba (`REQ_APROBADO`), para
+  anticiparse y atenderlo. Nunca a quien hizo la acción. `AvisosCorreo.reqEnviadoALogistica` /
+  `reqAprobadoALogistica`; V56 amplía el check de `correo_saliente.event_type`.
+
 - **DEC-L100 — ADMIN decide todo, también lo suyo (2026-11-26, v0.79.0).**
   Antes nadie decidía su propio requerimiento ni la OC que emitió, ni siendo ADMIN (DEC-L030,
   DEC-L061). Logística pidió que **ADMIN pueda hacer todo**: `AmbitoAprobacion.puedeDecidir`

@@ -40,12 +40,14 @@ public class RepositorioService {
     private static final String SQL = """
             select * from (
               select d.doc_type as tipo, d.doc_code as codigo,
-                     case d.version_key when 'ANULADA' then 'Anulada' when 'EMITIDA' then 'Emitida' else 'Aprobado' end
+                     case d.version_key when 'ANULADA' then 'Anulada' when 'EMITIDA' then 'Emitida'
+                                        when 'VERIFICADA' then 'Verificada' else 'Aprobado' end
                        as detalle,
                      e.code as empresa, d.period as periodo, d.archived_at as fecha, cast(null as date) as vence,
                      '/api/repositorio/' || d.archive_id || '/archivo' as descarga, cast(null as text) as url,
                      case d.doc_type when 'REQUERIMIENTO' then '/requerimientos/' || d.entity_id
                                      when 'ORDEN_COMPRA' then '/compras/ordenes/' || d.entity_id
+                                     when 'VERIFICACION_OC' then '/compras/ordenes/' || d.entity_id
                                      else '/almacen/notas/' || d.entity_id end as ruta
                 from repositorio_documento d join empresa e on e.company_id = d.company_id
               union all

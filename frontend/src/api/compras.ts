@@ -1,6 +1,8 @@
 import { enCache, MINUTO } from "./cache";
 import { http } from "./http";
 import type {
+  GuardarVerificacionInput,
+  VerificacionOc,
   CandidatoRfq,
   Comparativo,
   EnlaceCotizacion,
@@ -312,4 +314,14 @@ export function anularOrden(orderId: string, motivo: string) {
 /** Monedas: casi nunca cambian; una vez por pestana (24 h). */
 export function listarMonedas() {
   return enCache("monedas", 24 * 60 * MINUTO, () => http.get<Moneda[]>("/api/compras/monedas"));
+}
+
+// ---------------------------------------------------------------- F-LOG-08 (DEC-L102)
+
+export function obtenerVerificacionOc(orderId: string) {
+  return http.get<VerificacionOc>(`/api/compras/ordenes/${orderId}/verificacion`);
+}
+
+export function guardarVerificacionOc(orderId: string, datos: GuardarVerificacionInput) {
+  return http.put<VerificacionOc>(`/api/compras/ordenes/${orderId}/verificacion`, datos);
 }

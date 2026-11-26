@@ -1,6 +1,10 @@
 package com.tdem.logistica.documentos;
 
+import com.tdem.logistica.config.UrlPublica;
 import com.tdem.logistica.entity.Empresa;
+import com.tdem.logistica.modules.compras.VerificacionOcService;
+import com.tdem.logistica.modules.compras.dto.VerificacionOcDto;
+import com.tdem.logistica.modules.identidad.FirmaUsuarioService;
 import com.tdem.logistica.entity.Usuario;
 import com.tdem.logistica.modules.almacen.DespachoService;
 import com.tdem.logistica.modules.compras.ComprasService;
@@ -46,13 +50,20 @@ public class DocumentosService {
     private final EmpresaRepository empresaRepository;
     private final StorageClient storage;
     private final JdbcTemplate jdbc;
+    private final VerificacionOcService verificaciones;
+    private final FirmaUsuarioService firmas;
+    private final UrlPublica url;
 
     private static final Logger log = LoggerFactory.getLogger(DocumentosService.class);
 
     public DocumentosService(RequerimientoService requerimientoService, TrackingService trackingService,
                              ComprasService comprasService, DespachoService despachoService,
                              UsuarioRepository usuarioRepository, EnlaceCotizacionService enlaces,
-                             EmpresaRepository empresaRepository, StorageClient storage, JdbcTemplate jdbc) {
+                             EmpresaRepository empresaRepository, StorageClient storage, JdbcTemplate jdbc,
+                             VerificacionOcService verificaciones, FirmaUsuarioService firmas, UrlPublica url) {
+        this.verificaciones = verificaciones;
+        this.firmas = firmas;
+        this.url = url;
         this.enlaces = enlaces;
         this.empresaRepository = empresaRepository;
         this.storage = storage;
@@ -155,6 +166,51 @@ public class DocumentosService {
             log.warn("No se pudo leer la imagen {} de {}: {}", tipo, e.getCode(), ex.getMessage());
             return null;
         }
+    }
+
+    // ---------------------------------------------------------------- F-LOG-08 (DEC-L102)
+
+    public Pdf verificacionOc(UUID orderId, UsuarioPrincipal principal) {
+        return verificacion(verificaciones.obtener(orderId, principal));
+    }
+
+    /** Quien ve la Nota de Inventario descarga el F-LOG-08 de las OC que despacha. */
+    public Pdf verificacionDeNota(UUID noteId, UUID orderId, UsuarioPrincipal principal) {
+        despachoService.obtenerNota(noteId, principal);
+        boolean relacionada = verificaciones.deNota(noteId).stream().anyMatch(v -> v.orderId().equals(orderId));
+        if (!relacionada) {
+            throw com.tdem.logistica.common.ApiException.notFound("Esa verificación no corresponde a la nota.");
+        }
+        return verificacion(verificaciones.armar(orderId, false));
+    }
+
+    /** Arma el PDF desde lo que ve la pantalla, ya autorizado. */
+    Pdf verificacion(VerificacionOcDto v) {
+        if (!v.registrada()) {
+            throw com.tdem.logistica.common.ApiException.badRequest("La orden de compra aún no tiene su verificación.");
+        }
+        VerificacionOcService.Cabecera c = verificaciones.cabecera(v.orderId());
+        Empresa e = empresaRepository.findByCode(c.empresaCode()).orElseThrow();
+        List<PdfVerificacionOc.Linea> lineas = v.items().stream()
+                .map(i -> new PdfVerificacionOc.Linea(i.descripcion(), i.um(), cantidad(i.cantidad()),
+                        cantidad(i.recibida()), i.funcionalidad(), i.estandares(), i.especificaciones(),
+                        i.observacion()))
+                .toList();
+        String fecha = v.verificadaEn().atZone(java.time.ZoneId.of("America/Lima"))
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        byte[] contenido = PdfVerificacionOc.generar(new PdfVerificacionOc.Datos(
+                nombreCorto(e.getCode()), logo(e), c.codigo(), c.proveedor(), c.proveedorTelefono(), c.proveedorRuc(),
+                c.codigo(), c.lugarEntrega(), fecha, url.de("/compras/ordenes/" + v.orderId()), lineas,
+                v.conclusion(), firma(v.verificadaPor()), firma(v.especialista())));
+        return new Pdf("F-LOG-08_" + c.codigo() + ".pdf", contenido);
+    }
+
+    private PdfVerificacionOc.Firma firma(VerificacionOcDto.Persona p) {
+        return p == null ? null : new PdfVerificacionOc.Firma(p.nombre(), p.cargo(), firmas.leer(p.id()));
+    }
+
+    private static String cantidad(java.math.BigDecimal n) {
+        return n == null ? "" : n.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
     }
 
     public Pdf notaInventario(UUID id, UsuarioPrincipal principal) {

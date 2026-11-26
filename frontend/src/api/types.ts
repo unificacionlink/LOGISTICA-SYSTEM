@@ -1454,6 +1454,8 @@ export interface UsuarioAdmin {
   sincronizadoEn: string | null;
   tieneAcceso: boolean;
   debeCambiarPassword: boolean;
+  /** Firma escaneada para el F-LOG-08 (DEC-L102). */
+  tieneFirma: boolean;
 }
 
 export interface EmpresaAdmin {
@@ -2056,4 +2058,61 @@ export interface EquivalenciaProveedor {
   atributo: string | null;
   timesUsed: number;
   lastUsedAt: string | null;
+}
+
+// ---------------------------------------------------------------- F-LOG-08 (DEC-L102)
+
+/** Y = conforme, F = no conforme, null = no aplica. */
+export type MarcaVerificacion = "Y" | "F" | null;
+
+export interface PersonaVerificacion {
+  id: string;
+  nombre: string;
+  cargo: string | null;
+  tieneFirma: boolean;
+}
+
+export interface ItemVerificacion {
+  orderItemId: string;
+  descripcion: string;
+  um: string | null;
+  cantidad: number;
+  recibida: number;
+  /** Pasa por el almacén (los servicios y productos escritos no). */
+  producto: boolean;
+  funcionalidad: MarcaVerificacion;
+  estandares: MarcaVerificacion;
+  especificaciones: MarcaVerificacion;
+  observacion: string | null;
+}
+
+export interface VerificacionOc {
+  orderId: string;
+  orderCode: string;
+  /** Ya se recibió todo lo de la OC; si no, `motivo` dice por qué. */
+  disponible: boolean;
+  motivo: string | null;
+  registrada: boolean;
+  puedeEditar: boolean;
+  verificadaEn: string | null;
+  verificadaPor: PersonaVerificacion | null;
+  especialista: PersonaVerificacion | null;
+  especialistaSugeridoId: string | null;
+  conclusion: string | null;
+  items: ItemVerificacion[];
+  /** Notas de inventario que despachan lo comprado. */
+  notas: { id: string; codigo: string; estado: string }[];
+  candidatos: PersonaVerificacion[];
+}
+
+export interface GuardarVerificacionInput {
+  especialistaUserId: string;
+  conclusion: string;
+  items: {
+    orderItemId: string;
+    funcionalidad: MarcaVerificacion;
+    estandares: MarcaVerificacion;
+    especificaciones: MarcaVerificacion;
+    observacion: string | null;
+  }[];
 }

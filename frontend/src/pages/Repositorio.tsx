@@ -23,6 +23,7 @@ const TIPOS: { id: TipoDocumentoRepositorio; label: string }[] = [
   { id: "REQUERIMIENTO", label: "Requerimiento" },
   { id: "ORDEN_COMPRA", label: "Orden de compra" },
   { id: "NOTA_INVENTARIO", label: "Nota de inventario" },
+  { id: "VERIFICACION_OC", label: "Verificación de OC (F-LOG-08)" },
   { id: "CONSTANCIA_PAGO", label: "Constancia de pago" },
   { id: "FACTURA", label: "Factura" },
   { id: "GUIA", label: "Guía de remisión" },
