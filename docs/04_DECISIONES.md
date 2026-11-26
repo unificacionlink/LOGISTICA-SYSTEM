@@ -5,6 +5,25 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L092 — Caja chica como módulo propio (2026-11-26, v0.72.0).**
+  Reunión con Logística. La caja chica deja de ser una ruta dentro del requerimiento
+  (DEC-L054) y pasa a ser un **módulo independiente** (`/caja-chica`, menú Solicitudes, todos
+  los roles): el solicitante **registra lo que su proyecto compró** con la caja chica de un
+  CECO suyo (`usuario_ceco`; LOGISTICA/ADMIN, cualquiera), con fecha (no futura),
+  comprobante (factura, boleta, ticket, recibo u otro; la factura exige RUC), proveedor y
+  líneas libres o del catálogo (`caja_chica_compra` + `caja_chica_compra_linea`, V53, código
+  `CCH-...`). La **factura es obligatoria**: foto o PDF (documento `COMPROBANTE_CAJA_CHICA`) o
+  enlace http(s) (`evidence_url`); la BD lo exige con un check. **Sin revisión**: la compra
+  queda REGISTRADA; el dueño o LOGISTICA/ADMIN pueden anularla con motivo (auditado), y un
+  mismo comprobante (RUC o proveedor + tipo + serie + número) no se registra dos veces.
+  **Consolidado** (`GET /api/caja-chica/consolidado` y su Excel, una fila por línea): gasto en
+  soles por CECO, mes y solicitante con su detalle, por periodo AAAA-MM (hasta 24 meses) y
+  empresa; LOGISTICA, GERENCIA y ADMIN ven todo; el APROBADOR, los CECOs que aprueba o suple
+  (DEC-L087). Las facturas aparecen en Documentos (DEC-L091). En el requerimiento se quitan
+  la cantidad y la nota de caja chica, y en Compras la pestaña Caja chica y la ruta "Caja
+  chica del proyecto" de Necesidades: el faltante de un REQ aprobado va siempre a compra
+  (el código heredado de DEC-L054 queda solo para datos anteriores; en producción no había).
+
 - **DEC-L091 — Repositorio de documentos por tipo, empresa y mes (2026-11-25, v0.71.0).**
   Observación 9 de Logística. Los PDF oficiales que genera el ERP se **archivan una vez**
   en el bucket privado, en `repositorio/<TIPO>/<EMPRESA>/<AAAA-MM>/<código>.pdf`

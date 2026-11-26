@@ -24,6 +24,8 @@ import {
   ProveedorForm,
   ProveedorFicha,
   Compras,
+  CajaChica,
+  CajaChicaNueva,
   ComprasCajaChica,
   ComprasConsolidado,
   ComprasComparativo,
@@ -74,6 +76,8 @@ export default function App() {
               <Route path="/aprobaciones" element={<Aprobaciones />} />
               <Route path="/presupuestos" element={<Presupuestos />} />
               <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
+              <Route path="/caja-chica" element={<CajaChica />} />
+              <Route path="/caja-chica/nueva" element={<CajaChicaNueva />} />
               <Route path="/stock" element={<Stock />} />
               <Route path="/stock/ajustes" element={<StockAjustes />} />
               <Route path="/stock/carga" element={<StockCarga />} />

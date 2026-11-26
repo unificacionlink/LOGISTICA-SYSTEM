@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { useDatos } from "../api/useDatos";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import PanelPedirCotizacion from "../components/compras/PanelPedirCotizacion";
-import { ClipboardList, FileQuestion, Layers, ListTodo, Scale, Send, Wallet } from "lucide-react";
-import { listarCajaChica, obtenerReglaCajaChica } from "../api/cajachica";
+import { ClipboardList, FileQuestion, Layers, ListTodo, Scale, Send } from "lucide-react";
 import {
   decidirRuta,
   dividirNecesidad,
@@ -16,7 +15,6 @@ import {
 } from "../api/compras";
 import type { Consolidado, Necesidad, PorEmitir, Rfq } from "../api/types";
 import { fmtDia } from "../components/formato";
-import PestanaCajaChica from "../components/cajachica/PestanaCajaChica";
 import { ConsolidadoEstadoBadge, OrigenesConsolidado } from "../components/compras/etiquetas";
 import { cantidad, dinero, ETIQUETA_SUGERENCIA } from "../components/compras/formato";
 import { EMPRESAS } from "../components/empresas";
@@ -35,10 +33,10 @@ import { inputClass } from "../components/ui/Field";
 import PageHeader from "../components/ui/PageHeader";
 import { SkeletonTable } from "../components/ui/Skeleton";
 
-type Pestana = "necesidades" | "consolidados" | "solicitudes" | "caja";
-const PESTANAS: Pestana[] = ["necesidades", "consolidados", "solicitudes", "caja"];
+type Pestana = "necesidades" | "consolidados" | "solicitudes";
+const PESTANAS: Pestana[] = ["necesidades", "consolidados", "solicitudes"];
 
-type Parte = "necesidades" | "consolidados" | "porEmitir" | "rfqs" | "caja" | "regla";
+type Parte = "necesidades" | "consolidados" | "porEmitir" | "rfqs";
 // Referencia estable para las listas que aun no llegan.
 const VACIA: never[] = [];
 
@@ -50,7 +48,7 @@ const linkClass = "text-sm font-medium text-brand-600 hover:text-brand-700";
 /**
  * Compras (Lote 16, DEC-L039): necesidades por decidir ruta, consolidados entre
  * requerimientos (preparar RFQ, adjudicar, emitir OC), solicitudes de
- * cotizacion y Caja Chica.
+ * cotizacion. La caja chica es su propio modulo (DEC-L092).
  */
 export default function Compras() {
   const confirmar = useConfirmar();
@@ -64,14 +62,10 @@ export default function Compras() {
   const con = useDatos("compras-consolidados", listarConsolidados);
   const emi = useDatos("compras-por-emitir", listarPorEmitir);
   const rfq = useDatos("compras-rfqs", listarRfqsAbiertas);
-  const caja = useDatos("cajachica-lista", listarCajaChica);
-  const reglaDatos = useDatos("cajachica-regla", obtenerReglaCajaChica);
   const necesidades = nec.datos ?? VACIA;
   const consolidados = con.datos ?? VACIA;
   const porEmitir = emi.datos ?? VACIA;
   const rfqs = rfq.datos ?? VACIA;
-  const compras = caja.datos ?? VACIA;
-  const regla = reglaDatos.datos;
   const cargando = nec.cargando || con.cargando || emi.cargando || rfq.cargando;
   const [errorAccion, setError] = useState<string | null>(null);
   const error = errorAccion ?? nec.error ?? con.error ?? emi.error ?? rfq.error;
@@ -84,8 +78,6 @@ export default function Compras() {
     consolidados: con,
     porEmitir: emi,
     rfqs: rfq,
-    caja,
-    regla: reglaDatos,
   };
   // Tras una accion: vuelve a pedir lo que cambio, sin vaciar la pantalla.
   function cargar(partes: readonly Parte[]) {
@@ -164,14 +156,12 @@ export default function Compras() {
 
   const abiertos = useMemo(() => consolidados.filter((c) => c.status === "ABIERTA"), [consolidados]);
   const porDecidir = necesidades.filter((n) => n.status === "PENDIENTE_RUTA").length;
-  const porRegularizar = compras.filter((c) => c.estado === "PENDIENTE_REGULARIZACION" || c.estado === "OBSERVADO").length;
   const porEnviar = rfqs.filter((r) => r.status === "BORRADOR").length;
 
   const pestanas: { id: Pestana; label: string; icon: typeof Layers; conteo: number; tono: "gris" | "amarillo" }[] = [
     { id: "necesidades", label: "Necesidades", icon: ListTodo, conteo: porDecidir, tono: "amarillo" },
     { id: "consolidados", label: "Consolidados", icon: Layers, conteo: abiertos.length + porEmitir.length, tono: "gris" },
     { id: "solicitudes", label: "Solicitudes", icon: FileQuestion, conteo: porEnviar, tono: "amarillo" },
-    { id: "caja", label: "Caja chica", icon: Wallet, conteo: porRegularizar, tono: "amarillo" },
   ];
 
   return (
@@ -212,13 +202,6 @@ export default function Compras() {
         <Card className="overflow-hidden">
           <SkeletonTable cols={6} />
         </Card>
-      ) : tab === "caja" ? (
-        <PestanaCajaChica
-          compras={compras}
-          regla={regla}
-          onCompra={(c) => caja.mutar((prev) => (prev ?? []).map((x) => (x.id === c.id ? c : x)))}
-          onRegla={reglaDatos.mutar}
-        />
       ) : tab === "necesidades" ? (
         <TablaNecesidades necesidades={necesidades} procesando={procesando} onRuta={onRuta} onDividir={onDividir} />
       ) : tab === "solicitudes" ? (
@@ -379,10 +362,7 @@ function TablaNecesidades({
                   </div>
                 ) : (
                   <div className="flex justify-end gap-2">
-                    <Button size="sm" loading={procesando === n.needId} onClick={() => onRuta(n, "CAJA_CHICA")}>
-                      Caja chica del proyecto
-                    </Button>
-                    <Button size="sm" variant="secondary" disabled={procesando === n.needId} onClick={() => onRuta(n, "COMPRA")}>
+                    <Button size="sm" loading={procesando === n.needId} onClick={() => onRuta(n, "COMPRA")}>
                       Compra normal
                     </Button>
                     {n.qty > 1 && <MenuAcciones acciones={dividir(n)} />}

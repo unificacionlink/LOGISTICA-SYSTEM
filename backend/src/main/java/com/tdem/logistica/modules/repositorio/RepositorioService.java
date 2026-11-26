@@ -77,6 +77,16 @@ public class RepositorioService {
                 join empresa e on e.company_id = cc.company_id
                 join documento dc on dc.document_id = cc.document_id
               union all
+              -- DEC-L092: factura de la caja chica como modulo (archivo o enlace).
+              select 'COMPROBANTE_CAJA_CHICA', k.purchase_code,
+                     k.document_type || ' ' || coalesce(k.document_series || '-', '') || k.document_number
+                       || ' · ' || k.supplier_name || case when k.status = 'ANULADA' then ' (anulada)' else '' end,
+                     e.code, to_char(k.purchase_date, 'YYYY-MM'), k.created_at, null,
+                     null, coalesce(dk.file_url, k.evidence_url), '/caja-chica?tab=consolidado'
+                from caja_chica_compra k
+                join empresa e on e.company_id = k.company_id
+                left join documento dk on dk.document_id = k.evidence_document_id
+              union all
               select 'DOC_PROVEEDOR', coalesce(rq.name, dp.file_name), p.legal_name, e.code,
                      to_char(coalesce(cast(pd.issued_at as timestamptz), pd.created_at) at time zone 'America/Lima', 'YYYY-MM'),
                      pd.created_at, pd.expires_at,

@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.72.0",
+    titulo: "Caja chica",
+    cambios: [
+      "Nuevo módulo Caja chica: registra lo que tu proyecto compró con caja chica, con su comprobante y lo comprado (del catálogo o escrito a mano).",
+      "La factura es obligatoria: se adjunta como foto o PDF, o se pega su enlace.",
+      "Logística, Gerencia y los aprobadores ven el consolidado del gasto por centro de costo, mes y solicitante, y lo descargan en Excel.",
+      "El requerimiento ya no pide caja chica: lo que falta de un pedido aprobado va a compra.",
+    ],
+  },
+  {
     version: "0.71.0",
     titulo: "Repositorio de documentos",
     cambios: [

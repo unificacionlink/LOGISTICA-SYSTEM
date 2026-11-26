@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.72.0 — 2026-11-26
+
+Caja chica como módulo (DEC-L092).
+
+- `V53__caja_chica_modulo.sql`: `caja_chica_compra` y `caja_chica_compra_linea` (factura obligatoria por check, comprobante único entre las registradas).
+- `CompraCajaChicaService` + `CompraCajaChicaController`: `POST /api/caja-chica/compras` (multipart `datos` + `file`), `GET /compras/mias`, `POST /compras/{id}/anular`, `GET /consolidado` y `/consolidado/excel` (`CajaChicaExcel`).
+- `AbastecimientoService.generarNecesidades` ya no sugiere caja chica: el faltante va al consolidado.
+- `RepositorioService` incluye las facturas de caja chica del módulo.
+- Frontend: pantallas Caja chica (`/caja-chica`, Mis compras y Consolidado) y Registrar compra (`/caja-chica/nueva`); menú Solicitudes. Se quitan la caja chica del formulario del requerimiento y la pestaña Caja chica de Compras (`PestanaCajaChica`).
+- Tests: `CompraCajaChicaTest`; `ConsolidacionComprasTest` (`urgenteDelMismoDiaVaDirectoACompra`); `MigracionesFlywayTest` cuenta 53.
+
 ## 0.71.0 — 2026-11-25
 
 Repositorio de documentos (DEC-L091).

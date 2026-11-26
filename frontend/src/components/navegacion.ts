@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Truck,
+  Wallet,
   Warehouse,
 } from "lucide-react";
 
@@ -32,6 +33,8 @@ export const NAV_GRUPOS: { id: string; titulo: string | null; items: NavItem[] }
       { to: "/requerimientos", label: "Requerimientos", icon: ClipboardList, roles: null },
       { to: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare, roles: ["APROBADOR", "GERENCIA", "LOGISTICA", "ADMIN"] },
       { to: "/presupuestos", label: "Presupuestos", icon: PiggyBank, roles: null },
+      // DEC-L092: compras del proyecto con caja chica, con su factura.
+      { to: "/caja-chica", label: "Caja chica", icon: Wallet, roles: null },
     ],
   },
   {

@@ -28,6 +28,8 @@ public class SpaController {
             "/aprobaciones",
             "/presupuestos",
             "/presupuestos/{id}",
+            "/caja-chica",
+            "/caja-chica/nueva",
             "/stock",
             "/stock/ajustes",
             "/stock/carga",

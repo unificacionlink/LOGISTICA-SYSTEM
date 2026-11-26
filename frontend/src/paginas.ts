@@ -47,6 +47,8 @@ const c = {
   aprobaciones: conRecarga(() => import("./pages/Aprobaciones")),
   presupuestos: conRecarga(() => import("./pages/Presupuestos")),
   presupuestoDetalle: conRecarga(() => import("./pages/PresupuestoDetalle")),
+  cajaChica: conRecarga(() => import("./pages/CajaChica")),
+  cajaChicaNueva: conRecarga(() => import("./pages/CajaChicaNueva")),
   stock: conRecarga(() => import("./pages/Stock")),
   stockAjustes: conRecarga(() => import("./pages/StockAjustes")),
   stockCarga: conRecarga(() => import("./pages/StockCarga")),
@@ -78,6 +80,8 @@ export const RequerimientoDetalle = lazy(c.requerimientoDetalle);
 export const Aprobaciones = lazy(c.aprobaciones);
 export const Presupuestos = lazy(c.presupuestos);
 export const PresupuestoDetalle = lazy(c.presupuestoDetalle);
+export const CajaChica = lazy(c.cajaChica);
+export const CajaChicaNueva = lazy(c.cajaChicaNueva);
 export const Stock = lazy(c.stock);
 export const StockAjustes = lazy(c.stockAjustes);
 export const StockCarga = lazy(c.stockCarga);
@@ -108,6 +112,7 @@ const DEL_MENU: Record<string, Carga> = {
   "/requerimientos": c.requerimientos,
   "/aprobaciones": c.aprobaciones,
   "/presupuestos": c.presupuestos,
+  "/caja-chica": c.cajaChica,
   "/compras": c.compras,
   "/proveedores": c.proveedores,
   "/almacen": c.almacen,
@@ -124,6 +129,7 @@ const DETALLES: [RegExp, Carga][] = [
   [/^\/(compras\/)?requerimientos\/[^/]+\/caja-chica$/, c.comprasCajaChica],
   [/^\/requerimientos\/[^/]+$/, c.requerimientoDetalle],
   [/^\/presupuestos\/[^/]+$/, c.presupuestoDetalle],
+  [/^\/caja-chica\/nueva$/, c.cajaChicaNueva],
   [/^\/proveedores\/nuevo$/, c.proveedorForm],
   [/^\/proveedores\/[^/]+\/editar$/, c.proveedorForm],
   [/^\/proveedores\/[^/]+$/, c.proveedorFicha],

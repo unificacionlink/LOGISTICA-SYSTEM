@@ -125,12 +125,11 @@ public class AbastecimientoService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void generarNecesidades(Requerimiento r) {
-        // Lo cubierto por stock de todos los items y la regla de Caja Chica, una vez.
+        // Lo cubierto por stock de todos los items, una vez.
         Map<UUID, BigDecimal> cubierto = new HashMap<>();
         for (Object[] fila : reservaStockRepository.sumarCubiertoPorStockPorRequerimiento(r.getRequestId())) {
             cubierto.put((UUID) fila[0], (BigDecimal) fila[1]);
         }
-        var sugerir = cajaChicaService.sugeridor(r);
         List<NecesidadCompra> nuevas = new ArrayList<>();
         List<NecesidadCompra> aConsolidar = new ArrayList<>();
         for (RequerimientoItem item : requerimientoItemRepository.findByRequerimiento(r.getRequestId())) {
@@ -148,14 +147,10 @@ public class AbastecimientoService {
             if (faltante.signum() <= 0) {
                 continue;
             }
+            // DEC-L092: la caja chica es un modulo aparte; lo que falta va siempre a compra
+            // (ya no se sugiere la ruta de caja chica por monto).
             NecesidadCompra n = nuevaNecesidad(r, item, faltante);
-            String motivo = sugerir.apply(item, faltante);
-            n.setSuggestedReason(motivo);
-            if (motivo == null) {
-                aConsolidar.add(n);
-            } else {
-                n.setStatus(NecesidadCompra.PENDIENTE_RUTA);
-            }
+            aConsolidar.add(n);
             nuevas.add(n);
         }
         // Todos los consolidados del REQ en tres idas a la BD, no tres por item (DEC-L074).

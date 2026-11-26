@@ -433,17 +433,6 @@ export default function RequerimientosNuevo() {
                   />
                 </Field>
 
-                {items.some((it) => Number(it.cajaChica) > 0) && (
-                  <Field label="Caja chica del proyecto">
-                    <input
-                      value={cajaChicaNota}
-                      maxLength={300}
-                      onChange={(e) => setCajaChicaNota(e.target.value)}
-                      placeholder="Nota para Logística (opcional)"
-                      className={`${inputClass} w-full`}
-                    />
-                  </Field>
-                )}
               </CardBody>
             </Card>
 
@@ -582,19 +571,6 @@ export default function RequerimientosNuevo() {
                           className={`${inputClass} flex-1 py-1.5 text-sm`}
                         />
                       </div>
-                      <label className="flex items-center gap-2 self-start text-xs text-slate-600">
-                        Por caja chica del proyecto
-                        <CampoNumero
-                          decimales={0}
-                          max={Number(it.qty) || 0}
-                          value={it.cajaChica}
-                          onChange={(v) => actualizarItem(it.variante.variantId, { cajaChica: v })}
-                          placeholder="0"
-                          aria-label={`Unidades de ${it.variante.codigoVariante} por caja chica`}
-                          className={`${inputClass} w-16 py-1 text-xs`}
-                        />
-                        {Number(it.cajaChica) > 0 && <span className="text-slate-400">de {it.qty || 0}</span>}
-                      </label>
                     </li>
                   ))}
                 </ul>

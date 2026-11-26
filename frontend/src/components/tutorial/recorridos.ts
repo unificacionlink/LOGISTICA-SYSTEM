@@ -74,7 +74,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/requerimientos/nuevo",
         ancla: "req-pedido",
         titulo: "Tu pedido",
-        texto: "Ajusta las cantidades. Si una parte conviene comprarla con la caja chica de tu proyecto, indícalo en cada producto.",
+        texto: "Ajusta las cantidades de cada producto.",
       },
       {
         ruta: "/requerimientos/nuevo",
@@ -110,7 +110,7 @@ export const RECORRIDOS: Recorrido[] = [
         ruta: "/compras?tab=necesidades",
         ancla: "compras-tab-necesidades",
         titulo: "Necesidades",
-        texto: "Lo que falta de cada pedido aprobado. Aquí decides si sale del almacén, se compra o va por caja chica.",
+        texto: "Lo que falta de cada pedido aprobado. Aquí decides si sale del almacén o se compra.",
       },
       {
         ruta: "/compras?tab=consolidados",

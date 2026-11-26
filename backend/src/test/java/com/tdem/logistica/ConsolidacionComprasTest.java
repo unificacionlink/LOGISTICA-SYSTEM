@@ -221,28 +221,18 @@ class ConsolidacionComprasTest {
 	}
 
 	@Test
-	void mismoDiaEsperaLaRutaYPuedeVolverACajaChica() {
-		UsuarioPrincipal logistica = logistica();
+	void urgenteDelMismoDiaVaDirectoACompra() {
+		// DEC-L092: la caja chica es un modulo aparte; al aprobar ya no se sugiere esa ruta.
 		Req req = requerimiento("ADM", "URGENTE", LocalDate.now(LIMA), Map.of("MU03005-00", 4));
 		aprobar(req);
 
-		NecesidadDto n = abastecimiento.listarNecesidades(logistica).stream()
-				.filter(x -> x.requestId().equals(req.id)).findFirst().orElseThrow();
-		assertEquals("PENDIENTE_RUTA", n.status());
-		assertEquals("MISMO_DIA", n.suggestedReason());
-		assertEquals(0, jdbc.queryForObject("select count(*) from consolidacion c join producto p on p.product_id = c.product_id "
-				+ "where p.sku_base = 'MU03005'", Integer.class));
-
-		NecesidadDto compra = abastecimiento.decidirRuta(n.needId(), "COMPRA", logistica);
-		assertEquals("COMPRA", compra.status());
-		assertNotNull(compra.consolidationCode());
-		assertThrows(ApiException.class, () -> abastecimiento.decidirRuta(n.needId(), "OTRA", logistica));
-
-		NecesidadDto caja = abastecimiento.decidirRuta(n.needId(), "CAJA_CHICA", logistica);
-		assertEquals("CAJA_CHICA", caja.status());
-		assertEquals(0, jdbc.queryForObject("select count(*) from consolidacion c join producto p on p.product_id = c.product_id "
-				+ "where p.sku_base = 'MU03005'", Integer.class), "el consolidado vacio se elimina");
-		assertEquals(0, cajaChica.pendientesCajaChica(req.id).get(req.items.get("MU03005-00")).compareTo(new BigDecimal("4")));
+		Map<String, Object> n = jdbc.queryForMap("""
+				select n.status, n.suggested_reason, c.status as consolidado from necesidad_compra n
+				join consolidacion c on c.consolidation_id = n.consolidation_id where n.request_item_id = ?""",
+				req.items.get("MU03005-00"));
+		assertEquals("COMPRA", n.get("status"));
+		assertNull(n.get("suggested_reason"));
+		assertEquals("ABIERTA", n.get("consolidado"));
 	}
 
 	@Test
