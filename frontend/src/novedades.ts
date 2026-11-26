@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.79.0",
+    titulo: "Factura en PDF o foto y el administrador aprueba todo",
+    cambios: [
+      "La factura de una compra de caja chica se adjunta como PDF o foto (PNG o JPG); ya no se acepta un enlace.",
+      "El administrador puede aprobar todo, también sus propios requerimientos y las órdenes de compra que emitió.",
+    ],
+  },
+  {
     version: "0.78.0",
     titulo: "Lectura de facturas con más contraste",
     cambios: [

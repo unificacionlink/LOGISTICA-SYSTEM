@@ -27,7 +27,7 @@ import java.util.Set;
 public class LecturaComprobanteService {
 
     private static final Logger log = LoggerFactory.getLogger(LecturaComprobanteService.class);
-    private static final Set<String> FORMATOS = Set.of("application/pdf", "image/jpeg", "image/png", "image/webp");
+    private static final Set<String> FORMATOS = Set.of("application/pdf", "image/png", "image/jpeg");
     private static final long MAXIMO_BYTES = 8L * 1024 * 1024;
     private static final ZoneId LIMA = ZoneId.of("America/Lima");
 
@@ -47,7 +47,7 @@ public class LecturaComprobanteService {
             throw ApiException.badRequest("Adjunta la foto o el PDF del comprobante.");
         }
         if (!FORMATOS.contains(archivo.getContentType())) {
-            throw ApiException.badRequest("El comprobante va como PDF o imagen (JPG, PNG o WEBP).");
+            throw ApiException.badRequest("El comprobante va como PDF o foto (PNG o JPG).");
         }
         if (archivo.getSize() > MAXIMO_BYTES) {
             throw ApiException.badRequest("El archivo supera los 8 MB.");

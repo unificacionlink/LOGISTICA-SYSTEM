@@ -117,7 +117,8 @@ public class AprobacionService {
         if (!EstadoRequerimiento.PENDIENTE_APROBACION.equals(requerimiento.getStatus())) {
             throw ApiException.badRequest("El requerimiento ya no esta pendiente de aprobacion.");
         }
-        if (requerimiento.getRequester() != null && requerimiento.getRequester().getUserId().equals(principal.userId())) {
+        if (!principal.tieneAlgunRol(Roles.ADMIN) && requerimiento.getRequester() != null
+                && requerimiento.getRequester().getUserId().equals(principal.userId())) {
             throw ApiException.forbidden("No puedes decidir tu propio requerimiento.");
         }
         if (!ambito.puedeDecidir(aprobacion, requerimiento, principal)) {

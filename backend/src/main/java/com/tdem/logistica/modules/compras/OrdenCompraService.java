@@ -120,7 +120,7 @@ public class OrdenCompraService {
         exigirDecisor(principal);
         List<OrdenAbastecimiento> ordenes = ordenRepository.findByStatusInConDetalle(List.of(EstadoOrden.POR_APROBAR))
                 .stream()
-                .filter(o -> !o.getCreatedBy().getUserId().equals(principal.userId()))
+                .filter(o -> principal.tieneAlgunRol(Roles.ADMIN) || !o.getCreatedBy().getUserId().equals(principal.userId()))
                 .toList();
         Map<UUID, List<OrigenCompras.ReqRef>> refs = origen.deOrdenes(
                 ordenes.stream().map(OrdenAbastecimiento::getOrderId).toList());
@@ -143,7 +143,8 @@ public class OrdenCompraService {
         if (!EstadoOrden.POR_APROBAR.equals(orden.getStatus())) {
             throw ApiException.badRequest("Esta orden ya no esta pendiente de aprobacion.");
         }
-        if (orden.getCreatedBy().getUserId().equals(principal.userId())) {
+        // DEC-L100: ADMIN decide todo, tambien lo que emitio.
+        if (!principal.tieneAlgunRol(Roles.ADMIN) && orden.getCreatedBy().getUserId().equals(principal.userId())) {
             throw ApiException.forbidden("No puedes aprobar una orden de compra que emitiste.");
         }
 

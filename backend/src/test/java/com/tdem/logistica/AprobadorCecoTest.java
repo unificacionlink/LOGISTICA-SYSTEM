@@ -102,15 +102,26 @@ class AprobadorCecoTest {
 		assertNull(jdbc.queryForObject("select approver_user_id from ceco where ceco_id = ?", UUID.class, ceco));
 		admin.asignarCecosAprobados(otro.userId(), List.of(ceco), adminP);
 
-		// --- Nadie decide su propio REQ, ni siendo ADMIN ---
+		// --- El aprobador no decide su propio REQ ---
+		UsuarioPrincipal aprobadorSolicitante = new UsuarioPrincipal(otro.userId(), List.of("APROBADOR", "SOLICITANTE"));
+		jdbc.update("insert into usuario_ceco (user_id, ceco_id) values (?, ?) on conflict do nothing", otro.userId(), ceco);
+		RequerimientoDto delAprobador = requerimientos.crear(solicitud(ceco), aprobadorSolicitante);
+		requerimientos.enviar(delAprobador.id(), aprobadorSolicitante);
+		assertNull(requerimientos.obtener(delAprobador.id(), aprobadorSolicitante).pendingApprovalId());
+		UUID aprobacionDelAprobador = requerimientos.obtener(delAprobador.id(), adminP).pendingApprovalId();
+		assertNotNull(aprobacionDelAprobador);
+		assertThrows(ApiException.class, () -> aprobaciones.decidir(aprobacionDelAprobador,
+				new DecidirAprobacionRequest("APROBADO", null, null), aprobadorSolicitante));
+
+		// --- DEC-L100: ADMIN decide todo, tambien lo que el mismo pidio ---
 		UsuarioPrincipal adminSolicitante = new UsuarioPrincipal(adminP.userId(), List.of("ADMIN", "SOLICITANTE"));
 		RequerimientoDto propio = requerimientos.crear(solicitud(ceco), adminSolicitante);
 		requerimientos.enviar(propio.id(), adminSolicitante);
-		assertNull(requerimientos.obtener(propio.id(), adminSolicitante).pendingApprovalId());
-		UUID aprobacionPropia = requerimientos.obtener(propio.id(), otro).pendingApprovalId();
+		UUID aprobacionPropia = requerimientos.obtener(propio.id(), adminSolicitante).pendingApprovalId();
 		assertNotNull(aprobacionPropia);
-		assertThrows(ApiException.class, () -> aprobaciones.decidir(aprobacionPropia,
-				new DecidirAprobacionRequest("APROBADO", null, null), adminSolicitante));
+		assertTrue(aprobaciones.listarPendientes(adminSolicitante).stream()
+				.anyMatch(a -> a.approvalId().equals(aprobacionPropia)));
+		aprobaciones.decidir(aprobacionPropia, new DecidirAprobacionRequest("APROBADO", null, null), adminSolicitante);
 	}
 
 	// ------------------------------------------------------------------

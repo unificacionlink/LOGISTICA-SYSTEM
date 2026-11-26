@@ -30,6 +30,7 @@ export default function Aprobaciones() {
   // DEC-L061: las OC las deciden Gerencia y Logística (Admin de respaldo), no el aprobador de CECO.
   const decideOrdenes = tieneAlgunRol("GERENCIA", "LOGISTICA", "ADMIN");
   const decideReqs = tieneAlgunRol("APROBADOR", "GERENCIA", "ADMIN");
+  const esAdmin = tieneAlgunRol("ADMIN");
   // Memoria de la pestana (DEC-L073); los avisos en vivo se suman a la misma lista.
   const reqs = useDatos(decideReqs ? "aprobaciones-req" : null, listarPendientes);
   const ocs = useDatos(decideOrdenes ? "aprobaciones-oc" : null, listarOrdenesPorAprobar);
@@ -45,11 +46,12 @@ export default function Aprobaciones() {
     return onOrdenDeCompra((o) => {
       setOrdenes((prev) => {
         const resto = (prev ?? []).filter((p) => p.orderId !== o.orderId);
-        return o.status === "POR_APROBAR" && o.createdById !== usuario?.id ? [o, ...resto] : resto;
+        // DEC-L100: ADMIN también decide las OC que emitió.
+        return o.status === "POR_APROBAR" && (esAdmin || o.createdById !== usuario?.id) ? [o, ...resto] : resto;
       });
       if (o.status === "POR_APROBAR") setNuevos((prev) => new Set(prev).add(o.orderId));
     });
-  }, [onOrdenDeCompra, usuario?.id, setOrdenes]);
+  }, [onOrdenDeCompra, usuario?.id, esAdmin, setOrdenes]);
 
   useEffect(() => {
     return onNuevaAprobacion((pendiente) => {

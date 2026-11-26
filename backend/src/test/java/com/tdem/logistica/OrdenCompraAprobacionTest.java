@@ -91,6 +91,9 @@ class OrdenCompraAprobacionTest {
 		assertThrows(ApiException.class, () -> ordenCompra.listarPorAprobar(solicitante()));
 		assertThrows(ApiException.class, () -> ordenCompra.decidir(oc.orderId(), aprobar(), log));
 		assertThrows(ApiException.class, () -> ordenCompra.decidir(oc.orderId(), aprobar(), solicitante()));
+		// DEC-L100: si quien la emitio es ADMIN, si la ve por decidir.
+		UsuarioPrincipal logAdmin = new UsuarioPrincipal(log.userId(), List.of("LOGISTICA", "ADMIN"));
+		assertTrue(ordenCompra.listarPorAprobar(logAdmin).stream().anyMatch(o -> o.orderId().equals(oc.orderId())));
 		// Ni la bandeja de REQ decide una OC.
 		UUID approvalId = jdbc.queryForObject("select approval_id from aprobacion where entity_id = ?", UUID.class,
 				oc.orderId());

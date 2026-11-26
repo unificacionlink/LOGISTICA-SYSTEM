@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileUp, Link2, Plus, ScanText, Trash2 } from "lucide-react";
+import { FileUp, Plus, ScanText, Trash2 } from "lucide-react";
 import {
   leerComprobanteCajaChica,
   registrarCompraCajaChica,
@@ -38,7 +38,8 @@ interface Linea {
 
 type Campo = "fecha" | "tipo" | "serie" | "numero" | "ruc" | "proveedor";
 
-const FORMATOS = "application/pdf,image/jpeg,image/png,image/webp";
+/** DEC-L099: la factura va como PDF o foto, sin enlace. */
+const FORMATOS = "application/pdf,image/png,image/jpeg";
 /** Lo que llenó el OCR se ve en verde, para distinguirlo de lo que quedó vacío. */
 const LEIDO = "border-emerald-400 bg-emerald-50/50 ring-2 ring-emerald-100";
 let siguiente = 1;
@@ -52,7 +53,7 @@ const lineaEnBlanco = (l: Linea) => !l.variante && !l.descripcion.trim() && !l.p
 
 /**
  * Registrar una compra con la caja chica del proyecto (DEC-L092): a la izquierda
- * el formulario y a la derecha la factura (obligatoria, foto, PDF o enlace),
+ * el formulario y a la derecha la factura (obligatoria, PDF o foto),
  * del mismo alto que el formulario. DEC-L096: solo boleta o factura, sin nota.
  * DEC-L095: "Leer con OCR" llena lo que se pueda leer del comprobante y lo
  * marca; lo que no se leyó queda vacío para completarlo mirando la factura.
@@ -71,9 +72,7 @@ export default function CajaChicaNueva() {
   const [ruc, setRuc] = useState("");
   const [proveedor, setProveedor] = useState("");
   const [lineas, setLineas] = useState<Linea[]>(() => [lineaVacia()]);
-  const [modoFactura, setModoFactura] = useState<"archivo" | "enlace">("archivo");
   const [archivo, setArchivo] = useState<File | null>(null);
-  const [enlace, setEnlace] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [leyendo, setLeyendo] = useState(false);
@@ -177,8 +176,7 @@ export default function CajaChicaNueva() {
       if (l.precio === "") return "Indica el precio unitario de cada línea.";
     }
     if (!(total > 0)) return "El total de la compra debe ser mayor que cero.";
-    if (modoFactura === "archivo" && !archivo) return "Adjunta la factura (foto o PDF).";
-    if (modoFactura === "enlace" && !/^https?:\/\/\S+$/i.test(enlace.trim())) return "Pega el enlace de la factura (http o https).";
+    if (!archivo) return "Adjunta la factura (PDF o foto).";
     return null;
   }
 
@@ -200,7 +198,7 @@ export default function CajaChicaNueva() {
           tipoComprobante: tipo,
           serie: serie.trim() || null,
           numero: numero.trim(),
-          facturaUrl: modoFactura === "enlace" ? enlace.trim() : null,
+          facturaUrl: null,
           nota: null,
           lineas: lineas.map((l) => ({
             variantId: l.delCatalogo ? (l.variante?.variantId ?? null) : null,
@@ -209,7 +207,7 @@ export default function CajaChicaNueva() {
             precioUnitario: Number(l.precio),
           })),
         },
-        modoFactura === "archivo" ? archivo : null,
+        archivo,
       );
       if (!res.ok) {
         setError(res.message);
@@ -388,70 +386,32 @@ export default function CajaChicaNueva() {
                 <h2 className="text-sm font-semibold text-slate-900">
                   Factura <span className="text-rose-600" aria-hidden="true">*</span>
                 </h2>
-                {modoFactura === "archivo" && (
-                  <Button size="sm" icon={<ScanText className="size-4" />} disabled={!archivo} loading={leyendo} onClick={leer}>
-                    Leer con OCR
-                  </Button>
-                )}
+                <Button size="sm" icon={<ScanText className="size-4" />} disabled={!archivo} loading={leyendo} onClick={leer}>
+                  Leer con OCR
+                </Button>
               </div>
             </CardHeader>
             <CardBody className="flex flex-1 flex-col gap-4">
-              <div role="radiogroup" className="inline-flex w-fit rounded-md border border-slate-200 p-0.5">
-                {(
-                  [
-                    { id: "archivo", label: "Foto o PDF", icon: FileUp },
-                    { id: "enlace", label: "Enlace", icon: Link2 },
-                  ] as const
-                ).map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={modoFactura === id}
-                    onClick={() => setModoFactura(id)}
-                    className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium ${
-                      modoFactura === id ? "bg-brand-50 text-brand-700" : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    <Icon className="size-4" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {modoFactura === "archivo" ? (
-                <>
-                  <input
-                    type="file"
-                    accept={FORMATOS}
-                    onChange={(e) => elegirArchivo(e.target.files?.[0] ?? null)}
-                    className="text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
-                  />
-                  {aviso && <Alert tone={aviso.tono}>{aviso.texto}</Alert>}
-                  {vista && archivo ? (
-                    archivo.type === "application/pdf" ? (
-                      <iframe src={vista} title="Factura" className="min-h-[20rem] w-full flex-1 rounded-md border border-slate-200" />
-                    ) : (
-                      <div className="relative min-h-[20rem] flex-1 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-                        <img src={vista} alt="Factura" className="absolute inset-0 size-full object-contain" />
-                      </div>
-                    )
-                  ) : (
-                    <div className="flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 text-sm text-slate-400">
-                      <FileUp className="size-6" />
-                      Foto o PDF de la factura
-                    </div>
-                  )}
-                </>
+              <input
+                type="file"
+                accept={FORMATOS}
+                onChange={(e) => elegirArchivo(e.target.files?.[0] ?? null)}
+                className="text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+              />
+              {aviso && <Alert tone={aviso.tono}>{aviso.texto}</Alert>}
+              {vista && archivo ? (
+                archivo.type === "application/pdf" ? (
+                  <iframe src={vista} title="Factura" className="min-h-[20rem] w-full flex-1 rounded-md border border-slate-200" />
+                ) : (
+                  <div className="relative min-h-[20rem] flex-1 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+                    <img src={vista} alt="Factura" className="absolute inset-0 size-full object-contain" />
+                  </div>
+                )
               ) : (
-                <input
-                  type="url"
-                  value={enlace}
-                  maxLength={500}
-                  onChange={(e) => setEnlace(e.target.value)}
-                  placeholder="https://"
-                  className={`${inputClass} w-full`}
-                />
+                <div className="flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 text-sm text-slate-400">
+                  <FileUp className="size-6" />
+                  PDF o foto de la factura
+                </div>
               )}
             </CardBody>
           </Card>

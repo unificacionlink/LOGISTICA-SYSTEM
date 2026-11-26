@@ -5,6 +5,21 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L100 — ADMIN decide todo, también lo suyo (2026-11-26, v0.79.0).**
+  Antes nadie decidía su propio requerimiento ni la OC que emitió, ni siendo ADMIN (DEC-L030,
+  DEC-L061). Logística pidió que **ADMIN pueda hacer todo**: `AmbitoAprobacion.puedeDecidir`
+  devuelve verdadero para ADMIN antes de mirar quién lo pidió, `AprobacionService.decidir` y
+  `OrdenCompraService.listarPorAprobar`/`decidir` dejan pasar a ADMIN aunque sea el solicitante o
+  el emisor, y el frontend (`Aprobaciones`, `CicloOrden`) le muestra sus propias OC por decidir.
+  Para los demás roles la regla sigue igual: nadie aprueba lo suyo.
+
+- **DEC-L099 — Caja chica: la factura solo como PDF o foto (2026-11-26, v0.79.0).**
+  Logística pidió quitar el enlace: la factura de una compra de caja chica se adjunta siempre como
+  archivo, **PDF, PNG o JPG** (JPG porque es el formato de las fotos del celular; WEBP sale). El
+  formulario ya no tiene la opción «Enlace» y `CompraCajaChicaService.registrar` rechaza
+  `facturaUrl` y exige el archivo; «Leer con OCR» acepta los mismos formatos. Las compras ya
+  registradas con enlace (`evidence_url`) se siguen mostrando igual.
+
 - **DEC-L098 — OCR de caja chica: tercera lectura con más contraste (2026-11-26, v0.78.0).**
   Logística notó que, a la vista, el comprobante se lee mejor con más contraste. Estirarlo sin
   recortar no cambia nada al binarizar (DEC-L097), pero **recortando** sí: `OcrExtractor.realzarContraste`

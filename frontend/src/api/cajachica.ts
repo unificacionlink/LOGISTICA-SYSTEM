@@ -164,7 +164,7 @@ export interface RegistrarCompraInput {
   lineas: { variantId: string | null; descripcion: string | null; cantidad: number; precioUnitario: number }[];
 }
 
-/** La factura va como archivo (foto o PDF) o como enlace en `facturaUrl`: una de las dos es obligatoria. */
+/** La factura va como archivo (PDF o foto, DEC-L099); `facturaUrl` queda solo para compras antiguas. */
 export function registrarCompraCajaChica(datos: RegistrarCompraInput, factura: File | null) {
   const form = new FormData();
   form.append("datos", new Blob([JSON.stringify(datos)], { type: "application/json" }));

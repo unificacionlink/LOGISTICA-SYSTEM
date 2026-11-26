@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.79.0 — 2026-11-26
+
+Caja chica: factura solo como archivo (DEC-L099). ADMIN decide todo, también lo suyo (DEC-L100).
+
+- `CajaChicaNueva`: sin la opción «Enlace»; acepta PDF, PNG y JPG.
+- `CompraCajaChicaService.registrar`: rechaza `facturaUrl`, exige el archivo y solo PDF/PNG/JPG; `LecturaComprobanteService` con los mismos formatos.
+- `AmbitoAprobacion`, `AprobacionService.decidir`, `OrdenCompraService.listarPorAprobar`/`decidir`: ADMIN decide sus propios REQ y las OC que emitió; `Aprobaciones` y `CicloOrden` igual en pantalla.
+- Tests: `CompraCajaChicaTest` (sin enlace, sin WEBP); `AprobadorCecoTest` (ADMIN aprueba su REQ, el aprobador no); `OrdenCompraAprobacionTest` (ADMIN emisor ve su OC por decidir).
+
 ## 0.78.0 — 2026-11-26
 
 OCR de caja chica con más contraste (DEC-L098).

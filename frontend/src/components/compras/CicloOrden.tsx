@@ -49,7 +49,8 @@ export default function CicloOrden({
 
   const gestiona = tieneAlgunRol("LOGISTICA", "ADMIN");
   const emitidaPorMi = usuario?.id === orden.createdById;
-  const puedeDecidir = tieneAlgunRol("GERENCIA", "LOGISTICA", "ADMIN") && !emitidaPorMi;
+  // DEC-L100: ADMIN también decide la OC que emitió.
+  const puedeDecidir = tieneAlgunRol("ADMIN") || (tieneAlgunRol("GERENCIA", "LOGISTICA") && !emitidaPorMi);
   const porAprobar = orden.status === "POR_APROBAR";
   const anulada = orden.status === "ANULADA";
   // DEC-L080: la orden solo de servicios no pasa por el almacen; se cierra al pagarse.

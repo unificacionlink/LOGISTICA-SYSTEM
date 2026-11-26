@@ -17,8 +17,8 @@ import java.util.UUID;
 /**
  * Quien decide y quien ve un REQ como aprobador (DEC-L030, V38.7):
  * <ul>
- *   <li>Nadie decide su propio requerimiento.</li>
- *   <li>ADMIN decide cualquiera (respaldo si el aprobador falta).</li>
+ *   <li>ADMIN decide cualquiera, tambien los suyos (DEC-L100).</li>
+ *   <li>Fuera de ADMIN, nadie decide su propio requerimiento.</li>
  *   <li>Con aprobador asignado: ese usuario (APROBADOR o GERENCIA) y la
  *       GERENCIA que tenga el CECO entre los suyos.</li>
  *   <li>Sin aprobador asignado: cualquier APROBADOR o GERENCIA.</li>
@@ -47,11 +47,11 @@ public class AmbitoAprobacion {
     }
 
     public boolean puedeDecidir(Aprobacion a, Requerimiento r, UsuarioPrincipal p, Set<UUID> cecosDelUsuario) {
+        if (p.tieneAlgunRol(Roles.ADMIN)) {
+            return true;  // DEC-L100: ADMIN decide todo, tambien lo que el mismo pidio.
+        }
         if (r.getRequester() != null && r.getRequester().getUserId().equals(p.userId())) {
             return false;
-        }
-        if (p.tieneAlgunRol(Roles.ADMIN)) {
-            return true;
         }
         if (a.getAssignedTo() == null) {
             return p.tieneAlgunRol(Roles.APROBADOR, Roles.GERENCIA);

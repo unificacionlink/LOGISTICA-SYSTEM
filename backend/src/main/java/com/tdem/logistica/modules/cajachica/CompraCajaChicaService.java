@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
 /**
  * Caja chica como modulo propio (DEC-L092): el solicitante registra lo que compro
  * con la caja chica de su proyecto, sin requerimiento ni revision, con la factura
- * obligatoria (archivo o enlace). Logistica, Gerencia y el aprobador del CECO
+ * obligatoria (PDF o foto, DEC-L099). Logistica, Gerencia y el aprobador del CECO
  * (o su suplente) ven el consolidado; quien registro o Logistica puede anular con
  * motivo. Montos en soles.
  */
@@ -44,7 +44,7 @@ public class CompraCajaChicaService {
     private static final ZoneId LIMA = ZoneId.of("America/Lima");
     /** DEC-L096: solo boleta o factura (los registros anteriores pueden tener otros tipos). */
     private static final Set<String> TIPOS = Set.of("FACTURA", "BOLETA");
-    private static final Set<String> FORMATOS = Set.of("application/pdf", "image/jpeg", "image/png", "image/webp");
+    private static final Set<String> FORMATOS = Set.of("application/pdf", "image/png", "image/jpeg");
     private static final Pattern RUC = Pattern.compile("\\d{11}");
     private static final Pattern PERIODO = Pattern.compile("\\d{4}-\\d{2}");
     private static final int MAX_DETALLE = 500;
@@ -112,16 +112,16 @@ public class CompraCajaChicaService {
         if ("FACTURA".equals(tipo) && ruc == null) {
             throw ApiException.badRequest("Una factura lleva el RUC del proveedor.");
         }
-        String url = limpio(r.facturaUrl());
-        boolean conArchivo = factura != null && !factura.isEmpty();
-        if (!conArchivo && url == null) {
-            throw ApiException.badRequest("Adjunta la factura (foto o PDF) o indica el enlace donde está.");
+        // DEC-L099: la factura se adjunta como archivo (PDF o foto), ya no como enlace
+        // (evidence_url queda solo para las compras que se registraron con enlace).
+        if (limpio(r.facturaUrl()) != null) {
+            throw ApiException.badRequest("Adjunta la factura como archivo (PDF o foto), no como enlace.");
         }
-        if (url != null && !url.matches("(?i)https?://\\S+")) {
-            throw ApiException.badRequest("El enlace de la factura debe empezar con http:// o https://.");
+        if (factura == null || factura.isEmpty()) {
+            throw ApiException.badRequest("Adjunta la factura (PDF o foto).");
         }
-        if (conArchivo && !FORMATOS.contains(factura.getContentType())) {
-            throw ApiException.badRequest("La factura va en PDF, JPG, PNG o WEBP.");
+        if (!FORMATOS.contains(factura.getContentType())) {
+            throw ApiException.badRequest("La factura va en PDF o foto (PNG o JPG).");
         }
 
         List<Object[]> lineas = new ArrayList<>();
@@ -145,8 +145,7 @@ public class CompraCajaChicaService {
             throw ApiException.badRequest("El total de la compra debe ser mayor que cero.");
         }
 
-        UUID documento = conArchivo
-                ? compras.guardarDocumento(factura, "COMPROBANTE_CAJA_CHICA", principal.userId()).documentId() : null;
+        UUID documento = compras.guardarDocumento(factura, "COMPROBANTE_CAJA_CHICA", principal.userId()).documentId();
         // El documento se guarda por JPA y la compra por JDBC: se escribe antes para que exista la FK.
         documentoRepository.flush();
         UUID id = UUID.randomUUID();
@@ -165,7 +164,7 @@ public class CompraCajaChicaService {
                             .addValue("nombre", r.proveedorNombre().trim())
                             .addValue("tipo", tipo).addValue("serie", limpioMayus(r.serie()), Types.VARCHAR)
                             .addValue("numero", r.numero().trim().toUpperCase()).addValue("total", total)
-                            .addValue("documento", documento, Types.OTHER).addValue("url", url, Types.VARCHAR)
+                            .addValue("documento", documento, Types.OTHER).addValue("url", null, Types.VARCHAR)
                             .addValue("nota", limpio(r.nota()), Types.VARCHAR));
         } catch (DuplicateKeyException e) {
             throw ApiException.badRequest("Ese comprobante ya está registrado en caja chica.");

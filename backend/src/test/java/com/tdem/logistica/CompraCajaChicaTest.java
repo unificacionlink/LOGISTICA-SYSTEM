@@ -90,29 +90,35 @@ class CompraCajaChicaTest {
 		assertNotNull(c1.facturaArchivoUrl());
 		assertEquals("AC01001-00", c1.lineas().stream().filter(l -> l.sku() != null).findFirst().orElseThrow().sku());
 
-		// Con el enlace de la factura, sin archivo.
-		CompraCajaChicaDto c2 = cajaChica.registrar(request(adm, hoy, null, "BOLETA", "B001", "77",
-				"https://drive.test/boleta.pdf", List.of(new Linea(null, "Cinta de embalaje", new BigDecimal("3"),
-						new BigDecimal("5")))), null, solicitante);
-		assertEquals("https://drive.test/boleta.pdf", c2.facturaUrl());
+		// Boleta en PDF.
+		CompraCajaChicaDto c2 = cajaChica.registrar(request(adm, hoy, null, "BOLETA", "B001", "77", null,
+				List.of(new Linea(null, "Cinta de embalaje", new BigDecimal("3"), new BigDecimal("5")))),
+				new MockMultipartFile("file", "boleta.pdf", "application/pdf", new byte[] {1, 2, 3}), solicitante);
+		assertNotNull(c2.facturaArchivoUrl());
 
 		// Validaciones.
 		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, null, "BOLETA", "B001", "78", null,
 				List.of(new Linea(null, "Sin factura", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante), "factura obligatoria");
+		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, null, "BOLETA", "B001", "79",
+				"https://drive.test/boleta.pdf", List.of(new Linea(null, "Con enlace", BigDecimal.ONE, BigDecimal.TEN))),
+				null, solicitante), "DEC-L099: sin enlace");
+		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, null, "BOLETA", "B001", "80", null,
+				List.of(new Linea(null, "Webp", BigDecimal.ONE, BigDecimal.TEN))),
+				new MockMultipartFile("file", "f.webp", "image/webp", new byte[] {1}), solicitante), "solo PDF, PNG o JPG");
 		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, null, "FACTURA", "F001", "200",
-				"https://x.test/f.pdf", List.of(new Linea(null, "x", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante),
+				null, List.of(new Linea(null, "x", BigDecimal.ONE, BigDecimal.TEN))), factura(), solicitante),
 				"una factura lleva RUC");
 		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, "20512345678", "FACTURA", "F001", "123",
-				"https://x.test/f.pdf", List.of(new Linea(null, "Repetida", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante),
+				null, List.of(new Linea(null, "Repetida", BigDecimal.ONE, BigDecimal.TEN))), factura(), solicitante),
 				"comprobante repetido");
 		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy.plusDays(1), null, "BOLETA", "B001", "1",
-				"https://x.test/t.pdf", List.of(new Linea(null, "Futura", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante));
+				null, List.of(new Linea(null, "Futura", BigDecimal.ONE, BigDecimal.TEN))), factura(), solicitante));
 		UUID ajeno = ceco("GOYDELSAC", "CCH-G1");
 		assertThrows(ApiException.class, () -> cajaChica.registrar(request(ajeno, hoy, null, "BOLETA", "B001", "9",
-				"https://x.test/t.pdf", List.of(new Linea(null, "Ajeno", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante),
+				null, List.of(new Linea(null, "Ajeno", BigDecimal.ONE, BigDecimal.TEN))), factura(), solicitante),
 				"solo sus CECOs");
 		assertThrows(ApiException.class, () -> cajaChica.registrar(request(adm, hoy, null, "TICKET", null, "10",
-				"https://x.test/t.pdf", List.of(new Linea(null, "Ticket", BigDecimal.ONE, BigDecimal.TEN))), null, solicitante),
+				null, List.of(new Linea(null, "Ticket", BigDecimal.ONE, BigDecimal.TEN))), factura(), solicitante),
 				"solo boleta o factura");
 		assertEquals(2, cajaChica.mias(solicitante).size());
 
@@ -139,7 +145,7 @@ class CompraCajaChicaTest {
 		assertEquals(2, cajaChica.paraExcel(mes, mes, null, null, logistica).size());
 		assertThrows(ApiException.class, () -> cajaChica.consolidado("2026-13", mes, null, null, logistica));
 
-		// La factura (archivo o enlace) queda en el repositorio de documentos (DEC-L091).
+		// La factura queda en el repositorio de documentos (DEC-L091).
 		assertEquals(2, repositorio.listar("COMPROBANTE_CAJA_CHICA", null, mes, null, logistica).stream()
 				.filter(d -> d.url() != null).count());
 	}
