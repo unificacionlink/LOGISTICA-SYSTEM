@@ -41,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * ALM-04 de la V38.7 (DEC-L084): el proveedor entrega directo en los CECO.
  * Escenario: un consolidado de 10 u. de dos requerimientos (ADM 6 u. del
  * solicitante, OPS 4 u. de otro usuario) en una OC marcada como entrega
- * directa. Cada CECO registra lo suyo con guia y constancia; no hay kardex.
+ * directa. Cada CECO registra lo suyo con guia y constancia; el kardex registra entrada y salida (DEC-L093).
  */
 @SpringBootTest
 @ActiveProfiles("seed-test-data")
@@ -130,8 +130,11 @@ class EntregaDirectaTest {
 		registrar(orderId, adm, guia("G-1"), linea, needA, itemA, "4", null, solicitante);
 		assertEquals("ATENCION_PARCIAL", estado(reqA));
 		assertEquals("RECEPCION_PARCIAL", estadoOrden(orderId));
-		assertEquals(0, jdbc.queryForObject("select count(*) from movimiento_inventario where product_id = ?",
-				Integer.class, producto), "no pasa por el kardex");
+		// DEC-L093: entra al stock y sale al CECO: ENTRADA y SALIDA en el kardex, saldo neto cero.
+		assertEquals(2, jdbc.queryForObject("select count(*) from movimiento_inventario where product_id = ?",
+				Integer.class, producto), "entrada y salida en el kardex");
+		assertEquals(0, jdbc.queryForObject("select coalesce(sum(qty), 0) from movimiento_inventario where product_id = ?",
+				BigDecimal.class, producto).signum(), "el saldo no cambia");
 		assertThrows(ApiException.class, () -> registrar(orderId, adm, guia("G-1"), linea, needA, itemA, "1", null, log),
 				"la guia no se repite");
 

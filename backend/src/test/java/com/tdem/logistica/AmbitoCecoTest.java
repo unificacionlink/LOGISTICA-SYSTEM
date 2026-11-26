@@ -88,6 +88,7 @@ class AmbitoCecoTest {
 		// La empresa del REQ sale del CECO elegido.
 		RequerimientoDto req = requerimientos.crear(solicitud(goydel), solicitante);
 		assertEquals("GOYDELSAC", req.empresaCode());
+		assertNull(req.justification(), "sin justificacion");
 		assertTrue(req.code().startsWith("REQ-GOYDELSAC-"), req.code());
 
 		// Al editar no cambia de empresa.
@@ -112,7 +113,8 @@ class AmbitoCecoTest {
 	private CrearRequerimientoRequest solicitud(UUID ceco) {
 		UUID variante = jdbc.queryForObject(
 				"select variant_id from producto_variante where internal_variant_code = 'AC01001-00'", UUID.class);
-		return new CrearRequerimientoRequest(ceco, "APROVISIONAMIENTO", "CONSUMO", "Prueba de ambito por CECO",
+		// DEC-L093: la justificacion es opcional (en blanco se guarda vacia).
+		return new CrearRequerimientoRequest(ceco, "APROVISIONAMIENTO", "CONSUMO", "  ",
 				LocalDate.now(ZoneId.of("America/Lima")).plusDays(10),
 				List.of(new ItemRequerimientoRequest(variante, BigDecimal.ONE, null, null)));
 	}

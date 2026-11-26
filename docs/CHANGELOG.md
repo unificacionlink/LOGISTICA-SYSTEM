@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.73.0 — 2026-11-26
+
+Ajustes de Logística (DEC-L093).
+
+- `V54__justificacion_opcional_ticket_envio.sql`: `requerimiento.justification` sin NOT NULL; `envio.ticket_url`.
+- `CrearRequerimientoRequest.justification` opcional (`RequerimientoService.textoOpcional`).
+- `DespachoService.registrarEnvio`: exige picking (no embalaje) y `ticketUrl`; `deliveryMode` por defecto AGENCIA. `EnvioDto.ticketUrl`; PDF de la NI con el ticket. `BandejaService`: la etapa de preparación ya no tiene "embalaje".
+- `AbastecimientoService.prepararSolicitudes`/`candidatos`: un consolidado EN_COTIZACION admite RFQ a otros proveedores (`yaPedidos`).
+- `EntregaDirectaService.kardexDePaso`: ENTRADA + SALIDA en el kardex del almacén central; `StockService.kardex` ordena la entrada primero.
+- Frontend: justificación opcional; "Cotizar" abre la elección de proveedores (`/compras?pedir=`); "Pedir cotización" también con consolidados en cotización; Nota de Inventario Picking → Envío con solo el enlace del ticket.
+- Tests: `ConsolidacionComprasTest`, `AlmacenFlujoTest`, `EntregaDirectaTest`, `AmbitoCecoTest`; `MigracionesFlywayTest` cuenta 54.
+
 ## 0.72.0 — 2026-11-26
 
 Caja chica como módulo (DEC-L092).

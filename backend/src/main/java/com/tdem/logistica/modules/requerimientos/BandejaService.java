@@ -189,8 +189,8 @@ public class BandejaService {
             prep as (
               select n.request_id,
                      bool_or(n.picked_at is null) as por_piquear,
-                     bool_or(n.picked_at is not null and n.packed_at is null) as por_embalar,
-                     bool_or(n.packed_at is not null) as por_enviar
+                     false as por_embalar,
+                     bool_or(n.picked_at is not null) as por_enviar
                 from nota_inventario n join base b on b.request_id = n.request_id
                where n.status = 'EMITIDA'
                group by n.request_id

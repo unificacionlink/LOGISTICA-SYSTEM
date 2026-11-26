@@ -122,8 +122,27 @@ export default function Compras() {
   // DEC-L082: antes de pedir la cotizacion, Logistica elige a que proveedores.
   const [eligiendo, setEligiendo] = useState(false);
 
+  // DEC-L093: "Cotizar" desde un requerimiento llega con ?pedir=<consolidados> y
+  // abre directo la eleccion de proveedores (el comparativo viene despues).
+  const pedir = params.get("pedir");
+  const pedidos = useMemo(() => {
+    if (!pedir || !con.datos) return null;
+    const ids = new Set(pedir.split(","));
+    const cotizables = con.datos.filter((c) => ids.has(c.consolidationId) && COTIZABLES.has(c.status));
+    return cotizables.length > 0 ? cotizables : null;
+  }, [pedir, con.datos]);
+  const elegidosPanel = useMemo(
+    () => pedidos ?? consolidados.filter((c) => seleccion.has(c.consolidationId)),
+    [pedidos, consolidados, seleccion],
+  );
+
+  function cerrarPanel() {
+    setEligiendo(false);
+    if (pedir) setParams({}, { replace: true });
+  }
+
   async function onPreparar(supplierIds: string[]) {
-    const ids = Array.from(seleccion);
+    const ids = elegidosPanel.map((c) => c.consolidationId);
     const ok = await ejecutar(
       "__preparar__",
       () => prepararSolicitudes(ids, supplierIds),
@@ -218,10 +237,10 @@ export default function Compras() {
           />
         </div>
       )}
-      {eligiendo && (
+      {(eligiendo || pedidos) && (
         <PanelPedirCotizacion
-          consolidados={consolidados.filter((c) => seleccion.has(c.consolidationId))}
-          onCerrar={() => setEligiendo(false)}
+          consolidados={elegidosPanel}
+          onCerrar={cerrarPanel}
           onConfirmar={onPreparar}
         />
       )}
@@ -466,6 +485,8 @@ function DetalleCotizacion({ p }: { p: PorEmitir }) {
 
 /** Se pueden comparar los que aun no tienen OC (DEC-L047). */
 const COMPARABLES = new Set(["ABIERTA", "EN_COTIZACION", "ADJUDICADA"]);
+/** DEC-L093: en cotizacion tambien se puede pedir a otros proveedores. */
+const COTIZABLES = new Set(["ABIERTA", "EN_COTIZACION"]);
 
 function TablaConsolidados({
   consolidados,
@@ -497,7 +518,7 @@ function TablaConsolidados({
   const seleccionables = visibles.filter((c) => COMPARABLES.has(c.status));
   const elegidos = seleccionables.filter((c) => seleccion.has(c.consolidationId));
   const todos = seleccionables.length > 0 && seleccionables.every((c) => seleccion.has(c.consolidationId));
-  const soloAbiertos = elegidos.length > 0 && elegidos.every((c) => c.status === "ABIERTA");
+  const soloAbiertos = elegidos.length > 0 && elegidos.every((c) => COTIZABLES.has(c.status));
 
   function alternar(id: string) {
     const s = new Set(seleccion);

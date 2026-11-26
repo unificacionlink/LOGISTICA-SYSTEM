@@ -222,7 +222,7 @@ function Notas() {
                         <EnvioBadge estado={n.envio.status} />
                       ) : (
                         <span className="text-xs text-slate-500">
-                          {!n.pickedAt ? "Por piquear" : !n.packedAt ? "Por embalar" : "Por enviar"}
+                          {!n.pickedAt ? "Por piquear" : "Por enviar"}
                         </span>
                       )}
                     </td>

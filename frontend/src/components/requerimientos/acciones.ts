@@ -13,7 +13,8 @@ const DEF: Record<CodigoAccion, { label: string; ruta: (destino: string, reqId: 
   RECIBIR_EN_PROYECTO: { label: "Recibir en proyecto", ruta: (d) => `/requerimientos/${d}#entrega-directa` },
   REGULARIZAR_CAJA_CHICA: { label: "Revisar comprobante", ruta: () => "/compras?tab=caja" },
   DECIDIR_RUTA: { label: "Decidir ruta", ruta: () => "/compras?tab=necesidades" },
-  PEDIR_COTIZACION: { label: "Cotizar", ruta: (d) => `/compras/comparativo?ids=${d}` },
+  // DEC-L093: primero se pide la cotizacion al proveedor; el comparativo viene despues.
+  PEDIR_COTIZACION: { label: "Cotizar", ruta: (d) => `/compras?pedir=${d}` },
   ESPERA_COTIZACION: { label: "Esperando cotización", ruta: (d) => `/compras/comparativo?ids=${d}` },
   APROBAR_OC: { label: "OC por aprobar", ruta: (d) => `/compras/ordenes/${d}` },
   LIBERAR_OC: { label: "Liberar OC", ruta: (d) => `/compras/ordenes/${d}` },

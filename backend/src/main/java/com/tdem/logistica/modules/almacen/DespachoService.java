@@ -515,15 +515,18 @@ public class DespachoService {
         if (!"EMITIDA".equals(nota.getStatus())) {
             throw ApiException.badRequest("Esta nota ya tiene un envio registrado o no esta vigente.");
         }
-        if (nota.getPackedAt() == null) {
-            throw ApiException.badRequest(nota.getPickedAt() == null
-                    ? "Confirma el picking y el embalaje antes de registrar el envio."
-                    : "Registra el embalaje (bultos y evidencia) antes del envio.");
+        // DEC-L093: de picking pasa directo a envio (el embalaje ya no es un paso).
+        if (nota.getPickedAt() == null) {
+            throw ApiException.badRequest("Confirma el picking antes de registrar el envio.");
         }
+        String ticket = request.ticketUrl() == null ? null : request.ticketUrl().trim();
+        RecepcionDestinoService.exigirEnlace(ticket, "Pega el enlace del ticket de envio (http o https).");
         if (envioRepository.findByNota(noteId).isPresent()) {
             throw ApiException.badRequest("Esta nota ya tiene un envio registrado.");
         }
-        if (!MODALIDADES.contains(request.deliveryMode())) {
+        String modalidad = request.deliveryMode() == null || request.deliveryMode().isBlank() ? "AGENCIA"
+                : request.deliveryMode();
+        if (!MODALIDADES.contains(modalidad)) {
             throw ApiException.badRequest("Modalidad de entrega invalida.");
         }
         if (request.shipDate() != null && request.expectedDate() != null
@@ -539,9 +542,10 @@ public class DespachoService {
         envio.setRequerimiento(nota.getRequerimiento());
         envio.setSalida(nota.getSalida());
         envio.setNotaInventario(nota);
-        envio.setDeliveryMode(request.deliveryMode());
+        envio.setDeliveryMode(modalidad);
         envio.setCarrierName(blankToNull(request.carrierName()));
         envio.setTrackingCode(blankToNull(request.trackingCode()));
+        envio.setTicketUrl(ticket);
         envio.setPackageCount(request.packageCount() != null ? request.packageCount() : nota.getPackageCount());
         envio.setDeclaredWeight(request.declaredWeight());
         aplicarCosto(envio, request);

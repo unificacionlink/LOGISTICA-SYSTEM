@@ -542,6 +542,17 @@ public class AbastecimientoService {
      * habilitado con todos sus productos (si ya hay una preparada sin enviar,
      * se le agregan las lineas).
      */
+    /** "consolidado|proveedor" que ya estan en una RFQ vigente: no se repiten (DEC-L093). */
+    private Set<String> yaPedidos(List<Consolidacion> cs) {
+        Set<String> out = new HashSet<>();
+        for (RfqItem i : rfqItemRepository.findByConsolidaciones(cs.stream().map(Consolidacion::getConsolidationId).toList())) {
+            if (!"CERRADA".equals(i.getRfq().getStatus())) {
+                out.add(i.getConsolidacion().getConsolidationId() + "|" + i.getRfq().getProveedor().getSupplierId());
+            }
+        }
+        return out;
+    }
+
     @Transactional
     public List<RfqDto> prepararSolicitudes(List<UUID> consolidationIds, UsuarioPrincipal principal) {
         return prepararSolicitudes(consolidationIds, null, principal);
@@ -564,6 +575,9 @@ public class AbastecimientoService {
                   join proveedor p on p.supplier_id = pp.supplier_id and p.active
                   left join empresa e on e.company_id = p.company_id
                  where c.consolidation_id in (:ids)
+                   and not exists (select 1 from rfq_item ri join rfq r on r.rfq_id = ri.rfq_id
+                                    where ri.consolidation_id = c.consolidation_id and r.supplier_id = pp.supplier_id
+                                      and r.status <> 'CERRADA')
                  order by p.legal_name""",
                 new MapSqlParameterSource("ids", consolidationIds),
                 rs -> {
@@ -600,12 +614,14 @@ public class AbastecimientoService {
             if (c == null) {
                 throw ApiException.notFound("Consolidado no encontrado.");
             }
-            if (!Consolidacion.ABIERTA.equals(c.getStatus())) {
-                throw ApiException.badRequest("El consolidado " + c.getConsolidationCode() + " ya tiene solicitud de cotizacion.");
+            // DEC-L093: un consolidado en cotizacion se puede pedir a otros proveedores.
+            if (!Consolidacion.ABIERTA.equals(c.getStatus()) && !Consolidacion.EN_COTIZACION.equals(c.getStatus())) {
+                throw ApiException.badRequest("El consolidado " + c.getConsolidationCode() + " ya no admite cotizaciones.");
             }
             cs.add(c);
         }
         Map<UUID, List<Proveedor>> cobertura = cobertura(cs.stream().map(c -> c.getProducto().getProductId()).toList());
+        Set<String> yaPedidos = yaPedidos(cs);
         if (supplierIds != null) {
             if (supplierIds.isEmpty()) {
                 throw ApiException.badRequest("Elige al menos un proveedor.");
@@ -623,6 +639,10 @@ public class AbastecimientoService {
         List<String> sinProveedor = cs.stream()
                 .filter(c -> cobertura.getOrDefault(c.getProducto().getProductId(), List.of()).isEmpty())
                 .map(c -> c.getProducto().getSkuBase()).distinct().toList();
+        if (sinProveedor.isEmpty() && cs.stream().allMatch(c -> cobertura.get(c.getProducto().getProductId()).stream()
+                .allMatch(p -> yaPedidos.contains(c.getConsolidationId() + "|" + p.getSupplierId())))) {
+            throw ApiException.badRequest("Ya se pidió cotización de esos productos a esos proveedores.");
+        }
         if (!sinProveedor.isEmpty()) {
             throw ApiException.badRequest("Sin proveedor habilitado: " + String.join(", ", sinProveedor)
                     + ". Asignalo en el Catalogo de productos.");
@@ -632,6 +652,9 @@ public class AbastecimientoService {
         Map<String, Rfq> rfqs = new LinkedHashMap<>();
         for (Consolidacion c : cs) {
             for (Proveedor p : cobertura.get(c.getProducto().getProductId())) {
+                if (yaPedidos.contains(c.getConsolidationId() + "|" + p.getSupplierId())) {
+                    continue;
+                }
                 Rfq rfq = rfqs.computeIfAbsent(c.getEmpresa().getCompanyId() + "|" + p.getSupplierId(),
                         k -> rfqRepository.findBorradores(c.getEmpresa().getCompanyId(), p.getSupplierId()).stream()
                                 .findFirst().orElseGet(() -> nuevaRfq(c.getEmpresa(), p, usuario)));
@@ -646,9 +669,10 @@ public class AbastecimientoService {
                 li.setTechnicalSpecification(especificaciones.get(c.getConsolidationId()));
                 rfqItemRepository.insertar(li);
             }
+            String estadoAntes = c.getStatus();
             c.setStatus(Consolidacion.EN_COTIZACION);
             auditoria.registrar("CONSOLIDACION", c.getConsolidationId(), "PREPARAR_RFQ",
-                    Map.of("estado", Consolidacion.ABIERTA), Map.of("estado", Consolidacion.EN_COTIZACION,
+                    Map.of("estado", estadoAntes), Map.of("estado", Consolidacion.EN_COTIZACION,
                             "total", c.getTotalQty()), principal.userId());
         }
         List<Rfq> tocadas = List.copyOf(rfqs.values());

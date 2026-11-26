@@ -73,6 +73,7 @@ final class AlmacenMapper {
                 e.getDeliveryMode(),
                 e.getCarrierName(),
                 e.getTrackingCode(),
+                e.getTicketUrl(),
                 e.getPackageCount(),
                 e.getDeclaredWeight(),
                 e.getMoneda() != null ? e.getMoneda().getCurrencyCode() : null,

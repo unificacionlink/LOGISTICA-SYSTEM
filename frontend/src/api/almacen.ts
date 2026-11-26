@@ -108,8 +108,10 @@ export function embalarNota(noteId: string, bultos: number, evidencia: string) {
 
 // ---------- Envio ----------
 
+/** DEC-L093: basta el enlace del ticket; lo demas es opcional (modalidad por defecto Agencia). */
 export interface RegistrarEnvioInput {
-  deliveryMode: ModalidadEntrega;
+  ticketUrl: string;
+  deliveryMode?: ModalidadEntrega;
   carrierName?: string;
   trackingCode?: string;
   packageCount?: number;

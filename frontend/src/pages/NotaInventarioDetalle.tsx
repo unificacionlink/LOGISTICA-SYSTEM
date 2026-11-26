@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Paperclip, Truck } from "lucide-react";
 import { adjuntarDocumentoEnvio, anularNota, obtenerNota, registrarEnvio } from "../api/almacen";
-import type { ModalidadEntrega, NotaInventarioDetalle as Detalle, TipoAdjuntoEnvio } from "../api/types";
+import type { NotaInventarioDetalle as Detalle, TipoAdjuntoEnvio } from "../api/types";
 import { EnvioBadge, NotaBadge } from "../components/AlmacenBadges";
-import { ETIQUETA_ADJUNTO, ETIQUETA_MODALIDAD, fmtCantidad, fmtDia, fmtFecha, hoyIso } from "../components/formato";
+import { ETIQUETA_ADJUNTO, ETIQUETA_MODALIDAD, fmtCantidad, fmtDia, fmtFecha } from "../components/formato";
 import Alert from "../components/ui/Alert";
 import Button from "../components/ui/Button";
 import { Card, CardBody } from "../components/ui/Card";
@@ -20,7 +20,6 @@ import { useAuth } from "../auth/AuthContext";
 import MenuAcciones from "../components/ui/MenuAcciones";
 import { useConfirmar } from "../components/ui/Confirmacion";
 
-import CampoNumero from "../components/ui/CampoNumero";
 const labelClass = "rotulo";
 
 function Dato({ label, children }: { label: string; children: React.ReactNode }) {
@@ -44,18 +43,8 @@ export default function NotaInventarioDetalle() {
   const esGestor = tieneAlgunRol("LOGISTICA", "ADMIN");
   const confirmar = useConfirmar();
 
-  const [envio, setEnvio] = useState({
-    deliveryMode: "AGENCIA" as ModalidadEntrega,
-    carrierName: "",
-    trackingCode: "",
-    packageCount: "",
-    declaredWeight: "",
-    currencyCode: "PEN",
-    shippingCostNet: "",
-    shippingTaxAmount: "",
-    shipDate: hoyIso(),
-    expectedDate: "",
-  });
+  // DEC-L093: el envio se registra solo con el enlace de su ticket.
+  const [ticket, setTicket] = useState("");
   const [tipoAdjunto, setTipoAdjunto] = useState<TipoAdjuntoEnvio>("GUIA");
   const inputArchivo = useRef<HTMLInputElement>(null);
 
@@ -77,21 +66,14 @@ export default function NotaInventarioDetalle() {
     if (!id) return;
     setError(null);
     setExito(null);
-    const num = (v: string) => (v === "" ? undefined : Number(v));
+    const enlace = ticket.trim();
+    if (!/^https?:\/\/\S+$/i.test(enlace)) {
+      setError("Pega el enlace del ticket de envío (http o https).");
+      return;
+    }
     setEnviando(true);
     try {
-      const res = await registrarEnvio(id, {
-        deliveryMode: envio.deliveryMode,
-        carrierName: envio.carrierName || undefined,
-        trackingCode: envio.trackingCode || undefined,
-        packageCount: num(envio.packageCount),
-        declaredWeight: num(envio.declaredWeight),
-        currencyCode: envio.shippingCostNet ? envio.currencyCode : undefined,
-        shippingCostNet: num(envio.shippingCostNet),
-        shippingTaxAmount: num(envio.shippingTaxAmount),
-        shipDate: envio.shipDate || undefined,
-        expectedDate: envio.expectedDate || undefined,
-      });
+      const res = await registrarEnvio(id, { ticketUrl: enlace });
       if (res.ok && res.result) {
         setDetalle(res.result);
         setExito("Envío registrado. La nota quedó como despachada.");
@@ -266,101 +248,26 @@ export default function NotaInventarioDetalle() {
         </div>
       </Card>
 
-      {!e && nota.status === "EMITIDA" && nota.packedAt && (
-        <form onSubmit={onRegistrarEnvio}>
+      {!e && nota.status === "EMITIDA" && nota.pickedAt && (
+        <form onSubmit={onRegistrarEnvio} noValidate>
           <Card className="mb-4">
-            <CardBody className="grid gap-4 sm:grid-cols-4">
-              <div className={`${labelClass} sm:col-span-4`}>Registrar envío</div>
-              <Field label="Modalidad" required>
-                <select
-                  value={envio.deliveryMode}
-                  onChange={(ev) => setEnvio({ ...envio, deliveryMode: ev.target.value as ModalidadEntrega })}
-                  className={`${inputClass} w-full`}
-                >
-                  {Object.entries(ETIQUETA_MODALIDAD).map(([v, t]) => (
-                    <option key={v} value={v}>{t}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Transportista">
+            <CardBody className="flex flex-wrap items-end gap-3">
+              <Field label="Enlace del ticket de envío" required className="min-w-0 flex-1">
                 <input
-                  value={envio.carrierName}
-                  onChange={(ev) => setEnvio({ ...envio, carrierName: ev.target.value })}
-                  placeholder="Shalom, Olva…"
+                  type="url"
+                  inputMode="url"
+                  maxLength={500}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="https://"
+                  value={ticket}
+                  onChange={(ev) => setTicket(ev.target.value)}
                   className={`${inputClass} w-full`}
                 />
               </Field>
-              <Field label="Código de seguimiento">
-                <input
-                  value={envio.trackingCode}
-                  onChange={(ev) => setEnvio({ ...envio, trackingCode: ev.target.value })}
-                  className={`${inputClass} w-full`}
-                />
-              </Field>
-              <Field label="Bultos">
-                <CampoNumero
-                  decimales={0} maxEnteros={4}
-                  value={envio.packageCount}
-                  onChange={(v) => setEnvio({ ...envio, packageCount: v })}
-                  placeholder={nota.packageCount ? String(nota.packageCount) : ""}
-                  className={`${inputClass} w-full`}
-                />
-              </Field>
-              <Field label="Costo neto (sin IGV)">
-                <CampoNumero
-                  decimales={2} maxEnteros={9}
-                  value={envio.shippingCostNet}
-                  onChange={(v) => setEnvio({ ...envio, shippingCostNet: v })}
-                  className={`${inputClass} w-full`}
-                />
-              </Field>
-              <Field label="IGV">
-                <CampoNumero
-                  decimales={2} maxEnteros={9}
-                  value={envio.shippingTaxAmount}
-                  onChange={(v) => setEnvio({ ...envio, shippingTaxAmount: v })}
-                  className={`${inputClass} w-full`}
-                />
-              </Field>
-              <Field label="Moneda">
-                <select
-                  value={envio.currencyCode}
-                  onChange={(ev) => setEnvio({ ...envio, currencyCode: ev.target.value })}
-                  className={`${inputClass} w-full`}
-                >
-                  <option value="PEN">PEN</option>
-                  <option value="USD">USD</option>
-                </select>
-              </Field>
-              <Field label="Peso declarado (kg)">
-                <CampoNumero
-                  decimales={3}
-                  value={envio.declaredWeight}
-                  onChange={(v) => setEnvio({ ...envio, declaredWeight: v })}
-                  className={`${inputClass} w-full`}
-                />
-              </Field>
-              <Field label="Fecha de envío">
-                <input
-                  type="date"
-                  value={envio.shipDate}
-                  onChange={(ev) => setEnvio({ ...envio, shipDate: ev.target.value })}
-                  className={`${inputClass} w-full`}
-                />
-              </Field>
-              <Field label="Llegada estimada">
-                <input
-                  type="date"
-                  value={envio.expectedDate}
-                  onChange={(ev) => setEnvio({ ...envio, expectedDate: ev.target.value })}
-                  className={`${inputClass} w-full`}
-                />
-              </Field>
-              <div className="flex items-end sm:col-span-2">
-                <Button type="submit" loading={enviando} icon={<Truck className="size-4" />}>
-                  {enviando ? "Registrando…" : "Registrar envío"}
-                </Button>
-              </div>
+              <Button type="submit" loading={enviando} icon={<Truck className="size-4" />}>
+                Registrar envío
+              </Button>
             </CardBody>
           </Card>
         </form>
@@ -376,6 +283,13 @@ export default function NotaInventarioDetalle() {
             <Dato label="Modalidad">{ETIQUETA_MODALIDAD[e.deliveryMode]}</Dato>
             <Dato label="Transportista">{e.carrierName ?? "—"}</Dato>
             <Dato label="Seguimiento">{e.trackingCode ?? "—"}</Dato>
+            {e.ticketUrl && (
+              <Dato label="Ticket de envío">
+                <a href={e.ticketUrl} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">
+                  Ver ticket
+                </a>
+              </Dato>
+            )}
             <Dato label="Bultos">{e.packageCount ?? "—"}</Dato>
             <Dato label="Costo neto / IGV / total">
               {e.shippingCostNet !== null

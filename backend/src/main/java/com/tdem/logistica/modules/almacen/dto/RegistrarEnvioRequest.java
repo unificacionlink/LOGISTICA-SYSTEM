@@ -4,12 +4,14 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/** DEC-L093: basta el enlace del ticket de envio; lo demas es opcional (modalidad por defecto AGENCIA). */
 public record RegistrarEnvioRequest(
-        @NotBlank(message = "Indica la modalidad de entrega.") String deliveryMode,
+        String deliveryMode,
         String carrierName,
         String trackingCode,
         @Positive(message = "Los bultos deben ser mayor a 0.") Integer packageCount,
@@ -19,5 +21,7 @@ public record RegistrarEnvioRequest(
         @DecimalMin(value = "0", message = "El costo no puede ser negativo.") @Digits(integer = 9, fraction = 2, message = "Monto invalido: hasta 9 digitos y 2 decimales.") BigDecimal shippingCostNet,
         @DecimalMin(value = "0", message = "El IGV no puede ser negativo.") @Digits(integer = 9, fraction = 2, message = "Monto invalido: hasta 9 digitos y 2 decimales.") BigDecimal shippingTaxAmount,
         LocalDate shipDate,
-        LocalDate expectedDate) {
+        LocalDate expectedDate,
+        @NotBlank(message = "Pega el enlace del ticket de envío.")
+        @Size(max = 500, message = "El enlace admite hasta 500 caracteres.") String ticketUrl) {
 }

@@ -45,7 +45,7 @@ public class Requerimiento {
     @Column(name = "purpose", nullable = false)
     private String purpose;
 
-    @Column(name = "justification", nullable = false)
+    @Column(name = "justification")
     private String justification;
 
     @Column(name = "status", nullable = false)

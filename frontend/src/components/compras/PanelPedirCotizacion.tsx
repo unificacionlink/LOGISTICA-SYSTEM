@@ -99,9 +99,16 @@ export default function PanelPedirCotizacion({
       }
     >
       {error && <Alert tone="danger">{error}</Alert>}
-      {sinProveedor.length > 0 && (
+      {sinProveedor.some((c) => c.status !== "EN_COTIZACION") && (
         <Alert tone="info">
-          Sin proveedor habilitado: {sinProveedor.map(etiqueta).join(", ")}. Asígnalo en el Catálogo de productos.
+          Sin proveedor habilitado:{" "}
+          {sinProveedor.filter((c) => c.status !== "EN_COTIZACION").map(etiqueta).join(", ")}. Asígnalo en el Catálogo de productos.
+        </Alert>
+      )}
+      {sinProveedor.some((c) => c.status === "EN_COTIZACION") && (
+        <Alert tone="info">
+          Ya se pidió a todos sus proveedores:{" "}
+          {sinProveedor.filter((c) => c.status === "EN_COTIZACION").map(etiqueta).join(", ")}. Habilita otro en el Catálogo de productos.
         </Alert>
       )}
 

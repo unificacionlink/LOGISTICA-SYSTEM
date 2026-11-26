@@ -285,7 +285,7 @@ public class StockService {
                   join empresa e on e.company_id = m.company_id
                   join usuario u on u.user_id = m.created_by
                  where m.warehouse_id = ? and m.variant_id = ?
-                 order by m.created_at, m.inventory_movement_id""",
+                 order by m.created_at, (m.qty < 0), m.inventory_movement_id""",
                 (rs, n) -> new Fila(rs.getTimestamp(1), rs.getString(2), rs.getString(3), rs.getBigDecimal(4),
                         rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8)),
                 almacen, variantId);

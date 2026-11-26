@@ -150,7 +150,7 @@ class DocumentosYCargaMasivaTest {
 				ni.nota().inventoryNoteId());
 		despachoService.registrarEnvio(ni.nota().inventoryNoteId(),
 				new RegistrarEnvioRequest("AGENCIA", "Shalom", "SH-777", 2, null, "PEN",
-						new BigDecimal("40"), null, null, null), logistica);
+						new BigDecimal("40"), null, null, null, "https://ticket.test/envio"), logistica);
 
 		// --- PDFs (RF-038/082/083) ---
 		String req = texto(documentosService.requerimiento(f.requestId, solicitante).contenido());

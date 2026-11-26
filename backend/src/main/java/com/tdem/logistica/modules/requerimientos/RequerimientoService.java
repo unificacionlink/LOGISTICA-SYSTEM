@@ -357,7 +357,7 @@ public class RequerimientoService {
         r.setRequesterType("INTERNO");
         r.setPriority(prioridad);
         r.setPurpose(request.purpose());
-        r.setJustification(request.justification());
+        r.setJustification(textoOpcional(request.justification()));
         r.setStatus(EstadoRequerimiento.BORRADOR);
         // DEC-L068: la fecha no la escribe el solicitante; sale de la prioridad.
         r.setRequiredDate(fechaTentativa(prioridad, null));
@@ -420,7 +420,7 @@ public class RequerimientoService {
         r.setCeco(ceco);
         r.setPriority(prioridad);
         r.setPurpose(request.purpose());
-        r.setJustification(request.justification());
+        r.setJustification(textoOpcional(request.justification()));
         r.setRequiredDate(fechaTentativa(prioridad, r.getBudgetMonth() == null ? null : r.getRequiredDate()));
         r.setPettyCashSuggested(request.sugiereCajaChica());
         r.setPettyCashSuggestionNote(request.notaCajaChica());
@@ -579,5 +579,9 @@ public class RequerimientoService {
         String fecha = LocalDate.now(ZoneId.of("America/Lima")).format(YYYYMMDD);
         String sufijo = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
         return "REQ-" + empresaCode + "-" + fecha + "-" + sufijo;
+    }
+
+    private static String textoOpcional(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 }

@@ -41,10 +41,10 @@ class ValidacionCantidadesTest {
         assertEquals(0, errores(new AjusteStockRequest(UUID.randomUUID(), new BigDecimal("-5"), "Merma")));
         assertTrue(errores(new AjusteStockRequest(UUID.randomUUID(), new BigDecimal("1.5"), "Merma")) > 0);
         RegistrarEnvioRequest bien = new RegistrarEnvioRequest("PROPIO", null, null, 1, new BigDecimal("12.345"), "PEN",
-                new BigDecimal("45.50"), new BigDecimal("8.19"), LocalDate.now(), LocalDate.now());
+                new BigDecimal("45.50"), new BigDecimal("8.19"), LocalDate.now(), LocalDate.now(), "https://ticket.test/envio");
         assertEquals(0, errores(bien));
         RegistrarEnvioRequest mal = new RegistrarEnvioRequest("PROPIO", null, null, 1, new BigDecimal("1.23456"), "PEN",
-                new BigDecimal("45.555"), BigDecimal.ZERO, LocalDate.now(), LocalDate.now());
+                new BigDecimal("45.555"), BigDecimal.ZERO, LocalDate.now(), LocalDate.now(), "https://ticket.test/envio");
         assertEquals(2, errores(mal), "peso con 5 decimales y costo con 3");
     }
 }

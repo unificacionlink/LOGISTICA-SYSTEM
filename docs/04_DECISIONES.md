@@ -5,6 +5,22 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L093 — Ajustes de Logística: justificación opcional, cotizar primero, envío con ticket y kardex de la entrega directa (2026-11-26, v0.73.0).**
+  Pedidos de la encargada de Logística. (1) La **justificación del requerimiento es opcional**
+  (V54 quita el NOT NULL; en blanco se guarda nula). (2) La siguiente acción **Cotizar** de un
+  requerimiento abre Compras con la elección de proveedores (`/compras?pedir=<consolidados>`), no
+  el comparativo: primero se pide la cotización y después se comparan. (3) **Nota de Inventario:
+  de picking pasa directo a envío**; el embalaje deja de ser un paso (su endpoint queda por
+  compatibilidad) y **registrar envío pide solo el enlace del ticket** (`envio.ticket_url`, V54,
+  obligatorio; modalidad por defecto AGENCIA, fecha hoy; el resto queda opcional en la API).
+  (4) **Compras**: un consolidado EN_COTIZACION se puede volver a pedir a **otros** proveedores
+  (antes: "ya tiene solicitud de cotización"); nunca se repite el par consolidado–proveedor de
+  una RFQ no cerrada, y los candidatos ya no listan a quien ya se le pidió. (5) **Regla de
+  Logística: toda compra entra al stock y luego sale**, aunque el proveedor entregue directo al
+  proyecto: la entrega directa (DEC-L084) deja en el kardex del almacén central una ENTRADA y
+  una SALIDA por lo aceptado (referencia RECEPCION, saldo neto cero); el kardex ordena la
+  entrada antes que la salida del mismo instante.
+
 - **DEC-L092 — Caja chica como módulo propio (2026-11-26, v0.72.0).**
   Reunión con Logística. La caja chica deja de ser una ruta dentro del requerimiento
   (DEC-L054) y pasa a ser un **módulo independiente** (`/caja-chica`, menú Solicitudes, todos

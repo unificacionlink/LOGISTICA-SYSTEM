@@ -33,7 +33,7 @@ const ETAPAS: { id: EtapaTablero; label: string }[] = [
 
 const PREPARACION: Record<string, string> = {
   PICKING: "Picking pendiente",
-  EMBALAJE: "Embalaje pendiente",
+  EMBALAJE: "Envío pendiente",
   ENVIO: "Registrar envío",
 };
 

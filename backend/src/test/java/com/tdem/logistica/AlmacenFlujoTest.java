@@ -141,7 +141,7 @@ class AlmacenFlujoTest {
 		// --- Preparacion de la NI 1 (ALM-02): picking -> embalaje -> envio ---
 		UUID nota1 = ni1.nota().inventoryNoteId();
 		RegistrarEnvioRequest agencia = new RegistrarEnvioRequest("AGENCIA", "Shalom", "SH-001", null, null, "PEN",
-				new BigDecimal("50"), new BigDecimal("9"), LocalDate.now(), LocalDate.now().plusDays(2));
+				new BigDecimal("50"), new BigDecimal("9"), LocalDate.now(), LocalDate.now().plusDays(2), "https://ticket.test/envio");
 		ApiException sinPreparar = assertThrows(ApiException.class,
 				() -> despachoService.registrarEnvio(nota1, agencia, logistica));
 		assertTrue(sinPreparar.getMessage().contains("picking"), sinPreparar.getMessage());
@@ -155,8 +155,11 @@ class AlmacenFlujoTest {
 		assertNull(piqueada.nota().packedAt());
 		assertThrows(ApiException.class, () -> preparacionService.confirmarPicking(nota1, logistica),
 				"el picking se confirma una vez");
-		assertThrows(ApiException.class, () -> despachoService.registrarEnvio(nota1, agencia, logistica),
-				"el envio exige el embalaje");
+		// DEC-L093: tras el picking basta el enlace del ticket de envio.
+		RegistrarEnvioRequest sinTicket = new RegistrarEnvioRequest(null, null, null, null, null, null, null, null, null,
+				null, null);
+		assertThrows(ApiException.class, () -> despachoService.registrarEnvio(nota1, sinTicket, logistica),
+				"el envio exige el enlace del ticket");
 		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 0, FOTO, logistica),
 				"bultos > 0");
 		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 2, "javascript:alert(1)", logistica),
@@ -178,6 +181,7 @@ class AlmacenFlujoTest {
 				agencia, logistica);
 		assertEquals("DESPACHADA", enviada1.nota().status());
 		assertEquals(2, enviada1.nota().envio().packageCount(), "el envio toma los bultos del embalaje");
+		assertEquals("https://ticket.test/envio", enviada1.nota().envio().ticketUrl());
 		assertThrows(ApiException.class, () -> preparacionService.embalar(nota1, 4, FOTO, logistica),
 				"una NI enviada ya no se re-embala");
 		assertEquals(0, enviada1.nota().envio().shippingCostTotal().compareTo(new BigDecimal("59")));
@@ -201,10 +205,10 @@ class AlmacenFlujoTest {
 		assertEquals("SIN_ENVIO", parcial.entregas().get(1).estadoEntrega());
 
 		// --- Envio + confirmacion de la NI 2 -> atencion completa ---
+		// Sin embalaje: de picking directo al envio (DEC-L093), modalidad por defecto.
 		preparacionService.confirmarPicking(ni2.nota().inventoryNoteId(), logistica);
-		preparacionService.embalar(ni2.nota().inventoryNoteId(), 1, FOTO, logistica);
 		UUID envio2 = despachoService.registrarEnvio(ni2.nota().inventoryNoteId(),
-				new RegistrarEnvioRequest("RECOJO", null, null, null, null, null, null, null, null, null),
+				new RegistrarEnvioRequest(null, null, null, null, null, null, null, null, null, null, "https://ticket.test/envio"),
 				logistica).nota().envio().shipmentId();
 		NotaInventarioDetalleDto recibida2 = recibirTodo(envio2, ni2, logistica);
 		assertEquals("RECEPCIONADA", recibida2.nota().status());

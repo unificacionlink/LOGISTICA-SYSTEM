@@ -141,7 +141,7 @@ export default function RequerimientosNuevo() {
           setCecos(deSuEmpresa);
           setPriority(PRIORIDADES.some((p) => p.id === requerimiento.priority) ? requerimiento.priority : PRIORIDAD_POR_DEFECTO);
           setPurpose(requerimiento.purpose);
-          setJustification(requerimiento.justification);
+          setJustification(requerimiento.justification ?? "");
           setCajaChicaNota(requerimiento.cajaChicaNota ?? "");
 
           const porCodigoVariante = new Map(conStock.map((v) => [v.codigoVariante, v]));
@@ -421,12 +421,11 @@ export default function RequerimientosNuevo() {
                   </Field>
                 </div>
 
-                <Field label="Justificación" required>
+                <Field label="Justificación">
                   <textarea
-                    required
                     rows={3}
-                    minLength={10}
-                    placeholder="Motivo del requerimiento (mínimo 10 caracteres)"
+                    maxLength={2000}
+                    placeholder="Motivo del requerimiento (opcional)"
                     value={justification}
                     onChange={(e) => setJustification(e.target.value)}
                     className={`${inputClass} w-full`}

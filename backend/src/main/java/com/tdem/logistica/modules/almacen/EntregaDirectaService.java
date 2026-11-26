@@ -27,8 +27,11 @@ import java.util.stream.Collectors;
 
 /**
  * ALM-04 de la V38.7: entrega directa del proveedor al CECO (DEC-L084). La OC
- * marcada {@code direct_delivery} no pasa por el almacen central ni por el
- * kardex: cada CECO registra lo que recibio (guia obligatoria y constancia).
+ * marcada {@code direct_delivery} no pasa fisicamente por el almacen central:
+ * cada CECO registra lo que recibio (guia obligatoria y constancia). Regla de
+ * Logistica (DEC-L093): toda compra entra al stock y luego sale, asi que lo
+ * aceptado deja en el kardex del almacen central una ENTRADA y una SALIDA (saldo
+ * neto cero), ambas con referencia a esta recepcion.
  * Solo cuenta lo aceptado; lo que llega mal es una incidencia del proveedor y
  * queda pendiente para que lo reponga. Registran LOGISTICA y ADMIN, GERENCIA en
  * los requerimientos que puede ver y el dueno del requerimiento lo suyo.
@@ -55,6 +58,8 @@ public class EntregaDirectaService {
     private final AvisosPlataforma avisos;
     private final RealtimeNotifier realtimeNotifier;
     private final VentaInterna venta;
+    private final MovimientoInventarioRepository movimientoRepository;
+    private final com.tdem.logistica.modules.stock.AlmacenCentral almacenCentral;
 
     public EntregaDirectaService(VentaInterna venta, OrdenAbastecimientoRepository ordenRepository, OrdenItemRepository ordenItemRepository,
                                  RecepcionRepository recepcionRepository, RecepcionItemRepository recepcionItemRepository,
@@ -64,8 +69,11 @@ public class EntregaDirectaService {
                                  RequerimientoService requerimientoService, RecepcionService recepcionService,
                                  DestinosEntrega destinosEntrega, AtencionCalculator atencionCalculator,
                                  ArchivosAlmacen archivos, Auditoria auditoria, AvisosPlataforma avisos,
-                                 RealtimeNotifier realtimeNotifier) {
+                                 RealtimeNotifier realtimeNotifier, MovimientoInventarioRepository movimientoRepository,
+                                 com.tdem.logistica.modules.stock.AlmacenCentral almacenCentral) {
         this.venta = venta;
+        this.movimientoRepository = movimientoRepository;
+        this.almacenCentral = almacenCentral;
         this.ordenRepository = ordenRepository;
         this.ordenItemRepository = ordenItemRepository;
         this.recepcionRepository = recepcionRepository;
@@ -170,6 +178,7 @@ public class EntregaDirectaService {
 
         boolean observada = false;
         Set<UUID> requerimientos = new LinkedHashSet<>();
+        Almacen central = almacenCentral.obtener();
         // DEC-L086: lo que el proveedor entrega en un CECO de GOYDEL o METRIN es venta de TDEM a esa empresa.
         var precios = venta.precios(venta.compradora(ceco.getEmpresa()), lineas.stream()
                 .map(l -> l.destino().item().getProducto()).filter(java.util.Objects::nonNull)
@@ -190,6 +199,9 @@ public class EntregaDirectaService {
                     ri.setSaleUnitPrice(precios.get(d.item().getProducto().getProductId()));
                 }
                 recepcionItemRepository.insertar(ri);
+                if (d.item().getProducto() != null) {
+                    kardexDePaso(orden, d.item(), l.qty(), central, usuario, recepcion);
+                }
                 if (d.requerimientoItem() != null) {
                     requerimientos.add(d.requerimientoItem().getRequerimiento().getRequestId());
                 }
@@ -219,6 +231,28 @@ public class EntregaDirectaService {
             recalcularAtencion(r, principal.userId());
         }
         return armar(orden, principal, null);
+    }
+
+    /** DEC-L093: entra al stock y sale al CECO en el mismo momento (saldo neto cero). */
+    private void kardexDePaso(OrdenAbastecimiento orden, OrdenItem oi, BigDecimal qty, Almacen central, Usuario usuario,
+                              Recepcion recepcion) {
+        for (String tipo : List.of("ENTRADA", "SALIDA")) {
+            MovimientoInventario mov = new MovimientoInventario();
+            mov.setInventoryMovementId(UUID.randomUUID());
+            mov.setEmpresa(orden.getEmpresa());
+            mov.setAlmacen(central);
+            mov.setProducto(oi.getProducto());
+            mov.setVariante(oi.getVariante());
+            mov.setMovementType(tipo);
+            mov.setQty("ENTRADA".equals(tipo) ? qty : qty.negate());
+            mov.setUnitCost(oi.getUnitCost());
+            mov.setReferenceType("RECEPCION");
+            mov.setReferenceId(recepcion.getReceiptId());
+            mov.setCreatedBy(usuario);
+            mov.setNotes("ENTRADA".equals(tipo) ? "Entrega directa del proveedor"
+                    : "Entregado en el CECO " + recepcion.getCecoDestino().getCode());
+            movimientoRepository.insertar(mov);
+        }
     }
 
     // ------------------------------------------------------------------ armado

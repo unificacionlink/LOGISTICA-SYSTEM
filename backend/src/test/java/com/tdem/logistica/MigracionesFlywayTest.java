@@ -46,10 +46,10 @@ class MigracionesFlywayTest {
 
     @Test
     void aplicaTodasLasMigracionesEnElEsquemaLogistica() throws SQLException {
-        assertEquals(53, resultado.migrationsExecuted);
+        assertEquals(54, resultado.migrationsExecuted);
         assertEquals(589L, contar("select count(*) from logistica.producto"));
         assertEquals(725L, contar("select count(*) from logistica.producto_variante"));
-        assertEquals(53L, contar("select count(*) from logistica.flyway_schema_history where success"));
+        assertEquals(54L, contar("select count(*) from logistica.flyway_schema_history where success"));
     }
 
     @Test

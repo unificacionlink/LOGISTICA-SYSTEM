@@ -10,6 +10,7 @@ public record EnvioDto(
         String deliveryMode,
         String carrierName,
         String trackingCode,
+        String ticketUrl,
         Integer packageCount,
         BigDecimal declaredWeight,
         String currencyCode,

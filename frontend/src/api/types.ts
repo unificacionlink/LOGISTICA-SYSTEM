@@ -41,7 +41,7 @@ export interface Requerimiento {
   requesterNombre: string | null;
   priority: Prioridad;
   purpose: Proposito;
-  justification: string;
+  justification: string | null;
   status: EstadoRequerimiento;
   requiredDate: string | null;
   /** RF-068: fecha comprometida por Logistica (no reemplaza la requerida). */
@@ -1027,6 +1027,8 @@ export interface Envio {
   deliveryMode: ModalidadEntrega;
   carrierName: string | null;
   trackingCode: string | null;
+  /** Enlace del ticket de envio (DEC-L093). */
+  ticketUrl: string | null;
   packageCount: number | null;
   declaredWeight: number | null;
   currencyCode: string | null;

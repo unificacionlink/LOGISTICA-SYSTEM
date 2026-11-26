@@ -91,7 +91,7 @@ class RecepcionDestinoTest {
 		preparacionService.confirmarPicking(noteId, logistica);
 		preparacionService.embalar(noteId, 1, "https://drive.test/embalaje.jpg", logistica);
 		UUID envio = despachoService.registrarEnvio(noteId, new RegistrarEnvioRequest("PROPIO", null, null, null, null,
-				null, null, null, null, null), logistica).nota().envio().shipmentId();
+				null, null, null, null, null, "https://ticket.test/envio"), logistica).nota().envio().shipmentId();
 		UUID item = ni.items().get(0).issueItemId();
 		assertEquals(1, avisos(requestId, "DESPACHO_ENVIADO"), "DEC-L076: el solicitante sabe que salio su pedido");
 		assertEquals(0, correos(requestId, "DESPACHO_ENVIADO"), "ya no por correo");

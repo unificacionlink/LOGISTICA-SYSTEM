@@ -13,6 +13,17 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.73.0",
+    titulo: "Ajustes de Logística",
+    cambios: [
+      "La justificación del requerimiento ya no es obligatoria.",
+      "«Cotizar» en un requerimiento lleva a pedir la cotización a los proveedores; las cotizaciones se comparan después.",
+      "Se puede pedir cotización de un mismo producto a otros proveedores aunque ya se haya pedido a uno.",
+      "La nota de inventario pasa del picking directo al envío, y el envío se registra solo con el enlace del ticket.",
+      "Lo que el proveedor entrega directo en el proyecto también queda en el kardex: entra al almacén y sale al proyecto.",
+    ],
+  },
+  {
     version: "0.72.0",
     titulo: "Caja chica",
     cambios: [

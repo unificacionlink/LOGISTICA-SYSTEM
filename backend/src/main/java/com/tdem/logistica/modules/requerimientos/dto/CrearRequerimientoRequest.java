@@ -13,8 +13,8 @@ public record CrearRequerimientoRequest(
         @NotNull(message = "Selecciona un centro de costo valido.") UUID cecoId,
         String priority,
         @NotNull(message = "Selecciona un proposito.") String purpose,
-        @NotNull(message = "La justificacion es obligatoria.")
-        @Size(min = 10, max = 2000, message = "La justificacion debe tener al menos 10 caracteres.")
+        /** Opcional (DEC-L093). */
+        @Size(max = 2000, message = "La justificacion admite hasta 2000 caracteres.")
         String justification,
         LocalDate requiredDate,
         @NotEmpty(message = "Agrega al menos un item.")

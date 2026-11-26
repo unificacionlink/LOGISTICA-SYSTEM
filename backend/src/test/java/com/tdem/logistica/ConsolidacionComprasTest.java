@@ -154,7 +154,7 @@ class ConsolidacionComprasTest {
 		assertEquals(2, compras.obtenerRfq(r1.rfqId(), logistica).items().size());
 		assertEquals(1, compras.obtenerRfq(r2.rfqId(), logistica).items().size());
 		assertThrows(ApiException.class, () -> abastecimiento.prepararSolicitudes(List.of(cx.consolidationId()), logistica),
-				"un consolidado se cotiza una sola vez");
+				"a los mismos proveedores no se vuelve a pedir");
 
 		// --- Lo aprobado despues abre otro consolidado ---
 		Req c = requerimiento("ADM", "APROVISIONAMIENTO", null, Map.of("AC01001-00", 1));
@@ -376,6 +376,16 @@ class ConsolidacionComprasTest {
 		List<RfqDto> rfqs = abastecimiento.prepararSolicitudes(ids, List.of(amplio), logistica);
 		assertEquals(1, rfqs.size(), "solo al elegido, aunque el otro tambien cubra AC01008");
 		assertEquals(amplio, rfqs.get(0).supplierId());
+
+		// DEC-L093: ya en cotizacion, se puede pedir a otro proveedor (sin repetir al que ya se le pidio).
+		UUID ac08 = ids.get(0);
+		assertEquals(List.of(angosto), abastecimiento.candidatos(List.of(ac08), logistica).stream()
+				.map(CandidatoRfqDto::supplierId).toList());
+		List<RfqDto> otra = abastecimiento.prepararSolicitudes(List.of(ac08), List.of(angosto), logistica);
+		assertEquals(angosto, otra.get(0).supplierId());
+		assertEquals(1, compras.obtenerRfq(otra.get(0).rfqId(), logistica).items().size());
+		assertThrows(ApiException.class, () -> abastecimiento.prepararSolicitudes(List.of(ac08), List.of(angosto), logistica),
+				"al mismo proveedor no se repite");
 		assertThrows(ApiException.class, () -> abastecimiento.candidatos(ids,
 				new UsuarioPrincipal(usuario("solicitante@logistica.test"), List.of("SOLICITANTE"))));
 	}

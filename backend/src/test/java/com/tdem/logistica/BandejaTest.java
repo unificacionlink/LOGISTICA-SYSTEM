@@ -148,7 +148,7 @@ class BandejaTest {
 		jdbc.update("update nota_inventario set picked_at = now(), packed_at = now() where inventory_note_id = ?",
 				nota.nota().inventoryNoteId());
 		despacho.registrarEnvio(nota.nota().inventoryNoteId(), new RegistrarEnvioRequest("PROPIO", null, null, 1, null,
-				"PEN", BigDecimal.ZERO, BigDecimal.ZERO, LocalDate.now(), LocalDate.now()), log);
+				"PEN", BigDecimal.ZERO, BigDecimal.ZERO, LocalDate.now(), LocalDate.now(), "https://ticket.test/envio"), log);
 		BandejaDto.Fila fa = fila(a, log);
 		assertEquals(List.of("CONFIRMAR_ENTREGA"), codigos(fa));
 		assertEquals(1.0, fa.avance().enCamino(), 0.001);

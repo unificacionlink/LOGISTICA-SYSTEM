@@ -53,6 +53,10 @@ public class Envio {
     @Column(name = "tracking_code")
     private String trackingCode;
 
+    /** Enlace del ticket de envio (DEC-L093): lo unico que pide registrar el envio. */
+    @Column(name = "ticket_url")
+    private String ticketUrl;
+
     @Column(name = "package_count")
     private Integer packageCount;
 

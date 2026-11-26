@@ -230,6 +230,7 @@ final class DocumentosPdf {
                     Campo.de("Costo de envío (sin IGV)", e.shippingCostNet() != null ? texto(e.currencyCode()) + " " + monto(e.shippingCostNet()) : null),
                     Campo.de("Recepcionado", fechaHora(e.receivedAt())),
                     Campo.de("Recepcionado por", e.receivedByName()),
+                    Campo.ancho("Ticket de envío", e.ticketUrl()),
                     Campo.ancho("Observación de entrega", e.deliveryObservation())));
         }
         if (n.comments() != null && !n.comments().isBlank()) {
