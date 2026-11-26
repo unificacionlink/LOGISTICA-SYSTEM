@@ -30,9 +30,16 @@ public final class ComprobanteOcrParser {
     private static final Pattern SUFIJO_EMPRESA = Pattern.compile(
             "\\b(S\\.?\\s?A\\.?\\s?C\\.?|S\\.?\\s?R\\.?\\s?L\\.?|E\\.?\\s?I\\.?\\s?R\\.?\\s?L\\.?|S\\.?\\s?A\\.?\\s?A\\.?|S\\.\\s?A\\.)(?![A-Z])");
     private static final Pattern MONTO = Pattern.compile("(\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2})(?!\\d)");
-    private static final Pattern TOTAL_EXPLICITO = Pattern.compile(
-            "(IMPORTE\\s+TOTAL|TOTAL\\s+A\\s+PAGAR|TOTAL\\s+VENTA|TOTAL\\s+S/)[^0-9\\n]{0,15}(\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2})");
-    private static final Pattern TOTAL = Pattern.compile("(?<!SUB)(?<!SUB )(?<!SUB-)TOTAL[^0-9\\n]{0,20}(\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2})");
+    private static final Pattern TOTAL_EXPLICITO = Pattern.compile("IMPORTE\\s+TOTAL|TOTAL\\s+A\\s+PAGAR|TOTAL\\s+VENTA|PRECIO\\s+TOTAL");
+    private static final Pattern TOTAL = Pattern.compile("(?<!SUB)(?<!SUB )(?<!SUB-)\\bTOTAL\\b");
+    // "CLIENTE"/"SENOR(ES)"/"SR.(ES)" aunque el OCR lo lea "CUENTE" o "CLENTE": de ahi en adelante es el cliente.
+    private static final Pattern ETIQUETA_CLIENTE = Pattern.compile(
+            "\\b(C[LIU1]{1,2}ENTE|SE[NÑ]OR(ES)?|SR\\.?\\s*\\(?ES\\)?|ADQUIRIENTE|RAZON SOCIAL DEL CLIENTE)\\b");
+    // Boletas de persona natural: "De: NOMBRE APELLIDOS".
+    private static final Pattern DE_EMISOR = Pattern.compile("(?:^|\\s)(?:DE|EMISOR|PROVEEDOR|RAZON SOCIAL)\\s*:\\s*([A-Z][A-Z .&'-]{5,}?)\\s*(?:RUC.*)?$");
+    private static final Pattern TITULO_TIPO = Pattern.compile(
+            "FACTURA\\s+(DE\\s+VENTA\\s+)?ELECTR|FACTURA\\s+DE\\s+VENTA|BOLETA\\s+(DE\\s+VENTA|ELECTR)|^\\W*(FACTURA|BOLETA)\\b");
+    private static final Pattern FECHA_COMPACTA = Pattern.compile("FECHA[^0-9\\n]{0,15}(\\d{2})(\\d{2})(\\d{4})(?!\\d)");
     private static final Pattern NO_TOTAL = Pattern.compile("IGV|GRAVAD|EXONERAD|INAFECT|DESCUENTO|GRATUIT|ISC|ANTICIPO");
     private static final String NUM = "(\\d{1,3}(?:[.,]\\d{3})*[.,]\\d{2,4})";
     private static final String CANT = "(\\d{1,5}(?:[.,]0{1,3})?)";
@@ -78,34 +85,87 @@ public final class ComprobanteOcrParser {
                 lineas);
     }
 
+    /**
+     * Solo del titulo del comprobante ("FACTURA DE VENTA ELECTRONICA", "BOLETA DE
+     * VENTA" o una linea que empieza asi), no de una mencion suelta como "adjuntar
+     * la factura". DEC-L096: la caja chica solo registra boletas y facturas.
+     */
     static String tipo(String t) {
-        if (t.contains("FACTURA ELECTR")) return "FACTURA";
-        if (t.contains("BOLETA")) return "BOLETA";
-        if (t.contains("FACTURA")) return "FACTURA";
-        return null;  // DEC-L096: la caja chica solo registra boletas y facturas
-    }
-
-    static String[] serieNumero(String t) {
-        Matcher m = SERIE_NUMERO.matcher(t);
-        return m.find() ? new String[] {m.group(1), m.group(2)} : null;
-    }
-
-    /** El primer RUC que no es de una empresa del grupo: el del emisor va en el membrete. */
-    static String ruc(String t, Collection<String> rucPropios) {
-        Matcher m = RUC.matcher(t);
-        while (m.find()) {
-            if (!rucPropios.contains(m.group())) return m.group();
+        for (String linea : t.split("\\r?\\n")) {
+            Matcher m = TITULO_TIPO.matcher(linea.trim());
+            if (m.find()) return m.group().contains("BOLETA") ? "BOLETA" : "FACTURA";
         }
         return null;
     }
 
-    /** Primera linea con sufijo societario que no es del cliente (el grupo) ni la etiqueta del cliente. */
+    /** "F002-0010911"; el OCR suele leer "FO02": tras la letra, O es 0 e I/L son 1. */
+    static String[] serieNumero(String t) {
+        Matcher m = SERIE_NUMERO.matcher(t);
+        if (!m.find()) return null;
+        String serie = m.group(1);
+        String resto = serie.substring(1).replace('O', '0').replace('I', '1').replace('L', '1');
+        return new String[] {serie.charAt(0) + resto, m.group(2)};
+    }
+
+    /**
+     * El primer RUC valido (digito verificador de SUNAT) que no es de una empresa
+     * del grupo ni se le parece: el del cliente mal leido no debe pasar por emisor.
+     */
+    static String ruc(String t, Collection<String> rucPropios) {
+        Matcher m = RUC.matcher(t);
+        while (m.find()) {
+            String ruc = m.group();
+            if (!rucValido(ruc)) continue;
+            if (rucPropios.stream().anyMatch(propio -> diferencias(propio, ruc) <= 3)) continue;
+            return ruc;
+        }
+        return null;
+    }
+
+    /** Modulo 11 de SUNAT sobre los 10 primeros digitos. */
+    static boolean rucValido(String ruc) {
+        if (ruc == null || !ruc.matches("\\d{11}")) return false;
+        int[] pesos = {5, 4, 3, 2, 7, 6, 5, 4, 3, 2};
+        int suma = 0;
+        for (int i = 0; i < 10; i++) suma += (ruc.charAt(i) - '0') * pesos[i];
+        int digito = 11 - suma % 11;
+        if (digito == 10) digito = 0;
+        if (digito == 11) digito = 1;
+        return digito == ruc.charAt(10) - '0';
+    }
+
+    private static int diferencias(String a, String b) {
+        if (a.length() != b.length()) return Integer.MAX_VALUE;
+        int n = 0;
+        for (int i = 0; i < a.length(); i++) if (a.charAt(i) != b.charAt(i)) n++;
+        return n;
+    }
+
+    /**
+     * El emisor va en el membrete, antes de los datos del cliente: se busca hasta la
+     * etiqueta del cliente (aunque el OCR la lea mal) la linea "De: ..." de las
+     * boletas o la primera con sufijo societario que no sea del grupo.
+     */
     static String proveedor(String texto, Collection<String> rucPropios, Collection<String> nombresPropios) {
         List<String> propios = nombresPropios.stream().map(ComprobanteOcrParser::nucleo).filter(s -> !s.isEmpty()).toList();
-        for (String original : texto.split("\\r?\\n")) {
+        // Cada pagina o pasada del OCR va separada por \f y empieza otra vez por el membrete.
+        for (String bloque : texto.split("\f")) {
+            String hallado = proveedorDelBloque(bloque, rucPropios, propios);
+            if (hallado != null) return hallado;
+        }
+        return null;
+    }
+
+    private static String proveedorDelBloque(String bloque, Collection<String> rucPropios, List<String> propios) {
+        for (String original : bloque.split("\\r?\\n")) {
             String linea = normalizar(original).trim();
+            if (ETIQUETA_CLIENTE.matcher(linea).find()) break;  // de aqui en adelante, el cliente
+            Matcher de = DE_EMISOR.matcher(linea);
+            if (de.find() && de.group(1).split("\\s+").length >= 2 && propios.stream().noneMatch(de.group(1).replaceAll("[^A-Z0-9]", "")::contains)) {
+                return recortar(de.group(1).trim());
+            }
             if (linea.length() < 5 || !SUFIJO_EMPRESA.matcher(linea).find()) continue;
-            if (linea.matches(".*\\b(SENOR|SENORES|CLIENTE|ADQUIRIENTE|USUARIO)\\b.*")) continue;
+            if (linea.matches(".*\\b(USUARIO)\\b.*")) continue;
             if (rucPropios.stream().anyMatch(linea::contains)) continue;
             String compacta = linea.replaceAll("[^A-Z0-9]", "");
             if (propios.stream().anyMatch(compacta::contains)) continue;
@@ -114,9 +174,13 @@ public final class ComprobanteOcrParser {
                     .replaceFirst("(?i)\\s*-?\\s*R\\.?U\\.?C\\.?.*$", "")
                     .replaceAll("\\s+", " ").trim();
             if (limpia.chars().filter(Character::isLetter).count() < 4) continue;
-            return limpia.length() > 200 ? limpia.substring(0, 200) : limpia;
+            return recortar(limpia);
         }
         return null;
+    }
+
+    private static String recortar(String s) {
+        return s.length() > 200 ? s.substring(0, 200) : s;
     }
 
     /** La fecha junto a "emision"; si no la hay, la primera fecha valida. Nunca una futura. */
@@ -126,7 +190,15 @@ public final class ComprobanteOcrParser {
             LocalDate f = primeraFecha(t.substring(emision, Math.min(t.length(), emision + 60)), hoy);
             if (f != null) return f;
         }
-        return primeraFecha(t, hoy);
+        LocalDate f = primeraFecha(t, hoy);
+        if (f != null) return f;
+        // "FECHA 15092025": el OCR se comio las barras.
+        Matcher m = FECHA_COMPACTA.matcher(t);
+        while (m.find()) {
+            LocalDate c = construir(Integer.parseInt(m.group(3)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(1)), hoy);
+            if (c != null) return c;
+        }
+        return null;
     }
 
     private static LocalDate primeraFecha(String t, LocalDate hoy) {
@@ -156,22 +228,29 @@ public final class ComprobanteOcrParser {
     /** "Importe total"/"Total a pagar" si aparece; si no, el ultimo "total" que no sea IGV, gravada, etc. */
     static BigDecimal total(String t) {
         BigDecimal explicito = null;
-        Matcher e = TOTAL_EXPLICITO.matcher(t);
-        while (e.find()) {
-            BigDecimal v = monto(e.group(2));
-            if (v != null && v.signum() > 0) explicito = v;
-        }
-        if (explicito != null) return explicito;
         BigDecimal ultimo = null;
         for (String linea : t.split("\\r?\\n")) {
-            if (NO_TOTAL.matcher(linea).find()) continue;
-            Matcher m = TOTAL.matcher(linea);
-            while (m.find()) {
-                BigDecimal v = monto(m.group(1));
-                if (v != null && v.signum() > 0) ultimo = v;
+            // El importe va al final de la linea de la etiqueta ("TOTAL A PAGAR S/ 100.00",
+            // aunque el OCR lea "5/" en vez de "S/").
+            BigDecimal v = ultimoMonto(linea);
+            if (v == null) continue;
+            if (TOTAL_EXPLICITO.matcher(linea).find()) {
+                if (explicito == null) explicito = v;
+            } else if (TOTAL.matcher(linea).find() && !NO_TOTAL.matcher(linea).find()) {
+                ultimo = v;
             }
         }
-        return ultimo;
+        return explicito != null ? explicito : ultimo;
+    }
+
+    private static BigDecimal ultimoMonto(String linea) {
+        BigDecimal v = null;
+        Matcher m = MONTO.matcher(linea);
+        while (m.find()) {
+            BigDecimal x = monto(m.group(1));
+            if (x != null && x.signum() > 0) v = x;
+        }
+        return v;
     }
 
     /**
@@ -211,7 +290,11 @@ public final class ComprobanteOcrParser {
         BigDecimal calculado = cantidad.multiply(unitario);
         BigDecimal tolerancia = importe.multiply(new BigDecimal("0.01")).max(new BigDecimal("0.02"));
         if (calculado.subtract(importe).abs().compareTo(tolerancia) > 0) return null;
-        String descripcion = m.group(grupoDesc).replaceFirst("^[\\d.)\\s-]+(?=[A-Z])", "").trim();
+        String descripcion = m.group(grupoDesc).replaceFirst("^[\\d.)\\s-]+(?=[A-Z])", "")
+                // Codigo del proveedor al inicio ("DA45B544 BOLSA...") y unidad al final ("... 30KG UND").
+                .replaceFirst("^(?=\\S*\\d)(?=\\S*[A-Z])\\S{4,}\\s+(?=[A-Z])", "")
+                .replaceFirst("\\s+(UND|UNID|NIU|ZZ|BLS|PZA|CJ|PAR|KG|GLN)\\.?$", "")
+                .trim();
         if (descripcion.chars().filter(Character::isLetter).count() < 3) return null;
         if (descripcion.length() > 300) descripcion = descripcion.substring(0, 300);
         return new LecturaComprobanteDto.Linea(descripcion, cantidad.setScale(0, RoundingMode.HALF_UP),

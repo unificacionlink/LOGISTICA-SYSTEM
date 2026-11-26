@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.77.0 — 2026-11-26
+
+OCR de caja chica afinado (DEC-L097).
+
+- `OcrExtractor`: PDF página por página (texto embebido o OCR a 300 DPI), páginas y pasadas separadas por `\f`; `extraerTexto(contenido, tipo, reforzado)` suma una pasada con umbral adaptativo (`thresholding_method=1`). `LecturaComprobanteService` la usa.
+- `ComprobanteOcrParser`: RUC con dígito verificador y lejos de los del grupo; proveedor hasta la etiqueta del cliente y "De:"; tipo solo del título; serie con O→0; total por etiqueta (`PRECIO TOTAL`, "5/"); limpieza de la descripción; fecha sin barras.
+- Tests: `ComprobanteOcrParserTest` con lo que el OCR leyó de los ejemplos reales.
+
 ## 0.76.0 — 2026-11-26
 
 Ajustes a la caja chica (DEC-L096).

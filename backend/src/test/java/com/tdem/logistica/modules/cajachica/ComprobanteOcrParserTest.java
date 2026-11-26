@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,7 +29,7 @@ class ComprobanteOcrParserTest {
         LecturaComprobanteDto l = leer("""
                 FERRETERÍA EL MAESTRO S.A.C.
                 Av. Los Álamos 123 - Lima
-                RUC: 20512345678
+                RUC: 20512345671
                 FACTURA ELECTRÓNICA
                 F001-00012345
                 Fecha de Emisión: 20/11/2026
@@ -44,7 +45,7 @@ class ComprobanteOcrParserTest {
         assertEquals("FACTURA", l.tipo());
         assertEquals("F001", l.serie());
         assertEquals("00012345", l.numero());
-        assertEquals("20512345678", l.ruc(), "el RUC del emisor, no el de TDEM");
+        assertEquals("20512345671", l.ruc(), "el RUC del emisor, no el de TDEM");
         assertEquals("FERRETERÍA EL MAESTRO S.A.C.", l.proveedor());
         assertEquals(LocalDate.of(2026, 11, 20), l.fecha());
         assertEquals(0, l.total().compareTo(new BigDecimal("19.00")));
@@ -57,7 +58,7 @@ class ComprobanteOcrParserTest {
     @Test
     void preciosSinIgvSeDevuelvenConIgvSiAsiCuadraElTotal() {
         LecturaComprobanteDto l = leer("""
-                COMERCIAL SANTA ROSA E.I.R.L. RUC 10456789012
+                COMERCIAL SANTA ROSA E.I.R.L. RUC 10456789019
                 FACTURA ELECTRONICA F002-881
                 FECHA EMISION 2026-11-25
                 Descripcion Cant UM P.Unit Valor
@@ -67,12 +68,60 @@ class ComprobanteOcrParserTest {
                 TOTAL 47.20
                 """);
         assertEquals("COMERCIAL SANTA ROSA E.I.R.L.", l.proveedor());
-        assertEquals("10456789012", l.ruc());
+        assertEquals("10456789019", l.ruc());
         assertEquals(LocalDate.of(2026, 11, 25), l.fecha());
         assertEquals(0, l.total().compareTo(new BigDecimal("47.20")));
         assertEquals(1, l.lineas().size());
         assertEquals("PILAS AA ALCALINAS", l.lineas().get(0).descripcion());
         assertEquals(0, l.lineas().get(0).precioUnitario().compareTo(new BigDecimal("11.80")), "precio con IGV");
+    }
+
+    /** DEC-L097: como sale el OCR de un ticket termico tenue (ejemplo real de Logistica). */
+    @Test
+    void ticketTermicoMalLeidoNoTomaAlClienteComoProveedor() {
+        LecturaComprobanteDto l = leer("""
+                CAL PUALLA?. PA IT HA LaS Fa MAS
+                FACTURA DE VENTA ELECTRONICA
+                N9 : FOO2-0010911
+                FECHA 108202 MORA 005)
+                CLENTE SOMZALES Y DE LA CRue SAS
+                RUS 20001424008
+                TOTAL A PAGAR 5/ 100.00
+                \f
+                CONSIRON TRUVAL SRL
+                CUENTE GONZALES Y DE LA CRUZ SAC
+                RUC 2801624088
+                TOTAL A PAGAR S/ 100.00
+                """);
+        assertEquals("FACTURA", l.tipo());
+        assertEquals("F002", l.serie(), "la O leida en la serie es un cero");
+        assertEquals("0010911", l.numero());
+        assertNull(l.ruc(), "el RUC del cliente mal leido no pasa el digito verificador");
+        assertEquals("CONSIRON TRUVAL SRL", l.proveedor(), "nunca el cliente");
+        assertNull(l.fecha());
+        assertEquals(0, l.total().compareTo(new BigDecimal("100.00")), "el total aunque S/ salga como 5/");
+    }
+
+    @Test
+    void boletaDePersonaNaturalConDeYUnaMencionSueltaDeFacturaNoEsElTipo() {
+        LecturaComprobanteDto l = leer("""
+                S De: CADILLO CHAVEZ EDMUNDA VICENCIA
+                VENTA DE YESO, CAL, CARRIZO.
+                Cel.: 954 084 022 / 937 415 853 RUC: 10316055210
+                adjuntando esta orden, la factura y/o Guia correspondiente.
+                PRECIO TOTAL S/. 360.00
+                """);
+        assertNull(l.tipo(), "'la factura y/o guia' no es el titulo del comprobante");
+        assertEquals("CADILLO CHAVEZ EDMUNDA VICENCIA", l.proveedor());
+        assertEquals("10316055210", l.ruc());
+        assertEquals(0, l.total().compareTo(new BigDecimal("360.00")));
+    }
+
+    @Test
+    void rucConDigitoVerificador() {
+        assertTrue(ComprobanteOcrParser.rucValido("20522095797"));
+        assertTrue(ComprobanteOcrParser.rucValido("10316055210"));
+        assertFalse(ComprobanteOcrParser.rucValido("20001424008"));
     }
 
     @Test

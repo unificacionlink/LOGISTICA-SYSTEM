@@ -5,6 +5,23 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L097 — OCR de caja chica afinado con comprobantes reales (2026-11-26, v0.77.0).**
+  Logística probó un ticket térmico tenue (factura electrónica) y una boleta manual fotografiada
+  junto a su OC. (1) `OcrExtractor` lee el PDF **página por página**: la que tiene texto se lee
+  tal cual y la escaneada pasa por OCR (antes, si alguna página tenía texto, las fotos se
+  ignoraban); renderiza a 300 DPI y separa páginas y pasadas con `\f`. (2) Para caja chica
+  (`extraerTexto(..., reforzado)`) cada imagen se lee **dos veces**, con umbral global y con
+  umbral adaptativo de Leptonica (`thresholding_method=1`): el adaptativo rescata el texto tenue
+  de los tickets pero ensucia las fotos, así que se suman las dos lecturas. Estirar el contraste
+  no cambiaba nada (el umbral de Otsu es invariante) y se descartó. (3) `ComprobanteOcrParser`:
+  el RUC debe pasar el **dígito verificador** de SUNAT y no parecerse (≤ 3 dígitos distintos) a
+  uno del grupo, así el RUC del cliente mal leído no pasa por emisor; el proveedor se busca en el
+  membrete **hasta la etiqueta del cliente** (aunque se lea "CUENTE"/"CLENTE") y acepta el "De:"
+  de las boletas de persona natural; el tipo sale solo del **título** del comprobante, no de una
+  mención suelta; en la serie, O/I/L tras la letra son 0/1 (FO02 → F002); el total es el último
+  importe de la línea de su etiqueta (aunque "S/" se lea "5/"), y "PRECIO TOTAL" cuenta; la línea
+  pierde el código del proveedor y la unidad final; fecha "FECHA ddmmaaaa" sin barras.
+
 - **DEC-L096 — Caja chica: solo boleta o factura, factura fija y sin nota (2026-11-26, v0.76.0).**
   Ajustes de Logística a DEC-L095. (1) El comprobante de una compra nueva es **solo boleta o
   factura** (`CompraCajaChicaService.TIPOS`; el check de la BD sigue aceptando ticket, recibo y

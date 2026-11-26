@@ -54,7 +54,7 @@ public class LecturaComprobanteService {
         }
         String texto;
         try {
-            texto = ocr.extraerTexto(archivo.getBytes(), archivo.getContentType());
+            texto = ocr.extraerTexto(archivo.getBytes(), archivo.getContentType(), true);
         } catch (IOException | RuntimeException e) {
             // Foto borrosa, formato que el OCR no decodifica, PDF danado: se completa a mano.
             log.info("No se pudo leer el comprobante de caja chica: {}", e.getMessage());

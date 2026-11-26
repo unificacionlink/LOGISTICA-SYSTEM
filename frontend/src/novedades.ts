@@ -13,6 +13,14 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.77.0",
+    titulo: "Mejor lectura de facturas en caja chica",
+    cambios: [
+      "«Leer con OCR» lee mejor los tickets tenues y las fotos de boletas, también dentro de un PDF con varias páginas.",
+      "El lector ya no confunde los datos del cliente (tu empresa) con los del proveedor.",
+    ],
+  },
+  {
     version: "0.76.0",
     titulo: "Ajustes a la caja chica",
     cambios: [
