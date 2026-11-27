@@ -46,7 +46,7 @@ Se calculan con datos reales:
 - Incidencias por tipo, días de cierre y tasa de adjudicación.
 
 Son referenciales o están pendientes:
-- **Entrega en el plazo ofrecido**: es referencial. Compara la liberación más el plazo de la cotización contra la primera recepción, y solo cuenta las OC que tienen plazo. Queda así hasta que la OC registre una fecha comprometida (PD-14).
+- **Entregas a tiempo** (DEC-L103): compara la primera recepción con la fecha comprometida de la OC (aprobación + días hábiles o calendario). Las OC anteriores, sin ese plazo, se comparan con el plazo de la cotización y el indicador se marca como referencial mientras haya alguna.
 - **Montos en una sola moneda**: no hay tipo de cambio registrado, así que cada monto se muestra en su moneda.
 - **Diferencias en destino**: no se atribuyen al proveedor.
 

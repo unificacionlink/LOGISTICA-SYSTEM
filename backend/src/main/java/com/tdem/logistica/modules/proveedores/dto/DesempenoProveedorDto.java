@@ -29,8 +29,12 @@ public record DesempenoProveedorDto(
     public record PorTipo(String tipo, int cantidad) {
     }
 
-    /** Referencial: liberacion (o aprobacion) + plazo ofrecido en la cotizacion contra la primera recepcion. */
-    public record Plazo(int ordenesConPlazo, int dentroDelPlazo) {
+    /**
+     * Puntualidad con la primera recepcion (DEC-L103): contra la fecha comprometida de la OC
+     * ({@code conFechaComprometida} de ellas) o, en las OC sin plazo estructurado, contra el
+     * plazo de la cotizacion (referencial).
+     */
+    public record Plazo(int ordenesConPlazo, int dentroDelPlazo, int conFechaComprometida) {
     }
 
     public record Pendiente(String indicador, String motivo) {

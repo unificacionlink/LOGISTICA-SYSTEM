@@ -339,10 +339,25 @@ class ProveedoresTest {
 		assertEquals(0, new BigDecimal("66.7").compareTo(d.atencionPct()));
 		assertEquals(1, d.recepciones());
 		assertEquals(1, d.cotizacionesAdjudicadas());
-		// Plazo ofrecido de 3 dias en la cotizacion: recibido el mismo dia, dentro del plazo (referencial).
+		// DEC-L103: la OC toma los 3 dias cotizados como habiles; recibida el mismo dia, en la fecha comprometida.
 		assertEquals(1, d.plazoOfrecido().ordenesConPlazo());
 		assertEquals(1, d.plazoOfrecido().dentroDelPlazo());
-		assertTrue(d.pendientes().stream().anyMatch(x -> x.indicador().contains("fecha comprometida")));
+		assertEquals(1, d.plazoOfrecido().conFechaComprometida());
+		assertTrue(d.pendientes().stream().noneMatch(x -> x.indicador().contains("fecha comprometida")));
+
+		// Aprobada hace 30 dias: la fecha comprometida ya paso y la recepcion de hoy llega tarde.
+		jdbc.update("update orden_abastecimiento set approved_at = now() - interval '30 days' where order_id = ?",
+				oc.orderId());
+		DesempenoProveedorDto tarde = historial.desempeno(prov, log);
+		assertEquals(1, tarde.plazoOfrecido().ordenesConPlazo());
+		assertEquals(0, tarde.plazoOfrecido().dentroDelPlazo());
+
+		// Sin plazo estructurado (OC anterior a DEC-L089) se compara con el de la cotizacion (referencial).
+		jdbc.update("update orden_abastecimiento set delivery_days = null, delivery_day_type = null where order_id = ?",
+				oc.orderId());
+		DesempenoProveedorDto referencial = historial.desempeno(prov, log);
+		assertEquals(1, referencial.plazoOfrecido().ordenesConPlazo());
+		assertEquals(0, referencial.plazoOfrecido().conFechaComprometida());
 
 		// La ficha muestra sus productos (habilitado al emitir la OC) y el panel los busca.
 		assertTrue(fichas.ficha(prov, log).productos().stream().anyMatch(x -> "AC01003".equals(x.skuBase())));

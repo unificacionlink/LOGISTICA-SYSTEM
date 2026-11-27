@@ -13,6 +13,13 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.81.0",
+    titulo: "Entregas a tiempo del proveedor",
+    cambios: [
+      "En el desempeño del proveedor, «Entregas a tiempo» compara cada entrega con la fecha comprometida en la orden de compra (días hábiles o calendario).",
+    ],
+  },
+  {
     version: "0.80.0",
     titulo: "Verificación de la orden de compra (F-LOG-08)",
     cambios: [

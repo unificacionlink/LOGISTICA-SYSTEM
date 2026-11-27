@@ -5,6 +5,16 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L103 — Puntualidad del proveedor contra la fecha comprometida de la OC (2026-11-27, v0.81.0).**
+  Cierra PD-14. En el desempeño del proveedor (DEC-L069), «Entregas a tiempo» compara la primera
+  recepción de cada OC con su **fecha comprometida** (`PlazoEntrega.fechaComprometida`: aprobación +
+  días hábiles sin feriados de Perú o calendario, DEC-L089), por día en Lima: a tiempo si llegó ese
+  día o antes. Las OC anteriores a DEC-L089 (sin plazo estructurado) siguen comparándose con el plazo
+  de la cotización y el indicador se marca «Referencial» solo mientras haya alguna así
+  (`Plazo.conFechaComprometida`). `HistorialComercialService.desempeno` lee una fila por OC y calcula
+  en Java (los días hábiles no se pueden contar en SQL); se quitó el pendiente «Cumplimiento de fecha
+  comprometida».
+
 - **DEC-L102 — F-LOG-08: verificación de adquisiciones por orden de compra (2026-11-26, v0.80.0).**
   Logística entregó el formato F-LOG-08 v1 (aprobado el 29/01/2025). Es **uno por OC** y se habilita
   cuando la OC está aprobada, no anulada y se recibió todo lo que pasa por el almacén (los servicios y
@@ -179,7 +189,7 @@ actualizar esta lista y el CHANGELOG.
     sigue guardando el texto ("5 días hábiles") para el F-LOG-09 y las OC anteriores.
     La OC por cotización toma los días cotizados como hábiles (se ajusta antes de
     aprobar). **Fecha comprometida** (`PlazoEntrega.fechaComprometida`) = aprobación de
-    la OC + plazo; resuelve PD-14 para las OC nuevas (falta usarla en el desempeño del proveedor).
+    la OC + plazo; resuelve PD-14 para las OC nuevas (el desempeño del proveedor la usa, DEC-L103).
   - **Lugar**: lista `punto_entrega` (tabla del diseño original, sin uso hasta ahora):
     arranca con el almacén central de TDEM y Logística agrega direcciones desde la misma
     OC ("Agregar dirección"); la OC guarda el punto y su texto en `delivery_location`.
@@ -686,9 +696,9 @@ actualizar esta lista y el CHANGELOG.
     productos con su precio histórico (por moneda: no hay tipo de cambio),
     cantidades atendidas (aceptado / ordenado), plazo real (liberación →
     primera recepción), recepciones observadas, incidencias y tasa de
-    adjudicación. La "entrega en el plazo ofrecido" es **referencial**
+    adjudicación. La "entrega en el plazo ofrecido" era **referencial**
     (liberación + plazo de la cotización contra la primera recepción, solo en
-    las OC que tienen plazo): la OC no guarda una fecha comprometida (PD-14).
+    las OC que tienen plazo); desde DEC-L103 se mide contra la fecha comprometida.
     Lo que no se puede medir se muestra como pendiente, nunca inventado.
 
 - **DEC-L068 — Prioridad con tiempo de atención (SLA) y fecha que no se escribe (2026-11-18, v0.54.0).**
@@ -2379,8 +2389,8 @@ hardcodeadas), a validar antes de marchar en produccion:
 - PD-12 — Frecuencia de reevaluación según criticidad (hoy 12 meses para todos).
 - PD-13 — Separar quién registra de quién habilita un proveedor (hoy LOGISTICA
   y ADMIN pueden hacer ambos).
-- PD-14 — Fecha de entrega comprometida en la OC; sin ella el cumplimiento de
-  plazo del proveedor es referencial.
+- ~~PD-14 — Fecha de entrega comprometida en la OC~~ — resuelto por DEC-L089
+  (fecha comprometida) y DEC-L103 (puntualidad del proveedor).
 - PD-15 — Datos bancarios, cuenta de detracciones y consulta SUNAT automática
   en la ficha del proveedor (fuera del Lote 19a).
 - PD-16 — Si el solicitante puede proponer proveedores nuevos (hoy solo

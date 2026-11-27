@@ -493,7 +493,8 @@ export interface DesempenoProveedor {
     porTipo: { tipo: string; cantidad: number }[];
   };
   plazoRealPromedioDias: number | null;
-  plazoOfrecido: { ordenesConPlazo: number; dentroDelPlazo: number };
+  /** DEC-L103: a tiempo contra la fecha comprometida de la OC (o el plazo cotizado, referencial). */
+  plazoOfrecido: { ordenesConPlazo: number; dentroDelPlazo: number; conFechaComprometida: number };
   cotizaciones: number;
   cotizacionesAdjudicadas: number;
   pendientes: { indicador: string; motivo: string }[];

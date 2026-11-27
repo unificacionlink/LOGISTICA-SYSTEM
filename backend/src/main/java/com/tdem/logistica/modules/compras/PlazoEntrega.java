@@ -4,6 +4,7 @@ import com.tdem.logistica.common.ApiException;
 import com.tdem.logistica.entity.OrdenAbastecimiento;
 import com.tdem.logistica.modules.requerimientos.SlaAtencion;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Set;
@@ -48,12 +49,20 @@ public final class PlazoEntrega {
 
     /** Fecha en que el proveedor debe entregar; null si la OC no tiene plazo estructurado. */
     public static LocalDate fechaComprometida(OrdenAbastecimiento o) {
-        if (o.getDeliveryDays() == null || o.getDeliveryDayType() == null) {
+        return fechaComprometida(o.getApprovedAt(), o.getDeliveryDays(), o.getDeliveryDayType());
+    }
+
+    /** Igual que la de la OC, desde sus columnas (aprobacion, dias y tipo); lo usa el desempeno del proveedor. */
+    public static LocalDate fechaComprometida(Instant aprobadaEn, Integer dias, String tipo) {
+        if (dias == null || tipo == null) {
             return null;
         }
-        LocalDate desde = o.getApprovedAt() != null ? o.getApprovedAt().atZone(LIMA).toLocalDate() : LocalDate.now(LIMA);
-        return HABILES.equals(o.getDeliveryDayType())
-                ? SlaAtencion.sumarHabiles(desde, o.getDeliveryDays())
-                : desde.plusDays(o.getDeliveryDays());
+        LocalDate desde = aprobadaEn != null ? aprobadaEn.atZone(LIMA).toLocalDate() : LocalDate.now(LIMA);
+        return HABILES.equals(tipo) ? SlaAtencion.sumarHabiles(desde, dias) : desde.plusDays(dias);
+    }
+
+    /** Dia (en Lima) de un instante, para compararlo con la fecha comprometida. */
+    public static LocalDate dia(Instant instante) {
+        return instante.atZone(LIMA).toLocalDate();
     }
 }

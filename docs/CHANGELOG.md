@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.81.0 — 2026-11-27
+
+Puntualidad del proveedor contra la fecha comprometida (DEC-L103, cierra PD-14).
+
+- `PlazoEntrega.fechaComprometida(Instant, Integer, String)` y `PlazoEntrega.dia`.
+- `HistorialComercialService.desempeno`: una fila por OC; a tiempo = primera recepción en o antes de la fecha comprometida; sin plazo estructurado, contra el plazo de la cotización (referencial).
+- `DesempenoProveedorDto.Plazo` suma `conFechaComprometida`; se quita el pendiente «Cumplimiento de fecha comprometida».
+- Frontend: «Entregas a tiempo» en Desempeño del proveedor, «Referencial» solo si queda alguna OC sin fecha comprometida.
+- Tests: `ProveedoresTest.historialComercialLeidoDeCompras` (a tiempo, tarde y referencial).
+
 ## 0.80.0 — 2026-11-26
 
 F-LOG-08 por OC (DEC-L102) y correos a Logística (DEC-L101).

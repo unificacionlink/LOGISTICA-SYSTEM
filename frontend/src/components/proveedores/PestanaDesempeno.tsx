@@ -46,6 +46,15 @@ export default function PestanaDesempeno({ supplierId }: { supplierId: string })
   }
 
   const sinDatos = d.ordenes === 0 && d.cotizaciones === 0;
+  // DEC-L103: contra la fecha comprometida de la OC; las OC anteriores, contra el plazo cotizado.
+  const plazo = d.plazoOfrecido;
+  const conReferencial = plazo.conFechaComprometida < plazo.ordenesConPlazo;
+  const detallePlazo =
+    plazo.ordenesConPlazo === 0
+      ? "Sin OC recibidas con plazo"
+      : conReferencial
+        ? `${plazo.dentroDelPlazo} de ${plazo.ordenesConPlazo} OC · ${plazo.conFechaComprometida} con fecha comprometida`
+        : `${plazo.dentroDelPlazo} de ${plazo.ordenesConPlazo} OC en la fecha comprometida`;
 
   return (
     <div className="space-y-4">
@@ -57,10 +66,10 @@ export default function PestanaDesempeno({ supplierId }: { supplierId: string })
           detalle={`${cantidad(d.cantidadRecibida)} de ${cantidad(d.cantidadOrdenada)} unidades en ${d.ordenes} OC`}
         />
         <Indicador
-          titulo="Entregas en el plazo ofrecido"
-          nota="Referencial"
-          valor={pct(d.plazoOfrecido.dentroDelPlazo, d.plazoOfrecido.ordenesConPlazo)}
-          detalle={`${d.plazoOfrecido.dentroDelPlazo} de ${d.plazoOfrecido.ordenesConPlazo} OC con plazo en la cotización`}
+          titulo="Entregas a tiempo"
+          nota={conReferencial ? "Referencial" : undefined}
+          valor={pct(plazo.dentroDelPlazo, plazo.ordenesConPlazo)}
+          detalle={detallePlazo}
         />
         <Indicador
           titulo="Plazo real promedio"
