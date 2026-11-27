@@ -16,7 +16,10 @@ COPY backend/src ./src
 COPY --from=frontend-build /frontend/dist ./src/main/resources/static
 RUN mvn -q -B package -DskipTests
 
-FROM eclipse-temurin:21-jre-alpine
+# Ubuntu (glibc) y no Alpine: el OCR (Tess4j/JNA) necesita la libreria nativa de
+# Tesseract. El idioma (spa.traineddata) viaja dentro del jar.
+FROM eclipse-temurin:21-jre
+RUN apt-get update  && apt-get install -y --no-install-recommends libtesseract5  && rm -rf /var/lib/apt/lists/*  && cd "/usr/lib/$(uname -m)-linux-gnu"  && for f in libtesseract.so.* liblept.so.* libleptonica.so.*; do       [ -e "$f" ] || continue; ln -sf "$f" "${f%%.so.*}.so";     done  && ls -l libtesseract.so
 WORKDIR /app
 COPY --from=backend-build /backend/target/*.jar app.jar
 EXPOSE 8080

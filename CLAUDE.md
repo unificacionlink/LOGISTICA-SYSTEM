@@ -17,7 +17,7 @@ Roles: `SOLICITANTE`, `LOGISTICA`, `APROBADOR`, `GERENCIA`, `PYC`, `ADMIN` (DEC-
 - `docs/01_GUIA_GENERAL.md` — qué es, roles.
 - `docs/02_GUIA_TECNICA.md` — stack, estructura, capas, migraciones, variables de entorno.
 - `docs/03_GUIA_OPERATIVA.md` — arranque local, usuarios de prueba, despliegue, BD propia en Supabase.
-- `docs/04_DECISIONES.md` — decisiones DEC-L001..L103 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
+- `docs/04_DECISIONES.md` — decisiones DEC-L001..L104 y pendientes de negocio PD-01..PD-16. **Toda decisión de arquitectura/negocio nueva se registra aquí (DEC-L0xx) y en `docs/CHANGELOG.md`** (versión semver, la más reciente arriba). **Cada versión nueva también se agrega arriba en `frontend/src/novedades.ts`** (mismo número, en lenguaje de usuario, sin términos técnicos): es lo que muestra el pie "vX · Novedades" al final de cada pantalla (sin fecha, fuera del menú) y la versión visible de la app (DEC-L040).
 - `docs/05_PLAN_PROVEEDORES.md` — plan y diagnóstico del Lote 19a (proveedores), con los indicadores pendientes de datos.
 - `docs/06_PLAN_MUDANZA_SUPABASE.md` — mudanza de RR-HH al proyecto propio (DEC-L072): bitácora del corte y retiro pendiente en RR-HH.
 - `db_design_reference/migrations/` — las 33 migraciones originales (diseño de referencia, con RLS). **No se aplican**: al construir un lote nuevo se traducen a un `V#__*.sql` de Flyway sin RLS.
@@ -70,6 +70,7 @@ Scripts Python en `scripts/`: `seed_catalogo_sku.py` (regenera seed de 725 SKU d
 - `modules/<modulo>/` — `requerimientos`, `aprobaciones`, `presupuestos`, `stock`, `proveedores`, `compras`, `almacen`, `tracking`, `dashboard`, `auth`.
 - **Dashboard** (`modules/dashboard/`, DEC-L020/L083): pestañas de Inicio Proceso (`DashboardService`), Demanda (`DemandaService`, V38.7 + matriz ABC + Excel) y Gasto (`GastoService`); cada una es UNA consulta SQL que devuelve JSON y valida con `FiltrosDashboard`. Montos de OC siempre sin IGV y por moneda (nunca sumar PEN y USD). Cada uno: `*Controller` (`@RestController`) → `*Service` (lógica + autorización, devuelve `ApiResponse<T>`) → repositorios; `*Mapper` con métodos estáticos a mano (sin MapStruct); `dto/` con Bean Validation + `@Valid`.
 - `modules/registro/` — registro de la plataforma para ADMIN (DEC-L060): `RegistroActividadFilter` anota cada POST/PUT/PATCH/DELETE bajo `/api` (nunca el cuerpo), `RegistroPlataforma` escribe por lotes en segundo plano y `GlobalExceptionHandler` le pasa los errores del servidor; la pantalla reporta los suyos (`registro/reporteErrores`, `components/PantallaError`). Una ruta nueva no necesita nada para quedar registrada.
+- `modules/reportes/` — observaciones de los usuarios (DEC-L104): el botón «Reportar» (`components/reportes/`) vuelve la pantalla un esqueleto (`esqueleto.ts`, canvas) para señalar la zona; ADMIN las revisa y exporta en Administración › Observaciones. Lo que no deba salir en el esqueleto lleva `data-esqueleto-ignorar`.
 - `TestDataSeeder` — profile `seed-test-data`.
 
 Reglas clave:
@@ -94,7 +95,7 @@ Reglas clave:
 
 ## Migraciones (Flyway, `backend/src/main/resources/db/migration/`)
 
-- Siguiente migración: `V57__descripcion.sql` (existen V1..V56).
+- Siguiente migración: `V58__descripcion.sql` (existen V1..V57).
 - Siempre usar el placeholder `${schema}.` — **nunca `public.`**. `beforeMigrate.sql` aborta si el esquema fuera `public`. Sin RLS.
 - Nada de FKs, vistas ni queries hacia otros esquemas: la integración con RRHH es solo por su API HTTP (DEC-L002/DEC-L016).
 - Hibernate está en `ddl-auto: validate`: toda columna nueva en una entidad requiere su migración.

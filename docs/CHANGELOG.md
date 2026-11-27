@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.82.0 — 2026-11-27
+
+Reporte de observaciones sobre el esqueleto de la pantalla (DEC-L104).
+
+- V57: `reporte_observacion` (número correlativo, módulo, pantalla, ruta, zona, descripción, captura privada, estado, respuesta y revisión).
+- `modules/reportes`: `POST /api/reportes` (multipart, cualquier usuario, 30 por hora), `GET /api/reportes/mios`; ADMIN: `GET /api/admin/reportes`, `PUT /api/admin/reportes/{id}` (auditado), `GET /api/admin/reportes/{id}/captura`, `GET /api/admin/reportes/excel`.
+- Frontend: `components/reportes/` (`BotonReporte` fijo en `ProtectedLayout`, `ModoReporte` con el esqueleto en canvas, `FormReporte`), pestaña Administración › Observaciones; `Card` lleva `data-esqueleto`.
+- Tests: `ReporteObservacionTest`; `MigracionesFlywayTest` (57).
+- Despliegue: imagen Ubuntu con `libtesseract5` para el OCR y 404 sin registrar error para archivos de versiones anteriores (recarga una vez la pantalla diferida).
+
 ## 0.81.0 — 2026-11-27
 
 Puntualidad del proveedor contra la fecha comprometida (DEC-L103, cierra PD-14).

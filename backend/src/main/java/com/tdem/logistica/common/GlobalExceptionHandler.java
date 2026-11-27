@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.UUID;
 
@@ -66,6 +67,16 @@ public class GlobalExceptionHandler {
                 .orElse("Datos invalidos.");
         request.setAttribute(RegistroPlataforma.ATR_DETALLE, mensaje);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail(mensaje, "VALIDACION"));
+    }
+
+    /**
+     * Archivo inexistente: pestañas abiertas con la version anterior tras un deploy
+     * (el frontend recarga solo) o robots que prueban rutas. Es un 404, no un error
+     * del servidor: no se anota en el registro (DEC-L060).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNoEncontrado(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.fail("No encontrado.", "NO_ENCONTRADO"));
     }
 
     @ExceptionHandler(Exception.class)

@@ -5,6 +5,24 @@ actualizar esta lista y el CHANGELOG.
 
 ## Arquitectura
 
+- **DEC-L104 — Reporte de observaciones sobre el esqueleto de la pantalla (2026-11-27, v0.82.0).**
+  Tras la reunión de validación, los usuarios reportan desde la misma app. Un botón fijo «Reportar»
+  (abajo a la derecha, en todas las pantallas con sesión, diferido como DEC-L051) activa el **modo
+  reporte**: el contenido se dibuja como esqueleto en un canvas (`components/reportes/esqueleto.ts`
+  arma los bloques: tarjetas `Card`/`data-esqueleto`, tablas, filas, pestañas, títulos, textos,
+  botones, campos, imágenes y gráficos) y una capa recibe el puntero, así la app real no se opera.
+  El bloque más chico bajo el puntero se resalta con su nombre y se ve real a través del esqueleto;
+  al tocarlo se abre el formulario con módulo (menú), pantalla (`h1`) y la **zona** como ruta de
+  nombres («Tarjeta «Pagos» › Botón «Registrar pago»»), o «Toda la pantalla». El usuario solo escribe
+  la observación; la captura es opcional (archivo o Ctrl+V, PNG/JPG ≤ 5 MB, bucket privado). Solo se
+  guardan textos visibles, nunca el HTML ni valores de campos. V57 `reporte_observacion` (número
+  `OBS-0001`, estado PENDIENTE → EN_REVISION → RESUELTO / DESCARTADO, respuesta). Tope de 30 por
+  usuario y hora. Cada usuario ve sus reportes con estado y respuesta; ADMIN los revisa en
+  Administración › Observaciones (cambio auditado en `log_cambios`) y los exporta a Excel con las
+  columnas de la hoja de consolidación (N°, fecha, usuario, rol, módulo/pantalla, zona, descripción,
+  estado, respuesta, ruta). Un elemento que no deba aparecer en el esqueleto lleva
+  `data-esqueleto-ignorar`.
+
 - **DEC-L103 — Puntualidad del proveedor contra la fecha comprometida de la OC (2026-11-27, v0.81.0).**
   Cierra PD-14. En el desempeño del proveedor (DEC-L069), «Entregas a tiempo» compara la primera
   recepción de cada OC con su **fecha comprometida** (`PlazoEntrega.fechaComprometida`: aprobación +

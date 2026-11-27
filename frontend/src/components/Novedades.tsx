@@ -1,8 +1,9 @@
 import { lazy, Suspense, useState } from "react";
+import { conRecarga } from "../paginas";
 import { VERSION_ACTUAL } from "../version";
 
 // El historial completo (novedades.ts) se descarga recien al abrir la ventana.
-const cargarVentana = () => import("./VentanaNovedades");
+const cargarVentana = conRecarga(() => import("./VentanaNovedades"));
 const VentanaNovedades = lazy(cargarVentana);
 
 // Ultima version que este usuario abrio en este navegador (solo para el aviso).

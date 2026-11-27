@@ -3,10 +3,11 @@ import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { GraduationCap, KeyRound, LogOut, Menu, Search, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import CambiarPassword from "../pages/CambiarPassword";
-import { precargarPagina } from "../paginas";
+import { conRecarga, precargarPagina } from "../paginas";
 import CargaPagina from "./CargaPagina";
 import Notificaciones from "./Notificaciones";
 import BusquedaRapida from "./BusquedaRapida";
+import BotonReporte from "./reportes/BotonReporte";
 import { abrirBusquedaRapida, NAV_GRUPOS } from "./navegacion";
 import PieVersion from "./Novedades";
 import PantallaCarga from "./PantallaCarga";
@@ -24,7 +25,7 @@ function precargarEnlace(e: { target: EventTarget }) {
 const ETIQUETA = "sidebar-texto whitespace-nowrap";
 
 // Diferido: no entra en la carga inicial (DEC-L051); escucha al recorrido apenas baja.
-const RecorridoGuiado = lazy(() => import("./tutorial/RecorridoGuiado"));
+const RecorridoGuiado = lazy(conRecarga(() => import("./tutorial/RecorridoGuiado")));
 
 function iniciales(nombre: string): string {
   const partes = nombre.trim().split(/\s+/);
@@ -256,6 +257,7 @@ export default function ProtectedLayout() {
       </div>
 
       <BusquedaRapida />
+      <BotonReporte />
       <Suspense fallback={null}>
         <RecorridoGuiado />
       </Suspense>

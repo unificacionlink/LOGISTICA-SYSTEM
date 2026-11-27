@@ -305,7 +305,7 @@ function Bienvenida({ onEmpezar, onAhoraNo }: { onEmpezar: () => void; onAhoraNo
     <div
       role="dialog"
       aria-labelledby="bienvenida-titulo"
-      className="animate-capa-in fixed inset-x-4 bottom-4 z-[60] sm:left-auto sm:right-6 sm:bottom-6 sm:w-[22rem]"
+      className="animate-capa-in fixed inset-x-4 bottom-16 z-[60] sm:left-auto sm:right-4 sm:bottom-16 sm:w-[22rem]"
     >
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-flotante">
         <div className="flex gap-3">

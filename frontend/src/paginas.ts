@@ -14,7 +14,7 @@ type Carga = () => Promise<{ default: ComponentType }>;
  * Tras un deploy los archivos de la version anterior ya no existen: si una
  * pantalla no se puede descargar, se recarga una vez para traer el index nuevo.
  */
-function conRecarga(cargar: Carga): Carga {
+export function conRecarga<T>(cargar: () => Promise<T>): () => Promise<T> {
   return () =>
     cargar().then(
       (m) => {

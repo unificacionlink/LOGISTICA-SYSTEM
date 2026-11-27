@@ -13,6 +13,16 @@ export interface VersionApp {
 
 export const NOVEDADES: VersionApp[] = [
   {
+    version: "0.82.0",
+    titulo: "Reporta observaciones desde la pantalla",
+    cambios: [
+      "Con el botón «Reportar» (abajo a la derecha) la pantalla se vuelve un esqueleto: toca la parte donde está el problema, o elige «Toda la pantalla», y escribe tu observación.",
+      "Puedes adjuntar una captura o pegarla con Ctrl+V.",
+      "En «Mis reportes» ves si tu observación está en revisión o resuelta, con la respuesta.",
+      "El administrador revisa las observaciones en Administración › Observaciones y las descarga en Excel.",
+    ],
+  },
+  {
     version: "0.81.0",
     titulo: "Entregas a tiempo del proveedor",
     cambios: [

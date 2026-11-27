@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useDatos } from "../api/useDatos";
 import { useSearchParams } from "react-router-dom";
-import { Building2, Contact, Landmark, RefreshCw, ScrollText, Users } from "lucide-react";
+import { Bug, Building2, Contact, Landmark, RefreshCw, ScrollText, Users } from "lucide-react";
 import { crearCeco, obtenerAdmin, sincronizarRrhh } from "../api/admin";
 import type { AdminDatos } from "../api/types";
 import Alert from "../components/ui/Alert";
@@ -13,11 +13,12 @@ import PageHeader from "../components/ui/PageHeader";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
 import PestanaEmpresas from "../components/admin/PestanaEmpresas";
 import PestanaPadron from "../components/admin/PestanaPadron";
+import PestanaObservaciones from "../components/admin/PestanaObservaciones";
 import PestanaRegistro from "../components/admin/PestanaRegistro";
 import PestanaUsuarios from "../components/admin/PestanaUsuarios";
 import { EMPRESAS } from "../components/empresas";
 
-type Pestana = "usuarios" | "personal" | "cecos" | "empresas" | "rrhh" | "registro";
+type Pestana = "usuarios" | "personal" | "cecos" | "empresas" | "rrhh" | "registro" | "observaciones";
 
 const PESTANAS: { id: Pestana; label: string; icon: typeof Users }[] = [
   { id: "usuarios", label: "Usuarios", icon: Users },
@@ -26,6 +27,7 @@ const PESTANAS: { id: Pestana; label: string; icon: typeof Users }[] = [
   { id: "empresas", label: "Empresas", icon: Landmark },
   { id: "rrhh", label: "RR.HH.", icon: RefreshCw },
   { id: "registro", label: "Registro", icon: ScrollText },
+  { id: "observaciones", label: "Observaciones", icon: Bug },
 ];
 
 const thClass = "px-5 py-3";
@@ -93,7 +95,10 @@ export default function Administracion() {
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
       {exito && <Alert tone="good" className="mb-4">{exito}</Alert>}
 
-      {tab === "registro" ? (
+      {tab === "observaciones" ? (
+        // DEC-L104: reportes hechos desde el boton "Reportar"; carga lo suyo.
+        <PestanaObservaciones />
+      ) : tab === "registro" ? (
         // DEC-L060: no depende de los datos de usuarios; carga lo suyo.
         <PestanaRegistro />
       ) : tab === "empresas" ? (

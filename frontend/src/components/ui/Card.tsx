@@ -3,6 +3,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 export function Card({ children, className = "", ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      data-esqueleto
       className={`rounded-xl border border-slate-200 bg-white shadow-superficie ${className}`}
       {...rest}
     >
